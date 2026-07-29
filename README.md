@@ -16,6 +16,11 @@ mailgrapher-venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+가상환경 실행
+```bash
+source mailgrapher-venv/Scripts/activate
+```
+
 ## 3. 환경변수 설정
 `src/parquet/.env` : GmailWeaver에서 복붙하세요;;;;;;;;
 
