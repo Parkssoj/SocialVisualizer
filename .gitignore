@@ -5,6 +5,7 @@ node_modules/
 src/parquet/.env
 .vscode/
 gmailweaver-venv/
+mailgrapher-venv/
 
 # GraphRAG generated artifacts
 src/parquet/output/
