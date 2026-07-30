@@ -14,7 +14,7 @@ import requests
 import shutil
 import zlib
 import traceback
-import urllib.parse     # import missing 해결
+import urllib.parse     
 from concurrent.futures import ( 
     ThreadPoolExecutor,
     as_completed 
@@ -63,7 +63,7 @@ from util.file_manager import (
     _sanitize_filename,
     _delete_old_update_files
 )
-from util.attachment_processor import _run_attachment_pipeline
+from util.attachment_manager import _run_attachment_pipeline
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
