@@ -60,7 +60,7 @@ from util.sse_broadcaster import subscribe, unsubscribe
 from config.db import get_db_connection
 from util.graphrag import _run_graphrag, _is_index_ready
 from util.graphrag_query import _classify_query_method
-from util.mail_data_manager import _read_latest_text, _extract_message_ids, _split_mail_blocks, _extract_mail_id_from_block, _renumber_mail_blocks, _extract_block_for_sort, _build_mail_csv, _extract_source_mail_ids
+from util.mail_data_manager import _read_latest_text, _extract_message_ids, _split_mail_blocks, _extract_mail_id_from_block, _renumber_mail_blocks, _extract_block_for_sort, _build_mail_csv
 
 from util.file_manager import _delete_incremental_files
 
@@ -180,7 +180,7 @@ def run_query_async():
                     # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
                     print(f"[ENGINE] API 실패, CLI fallback: {e}")
                     answer = _run_graphrag(full_message,message, resMethod, paths, resType)
-                    source_ids = _extract_source_mail_ids(answer)
+                    # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
             update_job(job_id, status="done", result=result, source_ids=source_ids)
