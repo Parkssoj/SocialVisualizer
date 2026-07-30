@@ -59,7 +59,8 @@ from util.sse_broadcaster import subscribe, unsubscribe
 
 from config.db import get_db_connection
 from util.graphrag import _run_graphrag, _is_index_ready
-from util.mail_data_manager import _read_latest_text, _extract_message_ids, _split_mail_blocks, _extract_mail_id_from_block, _renumber_mail_blocks, _extract_block_for_sort, _build_mail_csv
+from util.graphrag_query import _classify_query_method
+from util.mail_data_manager import _read_latest_text, _extract_message_ids, _split_mail_blocks, _extract_mail_id_from_block, _renumber_mail_blocks, _extract_block_for_sort, _build_mail_csv, _extract_source_mail_ids
 
 from util.file_manager import _delete_incremental_files
 
@@ -83,70 +84,50 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # 텍스트 → 캘린더 JSON 변환
-def _convert_to_calendar_json(text):
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "너는 이메일 내용을 분석해서 캘린더 일정을 추출하는 도우미야."
-                        "날짜/시간/일정 정보를 추출해서 반드시 JSON으로만 응답해. "
-                        "이메일의 제목과 본문을 함께 분석해서 캘린더에 적합한 새로운 일정 제목(title)을 만들어."
-                        "메일 제목을 그대로 복사하지 말고, 실제 일정의 목적이 드러나도록 자연스럽고 짧게 작성해."
-                        "예를 들면 '회의 안내' 같은 제목이 있더라도, 본문이 캡스톤 발표 회의에 대한 내용이면 title는 '캡스톤 발표 회의'처럼 만들어."
-                        "title은 5~20자 정도의 짧고 명확한 한국어로 작성해."
-                        "description은 일정과 관련된 핵심 내용을 간단히 넣어"
-                        "형식: {\"events\": [{\"title\": \"제목\", \"startTime\": \"2026-02-26 Time 09:00:00\", "
-                        "\"endTime\": \"2026-02-26 Time 10:00:00\", \"description\": \"\"}]} "
-                        "일정 없으면 {\"events\": []}"
-                    )
-                },
-                {"role": "user", "content": text}
-            ]
-        )
-        return json.loads(response.choices[0].message.content)
-    except Exception as e:
-        print(f"[calendar convert error] {e}")
-        return {"events": []}
+# def _convert_to_calendar_json(text):
+#     client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+#     try:
+#         response = client.chat.completions.create(
+#             model="gpt-4o-mini",
+#             response_format={"type": "json_object"},
+#             messages=[
+#                 {
+#                     "role": "system",
+#                     "content": (
+#                         "너는 이메일 내용을 분석해서 캘린더 일정을 추출하는 도우미야."
+#                         "날짜/시간/일정 정보를 추출해서 반드시 JSON으로만 응답해. "
+#                         "이메일의 제목과 본문을 함께 분석해서 캘린더에 적합한 새로운 일정 제목(title)을 만들어."
+#                         "메일 제목을 그대로 복사하지 말고, 실제 일정의 목적이 드러나도록 자연스럽고 짧게 작성해."
+#                         "예를 들면 '회의 안내' 같은 제목이 있더라도, 본문이 캡스톤 발표 회의에 대한 내용이면 title는 '캡스톤 발표 회의'처럼 만들어."
+#                         "title은 5~20자 정도의 짧고 명확한 한국어로 작성해."
+#                         "description은 일정과 관련된 핵심 내용을 간단히 넣어"
+#                         "형식: {\"events\": [{\"title\": \"제목\", \"startTime\": \"2026-02-26 Time 09:00:00\", "
+#                         "\"endTime\": \"2026-02-26 Time 10:00:00\", \"description\": \"\"}]} "
+#                         "일정 없으면 {\"events\": []}"
+#                     )
+#                 },
+#                 {"role": "user", "content": text}
+#             ]
+#         )
+#         return json.loads(response.choices[0].message.content)
+#     except Exception as e:
+#         print(f"[calendar convert error] {e}")
+#         return {"events": []}
 
 # 근거메일보기 버튼
-def _extract_source_mail_ids(answer: str) -> list:
-    return list(set(re.findall(r'ID:\s*([0-9A-Fa-f]{16})', answer)))
+# def _extract_source_mail_ids(answer: str) -> list:
+#     return list(set(re.findall(r'ID:\s*([0-9A-Fa-f]{16})', answer)))
 
-# 질의 방법 분류
-def _classify_query_method(message: str) -> str:
-    prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,
-                글로벌 검색(전체 경향·요약·패턴·빈도)에 적합한지 판단하라.
-                "local" 또는 "global" 중 하나만 반환하라.
-
-                질문: {message}"""
-
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
-
-    res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=10,
-        temperature=0
-    )
-
-    method = res.choices[0].message.content.strip().lower()
-    print(f"[CLASSIFY] 질의: {message[:30]} → {method}")
-    return method if method in ("local", "global") else "local"
 
 
 # 엔드포인트: POST /extract-calendar
-@app.route('/extract-calendar', methods=['POST'])
-def extract_calendar():
-    data = request.json or {}
-    subject = data.get('subject', '')
-    body = data.get('body', '')
-    result = _convert_to_calendar_json(f"제목: {subject}\n\n{body}")
-    return jsonify(result)
+# @app.route('/extract-calendar', methods=['POST'])
+# def extract_calendar():
+#     data = request.json or {}
+#     subject = data.get('subject', '')
+#     body = data.get('body', '')
+#     result = _convert_to_calendar_json(f"제목: {subject}\n\n{body}")
+#     return jsonify(result)
 
 # 엔드포인트: POST /run-query-async
 @app.route('/run-query-async', methods=['POST'])
@@ -186,8 +167,6 @@ def run_query_async():
             env = os.environ.copy()
             env["GMAIL_ID"] = gmail_id
 
-
-
             # 날짜 범위 쿼리일 시 parquet 직접 필터링해서 LLM에게 넘기기, 아니면 GraphRAG로 처리
             answer = run_date_range_query(message, paths) # 이게 None이면 GraphRAG로 
             source_ids = []  # 초기화
@@ -203,12 +182,15 @@ def run_query_async():
                     answer = _run_graphrag(full_message,message, resMethod, paths, resType)
                     source_ids = _extract_source_mail_ids(answer)
 
-            if resType.lower() == "calendar":
-                result = json.dumps(_convert_to_calendar_json(answer), ensure_ascii=False)
-                update_job(job_id, status="done", result=result)
-            else:
-                result = answer
-                update_job(job_id, status="done", result=result, source_ids=source_ids)
+            result = answer
+            update_job(job_id, status="done", result=result, source_ids=source_ids)
+
+#            if resType.lower() == "calendar":
+#                result = json.dumps(_convert_to_calendar_json(answer), ensure_ascii=False)
+#                update_job(job_id, status="done", result=result)
+#            else:
+#                result = answer
+#                update_job(job_id, status="done", result=result, source_ids=source_ids)
 
         except Exception as e:
             update_job(job_id, status="error", result=str(e))
@@ -310,9 +292,6 @@ def run_query():
         answer = _run_graphrag(message, resMethod, paths, resType)
     except RuntimeError as e:
         return jsonify({'error': str(e)}), 500
-
-    if resType.lower() == "calendar":
-        return jsonify(_convert_to_calendar_json(answer))
 
     return jsonify({'result': answer})
 

@@ -7,6 +7,8 @@ import asyncio # 비동기 실행 지원 (LocalSearch/GlobalSearch.search()가 a
 import traceback
 import threading
 import time
+import openai
+
 from util.graphrag_engine import get_engines, get_and_reset_usage # 유저별 캐싱된 local. global 엔진 반환 함수 임포트
 from util.database.db_writer import save_query_to_db
 
@@ -85,3 +87,24 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
     except Exception as e:
         print(f"[WARN] query DB 저장 실패 (무시): {e}")
     return answer, source_ids  # app.py의 _worker()로 튜플 반환
+
+# 질의 방법 분류
+def _classify_query_method(message: str) -> str:
+    prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,
+                글로벌 검색(전체 경향·요약·패턴·빈도)에 적합한지 판단하라.
+                "local" 또는 "global" 중 하나만 반환하라.
+
+                질문: {message}"""
+
+    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=10,
+        temperature=0
+    )
+
+    method = res.choices[0].message.content.strip().lower()
+    print(f"[CLASSIFY] 질의: {message[:30]} → {method}")
+    return method if method in ("local", "global") else "local"
