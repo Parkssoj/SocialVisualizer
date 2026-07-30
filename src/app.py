@@ -15,12 +15,20 @@ import shutil
 import zlib
 import traceback
 import urllib.parse     # import missing 해결
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from concurrent.futures import ( 
+    ThreadPoolExecutor,
+    as_completed 
+)
 from util.date_query import run_date_range_query
-
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    send_from_directory,
+    Response,
+    stream_with_context
+)
 from flask_cors import CORS
 import fitz  # PyMuPDF
 from docx import Document
@@ -28,17 +36,34 @@ import olefile
 import csv
 from pptx import Presentation
 from openpyxl import load_workbook
-from flask import send_from_directory
 
 # Job 이용 공통함수 import
 from util.jobs.job_store import *
-from util.jobs.job_run import start_graph_pipeline_background, start_graph_update_pipeline_background
+from util.jobs.job_run import (
+    start_graph_pipeline_background,
+    start_graph_update_pipeline_background
+)
 from config.settings import *
 from util.user_path import UserPaths
-from util.database.db_reader import get_mail_stats, get_keyword_stats,get_mail_sync_stats,get_user_rating_stats,get_high_affinity_person_stats, get_keywords_by_person_date, get_mail_date_range, get_mail_exchange_stats, calculate_eis, get_person_descriptions, get_date_range_person_stats, get_person_mail_ids_in_range
-from util.file_manager import _sanitize_filename, _delete_old_update_files
+from util.database.db_reader import (
+    get_mail_stats,
+    get_keyword_stats,
+    get_mail_sync_stats,
+    get_user_rating_stats,
+    get_high_affinity_person_stats,
+    get_keywords_by_person_date,
+    get_mail_date_range,
+    get_mail_exchange_stats,
+    calculate_eis,
+    get_person_descriptions,
+    get_date_range_person_stats,
+    get_person_mail_ids_in_range
+)
+from util.file_manager import (
+    _sanitize_filename,
+    _delete_old_update_files
+)
 from util.attachment_processor import _run_attachment_pipeline
-
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
@@ -54,14 +79,25 @@ from util.avatar_generator import (
     get_cached_self_avatar,
     generate_self_avatar,
 )
-
-from util.sse_broadcaster import subscribe, unsubscribe
-
+from util.sse_broadcaster import (
+    subscribe,
+    unsubscribe
+)
 from config.db import get_db_connection
-from util.graphrag import _run_graphrag, _is_index_ready
+from util.graphrag import (
+    _run_graphrag,
+    _is_index_ready
+)
 from util.graphrag_query import _classify_query_method
-from util.mail_data_manager import _read_latest_text, _extract_message_ids, _split_mail_blocks, _extract_mail_id_from_block, _renumber_mail_blocks, _extract_block_for_sort, _build_mail_csv
-
+from util.mail_data_manager import (
+    _read_latest_text,
+    _extract_message_ids,
+    _split_mail_blocks,
+    _extract_mail_id_from_block,
+    _renumber_mail_blocks,
+    _extract_block_for_sort,
+    _build_mail_csv
+)
 from util.file_manager import _delete_incremental_files
 
 # 환경변수 로드
@@ -71,11 +107,9 @@ load_dotenv("src/parquet/.env")
 app = Flask(__name__)
 CORS(app)
 
-
 # 서버 시작 시 테이블 초기화 실행
 init_processed_attachments_table()
 init_keyword_mail_table()
-
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -83,51 +117,9 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# 텍스트 → 캘린더 JSON 변환
-# def _convert_to_calendar_json(text):
-#     client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
-#     try:
-#         response = client.chat.completions.create(
-#             model="gpt-4o-mini",
-#             response_format={"type": "json_object"},
-#             messages=[
-#                 {
-#                     "role": "system",
-#                     "content": (
-#                         "너는 이메일 내용을 분석해서 캘린더 일정을 추출하는 도우미야."
-#                         "날짜/시간/일정 정보를 추출해서 반드시 JSON으로만 응답해. "
-#                         "이메일의 제목과 본문을 함께 분석해서 캘린더에 적합한 새로운 일정 제목(title)을 만들어."
-#                         "메일 제목을 그대로 복사하지 말고, 실제 일정의 목적이 드러나도록 자연스럽고 짧게 작성해."
-#                         "예를 들면 '회의 안내' 같은 제목이 있더라도, 본문이 캡스톤 발표 회의에 대한 내용이면 title는 '캡스톤 발표 회의'처럼 만들어."
-#                         "title은 5~20자 정도의 짧고 명확한 한국어로 작성해."
-#                         "description은 일정과 관련된 핵심 내용을 간단히 넣어"
-#                         "형식: {\"events\": [{\"title\": \"제목\", \"startTime\": \"2026-02-26 Time 09:00:00\", "
-#                         "\"endTime\": \"2026-02-26 Time 10:00:00\", \"description\": \"\"}]} "
-#                         "일정 없으면 {\"events\": []}"
-#                     )
-#                 },
-#                 {"role": "user", "content": text}
-#             ]
-#         )
-#         return json.loads(response.choices[0].message.content)
-#     except Exception as e:
-#         print(f"[calendar convert error] {e}")
-#         return {"events": []}
-
 # 근거메일보기 버튼
 # def _extract_source_mail_ids(answer: str) -> list:
 #     return list(set(re.findall(r'ID:\s*([0-9A-Fa-f]{16})', answer)))
-
-
-
-# 엔드포인트: POST /extract-calendar
-# @app.route('/extract-calendar', methods=['POST'])
-# def extract_calendar():
-#     data = request.json or {}
-#     subject = data.get('subject', '')
-#     body = data.get('body', '')
-#     result = _convert_to_calendar_json(f"제목: {subject}\n\n{body}")
-#     return jsonify(result)
 
 # 엔드포인트: POST /run-query-async
 @app.route('/run-query-async', methods=['POST'])
@@ -159,7 +151,6 @@ def run_query_async():
     create_job(job_id, job_type="query")
     update_job(job_id, status="pending", result=None, resType=resType)
 
-
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
         from util.graphrag_query import run_graphrag_query
         try:
@@ -185,13 +176,6 @@ def run_query_async():
             result = answer
             update_job(job_id, status="done", result=result, source_ids=source_ids)
 
-#            if resType.lower() == "calendar":
-#                result = json.dumps(_convert_to_calendar_json(answer), ensure_ascii=False)
-#                update_job(job_id, status="done", result=result)
-#            else:
-#                result = answer
-#                update_job(job_id, status="done", result=result, source_ids=source_ids)
-
         except Exception as e:
             update_job(job_id, status="error", result=str(e))
 
@@ -210,7 +194,6 @@ def job_status(job_id):
             return jsonify({"status": "done", "data": json.loads(job["result"])})
         except Exception:
             return jsonify({"status": "done", "data": {"events": []}})
-
 
     # text 타입: result 필드에 문자열 그대로 반환
     return jsonify({
@@ -248,7 +231,6 @@ def indexing_stream():
                         "ngrok-skip-browser-warning": "true",
                     })
 
-
 # 엔드포인트: GET /indexing-history
 @app.route("/indexing-history", methods=["GET"])
 def indexing_history():
@@ -265,7 +247,6 @@ def indexing_history():
             "message": job.get("message", ""),
         })
     return jsonify(events)
-
 
 # 엔드포인트: POST /run-query (동기 버전)
 @app.route('/run-query', methods=['POST'])
@@ -295,13 +276,11 @@ def run_query():
 
     return jsonify({'result': answer})
 
-# ============================================================
 # 엔드포인트: POST /upload
-# [수정] 배치 시스템 지원
-# - is_last 플래그 수신: 마지막 배치일 때만 GraphRAG 파이프라인 실행
-# - 중간 배치: mail_latest.txt에 누적만 하고 GraphRAG 실행 안 함
-# - mail_id 기반 중복 블록 체크: rewrite/append 관계없이 항상 적용
-# ============================================================
+# 배치 시스템 지원
+# is_last 플래그 수신: 마지막 배치일 때만 GraphRAG 파이프라인 실행
+# 중간 배치: mail_latest.txt에 누적만 하고 GraphRAG 실행 안 함
+# mail_id 기반 중복 블록 체크: rewrite/append 관계없이 항상 적용
 @app.route("/upload", methods=["POST"])
 def upload():
     # 1) 데이터 수신
@@ -337,8 +316,7 @@ def upload():
     os.makedirs(paths.MAIL_DIR, exist_ok=True)
 
     # rewrite 첫 배치(offset=0)에서만 기존 첨부파일 폴더 초기화
-    # [수정] 기존: rewrite면 무조건 삭제 → 배치 중간에도 삭제되는 문제
-    # 변경: batch_offset=0(첫 배치)일 때만 삭제
+    # batch_offset=0(첫 배치)일 때만 삭제
     if sync_mode == "rewrite" and batch_offset == 0:
         # rewrite 첫 배치: input 폴더 내 기존 메일 파일 전체 초기화
         # mail_latest.txt, mail_latest.csv, inc_*.txt 등 전부 삭제
@@ -356,6 +334,7 @@ def upload():
         if os.path.exists(paths.ATTACHMENT_DIR):
             shutil.rmtree(paths.ATTACHMENT_DIR)
             print(f"[CLEAN] attachment 폴더 초기화 완료 (첫 배치): {paths.ATTACHMENT_DIR}")
+
         # [추가] stats.json 삭제 → 첨부파일 트리거가 인덱스 없음으로 판단해 거절됨
         # rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지
         stats_path = os.path.join(paths.GRAPHRAG_ROOT, "output", "stats.json")
@@ -384,12 +363,9 @@ def upload():
             print(f"[CLEAN] processed_attachments DB 초기화 실패 (무시): {e}")
 
     # 3) 원본 메일 텍스트 저장
-    # [수정] rewrite 모드 배치 누적 버그 수정
-    # 기존: rewrite 모드에서 배치마다 "mail_latest.txt"를 "w" 모드로 열어 덮어씀
-    #       → 배치2가 오면 배치1 내용이 사라지고 배치2만 남는 문제
-    # 변경: rewrite 중간 배치는 "mail_latest.txt"에 "a" 모드로 이어붙임
-    #       첫 배치(batch_offset=0)일 때만 파일을 비우고 시작
-    #       append 모드는 기존 방식 유지 (inc_*.txt로 별도 저장)
+    # rewrite 중간 배치는 "mail_latest.txt"에 "a" 모드로 이어붙임
+    # 첫 배치(batch_offset=0)일 때만 파일을 비우고 시작
+    # append 모드는 기존 방식 유지 (inc_*.txt로 별도 저장)
     if sync_mode != "rewrite":  # rewrite는 여기서 파일 안 씀
         file_path = os.path.join(paths.MAIL_DIR, filename)
         with open(file_path, "w", encoding="utf-8") as f:
@@ -419,16 +395,13 @@ def upload():
     skipped_count = 0
     saved_mail_path = ""
 
-    # ============================================================
-    # [수정] 메일 텍스트 누적 로직
+    # 메일 텍스트 누적 로직
     # rewrite: 파일에 직접 이어붙이므로 중복 체크만 수행 (mail_latest.txt 재작성 불필요)
     # append: 기존 방식 유지 (existing_text 읽어서 합친 후 mail_latest.txt 저장)
     # 공통: mail_id 기반 중복 체크 → 배치 재시도 시 중복 삽입 방지
-    # ============================================================
-
     # 기존 mail_latest.txt에서 이미 저장된 mail_id 추출 (중복 방지용)
     # rewrite 첫 배치: 파일을 새로 쓰는 시점이므로 기존 내용 무시
-    # → 기존 파일의 mail_id를 읽으면 전부 중복으로 판단해서 스킵되는 버그 방지
+    # 기존 파일의 mail_id를 읽으면 전부 중복으로 판단해서 스킵되는 버그 방지
     if sync_mode == "rewrite" and batch_offset == 0:
         existing_text = ""
         existing_ids  = set()
@@ -465,10 +438,9 @@ def upload():
     if append_blocks:
         append_blocks.sort(key=_extract_block_for_sort, reverse=True)
         inc_content = "\n\n".join(append_blocks).strip() + "\n"
-        # [수정] rewrite: 파일에 직접 이어붙이는 방식으로 변경
-        # 파일 저장은 위(3번)에서 이미 완료됨 ("a" 모드로 이어붙임)
-        # 여기서는 _renumber_mail_blocks만 적용해서 최종 정리
-        # 단, 마지막 배치일 때만 번호 재정렬 (중간 배치는 불완전한 상태)
+        # 파일에 직접 이어붙이는 방식
+        # _renumber_mail_blocks 적용해서 최종 정리
+        # 마지막 배치일 때만 번호 재정렬 (중간 배치는 불완전한 상태)
         if sync_mode == "rewrite":
             with open(paths.MAIL_LATEST_PATH, "a", encoding="utf-8") as f:
                 f.write(inc_content)  # 정제된 블록만 이어붙임
@@ -521,14 +493,11 @@ def upload():
     if saved_mail_path:
         print("[UPLOAD] saved mail path:", os.path.abspath(saved_mail_path))
 
-    # ============================================================
-    # [수정] GraphRAG 파이프라인 실행 조건
-    # 기존: 업로드 때마다 GraphRAG 실행
-    # 변경: is_last=True 일 때만 실행
-    #       - 중간 배치(is_last=False): mail_latest.txt 누적만, GraphRAG 실행 안 함
-    #       - 마지막 배치(is_last=True): 전체 누적 텍스트로 GraphRAG 실행
-    #       - 배치 시스템 없는 기존 단일 호출: is_last 기본값 True → 기존 동작 유지
-    # ============================================================
+    # GraphRAG 파이프라인 실행 조건
+    # is_last=True 일 때만 실행
+    # 중간 배치(is_last=False): mail_latest.txt 누적만, GraphRAG 실행 안 함
+    # 마지막 배치(is_last=True): 전체 누적 텍스트로 GraphRAG 실행
+    # 배치 시스템 없는 기존 단일 호출: is_last 기본값 True → 기존 동작 유지
     graph_job_id = str(uuid.uuid4())[:8]
 
     if not is_last:
@@ -568,8 +537,8 @@ def upload():
             shutil.rmtree(update_dir)
             print(f"[CLEAN] update_output 삭제 완료: {update_dir}")
 
-        # [순서 주석] _build_mail_csv는 동기 실행 후 GraphRAG 스레드 시작
-        # → CSV 파일이 완전히 쓰인 뒤 GraphRAG가 읽도록 순서 보장
+        # _build_mail_csv는 동기 실행 후 GraphRAG 스레드 시작
+        # CSV 파일이 완전히 쓰인 뒤 GraphRAG가 읽도록 순서 보장
         _build_mail_csv(paths)
         # rewrite 배치 완료 시 총 누적 메일 수로 기록 (마지막 배치 added_count만 넘기면 일부만 저장되는 버그 방지)
         final_text = _read_latest_text(paths)
@@ -578,7 +547,7 @@ def upload():
 
     else:  # append
         if new_ids:
-            # [수정] _build_mail_csv 반환값 None 체크 추가
+            # _build_mail_csv 반환값 None 체크 추가
             # new_ids 없을 때 None 반환하도록 수정했으므로 None이면 update 생략
             csv_path = _build_mail_csv(paths, mode="append", new_ids=new_ids)
             if csv_path:
@@ -697,14 +666,11 @@ def static_fonts(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'fonts')
     return send_from_directory(dist_dir, path)
 
-
-# ============================================================
 # 엔드포인트: POST /upload-attachments
-# [수정] 중복 처리 방지 로직 추가
+# 중복 처리 방지 로직 추가
 # 기존: 10분마다 전체 첨부파일을 무조건 처리
 # 변경: DB 조회로 이미 처리된 (gmail_id, mail_id, filename) 조합 필터링 후 처리
-#       처리 완료 후 DB에 기록 → 다음 트리거에서 중복 처리 방지
-# ============================================================
+# 처리 완료 후 DB에 기록 → 다음 트리거에서 중복 처리 방지
 @app.route("/upload-attachments", methods=["POST"])
 def upload_attachments():
     # 1) 데이터 수신
@@ -755,7 +721,7 @@ def upload_attachments():
         print(f"[upload-attachments] 인덱싱 진행 중 → 요청 거절, 다음 트리거에서 재시도")
         return jsonify({"ok": False, "error": "인덱싱 진행 중, 다음 트리거에서 재시도됩니다."}), 409
 
-    # [추가] 4) 이미 처리된 첨부파일 필터링
+    # 4) 이미 처리된 첨부파일 필터링
     is_last = data.get("is_last", True)
     unprocessed = filter_unprocessed_attachments(gmail_id, attachments)
 
@@ -777,7 +743,7 @@ def upload_attachments():
             return jsonify({"ok": True, "message": "모두 처리됨, finish 실행"})
         return jsonify({"ok": True, "skipped": len(attachments), "message": "모두 이미 처리된 첨부파일"})
 
-    # 4) 즉시 200 응답 (Apps Script 타임아웃 방지)
+    # 5) 즉시 200 응답 (Apps Script 타임아웃 방지)
     job_id = str(uuid.uuid4())[:8]
     create_job(job_id, job_type="attachment")
     update_job(job_id, message="첨부파일 수신 완료, 백그라운드 처리 시작")
@@ -785,7 +751,7 @@ def upload_attachments():
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
 
-    # 5) 백그라운드에서 처리 (미처리 첨부파일만 전달)
+    # 6) 백그라운드에서 처리 (미처리 첨부파일만 전달)
     t = threading.Thread(
         target=_run_attachment_pipeline,
         args=(job_id, paths, unprocessed, env, is_last),
@@ -799,7 +765,6 @@ def upload_attachments():
         "attachment_count": len(unprocessed),
         "skipped_count": len(attachments) - len(unprocessed),
     })
-
 
 # 웹앱용 통계 라우트
 @app.route("/mail-stats", methods=["POST"])
@@ -852,7 +817,6 @@ def keyword_by_person_date():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/rebuild-keyword-mail", methods=["POST"])
 def rebuild_keyword_mail_route():
     data = request.json or {}
@@ -865,7 +829,6 @@ def rebuild_keyword_mail_route():
         return jsonify({"ok": True, "message": "keyword_mail 테이블 재구성 완료"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/upload-photos", methods=["POST"])
 def upload_contact_photos():
@@ -887,7 +850,6 @@ def upload_contact_photos():
         json.dump(existing, f, ensure_ascii=False, indent=2)
     return jsonify({"ok": True, "saved": len(photos)})
 
-
 @app.route("/contact-photos", methods=["POST"])
 def get_contact_photos():
     data = request.json or {}
@@ -900,7 +862,6 @@ def get_contact_photos():
     with open(paths.MAIL_PHOTOS_PATH, "r", encoding="utf-8") as f:
         return jsonify(json.load(f))
 
-
 @app.route("/person-avatars", methods=["POST"])
 def get_person_avatars():
     data = request.json or {}
@@ -909,7 +870,6 @@ def get_person_avatars():
         return jsonify({}), 200
     paths = UserPaths(BASE_DIR, gmail_id)
     return jsonify(get_cached_person_avatars(paths))
-
 
 @app.route("/generate-person-avatars", methods=["POST"])
 def generate_person_avatars():
@@ -922,12 +882,10 @@ def generate_person_avatars():
     result = generate_person_avatars_batch(paths, people)
     return jsonify({"gmail_id": gmail_id, "data": result})
 
-
 @app.route("/person-avatar-image/<gmail_id>/<filename>")
 def person_avatar_image(gmail_id, filename):
     paths = UserPaths(BASE_DIR, gmail_id)
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
-
 
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
@@ -937,7 +895,6 @@ def get_self_avatar():
         return jsonify({}), 200
     paths = UserPaths(BASE_DIR, gmail_id)
     return jsonify({"url": get_cached_self_avatar(paths)})
-
 
 @app.route("/generate-self-avatar", methods=["POST"])
 def generate_self_avatar_route():
@@ -949,7 +906,6 @@ def generate_self_avatar_route():
     paths = UserPaths(BASE_DIR, gmail_id)
     url = generate_self_avatar(paths, name)
     return jsonify({"url": url})
-
 
 @app.route("/high_affinity_person_stats", methods=["POST"])
 def send_high_affinity_person_stats():
@@ -995,7 +951,6 @@ def send_mail_exchange_stats():
 
     return jsonify({"data": get_mail_exchange_stats(gmail_id, person_mail_id, start_date, end_date)})
 
-
 _mail_message_cache_lock = threading.Lock()
 
 def _load_mail_message_cache(paths):
@@ -1011,7 +966,6 @@ def _save_mail_message_cache(paths, cache):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     with open(paths.MAIL_MESSAGE_CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
-
 
 @app.route("/mail-person-emails", methods=["POST"])
 def send_person_emails_in_range():
@@ -1055,7 +1009,6 @@ def send_person_emails_in_range():
     emails.sort(key=lambda e: e["date"])
 
     return jsonify({"data": emails})
-
 
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
@@ -1115,7 +1068,6 @@ def send_intimacy():
         "end_date":        end_date,
         "data":            result,
     })
-
 
 @app.route("/person-descriptions", methods=["POST"])
 def send_person_descriptions():
@@ -1200,4 +1152,3 @@ def contacts_proxy():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, debug=False)
-
