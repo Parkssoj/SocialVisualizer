@@ -31,7 +31,7 @@ source mailgrapher-venv/Scripts/activate
 ```bash
 python src/app.py
 ```
-→ `http://localhost:80` 에서 실행됨
+→ `http://localhost/dashboard/` 에서 실행됨
 
 ## 6. 프론트엔드 실행 (`src/web`에서)
 ```bash
