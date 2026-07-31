@@ -12,7 +12,7 @@ const name = nameParam
 if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(nameParam));
 
 const gmailIdParam = params.get('gmail_id');
-if (gmailIdParam) localStorage.setItem('gw_gmail_id', decodeURIComponent(gmailIdParam));
+if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
@@ -28,11 +28,11 @@ function _loadScript(src) {
 }
 
 window.addEventListener('load', function() {
-  var gmailId = localStorage.getItem('gw_gmail_id') || '';
+  var gmailId = localStorage.getItem('gw_user_id') || '';
   _loadScript('https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js')
     .then(function() { return _loadScript('/graph-render.js'); })
     .then(function() {
-      return fetch('/graph-data?gmail_id=' + encodeURIComponent(gmailId));
+      return fetch('/graph-data?user_id=' + encodeURIComponent(gmailId));
     })
     .then(function(res) { return res.json(); })
     .then(function(data) { renderGraph(document.getElementById('graph'), data); })

@@ -8,6 +8,7 @@
 const NAV_ITEMS = [
   { page: 'home', href: 'index.html', label: '홈' },
   { page: 'search', href: 'search.html', label: '검색' },
+  { page: 'imap-collect', href: 'imap-collect.html', label: '메일 수집' },
   { page: 'mylife', href: 'mylife.html', label: 'My Life' },
   { page: 'mypeople', href: 'mypeople.html', label: 'My People' },
   { page: 'mytime', href: 'mytime.html', label: 'My Time' },

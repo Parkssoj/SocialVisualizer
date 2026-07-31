@@ -10,7 +10,7 @@ bootstrapApp('home');
   const name = nameParam ? decodeURIComponent(nameParam) : (sessionStorage.getItem('gw_user_name') || '-');
   if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(nameParam));
   const gmailIdParam = params.get('gmail_id');
-  if (gmailIdParam) localStorage.setItem('gw_gmail_id', decodeURIComponent(gmailIdParam));
+  if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 // Flask에서 직접 열릴 때 자동으로 ngrok URL 저장

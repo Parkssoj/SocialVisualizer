@@ -1,9 +1,10 @@
 import { bootstrapApp } from '../main-app.js';
+import { initAccountPicker } from '../features/accountPicker.js';
 import '../scss/pages/recap.scss';
 
 bootstrapApp('recap');
 
-// 이름/gmail_id 처리
+// 이름/user_id 처리
 const params = new URLSearchParams(window.location.search);
 const nameParam = params.get('name');
 const name = nameParam
@@ -12,9 +13,11 @@ const name = nameParam
 if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(nameParam));
 
 const gmailIdParam = params.get('gmail_id');
-if (gmailIdParam) localStorage.setItem('gw_gmail_id', decodeURIComponent(gmailIdParam));
+if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 
 document.getElementById('google-profile-name').textContent = name;
+
+const userIdPromise = initAccountPicker(document.getElementById('account-picker-mount'));
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -361,14 +364,14 @@ async function postStat(endpoint, gmailId) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }, //내가 보내는게 json이야~
-    body: JSON.stringify({ gmail_id: gmailId }) // json 객체 생성
+    body: JSON.stringify({ user_id: gmailId }) // json 객체 생성
   });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const gmailId = localStorage.getItem('gw_gmail_id');
+  const gmailId = await userIdPromise;
 
   if (!gmailId) {
     ['rcSenderLoading','rcKwLoading','rcAfLoading'].forEach(id => {
@@ -377,7 +380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['rcSenderError','rcKwError','rcAfError'].forEach(id => {
       const el = document.getElementById(id);
       el.style.display = '';
-      el.textContent = 'gmail_id가 없습니다. 먼저 로그인해주세요.';
+      el.textContent = '인덱싱된 계정이 없습니다. 먼저 메일을 수집해주세요.';
     });
     return;
   }

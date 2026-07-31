@@ -60,6 +60,8 @@ export default defineConfig({
         recap: 'production/recap.html',
         // 서치 페이지
         search: 'production/search.html',
+        // IMAP 메일 수집
+        imap_collect: 'production/imap-collect.html',
         // 로그인 (디자인만, OAuth 연동은 후속 작업)
         login: 'production/login.html'
       }
