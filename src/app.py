@@ -14,7 +14,8 @@ import requests
 import shutil
 import zlib
 import traceback
-import urllib.parse     
+import urllib.parse
+import imaplib     
 from concurrent.futures import ( 
     ThreadPoolExecutor,
     as_completed 
@@ -99,7 +100,10 @@ from util.mail_data_manager import (
     _build_mail_csv
 )
 from util.file_manager import _delete_incremental_files
-
+from util.imap_connect import (
+    _imap_parse_list_line,
+    _imap_fetch_content
+)
 # 환경변수 로드
 load_dotenv("src/parquet/.env")
 
@@ -1149,6 +1153,174 @@ def contacts_proxy():
             return jsonify({'ok': False, 'error': str(e)})
 
     return jsonify({'ok': False, 'error': f'unknown action: {action}'})
+
+# 호스트/계정/비밀번호 받아서 로그인하여 실제 서버의 폴더 목록 반환
+@app.route("/imap-list-folders", methods=["POST"])
+def imap_list_folders():
+    data = request.json or {}
+    host = (data.get("host") or "").strip()
+    user = (data.get("user") or "").strip()
+    password = data.get("password") or ""
+    use_ssl = data.get("ssl", True)
+
+    try:
+        port = int(data.get("port") or 993)
+    except (TypeError, ValueError):
+        port = 993
+
+    if not host:
+        return jsonify({"ok": False, "error": "IMAP 호스트가 비어있습니다."}), 400
+    if not user:
+        return jsonify({"ok": False, "error": "이메일 주소가 비어있습니다."}), 400
+    if not password:
+        return jsonify({"ok": False, "error": "앱 비밀번호가 비어있습니다."}), 400
+
+    conn = None
+    try:
+        conn = imaplib.IMAP4_SSL(host, port) if use_ssl else imaplib.IMAP4(host, port)
+        conn.login(user, password)
+
+        status, list_data = conn.list()
+        if status != "OK":
+            return jsonify({"ok": False, "error": "폴더 목록을 가져오지 못했습니다."}), 400
+
+        folders = []
+        for line in list_data or []:
+            if not line:
+                continue
+            name = _imap_parse_list_line(line)
+            if name and name not in folders:
+                folders.append(name)
+
+        return jsonify({"ok": True, "folders": folders})
+
+    except imaplib.IMAP4.error as e:
+        return jsonify({"ok": False, "error": f"IMAP 로그인/연결 오류: {e}"}), 400
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"폴더 조회 중 오류: {e}"}), 500
+    finally:
+        if conn is not None:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+# 메일 수집 요청
+@app.route("/imap-collect", methods=["POST"])
+def imap_collect():
+    data = request.json or {}
+    host = (data.get("host") or "").strip()
+    user = (data.get("user") or "").strip()
+    password = data.get("password") or ""
+    folders = data.get("folders") or []
+    use_ssl = data.get("ssl", True)
+    sync_mode = data.get("sync_mode") or "append"
+    user_id = (data.get("user_id") or user or "").strip().lower()
+
+    try:
+        port = int(data.get("port") or 993)
+    except (TypeError, ValueError):
+        port = 993
+    # limit=0은 "전체 수집"을 의미하므로 `or` 단락 평가로 100에 덮어써지지 않도록 None만 걸러낸다
+    limit_raw = data.get("limit")
+    try:
+        limit = int(limit_raw) if limit_raw not in (None, "") else 100
+    except (TypeError, ValueError):
+        limit = 100
+
+    if not host:
+        return jsonify({"ok": False, "error": "IMAP 호스트가 비어있습니다."}), 400
+    if not user:
+        return jsonify({"ok": False, "error": "이메일 주소가 비어있습니다."}), 400
+    if not password:
+        return jsonify({"ok": False, "error": "앱 비밀번호가 비어있습니다."}), 400
+    if not folders:
+        return jsonify({"ok": False, "error": "수집할 폴더가 비어있습니다."}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
+
+    print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
+
+    try:
+        content, attachments = _imap_fetch_content(host, port, use_ssl, user, password, folders, limit, user)
+    except imaplib.IMAP4.error as e:
+        return jsonify({"ok": False, "error": f"IMAP 로그인/연결 오류: {e}"}), 400
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"IMAP 수집 중 오류: {e}"}), 500
+
+    if not content.strip():
+        return jsonify({"ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."})
+
+    filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
+
+    # 변환된 텍스트/첨부파일을 기존 /upload 엔드포인트 로직에 그대로 위임 (label-route와 동일한 패턴)
+    with app.test_request_context(
+        "/upload", method="POST",
+        json={
+            "filename": filename,
+            "content": content,
+            "attachment": attachments,
+            "syncmode": sync_mode,
+            "user_id": user_id,
+            "is_last": True,
+            "batch_offset": 0,
+        },
+        content_type="application/json",
+    ):
+        result = upload()
+
+    if isinstance(result, tuple):
+        body, status_code = result[0], result[1]
+    else:
+        body, status_code = result, 200
+
+    return body, status_code
+
+# 지금까지 인덱싱된 유저 반환
+@app.route("/accounts", methods=["GET"])
+def list_accounts():
+    user_data_dir = os.path.join(BASE_DIR, "user_data")
+    accounts = []
+
+    if os.path.isdir(user_data_dir):
+        for dir_name in sorted(os.listdir(user_data_dir)):
+            dir_path = os.path.join(user_data_dir, dir_name)
+            if not os.path.isdir(dir_path):
+                continue
+
+            meta_path = os.path.join(dir_path, "account.json")
+            user_id = None
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        user_id = (json.load(f).get("user_id") or "").strip()
+                except (OSError, json.JSONDecodeError):
+                    user_id = None
+
+            if not user_id:
+                # 메타 파일이 아직 없는 계정(이 기능 추가 이전에 만들어진 폴더) →
+                # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
+                # (진짜 user_id는 다른 엔드포인트가 실제 값으로 호출되는 순간
+                #  UserPaths가 자동으로 account.json을 채워넣는다.)
+                user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
+
+            paths = UserPaths(BASE_DIR, user_id)
+            accounts.append({
+                "user_id": user_id,
+                "indexed": _is_index_ready(paths),
+            })
+
+    return jsonify({"accounts": accounts})
+
+# 정적 파일을 vite 빌드 없이 소스에서 직접 서빙하는 라우트. 브라우저가 들어오면 flask+url을 localStorage에 저장 및 홈화면으로 리다이렉트
+@app.route('/imap-start')
+def imap_start():
+    return send_from_directory(
+        os.path.join(os.path.dirname(__file__), 'web', 'production'),
+        'imap-start.html'
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, debug=False)
