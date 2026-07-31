@@ -1,6 +1,6 @@
 # MailGrapher
 
-Gmail 메일 데이터를 분석해 지식 그래프를 만들고, 사람/시간 통계와 자연어 검색을 제공
+메일 데이터를 분석해 지식 그래프를 만들고, 사람/시간 통계와 자연어 검색을 제공
 
 # 실행 방법
 
@@ -26,10 +26,10 @@ pip install -r requirements.txt
 ```
 
 ## 3. 환경변수 설정
-`src/parquet/.env` : GmailWeaver에서 복붙하세요;;;;;;;;
+`src/parquet/.env` : GmailWeaver에서 복붙하세요
 
 ## 4. MySQL 데이터베이스 생성
-기존에 있는거 쓰세요;;;;;;;
+기존에 있는거 쓰세요
 
 ## 5. 백엔드 실행 (프로젝트 루트에서)
 ```bash
