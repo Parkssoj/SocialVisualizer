@@ -1,9 +1,13 @@
 /**
  * 계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정 목록을 가져와
  * container 안에 <select>를 렌더링하고, 확정된 user_id를 반환한다.
- * (My People/My Time/Recap 3개 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
+ * (해당 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
+ *
+ * @param {HTMLElement|null} container
+ * @param {(userId: string) => void} [onChange] 전달하면 계정 변경 시 새로고침 대신 이 콜백을 호출한다
+ *   (예: Graph Viz처럼 페이지 새로고침 없이 그 자리에서 다시 그려야 하는 경우).
  */
-export async function initAccountPicker(container) {
+export async function initAccountPicker(container, onChange) {
   injectStyle();
 
   const current = localStorage.getItem('gw_user_id') || '';
@@ -44,7 +48,11 @@ export async function initAccountPicker(container) {
         });
         select.onchange = () => {
           localStorage.setItem('gw_user_id', select.value);
-          location.reload();
+          if (onChange) {
+            onChange(select.value);
+          } else {
+            location.reload();
+          }
         };
       }
     } else if (accounts.length > 0) {
