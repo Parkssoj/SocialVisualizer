@@ -7,6 +7,16 @@
 }
 #graph { display: block; width: 100%; height: 100%; background: #ffffff;}
 
+.gv-account-picker-wrap {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+}
+.gv-account-picker-wrap .gw-account-picker {
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+
 #tooltip {
   position: fixed;
   background: #ffffff;

@@ -8,36 +8,43 @@
 const NAV_ITEMS = [
   { page: 'home', href: 'index.html', label: '홈' },
   { page: 'search', href: 'search.html', label: '검색' },
-  { page: 'mylife', href: 'mylife.html', label: 'My Life' },
-  { page: 'mypeople', href: 'mypeople.html', label: 'My People' },
-  { page: 'mytime', href: 'mytime.html', label: 'My Time' },
-  { page: 'graph-viz', href: 'graph-viz.html', label: 'Graph Viz' },
-  { page: 'recap', href: 'recap.html', label: 'Recap' }
+  { page: 'imap-collect', href: 'imap-collect.html', label: '메일 수집' },
+  {
+    page: 'mylife', href: 'mylife.html', label: 'My Life',
+    children: [
+      { page: 'mypeople', href: 'mypeople.html', label: 'My People' },
+      { page: 'mytime', href: 'mytime.html', label: 'My Time' },
+      { page: 'recap', href: 'recap.html', label: 'Recap' }
+    ]
+  },
+  { page: 'graph-viz', href: 'graph-viz.html', label: '지식 그래프' }
 ];
 
 export function renderHeader(activePage) {
   const mountPoint = document.getElementById('app-header');
   if (!mountPoint) return;
 
-  const navLinks = NAV_ITEMS.map(
-    item =>
-      `<a href="${item.href}" class="gw-tl${item.page === activePage ? ' active' : ''}">${item.label}</a>`
-  ).join('');
+  const navLinks = NAV_ITEMS.map(item => {
+    if (item.children) {
+      const groupActive = item.page === activePage || item.children.some(c => c.page === activePage);
+      const childLinks = item.children.map(
+        c => `<a href="${c.href}"${c.page === activePage ? ' class="active"' : ''}>${c.label}</a>`
+      ).join('');
+      return `
+        <div class="gw-tl-dropdown">
+          <a href="${item.href}" class="gw-tl gw-tl-dd-btn${groupActive ? ' active' : ''}">${item.label} <i class="bi bi-chevron-down" style="font-size:.65rem;margin-left:2px;"></i></a>
+          <div class="gw-tl-dd-menu">${childLinks}</div>
+        </div>`;
+    }
+    return `<a href="${item.href}" class="gw-tl${item.page === activePage ? ' active' : ''}">${item.label}</a>`;
+  }).join('');
 
   mountPoint.innerHTML = `
     <div class="top_nav">
       <div class="nav_menu d-flex align-items-center justify-content-between">
-        <div class="navbar nav_title border-0" style="border:none;padding-left:16px;">
-          <a href="index.html" class="site_title site_title_text">
-            <img src="/images/olive-tree.png" style="width:24px;height:24px;object-fit:contain;"> Olive
-          </a>
-        </div>
-        <nav class="gw-top-links">${navLinks}</nav>
+        <nav class="gw-top-links" style="margin-left:16px;">${navLinks}</nav>
         <nav class="nav navbar-nav ms-auto">
           <ul class="navbar-right d-flex align-items-center gap-3 pe-3">
-            <li class="nav-item d-none d-lg-flex align-items-center" style="color:#73879C;font-size:.85rem;">
-              <span data-i18n="sidebar.welcome">Welcome,</span>&nbsp;<strong id="google-profile-name">-</strong>
-            </li>
             <li class="nav-item dropdown">
               <a href="#" role="button" class="dropdown-toggle" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none;color:inherit;">
                 <i class="bi bi-translate" style="font-size:1.2rem;vertical-align:middle;"></i>

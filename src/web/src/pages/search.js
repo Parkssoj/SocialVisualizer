@@ -19,11 +19,12 @@ const name = nameParam
 if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(nameParam));
 
 const gmailIdParam = params.get('gmail_id');
-if (gmailIdParam) localStorage.setItem('gw_gmail_id', decodeURIComponent(gmailIdParam));
+if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
-document.getElementById('google-profile-name').textContent = name;
+const profileNameEl = document.getElementById('google-profile-name');
+if (profileNameEl) profileNameEl.textContent = name;
 window.currentUserName = name;
 
 // 검색어 URL 파라미터
@@ -140,12 +141,12 @@ async function runSearch(q) {
   showLoading(q);
   saveRecent(q);
   renderRecents();
-  const gmailId = localStorage.getItem('gw_gmail_id') || '';
+  const gmailId = localStorage.getItem('gw_user_id') || '';
   try {
     const res = await fetch(`${FLASK_URL}/run-query-async`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: q, resType: 'structed', gmail_id: gmailId })
+      body: JSON.stringify({ message: q, resType: 'structed', user_id: gmailId })
     });
     const data = await res.json();
     if (!data.jobId) { showError(q, '검색 요청에 실패했습니다.'); return; }

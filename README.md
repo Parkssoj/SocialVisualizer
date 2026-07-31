@@ -13,12 +13,17 @@ Gmail 메일 데이터를 분석해 지식 그래프를 만들고, 사람/시간
 ```bash
 python -m venv mailgrapher-venv
 mailgrapher-venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
 가상환경 실행
 ```bash
 source mailgrapher-venv/Scripts/activate
+pip install -r requirements.txt
+```
+
+모듈 설치
+```bash
+pip install -r requirements.txt
 ```
 
 ## 3. 환경변수 설정

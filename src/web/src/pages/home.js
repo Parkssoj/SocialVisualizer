@@ -10,7 +10,7 @@ bootstrapApp('home');
   const name = nameParam ? decodeURIComponent(nameParam) : (sessionStorage.getItem('gw_user_name') || '-');
   if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(nameParam));
   const gmailIdParam = params.get('gmail_id');
-  if (gmailIdParam) localStorage.setItem('gw_gmail_id', decodeURIComponent(gmailIdParam));
+  if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 // Flask에서 직접 열릴 때 자동으로 ngrok URL 저장
@@ -47,10 +47,10 @@ function initKGraph() {
   const W = container.offsetWidth, H = container.offsetHeight;
 
   const nodes = [
-    {id:'kn-search',   px:0.10, py:0.34, color:'#26B99A'},
-    {id:'kn-mylife',   px:0.38, py:0.74, color:'#26B99A'},
-    {id:'kn-contacts', px:0.65, py:0.16, color:'#26B99A'},
-    {id:'kn-calendar', px:0.88, py:0.60, color:'#26B99A'}
+    {id:'kn-search',       px:0.10, py:0.34, color:'#26B99A'},
+    {id:'kn-mylife',       px:0.38, py:0.74, color:'#26B99A'},
+    {id:'kn-imap-collect', px:0.65, py:0.16, color:'#26B99A'},
+    {id:'kn-graph-viz',    px:0.88, py:0.60, color:'#26B99A'}
   ];
 
   const pos = {};
@@ -66,7 +66,7 @@ function initKGraph() {
   svg.innerHTML = '';
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-  const chain = ['kn-search','kn-mylife','kn-contacts','kn-calendar'];
+  const chain = ['kn-search','kn-mylife','kn-imap-collect','kn-graph-viz'];
 
   /* 엣지별 선형 그라데이션 정의 */
   for(let i = 0; i < chain.length - 1; i++) {

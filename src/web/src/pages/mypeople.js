@@ -1,4 +1,5 @@
 import { bootstrapApp } from '../main-app.js';
+import { initAccountPicker } from '../features/accountPicker.js';
 import * as d3 from 'd3';
 import '../scss/pages/mypeople.scss';
 
@@ -9,10 +10,12 @@ bootstrapApp('mypeople');
         const p = new URLSearchParams(window.location.search);
         const n = p.get('name') ? decodeURIComponent(p.get('name')) : (sessionStorage.getItem('gw_user_name') || '-');
         if (p.get('name')) sessionStorage.setItem('gw_user_name', n);
-        if (p.get('gmail_id')) localStorage.setItem('gw_gmail_id', decodeURIComponent(p.get('gmail_id')));
+        if (p.get('gmail_id')) localStorage.setItem('gw_user_id', decodeURIComponent(p.get('gmail_id')));
         const el = document.getElementById('google-profile-name');
         if (el) el.textContent = n;
       })();
+
+      const userIdPromise = initAccountPicker(document.getElementById('account-picker-mount'));
 
       /* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ── */
       function groupByEntityName(list) {
@@ -216,11 +219,11 @@ bootstrapApp('mypeople');
       let myAvatarUrl = null;  // 로그인한 사용자 본인의 아바타 이미지 URL (페이지 로드 시 1회 생성/캐시)
 
       async function fetchSentStats() {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         try {
           const res = await fetch('/mail-person-sent-stats', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ gmail_id: gmailId, start_date: msToDateStr(selMin), end_date: msToDateStr(selMax) })
+            body: JSON.stringify({ user_id: gmailId, start_date: msToDateStr(selMin), end_date: msToDateStr(selMax) })
           });
           if (res.ok) {
             const j = await res.json();
@@ -231,11 +234,11 @@ bootstrapApp('mypeople');
       }
 
       async function fetchReceivedStats() {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         try {
           const res = await fetch('/mail-person-received-stats', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ gmail_id: gmailId, start_date: msToDateStr(selMin), end_date: msToDateStr(selMax) })
+            body: JSON.stringify({ user_id: gmailId, start_date: msToDateStr(selMin), end_date: msToDateStr(selMax) })
           });
           if (res.ok) {
             const j = await res.json();
@@ -246,14 +249,14 @@ bootstrapApp('mypeople');
       }
 
       async function fetchPeriodStats() {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         if (!gmailId) return;
         const post = body => ({
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(body)
         });
         const body = {
-          gmail_id: gmailId,
+          user_id: gmailId,
           start_date: msToDateStr(selMin),
           end_date: msToDateStr(selMax)
         };
@@ -467,10 +470,10 @@ bootstrapApp('mypeople');
 
       /* ── 데이터 로드 ── */
       async function loadPeople() {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         const post = body => ({
           method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({gmail_id: gmailId})
+          body: JSON.stringify({user_id: gmailId})
         });
 
         let dateRange = null;
@@ -529,7 +532,7 @@ bootstrapApp('mypeople');
         if (avatarGenStarted) return;
         avatarGenStarted = true;
 
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         if (!gmailId) return;
 
         const candidates = groupByEntityName(allPeople)
@@ -544,7 +547,7 @@ bootstrapApp('mypeople');
           try {
             const res = await fetch('/generate-person-avatars', {
               method: 'POST', headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ gmail_id: gmailId, people: batch })
+              body: JSON.stringify({ user_id: gmailId, people: batch })
             });
             if (res.ok) {
               const j = await res.json();
@@ -560,7 +563,7 @@ bootstrapApp('mypeople');
       /* ── 로그인한 사용자 본인 아바타: 페이지 로드 시 1회 생성/캐시해두고,
          상세보기를 열 때마다 다시 만들 필요 없이 바로 꺼내 쓴다. ── */
       async function initMyAvatar() {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         const myNameEl = document.getElementById('mp-detail-my-name');
         const myEmailEl = document.getElementById('mp-detail-my-email');
         if (myNameEl) myNameEl.textContent = sessionStorage.getItem('gw_user_name') || '나';
@@ -569,7 +572,7 @@ bootstrapApp('mypeople');
         try {
           const cacheRes = await fetch('/self-avatar', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ gmail_id: gmailId })
+            body: JSON.stringify({ user_id: gmailId })
           });
           if (cacheRes.ok) {
             const j = await cacheRes.json();
@@ -578,7 +581,7 @@ bootstrapApp('mypeople');
           const myName = sessionStorage.getItem('gw_user_name') || '나';
           const genRes = await fetch('/generate-self-avatar', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ gmail_id: gmailId, name: myName })
+            body: JSON.stringify({ user_id: gmailId, name: myName })
           });
           if (genRes.ok) {
             const j = await genRes.json();
@@ -661,7 +664,7 @@ bootstrapApp('mypeople');
         try {
           const res = await fetch('/keyword-stats', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({gmail_id: gmailId})
+            body: JSON.stringify({user_id: gmailId})
           });
           if (res.ok) {
             const j = await res.json();
@@ -676,7 +679,7 @@ bootstrapApp('mypeople');
         try {
           const res = await fetch('/person-descriptions', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({gmail_id: gmailId})
+            body: JSON.stringify({user_id: gmailId})
           });
           if (res.ok) {
             const j = await res.json();
@@ -849,12 +852,12 @@ bootstrapApp('mypeople');
         const [y, m] = month.split('-').map(Number);
         const monthStart = `${month}-01`;
         const monthEnd = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
 
         try {
           const res = await fetch('/mail-person-emails', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ gmail_id: gmailId, person_gmail_id: person.email, start_date: monthStart, end_date: monthEnd })
+            body: JSON.stringify({ user_id: gmailId, person_user_id: person.email, start_date: monthStart, end_date: monthEnd })
           });
           if (activeDrawerMonth !== month) return;  // 그 사이 다른 달을 클릭했으면 이 응답은 버림
           renderEmailDrawerList(res.ok ? (await res.json()).data || [] : []);
@@ -1031,14 +1034,14 @@ bootstrapApp('mypeople');
       }
 
       async function refreshDetailStats(person) {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
 
         document.getElementById('mp-chart').innerHTML = '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
         document.getElementById('mp-detail-wc').innerHTML = '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
 
         const dateBody = {
-          gmail_id: gmailId,
-          person_gmail_id: person.email,
+          user_id: gmailId,
+          person_user_id: person.email,
           start_date: msToDateStr(selMin),
           end_date: msToDateStr(selMax)
         };
@@ -1068,7 +1071,7 @@ bootstrapApp('mypeople');
       }
 
       async function openDetail(person, rowIndex) {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         const detailDisplayName = resolveDisplayName(person);
 
         closeEmailDrawer();  // 이전 사람의 메일 목록 서랍이 열려 있던 상태로 새 상세보기가 뜨지 않도록 초기화
@@ -1172,8 +1175,8 @@ bootstrapApp('mypeople');
       async function _ensureGraphData() {
         if (_graphData) return _graphData;
         await _loadGraphScripts();
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
-        const res = await fetch('/graph-data?gmail_id=' + encodeURIComponent(gmailId));
+        const gmailId = (await userIdPromise) || '';
+        const res = await fetch('/graph-data?user_id=' + encodeURIComponent(gmailId));
         _graphData = await res.json();
         return _graphData;
       }
@@ -1282,19 +1285,19 @@ bootstrapApp('mypeople');
       loadPeople().then(() => fetchPeriodStats());
 
       (async () => {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         const kws = await loadKeywords(gmailId);
         renderWordCloud(kws, 'mp-global-wc');
       })();
 
       // 오른쪽 패널 전체 데이터 로드 (recap 방식 동일)
       (async () => {
-        const gmailId = localStorage.getItem('gw_gmail_id') || '';
+        const gmailId = (await userIdPromise) || '';
         if (!gmailId) return;
         const mkPost = () => ({
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({gmail_id: gmailId})
+          body: JSON.stringify({user_id: gmailId})
         });
 
         const [afRes, statsRes, syncRes] = await Promise.allSettled([

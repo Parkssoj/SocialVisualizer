@@ -1,18 +1,21 @@
 import { bootstrapApp } from '../main-app.js';
+import { initAccountPicker } from '../features/accountPicker.js';
 import '../scss/pages/mytime.scss';
 
 bootstrapApp('mytime');
 
+const userIdPromise = initAccountPicker(document.getElementById('account-picker-mount'));
+
 (async function () {
   const track = document.getElementById('track');
-  const gmailId = localStorage.getItem('gw_gmail_id') || '';
+  const gmailId = (await userIdPromise) || '';
 
   /* ── 실제 /mail-summaries 결과를 그대로 사용 ── */
   async function fetchSummaries(type) {
     try {
       const res = await fetch('/mail-summaries', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ gmail_id: gmailId, type })
+        body: JSON.stringify({ user_id: gmailId, type })
       });
       if (!res.ok) return {};
       const j = await res.json();
@@ -244,7 +247,6 @@ bootstrapApp('mytime');
   /* ── "나" 아바타: My People과 동일하게 캐시 우선 조회 후 없으면 생성.
      타임슬라이더 커서와 우측 사이드바 프로필, 두 군데에 동시에 채워 넣는다. ── */
   async function initSelfAvatar() {
-    const gmailId = localStorage.getItem('gw_gmail_id') || '';
     if (!gmailId) return;
     const applyAvatar = url => {
       if (!url) return;
@@ -256,7 +258,7 @@ bootstrapApp('mytime');
     try {
       const cacheRes = await fetch('/self-avatar', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ gmail_id: gmailId })
+        body: JSON.stringify({ user_id: gmailId })
       });
       if (cacheRes.ok) {
         const j = await cacheRes.json();
@@ -265,7 +267,7 @@ bootstrapApp('mytime');
       const myName = sessionStorage.getItem('gw_user_name') || '나';
       const genRes = await fetch('/generate-self-avatar', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ gmail_id: gmailId, name: myName })
+        body: JSON.stringify({ user_id: gmailId, name: myName })
       });
       if (genRes.ok) {
         const j = await genRes.json();
