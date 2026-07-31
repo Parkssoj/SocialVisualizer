@@ -18,7 +18,6 @@ mailgrapher-venv\Scripts\activate
 가상환경 실행
 ```bash
 source mailgrapher-venv/Scripts/activate
-pip install -r requirements.txt
 ```
 
 모듈 설치
