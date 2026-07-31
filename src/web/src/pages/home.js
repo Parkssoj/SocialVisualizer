@@ -47,10 +47,10 @@ function initKGraph() {
   const W = container.offsetWidth, H = container.offsetHeight;
 
   const nodes = [
-    {id:'kn-search',   px:0.10, py:0.34, color:'#26B99A'},
-    {id:'kn-mylife',   px:0.38, py:0.74, color:'#26B99A'},
-    {id:'kn-contacts', px:0.65, py:0.16, color:'#26B99A'},
-    {id:'kn-calendar', px:0.88, py:0.60, color:'#26B99A'}
+    {id:'kn-search',       px:0.10, py:0.34, color:'#26B99A'},
+    {id:'kn-mylife',       px:0.38, py:0.74, color:'#26B99A'},
+    {id:'kn-imap-collect', px:0.65, py:0.16, color:'#26B99A'},
+    {id:'kn-graph-viz',    px:0.88, py:0.60, color:'#26B99A'}
   ];
 
   const pos = {};
@@ -66,7 +66,7 @@ function initKGraph() {
   svg.innerHTML = '';
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-  const chain = ['kn-search','kn-mylife','kn-contacts','kn-calendar'];
+  const chain = ['kn-search','kn-mylife','kn-imap-collect','kn-graph-viz'];
 
   /* 엣지별 선형 그라데이션 정의 */
   for(let i = 0; i < chain.length - 1; i++) {

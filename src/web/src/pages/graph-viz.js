@@ -16,7 +16,8 @@ if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdP
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
-document.getElementById('google-profile-name').textContent = name;
+const profileNameEl = document.getElementById('google-profile-name');
+if (profileNameEl) profileNameEl.textContent = name;
 
 // 그래프 로드
 function _loadScript(src) {

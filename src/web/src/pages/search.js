@@ -23,7 +23,8 @@ if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdP
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
-document.getElementById('google-profile-name').textContent = name;
+const profileNameEl = document.getElementById('google-profile-name');
+if (profileNameEl) profileNameEl.textContent = name;
 window.currentUserName = name;
 
 // 검색어 URL 파라미터

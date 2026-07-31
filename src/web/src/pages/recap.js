@@ -15,7 +15,8 @@ if (nameParam) sessionStorage.setItem('gw_user_name', decodeURIComponent(namePar
 const gmailIdParam = params.get('gmail_id');
 if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdParam));
 
-document.getElementById('google-profile-name').textContent = name;
+const profileNameEl = document.getElementById('google-profile-name');
+if (profileNameEl) profileNameEl.textContent = name;
 
 const userIdPromise = initAccountPicker(document.getElementById('account-picker-mount'));
 

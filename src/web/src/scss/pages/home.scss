@@ -515,7 +515,7 @@ body, html { overflow: hidden; }
 @keyframes kf1{0%,100%{transform:translate(-50%,calc(-50% + 0px))}50%{transform:translate(-50%,calc(-50% - 20px))}}
 @keyframes kf2{0%,100%{transform:translate(-50%,calc(-50% + 0px))}50%{transform:translate(-50%,calc(-50% - 14px))}}
 @keyframes kf3{0%,100%{transform:translate(-50%,calc(-50% + 0px))}50%{transform:translate(-50%,calc(-50% - 18px))}}
-#kn-search   { animation: kf0 3.8s ease-in-out infinite; }
-#kn-mylife   { animation: kf1 4.2s ease-in-out infinite 0.7s; }
-#kn-contacts { animation: kf2 3.5s ease-in-out infinite 1.4s; }
-#kn-calendar { animation: kf3 4.0s ease-in-out infinite 1.0s; }
+#kn-search       { animation: kf0 3.8s ease-in-out infinite; }
+#kn-mylife       { animation: kf1 4.2s ease-in-out infinite 0.7s; }
+#kn-imap-collect { animation: kf2 3.5s ease-in-out infinite 1.4s; }
+#kn-graph-viz    { animation: kf3 4.0s ease-in-out infinite 1.0s; }
