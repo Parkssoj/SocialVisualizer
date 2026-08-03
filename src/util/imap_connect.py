@@ -3,9 +3,12 @@ import base64
 import re
 import imaplib
 import email
+import time
 import traceback
 
 from util.imap_message import _imap_build_block
+
+IMAP_FETCH_BATCH_SIZE = 50 # 한 번의 FETCH 요청으로 가져올 메일 개수
 
 # IMAP 폴더명(RFC 3501 Modified UTF-7)에 한글 등 비-ASCII 문자가 있을 때 인코딩
 def _imap_utf7_encode_folder(folder: str) -> str:
@@ -108,37 +111,79 @@ def _imap_fetch_content(host: str, port: int, use_ssl: bool, user: str, password
             if limit and limit > 0:
                 uids = uids[:limit]
 
-            for uid in uids:
-                uid_str = uid.decode(errors="ignore") if isinstance(uid, bytes) else str(uid)
+            total_batches = (len(uids) + IMAP_FETCH_BATCH_SIZE - 1) // IMAP_FETCH_BATCH_SIZE
+            for batch_num, batch_start in enumerate(range(0, len(uids), IMAP_FETCH_BATCH_SIZE), start=1):
+                batch = uids[batch_start:batch_start + IMAP_FETCH_BATCH_SIZE]
+                batch_arg = b",".join(batch)
+
+                fetch_started = time.perf_counter()
                 try:
-                    status, msg_data = conn.uid("fetch", uid_str, "(BODY.PEEK[])")
-                    if status != "OK" or not msg_data:
+                    status, msg_data = conn.uid("fetch", batch_arg, "(BODY.PEEK[])")
+                except Exception as e:
+                    print(f"[IMAP] 배치 FETCH 오류, 스킵: uids={batch} / {e}")
+                    traceback.print_exc()
+                    continue
+                fetch_elapsed = time.perf_counter() - fetch_started
+
+                if status != "OK" or not msg_data:
+                    continue
+
+                # 응답 순서가 요청 순서와 다를 수 있어 UID로 매칭해서 원래 순서(최신순)를 유지한다
+                raw_by_uid: dict[str, bytes] = {}
+                ordered_raw: list[bytes] = []
+                for part in msg_data:
+                    if not (isinstance(part, tuple) and len(part) >= 2 and isinstance(part[1], (bytes, bytearray))):
                         continue
+                    header = part[0]
+                    header_str = header.decode(errors="ignore") if isinstance(header, (bytes, bytearray)) else str(header)
+                    ordered_raw.append(part[1])
+                    m = re.search(r"UID (\d+)", header_str)
+                    if m:
+                        raw_by_uid[m.group(1)] = part[1]
 
-                    raw_email = None
-                    for part in msg_data:
-                        if isinstance(part, tuple) and len(part) >= 2 and isinstance(part[1], (bytes, bytearray)):
-                            raw_email = part[1]
-                            break
+                # 일부 서버(네이버 등)는 배치 UID FETCH 응답 헤더에 UID를 안 돌려줘서 위 정규식 매칭이 전부 실패할 수 있다.
+                # 이 경우 응답 순서 = 요청 순서라고 가정하고 위치 기반으로 매칭
+                if not raw_by_uid and ordered_raw:
+                    if len(ordered_raw) != len(batch):
+                        print(f"[IMAP] 위치 기반 폴백 매칭 개수 불일치: 응답 {len(ordered_raw)}개 vs 요청 {len(batch)}개")
+                    raw_by_uid = {
+                        (uid.decode(errors="ignore") if isinstance(uid, bytes) else str(uid)): raw
+                        for uid, raw in zip(batch, ordered_raw)
+                    }
 
+                parse_started = time.perf_counter()
+                for uid in batch:
+                    uid_str = uid.decode(errors="ignore") if isinstance(uid, bytes) else str(uid)
+                    raw_email = raw_by_uid.get(uid_str)
                     if raw_email is None:
                         print(f"[IMAP] RFC822 본문 없음, 스킵: uid={uid_str}")
                         continue
 
-                    msg = email.message_from_bytes(raw_email)
-                except Exception as e:
-                    print(f"[IMAP] 메일 파싱 오류, 스킵: uid={uid} / {e}")
-                    traceback.print_exc()
-                    continue
+                    try:
+                        msg = email.message_from_bytes(raw_email)
+                    except Exception as e:
+                        print(f"[IMAP] 메일 파싱 오류, 스킵: uid={uid_str} / {e}")
+                        traceback.print_exc()
+                        continue
 
-                message_id = (msg.get("Message-ID") or "").strip().strip("<>")
-                if not message_id:
-                    message_id = f"{folder}-{uid_str}"
+                    message_id = (msg.get("Message-ID") or "").strip().strip("<>")
+                    if not message_id:
+                        message_id = f"{folder}-{uid_str}"
 
-                mail_index += 1
-                block_text, attachments_payload = _imap_build_block(mail_index, message_id, msg, folder, my_email)
-                all_blocks.append(block_text)
-                all_attachments.extend(attachments_payload)
+                    mail_index += 1
+                    block_text, attachments_payload = _imap_build_block(mail_index, message_id, msg, folder, my_email)
+                    all_blocks.append(block_text)
+                    all_attachments.extend(attachments_payload)
+
+                parse_elapsed = time.perf_counter() - parse_started
+                batch_bytes = sum(len(v) for v in raw_by_uid.values())
+                batch_kb = batch_bytes / 1024
+                throughput_kbs = batch_kb / fetch_elapsed if fetch_elapsed > 0 else 0
+                print(
+                    f"[IMAP] {folder} 배치 {batch_num}/{total_batches} ({len(batch)}개, {batch_kb:.0f}KB): "
+                    f"FETCH {fetch_elapsed:.2f}초({throughput_kbs:.0f}KB/s) + 파싱 {parse_elapsed:.2f}초 "
+                    f"= {fetch_elapsed + parse_elapsed:.2f}초"
+                )
 
         content = "\n\n".join(all_blocks).strip()
         if content:

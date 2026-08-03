@@ -1222,7 +1222,7 @@ def imap_collect():
         port = int(data.get("port") or 993)
     except (TypeError, ValueError):
         port = 993
-    # limit=0은 "전체 수집"을 의미하므로 `or` 단락 평가로 100에 덮어써지지 않도록 None만 걸러낸다
+    
     limit_raw = data.get("limit")
     try:
         limit = int(limit_raw) if limit_raw not in (None, "") else 100
@@ -1242,6 +1242,7 @@ def imap_collect():
 
     print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
 
+    fetch_started = time.perf_counter()
     try:
         content, attachments = _imap_fetch_content(host, port, use_ssl, user, password, folders, limit, user)
     except imaplib.IMAP4.error as e:
@@ -1249,13 +1250,15 @@ def imap_collect():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": f"IMAP 수집 중 오류: {e}"}), 500
+    fetch_elapsed = time.perf_counter() - fetch_started
+    print(f"[IMAP-COLLECT] 수집 완료: {fetch_elapsed:.2f}초 소요")
 
     if not content.strip():
         return jsonify({"ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."})
 
     filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
 
-    # 변환된 텍스트/첨부파일을 기존 /upload 엔드포인트 로직에 그대로 위임 (label-route와 동일한 패턴)
+    # 변환된 텍스트/첨부파일을 기존 /upload 엔드포인트 로직에 그대로 위임
     with app.test_request_context(
         "/upload", method="POST",
         json={
@@ -1302,8 +1305,6 @@ def list_accounts():
             if not user_id:
                 # 메타 파일이 아직 없는 계정(이 기능 추가 이전에 만들어진 폴더) →
                 # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
-                # (진짜 user_id는 다른 엔드포인트가 실제 값으로 호출되는 순간
-                #  UserPaths가 자동으로 account.json을 채워넣는다.)
                 user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
 
             paths = UserPaths(BASE_DIR, user_id)
