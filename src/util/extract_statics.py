@@ -468,7 +468,7 @@ def generate_person_descriptions(paths) -> dict:
             person_email, desc = future.result()
             if desc:
                 descriptions[person_email] = desc
-                print(f"[PROFILES] 완료: {person_email}")
+                # print(f"[PROFILES] 완료: {person_email}")
 
     print(f"[PROFILES] 총 {len(descriptions)}명 프로필 생성 완료")
     return descriptions

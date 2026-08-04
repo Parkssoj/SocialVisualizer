@@ -68,7 +68,7 @@ from util.attachment_manager import _run_attachment_pipeline
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
-    init_keyword_mail_table,
+    init_mail_keyword_table,
     filter_unprocessed_attachments,
     mark_attachments_as_processed,
     rebuild_keyword_mail,
@@ -113,7 +113,7 @@ CORS(app)
 
 # 서버 시작 시 테이블 초기화 실행
 init_processed_attachments_table()
-init_keyword_mail_table()
+init_mail_keyword_table()
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -305,6 +305,7 @@ def upload():
     # 1) 데이터 수신
     data = request.json or {}
     filename = data.get("filename") or f"mail_{int(time.time())}.txt"
+    mail_platform = (data.get("mail_platform") or "gmail").strip().lower()
     content = data.get("content") or ""
     attachments = data.get("attachment") or []
     requested_mode = data.get("syncmode", "append")
@@ -365,14 +366,14 @@ def upload():
                 print(f"[CLEAN] stats.json 삭제 실패 (무시): {e}")
 
         try:
-            from util.database.db_writer import get_latest_user_record
-            latest_user = get_latest_user_record(user_id)
-            if latest_user:
+            from util.database.db_writer import get_latest_mail_account
+            latest_account = get_latest_mail_account(user_id)
+            if latest_account:
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 cursor.execute(
-                    "DELETE FROM processed_attachments WHERE user_account_id = %s AND update_date = %s",
-                    (latest_user["user_account_id"], latest_user["update_date"])
+                    "DELETE FROM processed_attachments WHERE user_mail_account_id = %s AND index_date = %s",
+                    (latest_account["user_mail_account_id"], latest_account["index_date"])
                 )
                 conn.commit()
                 cursor.close()
@@ -562,7 +563,7 @@ def upload():
         # rewrite 배치 완료 시 총 누적 메일 수로 기록 (마지막 배치 added_count만 넘기면 일부만 저장되는 버그 방지)
         final_text = _read_latest_text(paths)
         total_mail_count = len([b for b in _split_mail_blocks(final_text) if _extract_mail_id_from_block(b)])
-        start_graph_pipeline_background(graph_job_id, paths, env, added_count=total_mail_count, max_mails=paths.MAX_MAILS)
+        start_graph_pipeline_background(graph_job_id, paths, env, added_count=total_mail_count, max_mails=paths.MAX_MAILS, mail_platform=mail_platform)
 
     else:  # append
         if new_ids:
@@ -845,7 +846,7 @@ def rebuild_keyword_mail_route():
     paths = UserPaths(BASE_DIR, user_id)
     try:
         rebuild_keyword_mail(paths)
-        return jsonify({"ok": True, "message": "keyword_mail 테이블 재구성 완료"})
+        return jsonify({"ok": True, "message": "mail_keyword 테이블 재구성 완료"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1073,8 +1074,8 @@ def send_intimacy():
         return jsonify({"error": "start_date and end_date are required"}), 400
 
     result = calculate_eis(
-        user_account_id=user_id,
-        person_account_id=person_user_id,
+        user_mail_account_id=user_id,
+        person_mail_account_id=person_user_id,
         start_date=start_date,
         end_date=end_date,
         apply_volume_correction=False,
@@ -1221,6 +1222,27 @@ def imap_list_folders():
             except Exception:
                 pass
 
+# IMAP 호스트 → 실제 메일 플랫폼 이름 매핑 (mail_account.mail_platform에 저장)
+_IMAP_HOST_PLATFORM_MAP = {
+    "imap.gmail.com": "gmail",
+    "imap.naver.com": "naver",
+    "imap.daum.net": "daum",
+    "imap.mail.me.com": "icloud",
+    "outlook.office365.com": "outlook",
+    "imap-mail.outlook.com": "outlook",
+    "imap.mail.yahoo.com": "yahoo",
+}
+
+def _detect_imap_platform(host: str) -> str:
+    host_lower = (host or "").strip().lower()
+    if host_lower in _IMAP_HOST_PLATFORM_MAP:
+        return _IMAP_HOST_PLATFORM_MAP[host_lower]
+    # 매핑에 없는 커스텀 호스트는 도메인에서 서비스명을 추정 (예: imap.foo.co.kr -> foo)
+    labels = [p for p in host_lower.split(".") if p not in ("imap", "mail", "www")]
+    if len(labels) >= 2:
+        return labels[-2]
+    return host_lower or "imap"
+
 # 메일 수집 요청
 @app.route("/imap-collect", methods=["POST"])
 def imap_collect():
@@ -1283,6 +1305,7 @@ def imap_collect():
 
         filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
         update_job(job_id, message="수집한 메일 저장/인덱싱 준비 중")
+        mail_platform = _detect_imap_platform(host)
 
         try:
             with app.test_request_context(
@@ -1295,6 +1318,7 @@ def imap_collect():
                     "user_id": user_id,
                     "is_last": True,
                     "batch_offset": 0,
+                    "mail_platform": mail_platform,
                 },
                 content_type="application/json",
             ):
