@@ -14,10 +14,13 @@ from util.sse_broadcaster import broadcast
 from util.user_path import user_graphrag_init
 # from config.settings import GRAPH_BUILD_SCRIPT, GRAPHRAG_ROOT, BASE_DIR
 
-from config.settings import MAIL_BLOCK_SEP
+from config.settings import MAIL_BLOCK_SEP, BASE_DIR
 from util.extract_statics import start_timer,end_timer,format_elapsed_time, _extract_statics_pipeline
 from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, save_mail_folder_to_db, save_mail_to_db, collect_indexing_stats, update_mail_account_indexing_stats
 from util.mail_summary import generate_mail_summaries
+
+sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
+from renderer import render_all_domains
 
 # output 폴더를 3초 간격으로 감시해 인덱싱 단계 변화를 job 진행도에 반영
 # base_progress: subprocess 실행 전 세팅된 초기 진행도 — 이보다 낮은 값으로 되돌리지 않음
@@ -33,12 +36,12 @@ def _watch_graphrag_output(job_id, output_dir, start_time, stop_event, base_prog
 
 
 # 첨부파일 텍스트 요약 (공백/줄바꿈 제외 500자 미만이면 원문 그대로 반환)
-def _summarize_attachment_text(text: str, paths, filename: str, domain: str) -> str:
+def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     pure_len = len(text.replace(" ", "").replace("\n", ""))
     if pure_len < 500:
         return text  # 짧은 텍스트는 요약 없이 그대로 반환
 
-    prompt_path = os.path.join("parquet_template", "rendered", domain, "prompts", "summarize_attachment.txt")
+    prompt_path = os.path.join("parquet_template", "rendered", paths.DOMAIN, "prompts", "summarize_attachment.txt")
 
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
@@ -57,7 +60,6 @@ def _summarize_attachment_text(text: str, paths, filename: str, domain: str) -> 
     except Exception as e:
         print(f"[summarize_attachment error] {filename}: {e}")
         return text  # 실패하면 원문 그대로 반환
-
 
 # 요약된 첨부 텍스트를 mail_latest.txt 각 메일 블록 하단에 삽입
 def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mail: dict):
@@ -125,10 +127,11 @@ def build_graph_json(job_id, paths, env):
 
     # GraphRAG CLI 실행 명령어 구성
     cmd = [
-        sys.executable, "-u", "-X", "utf8", 
+        sys.executable, "-u", "-X", "utf8",
         paths.GRAPH_BUILD_SCRIPT,
         "--base-dir", paths.BASE_DIR,
-        "--user-id", paths.USER_ID
+        "--user-id", paths.USER_ID,
+        "--domain", paths.DOMAIN
         ]
     print(f"[JOB][mail2json] CMD={cmd}")
 
@@ -351,10 +354,11 @@ def build_graphrag_update(job_id,paths, env):
 
 
 # 전체 파이프라인 실행 (index 기준)
-def run_graph_pipeline(job_id, paths, env, domain, attachment_texts_by_mail=None, added_count=0, max_mails=None, mail_platform="gmail"):
+def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_count=0, max_mails=None, mail_platform="gmail"):
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
+    render_all_domains()
     user_graphrag_init(paths)
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
@@ -370,7 +374,7 @@ def run_graph_pipeline(job_id, paths, env, domain, attachment_texts_by_mail=None
                 summarized_by_mail[mail_id] = [
                     {
                         "name": item["name"],
-                        "text": _summarize_attachment_text(item["text"], paths, item["name"], domain)
+                        "text": _summarize_attachment_text(item["text"], paths, item["name"])
                     }
                     for item in items
                 ]
@@ -436,6 +440,7 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
+    render_all_domains()
     user_graphrag_init(paths)
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
@@ -464,7 +469,6 @@ def run_graph_update_pipeline(job_id, paths, env):
         for t in db_threads: t.start()
         for t in db_threads: t.join()
 
-
         update_job(job_id, progress=100, status="done", message="업데이트 완료")
         broadcast({"type": "done", "job_id": job_id, "message": "업데이트 완료"})
         append_job_log(job_id, "[END] run_graph_update_pipeline success")
@@ -480,14 +484,14 @@ def run_graph_update_pipeline(job_id, paths, env):
 
 
 # 백그라운드 전체 파이프라인 실행 (index 기준)
-def start_graph_pipeline_background(job_id, paths, env, domain, attachment_texts_by_mail=None, added_count=0, max_mails=None,  mail_platform="gmail"):
+def start_graph_pipeline_background(job_id, paths, env, attachment_texts_by_mail=None, added_count=0, max_mails=None,  mail_platform="gmail"):
     print(f"[JOB][pipeline] BACKGROUND START job_id={job_id}")
     append_job_log(job_id, "[INFO] background thread starting")
 
     # 새로운 스레드 생성
     t = threading.Thread(
         target=run_graph_pipeline,  # 실행할 함수: 그래프라그 파이프라인 (인덱싱) 실행 함수
-        args=(job_id, paths, env.copy(), domain, attachment_texts_by_mail, added_count, max_mails, mail_platform),
+        args=(job_id, paths, env.copy(), attachment_texts_by_mail, added_count, max_mails, mail_platform),
         daemon=True,                # app.py 종료 시 같이 종료
     )
     t.start()  # 스레드 실행 (비동기 시작)

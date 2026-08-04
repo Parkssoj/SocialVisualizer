@@ -79,6 +79,21 @@ class PromptTemplate:
         # settings.j2 렌더링
         self._render_settings(config)
 
+# configs/ 밑의 모든 도메인 config를 스캔해서, 아직 렌더링 안 된(rendered/{domain}/settings.yaml이 없는) 도메인만 렌더링
+def render_all_domains():
+    configs_dir = Path(__file__).parent/"configs"
+    rendered_dir = Path(__file__).parent.parent/"rendered"
+
+    for config_path in configs_dir.glob("*.json"):
+        domain = config_path.stem
+        settings_path = rendered_dir/domain/"settings.yaml"
+
+        if settings_path.exists():
+            print(f"[skip] {domain}: already rendered")
+            continue
+
+        PromptTemplate(domain).render()     # 도메인별 인스턴스 생성하면서 렌더링
+
+
 if __name__ == "__main__":
-    renderer = PromptTemplate("base")
-    renderer.render()
+    render_all_domains()
