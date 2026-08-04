@@ -72,6 +72,45 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
+# user_data 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환
+def list_accounts(base_dir: str) -> list[dict]:
+    from util.graphrag import _is_index_ready
+
+    user_data_dir = os.path.join(base_dir, "user_data")
+    accounts = []
+
+    if os.path.isdir(user_data_dir):
+        for dir_name in sorted(os.listdir(user_data_dir)):
+            dir_path = os.path.join(user_data_dir, dir_name)
+            if not os.path.isdir(dir_path):
+                continue
+
+            meta_path = os.path.join(dir_path, ACCOUNT_META_FILENAME)
+            user_id = None
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        user_id = (json.load(f).get("user_id") or "").strip()
+                except (OSError, json.JSONDecodeError):
+                    user_id = None
+
+            if not user_id:
+                # 메타 파일이 아직 없는 계정(이 기능 추가 이전에 만들어진 폴더) →
+                # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
+                user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
+
+            paths = UserPaths(base_dir, user_id)
+            accounts.append({
+                "user_id": user_id,
+                "indexed": _is_index_ready(paths),
+            })
+
+    return accounts
+
+# 인덱싱까지 완료된 계정의 user_id만 반환 (연합 검색 대상 계정 목록으로 사용)
+def list_indexed_user_ids(base_dir: str) -> list[str]:
+    return [a["user_id"] for a in list_accounts(base_dir) if a["indexed"]]
+
 # 도메인별 공용 settings.yaml, prompts를 사용자 parquet 폴더에 복사
 def user_graphrag_init(paths):
     domain = paths.DOMAIN
