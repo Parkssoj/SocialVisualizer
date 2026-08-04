@@ -2,7 +2,6 @@ import json
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 
-
 class PromptTemplate:
     WORKFLOW_NAMES = {
         "extract_graph", "summarize_descriptions", "summarize_attachment", "extract_claims", "community_reports", "local_search", "global_search"
@@ -27,8 +26,8 @@ class PromptTemplate:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         return self.output_dir
 
-    # 템플릿(name.j2)를 렌더링해서 prompts/name.txt로 저장
-    def _render_one(self, name: str, context: dict, prompts_dir: Path):
+    # 프롬프트 템플릿(name.j2)를 렌더링해서 prompts/name.txt로 저장
+    def _render_one_prompt(self, name: str, context: dict, prompts_dir: Path): 
         template = self.env.get_template(f"{name}.j2")
         rendered = template.render(**context)   # j2 템플릿의 context에 실제 값을 채워 완성된 문자열을 리턴
 
@@ -38,7 +37,19 @@ class PromptTemplate:
         output_path.write_text(rendered, encoding="utf-8")
         print(f"[render] {output_path}")
 
-    # config.json을 읽어서 워크플로우별로 프롬프트 템플릿을 렌더링
+    # 설정 파일 템플릿(settings.yaml)을 렌더링해서 prompt/settings.yaml로 저장
+    def _render_settings(self, config: dict): 
+        template = self.env.get_template("settings.j2")
+        rendered = template.render(**config) 
+
+        assert "{{" not in rendered and "{%" not in rendered, f"unrendered tag left in settings.yaml"     # 렌더링 성공 여부 검사. 잔존 태그가 있으면 에러 발생
+
+        output_dir =  self._ensure_output_dir()     # prompts/ 형제
+        output_path = output_dir/f"settings.yaml"
+        output_path.write_text(rendered, encoding="utf-8")
+        print(f"[render] {output_path}")
+
+    # config.json을 읽어서 워크플로우별 프롬프트 템플릿과 설정 파일을 렌더링
     def render(self):
         with open(self.config_path, encoding="utf-8") as file:
             config = json.load(file)
@@ -61,9 +72,12 @@ class PromptTemplate:
                     if sub_value is None:
                         print(f"[skip] {self.domain}: {workflow}.{sub} not configured")
                         continue
-                    self._render_one(f"{workflow}_{sub}", {**shared, **sub_value}, prompts_dir)
+                    self._render_one_prompt(f"{workflow}_{sub}", {**shared, **sub_value}, prompts_dir)
             else:
-                self._render_one(workflow, {**shared, **value}, prompts_dir)
+                self._render_one_prompt(workflow, {**shared, **value}, prompts_dir)
+
+        # settings.j2 렌더링
+        self._render_settings(config)
 
 if __name__ == "__main__":
     renderer = PromptTemplate("base")
