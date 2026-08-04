@@ -33,12 +33,12 @@ def _watch_graphrag_output(job_id, output_dir, start_time, stop_event, base_prog
 
 
 # 첨부파일 텍스트 요약 (공백/줄바꿈 제외 500자 미만이면 원문 그대로 반환)
-def _summarize_attachment_text(text: str,paths, filename: str) -> str:
+def _summarize_attachment_text(text: str, paths, filename: str, domain: str) -> str:
     pure_len = len(text.replace(" ", "").replace("\n", ""))
     if pure_len < 500:
         return text  # 짧은 텍스트는 요약 없이 그대로 반환
 
-    prompt_path = os.path.join( "parquet_template", "prompts", "summarize_attachment.txt")
+    prompt_path = os.path.join("parquet_template", "rendered", domain, "prompts", "summarize_attachment.txt")
 
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
@@ -351,7 +351,7 @@ def build_graphrag_update(job_id,paths, env):
 
 
 # 전체 파이프라인 실행 (index 기준)
-def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_count=0, max_mails=None):
+def run_graph_pipeline(job_id, paths, env, domain, attachment_texts_by_mail=None, added_count=0, max_mails=None):
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
@@ -370,7 +370,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
                 summarized_by_mail[mail_id] = [
                     {
                         "name": item["name"],
-                        "text": _summarize_attachment_text(item["text"],paths, item["name"])
+                        "text": _summarize_attachment_text(item["text"], paths, item["name"], domain)
                     }
                     for item in items
                 ]
@@ -465,7 +465,7 @@ def run_graph_update_pipeline(job_id, paths, env):
 
 
 # 백그라운드 전체 파이프라인 실행 (index 기준)
-def start_graph_pipeline_background(job_id, paths, env, attachment_texts_by_mail=None, added_count=0, max_mails=None):
+def start_graph_pipeline_background(job_id, paths, env, domain, attachment_texts_by_mail=None, added_count=0, max_mails=None):
     print(f"[JOB][pipeline] BACKGROUND START job_id={job_id}")
     append_job_log(job_id, "[INFO] background thread starting")
 
@@ -473,7 +473,7 @@ def start_graph_pipeline_background(job_id, paths, env, attachment_texts_by_mail
     t = threading.Thread(
 
         target=run_graph_pipeline,  # 실행할 함수: 그래프라그 파이프라인 (인덱싱) 실행 함수
-        args=(job_id, paths, env.copy(), attachment_texts_by_mail, added_count, max_mails),
+        args=(job_id, paths, env.copy(), domain, attachment_texts_by_mail, added_count, max_mails),
         daemon=True,                # app.py 종료 시 같이 종료
     )
     t.start()  # 스레드 실행 (비동기 시작)
