@@ -45,7 +45,7 @@ from util.jobs.job_run import (
     start_graph_update_pipeline_background
 )
 from config.settings import *
-from util.user_path import UserPaths
+from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
@@ -156,26 +156,41 @@ def run_query_async():
     update_job(job_id, status="pending", result=None, resType=resType)
 
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
-        from util.graphrag_query import run_graphrag_query
+        from util.graphrag_query import run_graphrag_query, run_federated_local_search
         try:
             paths = UserPaths(BASE_DIR, user_id)
             env = os.environ.copy()
             env["USER_ID"] = user_id
 
             # 날짜 범위 쿼리일 시 parquet 직접 필터링해서 LLM에게 넘기기, 아니면 GraphRAG로 처리
-            answer = run_date_range_query(message, paths) # 이게 None이면 GraphRAG로 
+            answer = run_date_range_query(message, paths) # 이게 None이면 GraphRAG로
             source_ids = []  # 초기화
             if answer is None:
                 full_message = message + " 영어 말고 한국어로 답변해줘."
 
                 resMethod = _classify_query_method(message)
-                try: # 엔진 객체 직접 호출 방식
-                    answer, source_ids = run_graphrag_query(full_message,message, paths, method=resMethod)
-                except Exception as e:
-                    # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
-                    print(f"[ENGINE] API 실패, CLI fallback: {e}")
-                    answer = _run_graphrag(full_message,message, resMethod, paths, resType)
-                    # source_ids = _extract_source_mail_ids(answer)
+
+                # local 검색은 인덱싱된 계정 전체를 대상으로 함(연합 검색).
+                # global 검색은 map-reduce라 계정마다 비용이 곱해져서 기존처럼 선택된 계정 하나만 대상으로 함.
+                if resMethod == "local":
+                    accounts_paths = [UserPaths(BASE_DIR, uid) for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
+                    try:
+                        answer, source_ids = run_federated_local_search(full_message, message, accounts_paths)
+                    except Exception as e:
+                        print(f"[ENGINE] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
+                        try:
+                            answer, source_ids = run_graphrag_query(full_message, message, paths, method=resMethod)
+                        except Exception as e2:
+                            print(f"[ENGINE] API 실패, CLI fallback: {e2}")
+                            answer = _run_graphrag(full_message,message, resMethod, paths, resType)
+                else:
+                    try: # 엔진 객체 직접 호출 방식
+                        answer, source_ids = run_graphrag_query(full_message,message, paths, method=resMethod)
+                    except Exception as e:
+                        # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
+                        print(f"[ENGINE] API 실패, CLI fallback: {e}")
+                        answer = _run_graphrag(full_message,message, resMethod, paths, resType)
+                        # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
             update_job(job_id, status="done", result=result, source_ids=source_ids)
@@ -1319,37 +1334,8 @@ def imap_collect_status(job_id):
 
 # 지금까지 인덱싱된 유저 반환
 @app.route("/accounts", methods=["GET"])
-def list_accounts():
-    user_data_dir = os.path.join(BASE_DIR, "user_data")
-    accounts = []
-
-    if os.path.isdir(user_data_dir):
-        for dir_name in sorted(os.listdir(user_data_dir)):
-            dir_path = os.path.join(user_data_dir, dir_name)
-            if not os.path.isdir(dir_path):
-                continue
-
-            meta_path = os.path.join(dir_path, "account.json")
-            user_id = None
-            if os.path.exists(meta_path):
-                try:
-                    with open(meta_path, "r", encoding="utf-8") as f:
-                        user_id = (json.load(f).get("user_id") or "").strip()
-                except (OSError, json.JSONDecodeError):
-                    user_id = None
-
-            if not user_id:
-                # 메타 파일이 아직 없는 계정(이 기능 추가 이전에 만들어진 폴더) →
-                # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
-                user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
-
-            paths = UserPaths(BASE_DIR, user_id)
-            accounts.append({
-                "user_id": user_id,
-                "indexed": _is_index_ready(paths),
-            })
-
-    return jsonify({"accounts": accounts})
+def accounts_route():
+    return jsonify({"accounts": list_accounts(BASE_DIR)})
 
 # 정적 파일을 vite 빌드 없이 소스에서 직접 서빙하는 라우트. 브라우저가 들어오면 flask+url을 localStorage에 저장 및 홈화면으로 리다이렉트
 @app.route('/imap-start')
