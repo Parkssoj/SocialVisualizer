@@ -1222,7 +1222,7 @@ def imap_collect():
         port = int(data.get("port") or 993)
     except (TypeError, ValueError):
         port = 993
-    
+
     limit_raw = data.get("limit")
     try:
         limit = int(limit_raw) if limit_raw not in (None, "") else 100
@@ -1240,46 +1240,82 @@ def imap_collect():
     if not user_id:
         return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
 
-    print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
+    job_id = str(uuid.uuid4())[:8]
+    create_job(job_id, job_type="imap_collect")
 
-    fetch_started = time.perf_counter()
-    try:
-        content, attachments = _imap_fetch_content(host, port, use_ssl, user, password, folders, limit, user)
-    except imaplib.IMAP4.error as e:
-        return jsonify({"ok": False, "error": f"IMAP 로그인/연결 오류: {e}"}), 400
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": f"IMAP 수집 중 오류: {e}"}), 500
-    fetch_elapsed = time.perf_counter() - fetch_started
-    print(f"[IMAP-COLLECT] 수집 완료: {fetch_elapsed:.2f}초 소요")
+    def _worker():
+        print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
+        update_job(job_id, status="running", message="IMAP 서버에서 메일 수집 중")
 
-    if not content.strip():
-        return jsonify({"ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."})
+        fetch_started = time.perf_counter()
+        try:
+            content, attachments = _imap_fetch_content(host, port, use_ssl, user, password, folders, limit, user)
+        except imaplib.IMAP4.error as e:
+            update_job(job_id, status="error", message="실패", error=f"IMAP 로그인/연결 오류: {e}")
+            return
+        except Exception as e:
+            traceback.print_exc()
+            update_job(job_id, status="error", message="실패", error=f"IMAP 수집 중 오류: {e}")
+            return
+        fetch_elapsed = time.perf_counter() - fetch_started
+        print(f"[IMAP-COLLECT] 수집 완료: {fetch_elapsed:.2f}초 소요")
 
-    filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
+        if not content.strip():
+            update_job(job_id, status="done", message="완료", result={
+                "ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."
+            })
+            return
 
-    # 변환된 텍스트/첨부파일을 기존 /upload 엔드포인트 로직에 그대로 위임
-    with app.test_request_context(
-        "/upload", method="POST",
-        json={
-            "filename": filename,
-            "content": content,
-            "attachment": attachments,
-            "syncmode": sync_mode,
-            "user_id": user_id,
-            "is_last": True,
-            "batch_offset": 0,
-        },
-        content_type="application/json",
-    ):
-        result = upload()
+        filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
+        update_job(job_id, message="수집한 메일 저장/인덱싱 준비 중")
 
-    if isinstance(result, tuple):
-        body, status_code = result[0], result[1]
-    else:
-        body, status_code = result, 200
+        try:
+            with app.test_request_context(
+                "/upload", method="POST",
+                json={
+                    "filename": filename,
+                    "content": content,
+                    "attachment": attachments,
+                    "syncmode": sync_mode,
+                    "user_id": user_id,
+                    "is_last": True,
+                    "batch_offset": 0,
+                },
+                content_type="application/json",
+            ):
+                result = upload()
+        except Exception as e:
+            traceback.print_exc()
+            update_job(job_id, status="error", message="실패", error=f"업로드 처리 중 오류: {e}")
+            return
 
-    return body, status_code
+        body, status_code = result if isinstance(result, tuple) else (result, 200)
+        try:
+            body_data = body.get_json()
+        except Exception:
+            body_data = None
+
+        if status_code >= 400 or not body_data:
+            update_job(job_id, status="error", message="실패", error=(body_data or {}).get("error", "업로드 처리 실패"))
+            return
+
+        update_job(job_id, status="done", message="완료", result=body_data)
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"ok": True, "jobId": job_id})
+
+@app.route('/imap-collect-status/<job_id>', methods=['GET'])
+def imap_collect_status(job_id):
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"status": "not_found"}), 404
+
+    return jsonify({
+        "status": job["status"],
+        "message": job.get("message", ""),
+        "result": job.get("result"),
+        "error": job.get("error"),
+    })
 
 # 지금까지 인덱싱된 유저 반환
 @app.route("/accounts", methods=["GET"])
