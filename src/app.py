@@ -172,7 +172,8 @@ def run_query_async():
                 resMethod = _classify_query_method(message)
 
                 # local/global 둘 다 인덱싱된 계정 전체를 대상으로 함(연합 검색).
-                accounts_paths = [UserPaths(BASE_DIR, uid) for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
+                # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
+                accounts_paths = [UserPaths(BASE_DIR, uid, "base") for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
 
                 if resMethod == "local":
                     try:

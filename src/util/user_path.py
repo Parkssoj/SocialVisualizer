@@ -99,7 +99,8 @@ def list_accounts(base_dir: str) -> list[dict]:
                 # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
                 user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
 
-            paths = UserPaths(base_dir, user_id)
+            # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
+            paths = UserPaths(base_dir, user_id, "base")
             accounts.append({
                 "user_id": user_id,
                 "indexed": _is_index_ready(paths),
