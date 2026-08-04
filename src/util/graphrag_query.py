@@ -282,6 +282,85 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
     print(f"[FEDERATED] 검색 완료: {elapsed:.2f}초, 계정 {len(accounts_paths)}개")
     return answer, source_ids
 
+# 여러 계정의 글로벌 서치(map-reduce)를 연합한다.
+# map 단계(계정별 커뮤니티 보고서 요약)는 계정마다 각자 돌리되(데이터량만큼 필요한 비용이라 못 줄임),
+# reduce 단계(최종 답변 합성)만 전체 계정의 map 결과를 모아 딱 1번만 실행해서 비용을 아낀다.
+# 참고: _map_response_single_batch / _reduce_response는 graphrag 라이브러리의 비공개(밑줄) 메서드라
+# 버전이 바뀌면 시그니처가 달라질 수 있다.
+def run_federated_global_search(message: str, original_message: str, accounts_paths: list) -> tuple[str, list]:
+    start_time = time.time()
+    result_container = {"result": None, "error": None}
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async def _search():
+                engines = []
+                for paths in accounts_paths:
+                    try:
+                        output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
+                        _, global_engine = get_engines(paths.USER_ID, output_dir, paths.GRAPHRAG_ROOT)
+                        engines.append((paths, global_engine))
+                    except Exception as e:
+                        print(f"[FEDERATED-GLOBAL] {paths.USER_ID} 엔진 로드 실패, 스킵: {e}")
+
+                if not engines:
+                    return "인덱싱된 계정이 없습니다.", []
+
+                all_map_responses = []
+                for paths, engine in engines:
+                    context_result = await engine.context_builder.build_context(
+                        query=message,
+                        **engine.context_builder_params,
+                    )
+                    # map: 커뮤니티 보고서 묶음마다 개별 LLM 호출 (계정별로 각자 실행)
+                    map_responses = await asyncio.gather(*[
+                        engine._map_response_single_batch(context_data=data, query=message, **engine.map_llm_params)
+                        for data in context_result.context_chunks
+                    ])
+                    print(f"[FEDERATED-GLOBAL] {paths.USER_ID}: map 배치 {len(map_responses)}개")
+                    all_map_responses.extend(map_responses)
+
+                # reduce: 전체 계정의 map 결과를 모아 딱 1번만 합성 (계정 수와 무관하게 항상 1번)
+                _, first_engine = engines[0]
+                reduce_response = await first_engine._reduce_response(
+                    map_responses=all_map_responses,
+                    query=message,
+                    **first_engine.reduce_llm_params,
+                )
+
+                answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', reduce_response.response)
+                answer = re.sub(r'\*+|#+', '', answer)
+                answer = answer.strip()
+
+                # 글로벌 서치는 원래도 개별 메일을 인용하는 방식이 아니라(전체 경향/패턴 요약) 근거 계정이 없음
+                return answer, []
+
+            result_container["result"] = loop.run_until_complete(_search())
+
+        except Exception as e:
+            traceback.print_exc()
+            result_container["error"] = e
+        finally:
+            loop.close()
+
+    # map 단계가 계정 수만큼 늘어날 수 있어 넉넉하게 대기
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=240)
+
+    if t.is_alive():
+        raise RuntimeError("연합 글로벌 검색 타임아웃 (240초)")
+
+    if result_container["error"]:
+        raise result_container["error"]
+
+    elapsed = time.time() - start_time
+    answer, source_ids = result_container["result"]
+    print(f"[FEDERATED-GLOBAL] 검색 완료: {elapsed:.2f}초, 계정 {len(accounts_paths)}개")
+    return answer, source_ids
+
 # 질의 방법 분류
 def _classify_query_method(message: str) -> str:
     prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,

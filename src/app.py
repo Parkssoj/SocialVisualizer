@@ -156,7 +156,7 @@ def run_query_async():
     update_job(job_id, status="pending", result=None, resType=resType)
 
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
-        from util.graphrag_query import run_graphrag_query, run_federated_local_search
+        from util.graphrag_query import run_graphrag_query, run_federated_local_search, run_federated_global_search
         try:
             paths = UserPaths(BASE_DIR, user_id)
             env = os.environ.copy()
@@ -170,10 +170,10 @@ def run_query_async():
 
                 resMethod = _classify_query_method(message)
 
-                # local 검색은 인덱싱된 계정 전체를 대상으로 함(연합 검색).
-                # global 검색은 map-reduce라 계정마다 비용이 곱해져서 기존처럼 선택된 계정 하나만 대상으로 함.
+                # local/global 둘 다 인덱싱된 계정 전체를 대상으로 함(연합 검색).
+                accounts_paths = [UserPaths(BASE_DIR, uid) for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
+
                 if resMethod == "local":
-                    accounts_paths = [UserPaths(BASE_DIR, uid) for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
                     try:
                         answer, source_ids = run_federated_local_search(full_message, message, accounts_paths)
                     except Exception as e:
@@ -184,13 +184,17 @@ def run_query_async():
                             print(f"[ENGINE] API 실패, CLI fallback: {e2}")
                             answer = _run_graphrag(full_message,message, resMethod, paths, resType)
                 else:
-                    try: # 엔진 객체 직접 호출 방식
-                        answer, source_ids = run_graphrag_query(full_message,message, paths, method=resMethod)
+                    try:
+                        answer, source_ids = run_federated_global_search(full_message, message, accounts_paths)
                     except Exception as e:
-                        # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
-                        print(f"[ENGINE] API 실패, CLI fallback: {e}")
-                        answer = _run_graphrag(full_message,message, resMethod, paths, resType)
-                        # source_ids = _extract_source_mail_ids(answer)
+                        print(f"[ENGINE] 연합 글로벌 검색 실패, 선택된 계정으로 폴백: {e}")
+                        try: # 엔진 객체 직접 호출 방식
+                            answer, source_ids = run_graphrag_query(full_message,message, paths, method=resMethod)
+                        except Exception as e2:
+                            # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
+                            print(f"[ENGINE] API 실패, CLI fallback: {e2}")
+                            answer = _run_graphrag(full_message,message, resMethod, paths, resType)
+                            # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
             update_job(job_id, status="done", result=result, source_ids=source_ids)
