@@ -192,7 +192,7 @@ def _save_attachment_from_base64(file_info: dict, save_dir: str) -> tuple[str, s
     return saved_path, original_name
 
 # 백그라운드: 첨부파일 텍스트 추출 → 요약 → attachment_latest.txt 저장 → graphrag update
-def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, is_last, domain: str):
+def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, is_last):
     print(f"[JOB][attachment] START job_id={job_id}")
     update_job(job_id, status="running", progress=0, message="첨부파일 텍스트 추출 중")
 
@@ -238,7 +238,7 @@ def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, i
             summarized_by_mail[mail_id] = [
                 {
                     "name": item["name"],
-                    "text": _summarize_attachment(item["text"], item["name"], domain)
+                    "text": _summarize_attachment(item["text"], item["name"], paths.DOMAIN)
                 }
                 for item in items
             ]
