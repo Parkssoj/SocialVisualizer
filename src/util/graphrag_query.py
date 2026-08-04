@@ -83,6 +83,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
             model_name=usage["model_name"],
             input_tokens=usage["input_tokens"],
             output_tokens=usage["output_tokens"],
+            answer=answer,
         )
     except Exception as e:
         print(f"[WARN] query DB 저장 실패 (무시): {e}")
