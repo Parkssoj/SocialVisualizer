@@ -16,7 +16,7 @@ models:
     async_mode: threaded # 멀티스레딩 방식으로 비동기 처리
     retry_strategy: native # 요청 실패 시 재시도 전략. 서버 응답에 따라 최적으로 자동 재시도
     max_retries: -1 # set to -1 for dynamic retry logic (most optimal setting based on server response)
-    # tokens_per_minute: 180000   # 분당 토큰/요청 제한
+    tokens_per_minute: 180000   # 분당 토큰/요청 제한
     # requests_per_minute: 0
     temperature: 0 # 답변의 일관성과 재현성 확보 (RAG에서는 보통 0을 권장)
 
@@ -29,7 +29,7 @@ models:
     async_mode: threaded
     retry_strategy: native
     max_retries: -1
-    # tokens_per_minute: 180000
+    tokens_per_minute: 180000
     # requests_per_minute: 0
 
 vector_store:
