@@ -41,25 +41,27 @@ def _run_graphrag(message, resMethod, raw_message, paths, resType):
     )
     elapsed = time.time() - start_time
     print(f'execution_time : {elapsed}')
-    try:
-        save_query_to_db(paths.GMAIL_ID, raw_message, elapsed, resMethod)
-    except Exception as e:
-        print(f"[WARN] query DB 저장 실패 (무시): {e}")
 
     stdout_text = decode_output(result.stdout)
     stderr_text = decode_output(result.stderr)
+
+    answer = None
+    if result.returncode == 0:
+        match = re.search(r'SUCCESS: (?:Local|Global) Search Response:\s*(.*)', stdout_text, re.DOTALL)
+        answer = match.group(1).strip() if match else stdout_text.strip()
+        answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer)
+        answer = re.sub(r'\*+|#+', '', answer)
+        answer = answer.strip()
+
+    try:
+        save_query_to_db(paths.GMAIL_ID, raw_message, elapsed, resMethod, answer=answer)
+    except Exception as e:
+        print(f"[WARN] query DB 저장 실패 (무시): {e}")
 
     if result.returncode != 0:
         raise RuntimeError(stderr_text or stdout_text or 'GraphRAG 실행 오류')
 
     print(stdout_text)
-
-    match = re.search(r'SUCCESS: (?:Local|Global) Search Response:\s*(.*)', stdout_text, re.DOTALL)
-    answer = match.group(1).strip() if match else stdout_text.strip()
-
-    answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer)
-    answer = re.sub(r'\*+|#+', '', answer)
-    answer = answer.strip()
     print(answer)
     return answer.strip()
 
