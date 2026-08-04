@@ -547,7 +547,8 @@ def upload():
         # rewrite 배치 완료 시 총 누적 메일 수로 기록 (마지막 배치 added_count만 넘기면 일부만 저장되는 버그 방지)
         final_text = _read_latest_text(paths)
         total_mail_count = len([b for b in _split_mail_blocks(final_text) if _extract_mail_id_from_block(b)])
-        start_graph_pipeline_background(graph_job_id, paths, env, added_count=total_mail_count, max_mails=paths.MAX_MAILS)
+        # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
+        start_graph_pipeline_background(graph_job_id, paths, env, "base", added_count=total_mail_count, max_mails=paths.MAX_MAILS)
 
     else:  # append
         if new_ids:
@@ -756,9 +757,10 @@ def upload_attachments():
     env["PYTHONUNBUFFERED"] = "1"
 
     # 6) 백그라운드에서 처리 (미처리 첨부파일만 전달)
+    # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
     t = threading.Thread(
         target=_run_attachment_pipeline,
-        args=(job_id, paths, unprocessed, env, is_last),
+        args=(job_id, paths, unprocessed, env, is_last, "base"),
         daemon=True
     )
     t.start()
