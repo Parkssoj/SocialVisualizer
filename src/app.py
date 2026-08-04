@@ -159,7 +159,7 @@ def run_query_async():
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
         from util.graphrag_query import run_graphrag_query, run_federated_local_search, run_federated_global_search
         try:
-            paths = UserPaths(BASE_DIR, user_id)
+            paths = UserPaths(BASE_DIR, user_id, "base")
             env = os.environ.copy()
             env["USER_ID"] = user_id
 
@@ -290,7 +290,7 @@ def run_query():
     if not user_id:
         return jsonify({'error': 'user_id가 비어있습니다.'}), 400
 
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     message += " 영어 말고 한국어로 답변해줘."
 
     try:
@@ -318,7 +318,8 @@ def upload():
     is_last = data.get("is_last", True)
     batch_offset = data.get("batch_offset", 0)
 
-    paths = UserPaths(BASE_DIR, user_id)
+    # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
+    paths = UserPaths(BASE_DIR, user_id, "base")
 
     if not str(content).strip():
         return jsonify({"ok": False, "error": "content가 비어있습니다."}), 400
@@ -613,7 +614,7 @@ def graph_data():
     if not user_id:
         return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
 
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
 
     if not os.path.exists(paths.GRAPH_JSON_PATH):
         return jsonify({"nodes": [], "edges": [], "error": "graph json not found"}), 200
@@ -650,7 +651,7 @@ def index_status():
     user_id = (request.args.get("user_id") or "").strip().lower()
     if not user_id:
         return jsonify({"error": "user_id가 비어있습니다."}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"indexed": _is_index_ready(paths)})
 
 # 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
@@ -711,7 +712,7 @@ def upload_attachments():
         is_last = data.get("is_last", False)
         if is_last:
             # 이미 누적된 attachment_latest.csv로 GraphRAG update 실행
-            paths = UserPaths(BASE_DIR, user_id)
+            paths = UserPaths(BASE_DIR, user_id, "base")
             if os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
                 job_id = str(uuid.uuid4())[:8]
                 create_job(job_id, job_type="attachment")
@@ -728,7 +729,8 @@ def upload_attachments():
                 return jsonify({"ok": True, "message": "finish signal received"})
         return jsonify({"ok": False, "error": "attachments가 비어있습니다."}), 400
     
-    paths = UserPaths(BASE_DIR, user_id)
+    # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
+    paths = UserPaths(BASE_DIR, user_id, "base")
 
     # 2) 메일 인덱스가 준비되지 않았으면 거절
     # 메일 본문 인덱싱 완료 전에 첨부파일 처리하면 불완전한 그래프에 update가 붙는 문제 방지
@@ -798,7 +800,7 @@ def send_mail_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     print(f"[MAIL_STATS] user_id={user_id}")
     print(f"[MAIL_STATS] path={paths.USER_ROOT}")
     return jsonify({"user_id": user_id, "data": get_mail_stats(paths)})
@@ -817,7 +819,7 @@ def send_keyword_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"user_id": user_id, "data": get_keyword_stats(paths)})
 
 @app.route("/keyword-by-person-date", methods=["POST"]) # 각 사람마다 주고받은 메일의 키위드 리턴
@@ -848,7 +850,7 @@ def rebuild_keyword_mail_route():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     try:
         rebuild_keyword_mail(paths)
         return jsonify({"ok": True, "message": "mail_keyword 테이블 재구성 완료"})
@@ -864,7 +866,7 @@ def upload_contact_photos():
         return jsonify({"error": "user_id is required"}), 400
     if not isinstance(photos, dict) or not photos:
         return jsonify({"ok": True, "message": "사진 없음"}), 200
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     existing = {}
     if os.path.exists(paths.MAIL_PHOTOS_PATH):
@@ -881,7 +883,7 @@ def get_contact_photos():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     if not os.path.exists(paths.MAIL_PHOTOS_PATH):
         return jsonify({}), 200
     with open(paths.MAIL_PHOTOS_PATH, "r", encoding="utf-8") as f:
@@ -893,7 +895,7 @@ def get_person_avatars():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify(get_cached_person_avatars(paths))
 
 @app.route("/generate-person-avatars", methods=["POST"])
@@ -903,13 +905,13 @@ def generate_person_avatars():
     people = data.get("people", [])
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     result = generate_person_avatars_batch(paths, people)
     return jsonify({"user_id": user_id, "data": result})
 
 @app.route("/person-avatar-image/<user_id>/<filename>")
 def person_avatar_image(user_id, filename):
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
 @app.route("/self-avatar", methods=["POST"])
@@ -918,7 +920,7 @@ def get_self_avatar():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"url": get_cached_self_avatar(paths)})
 
 @app.route("/generate-self-avatar", methods=["POST"])
@@ -928,7 +930,7 @@ def generate_self_avatar_route():
     name = data.get("name", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     url = generate_self_avatar(paths, name)
     return jsonify({"url": url})
 
@@ -938,7 +940,7 @@ def send_high_affinity_person_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"user_id": user_id, "data": get_high_affinity_person_stats(paths)})
 
 @app.route("/user_rating_stats", methods=["POST"])
@@ -947,7 +949,7 @@ def send_user_rating_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"user_id": user_id, "data": get_user_rating_stats()})
 
 @app.route("/mail_sync_stats", methods=["POST"])
@@ -956,7 +958,7 @@ def send_mail_sync_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     return jsonify({"user_id": user_id, "data": get_mail_sync_stats(paths)})
 
 @app.route("/mail-exchange-stats", methods=["POST"])
@@ -1014,7 +1016,7 @@ def send_person_emails_in_range():
 
     # 2) 제목/본문은 MySQL에 없으므로(집계용 테이블), 메일 ID별로 파일 캐시에서만 조회한다.
     #    캐시에 없는 메일은 건너뛴다.
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     mail_cache = _load_mail_message_cache(paths)
 
     def _fetch_one(ref):
@@ -1113,7 +1115,7 @@ def send_mail_summaries():
     if summary_type not in ("monthly", "yearly"):
         return jsonify({"error": "type must be 'monthly' or 'yearly'"}), 400
 
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
     if not os.path.exists(paths.MAIL_SUMMARIES_PATH):
         return jsonify({"error": "summaries not generated yet"}), 404
 
@@ -1132,7 +1134,7 @@ def contacts_proxy():
     if not user_id:
         return jsonify({'ok': False, 'error': 'user_id가 비어있습니다.'}), 400
 
-    paths = UserPaths(BASE_DIR, user_id)
+    paths = UserPaths(BASE_DIR, user_id, "base")
 
     if action == 'getFrequentContacts':
         max_results = int(data.get('maxResults', 100))

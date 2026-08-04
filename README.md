@@ -50,6 +50,8 @@ npm run dev
 ```
 → `http://localhost:3000` (단, 백엔드(80)도 같이 켜져 있어야 API가 동작함)
 
+---
+
 # LightRAG 설치 (Windows / Git Bash 기준)
 
 MailGrapher 프로젝트에서 LightRAG를 서버로 띄우기 위해 진행한 과정 정리.
