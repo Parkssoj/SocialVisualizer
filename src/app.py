@@ -82,7 +82,8 @@ from util.avatar_generator import (
 )
 from util.sse_broadcaster import (
     subscribe,
-    unsubscribe
+    unsubscribe,
+    broadcast
 )
 from config.db import get_db_connection
 from util.graphrag import (
@@ -1287,28 +1288,39 @@ def imap_collect():
     def _worker():
         print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
         update_job(job_id, status="running", message="IMAP 서버에서 메일 수집 중")
+        broadcast({"type": "progress", "job_id": job_id, "message": "IMAP 서버에서 메일 수집 중"})
+
+        def _on_batch(folder, batch_num, total_batches, count):
+            msg = f"{folder} 배치 {batch_num}/{total_batches} ({count}개)"
+            update_job(job_id, message=msg)
+            broadcast({"type": "progress", "job_id": job_id, "message": msg})
 
         fetch_started = time.perf_counter()
         try:
-            content, attachments = _imap_fetch_content(host, port, use_ssl, user, password, folders, limit, user)
+            content, attachments = _imap_fetch_content(
+                host, port, use_ssl, user, password, folders, limit, user, on_batch=_on_batch
+            )
         except imaplib.IMAP4.error as e:
             update_job(job_id, status="error", message="실패", error=f"IMAP 로그인/연결 오류: {e}")
+            broadcast({"type": "failed", "job_id": job_id, "message": f"IMAP 로그인/연결 오류: {e}"})
             return
         except Exception as e:
             traceback.print_exc()
             update_job(job_id, status="error", message="실패", error=f"IMAP 수집 중 오류: {e}")
+            broadcast({"type": "failed", "job_id": job_id, "message": f"IMAP 수집 중 오류: {e}"})
             return
         fetch_elapsed = time.perf_counter() - fetch_started
         print(f"[IMAP-COLLECT] 수집 완료: {fetch_elapsed:.2f}초 소요")
 
         if not content.strip():
-            update_job(job_id, status="done", message="완료", result={
-                "ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."
-            })
+            result = {"ok": True, "added_count": 0, "skipped_count": 0, "message": "수집된 메일이 없습니다."}
+            update_job(job_id, status="done", message="완료", result=result)
+            broadcast({"type": "done", "job_id": job_id, "message": "완료", "result": result})
             return
 
         filename = f"imap_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
         update_job(job_id, message="수집한 메일 저장/인덱싱 준비 중")
+        broadcast({"type": "progress", "job_id": job_id, "message": "수집한 메일 저장/인덱싱 준비 중"})
         mail_platform = _detect_imap_platform(host)
 
         try:
@@ -1330,6 +1342,7 @@ def imap_collect():
         except Exception as e:
             traceback.print_exc()
             update_job(job_id, status="error", message="실패", error=f"업로드 처리 중 오류: {e}")
+            broadcast({"type": "failed", "job_id": job_id, "message": f"업로드 처리 중 오류: {e}"})
             return
 
         body, status_code = result if isinstance(result, tuple) else (result, 200)
@@ -1339,10 +1352,13 @@ def imap_collect():
             body_data = None
 
         if status_code >= 400 or not body_data:
-            update_job(job_id, status="error", message="실패", error=(body_data or {}).get("error", "업로드 처리 실패"))
+            error_msg = (body_data or {}).get("error", "업로드 처리 실패")
+            update_job(job_id, status="error", message="실패", error=error_msg)
+            broadcast({"type": "failed", "job_id": job_id, "message": error_msg})
             return
 
         update_job(job_id, status="done", message="완료", result=body_data)
+        broadcast({"type": "done", "job_id": job_id, "message": "완료", "result": body_data})
 
     threading.Thread(target=_worker, daemon=True).start()
     return jsonify({"ok": True, "jobId": job_id})

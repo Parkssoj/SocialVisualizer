@@ -45,7 +45,7 @@ function dismissJobPanel(panelEl, collectJobId, delayMs = 5000) {
         jobsList.innerHTML = `
           <div class="gw-log-empty" id="jobs-list-empty">
             <i class="bi bi-clock-history" style="font-size:1.2rem;"></i>
-            수집을 시작하면 여기에 로그가 표시됩니다.
+            수집을 시작하면 이곳에 로그가 표시됩니다.
           </div>`;
       }
     }, 400);
@@ -293,112 +293,109 @@ function createJobPanel(user) {
   return panelEl;
 }
 
-// ── job 상태를 완료될 때까지 폴링하며 해당 패널만 갱신 (다른 job과 독립적으로 동작) ──
-async function trackImapCollectJob(flaskUrl, jobId, panelEl, user) {
-  try {
-    let lastMessage = '';
-    let data = null;
+// ── SSE: 폴링 대신 서버가 push하는 이벤트로 진행상황을 받는다. 페이지당 연결 하나만 유지하고,
+// 들어오는 이벤트의 job_id로 어느 패널(수집 job/인덱싱 job)에 해당하는지 찾아서 갱신한다. ──
+const activeJobs = new Map(); // job_id -> { panelEl, phase: 'collect' | 'index', collectJobId, user }
+let sseConn = null;
 
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+function ensureSSE(flaskUrl) {
+  if (sseConn) return sseConn;
+  sseConn = new EventSource(`${flaskUrl}/indexing-stream`);
+  sseConn.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch { return; }
+    if (data && data.job_id) handleJobEvent(data);
+  };
+  sseConn.onerror = () => {
+    // 브라우저가 자동으로 재연결을 시도하므로 별도 처리 없이 로그만 남김
+    console.warn('[imap-collect] SSE 연결 끊김, 자동 재연결 시도 중...');
+  };
+  return sseConn;
+}
 
-      const statusRes = await fetch(`${flaskUrl}/imap-collect-status/${jobId}`);
-      if (!statusRes.ok) {
-        throw new Error(`상태 조회 실패 (${statusRes.status})`);
-      }
-      const job = await statusRes.json();
+function handleJobEvent(data) {
+  const entry = activeJobs.get(data.job_id);
+  if (!entry) return; // 이 페이지가 추적 중인 job이 아니면 무시 (다른 계정/다른 탭의 이벤트일 수 있음)
 
-      if (job.status === 'not_found') {
-        throw new Error('작업을 찾을 수 없습니다.');
-      }
-      if (job.message && job.message !== lastMessage) {
-        lastMessage = job.message;
-        jobAddLog(panelEl, job.message);
-      }
-      if (job.status === 'error') {
-        throw new Error(job.error || '수집 중 오류가 발생했습니다.');
-      }
-      if (job.status === 'done') {
-        data = job.result || {};
-        break;
-      }
-    }
+  const { panelEl, phase, collectJobId, user } = entry;
 
-    if (data.ok === false) {
-      throw new Error(data.error || '알 수 없는 오류');
-    }
+  if (data.type === 'progress') {
+    if (data.message) jobAddLog(panelEl, data.message, phase === 'index' ? 'info' : '');
+    return;
+  }
 
-    // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다.
-    localStorage.setItem('gw_user_id', user);
+  if (data.type === 'failed') {
+    jobSetStatus(panelEl, 'failed', phase === 'index' ? '인덱싱 실패' : '실패');
+    jobAddLog(panelEl, `❌ ${data.message || '오류가 발생했습니다.'}`, 'error');
+    activeJobs.delete(data.job_id);
+    dismissJobPanel(panelEl, collectJobId);
+    return;
+  }
 
-    jobSetProgress(panelEl, 100);
-    jobSetStatus(panelEl, 'done', '완료');
-    jobAddLog(panelEl, `✅ 수집 완료`, 'success');
-    jobAddLog(panelEl, `수집: ${data.added_count}개 / 중복 스킵: ${data.skipped_count}개`, 'success');
-    if (data.job_id) {
-      jobAddLog(panelEl, `인덱싱 job_id: ${data.job_id} — 인덱싱이 백그라운드에서 실행됩니다.`, 'info');
-    }
+  if (data.type !== 'done') return;
 
-    panelEl.querySelector('.job-result-added').textContent = data.added_count ?? 0;
-    panelEl.querySelector('.job-result-skipped').textContent = data.skipped_count ?? 0;
-    panelEl.querySelector('.job-result-row').style.display = 'flex';
+  if (phase === 'index') {
+    jobSetStatus(panelEl, 'done', '인덱싱 완료');
+    jobAddLog(panelEl, `✅ 인덱싱 완료`, 'success');
+    activeJobs.delete(data.job_id);
+    dismissJobPanel(panelEl, collectJobId);
+    return;
+  }
 
-    if (data.job_id) {
-      await trackIndexingJob(flaskUrl, data.job_id, panelEl, jobId);
-    } else {
-      dismissJobPanel(panelEl, jobId);
-    }
+  // phase === 'collect'
+  const result = data.result || {};
+  activeJobs.delete(data.job_id);
 
-  } catch (err) {
+  if (result.ok === false) {
     jobSetStatus(panelEl, 'failed', '실패');
-    jobAddLog(panelEl, `❌ ${err.message}`, 'error');
-    console.error('[imap-collect]', err);
-    dismissJobPanel(panelEl, jobId);
+    jobAddLog(panelEl, `❌ ${result.error || '알 수 없는 오류'}`, 'error');
+    dismissJobPanel(panelEl, collectJobId);
+    return;
+  }
+
+  // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다.
+  localStorage.setItem('gw_user_id', user);
+
+  jobSetProgress(panelEl, 100);
+  jobSetStatus(panelEl, 'done', '완료');
+  jobAddLog(panelEl, `✅ 수집 완료`, 'success');
+  jobAddLog(panelEl, `수집: ${result.added_count}개 / 중복 스킵: ${result.skipped_count}개`, 'success');
+
+  panelEl.querySelector('.job-result-added').textContent = result.added_count ?? 0;
+  panelEl.querySelector('.job-result-skipped').textContent = result.skipped_count ?? 0;
+  panelEl.querySelector('.job-result-row').style.display = 'flex';
+
+  if (result.job_id) {
+    jobAddLog(panelEl, `인덱싱 job_id: ${result.job_id} — 인덱싱이 백그라운드에서 실행됩니다.`, 'info');
+    jobSetStatus(panelEl, 'running', '인덱싱 중');
+    jobAddLog(panelEl, '인덱싱이 백그라운드에서 진행 중입니다...', 'info');
+    activeJobs.set(result.job_id, { panelEl, phase: 'index', collectJobId, user });
+  } else {
+    dismissJobPanel(panelEl, collectJobId);
   }
 }
 
-// ── 수집 뒤에 이어지는 인덱싱 job도 끝날 때까지 추적 (같은 job_store를 쓰므로 동일한 상태 조회 엔드포인트를 재사용) ──
-// collectJobId: localStorage에서 이 job을 지우기 위해 필요한, 원래 수집 job의 id (인덱싱 job id와는 다름)
-async function trackIndexingJob(flaskUrl, indexJobId, panelEl, collectJobId) {
-  jobSetStatus(panelEl, 'running', '인덱싱 중');
-  jobAddLog(panelEl, '인덱싱이 백그라운드에서 진행 중입니다...', 'info');
+// job을 SSE로 추적 시작. SSE는 "연결 이후"의 이벤트만 받으므로, 연결 전에 이미 끝나버린 job을
+// 놓치지 않도록 상태를 한 번 REST로 확인해서 따라잡은 뒤(catch-up) 이어지는 진행상황은 SSE로 받는다.
+function trackCollectJob(flaskUrl, jobId, panelEl, user, phase = 'collect', collectJobId = jobId) {
+  ensureSSE(flaskUrl);
+  activeJobs.set(jobId, { panelEl, phase, collectJobId, user });
 
-  try {
-    let lastMessage = '';
-
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const statusRes = await fetch(`${flaskUrl}/imap-collect-status/${indexJobId}`);
-      if (!statusRes.ok) {
-        throw new Error(`인덱싱 상태 조회 실패 (${statusRes.status})`);
-      }
-      const job = await statusRes.json();
-
+  fetch(`${flaskUrl}/imap-collect-status/${jobId}`)
+    .then(res => res.json())
+    .then(job => {
       if (job.status === 'not_found') {
-        throw new Error('인덱싱 작업을 찾을 수 없습니다.');
+        handleJobEvent({ type: 'failed', job_id: jobId, message: '작업을 찾을 수 없습니다.' });
+      } else if (job.status === 'done') {
+        handleJobEvent({ type: 'done', job_id: jobId, result: job.result });
+      } else if (job.status === 'error' || job.status === 'failed') {
+        handleJobEvent({ type: 'failed', job_id: jobId, message: job.error || job.message });
       }
-      if (job.message && job.message !== lastMessage) {
-        lastMessage = job.message;
-        jobAddLog(panelEl, job.message, 'info');
-      }
-      if (job.status === 'failed' || job.status === 'error') {
-        throw new Error(job.error || job.message || '인덱싱 중 오류가 발생했습니다.');
-      }
-      if (job.status === 'done') {
-        break;
-      }
-    }
-
-    jobSetStatus(panelEl, 'done', '인덱싱 완료');
-    jobAddLog(panelEl, `✅ 인덱싱 완료`, 'success');
-  } catch (err) {
-    jobSetStatus(panelEl, 'failed', '인덱싱 실패');
-    jobAddLog(panelEl, `❌ ${err.message}`, 'error');
-    console.error('[imap-collect][indexing]', err);
-  } finally {
-    dismissJobPanel(panelEl, collectJobId);
-  }
+      // 그 외(아직 진행 중)에는 아무것도 안 하고 SSE로 이어받는다 (entry는 이미 등록해둠)
+    })
+    .catch(() => {
+      // 상태 확인 자체가 실패해도 SSE로 이어받을 수 있으니 조용히 무시
+    });
 }
 
 // ── 수집 시작: 요청만 보내고 바로 폼을 다시 쓸 수 있게 반환, 진행 추적은 패널별로 백그라운드에서 계속 ──
@@ -488,7 +485,7 @@ async function startCollect() {
   addStoredImapJob(started.jobId, user);
   resetForm();
 
-  trackImapCollectJob(flaskUrl, started.jobId, panelEl, user);
+  trackCollectJob(flaskUrl, started.jobId, panelEl, user);
 }
 
 // ── 이벤트 바인딩 ──
@@ -534,6 +531,6 @@ if (storedJobs.length > 0) {
   storedJobs.forEach(({ jobId, user }) => {
     const panelEl = createJobPanel(user);
     jobAddLog(panelEl, '이전 수집 작업 상태를 이어서 확인하는 중...');
-    trackImapCollectJob(flaskUrl, jobId, panelEl, user);
+    trackCollectJob(flaskUrl, jobId, panelEl, user);
   });
 }
