@@ -1,0 +1,270 @@
+-Goal-
+Given a text document and a list of entity types, identify all entities and the relationships between them. Output both using the specified formats. The input may be an email, a structured table, or plain text — adapt accordingly.
+
+---
+
+-Steps-
+1. Identify Entities:
+1.1. Extract entities of the following types: '[{entity_types}]'
+Format: '("entity"{tuple_delimiter}<name>{tuple_delimiter}<type>{tuple_delimiter}<description>)'
+  * Email: 'Subject: <subject> | ID: <mail_id> | Date: <YYYY-MM-DD HH:MM> | Tone: <formal/casual/transactional/notification/alert> | Summary: <1-sentence>'
+  * Person: 'Account: <email> | Name: <name/None>'
+  * Organization: 'OrgName: <organization_name> | Department: <department/None>'
+  * Topic: 'Priority: <high/mid/low> | Summary: <Core topic of this email in 1 sentence>'
+  * Event: 'EventName: <event_title> | Schedule: <YYYY-MM-DD HH:MM> | Location: <place/None> | Status: <confirmed/tentative>'
+  * Attachment: 'Filename: <name> | Type: <file_type> | Summary: <content_summary>'
+
+1.2. Extraction Rules by Entity Type:
+* Email Rules:
+  - The 'name' (title) of an Email entity MUST always be the <mail_id> (Unique Identifier).
+  - CRITICAL: If the 'ID:' field is missing, unreadable, or empty, DO NOT create the Email entity.
+  - CRITICAL: NEVER generate or use dummy IDs (e.g., 'MAIL_001', 'mail_001', 'temp_id'). Only authentic IDs from the source data are allowed.
+  - The 'Title' attribute MUST use the exact subject from the '[제목]' field. If the subject is missing or empty, set it to '(제목 없음)'.
+  - Date Attribute: Use the exact value from the '날짜:' field. Format: YYYY-MM-DD HH:MM (Include up to minutes; exclude seconds). If the date field is missing or unreadable, set it to 'None'.
+  - Tone Classification (Select ONLY ONE): formal = Professional business emails, official correspondence from institutions/professors. casual = Informal emails between acquaintances or personal contacts. transactional = Automated transaction emails (payments, refunds, order confirmations). notification = Service alerts, newsletters, marketing updates. alert = Security codes, password resets, urgent warnings.
+  - CRITICAL: No values other than the five specified above are allowed. If Tone cannot be clearly determined, select the closest matching value. 'None' is strictly forbidden.
+  - Summary MUST be a concise, one-sentence description of the email content.
+  - CRITICAL: All Email entity names and all relationship references to Email IDs MUST use the uppercase form of the ID.
+* Person Rules:
+  - The 'name' (title) of a Person entity MUST always be the Account (email address). Do NOT use the display name as the entity name, even if available.
+  - CRITICAL: NEVER include the display name in the entity name field. Display names belong ONLY in the 'Name' attribute of the description.
+  - Integrate multiple Person mentions with the same Account into a single entity.
+  - The 'Name' attribute should only be filled if a display name is explicitly mentioned. Otherwise, set it to 'None'.
+  - CRITICAL: Do NOT create a Person node if the Account (email address) is unknown. Each Person entity MUST have a valid email address as its identifier.
+  - CRITICAL: NEVER use or generate fake/dummy email addresses (e.g., '@unknown.com', '@unknown', 'user@example.com') as an Account.
+  - If a valid, real-world email address cannot be identified from the text, the Person entity MUST NOT be created.
+* Organization Rules:
+  - The 'name' (title) of an Organization entity MUST be the OrgName.
+  - Extract ONLY organizations, institutions, or companies explicitly mentioned in the text.
+  - CRITICAL: Do NOT classify Hotels, Cafes, Buildings, physical locations, or meeting venues as Organization.
+  - CRITICAL: Do NOT create or hallucinate organization entities based on inference or context alone if the specific name is not present.
+  - The 'Department' attribute should be filled ONLY if explicitly stated; otherwise, set it to 'None'.
+  - If multiple departments belong to the same Organization, they should be linked to a single Organization entity.
+* Topic Rules:
+  - Extract ONLY contextual themes that represent the core purpose of the email (e.g., 'Claude Pro Refund Processing', 'Web Tutoring Schedule Coordination').
+  - The 'name' (title) MUST be a concise and reusable noun phrase summarizing the theme — prefer stable/generalizable names, avoid exact dates/identifiers/long phrases.
+  - Do NOT extract as Topics: technical terms, file names, coding stacks (Python, Flask, CSS); one-time codes, alerts, or emails lacking substantive discussion; pure system notifications, OTP messages, or security alerts without meaningful context.
+  - Consolidate multiple mentions of the same context into a single, normalized Topic entity. For recurring automated emails (e.g., OTP), use a single generalized Topic such as '인증코드 수신' rather than one Topic per email.
+  - Priority Classification: high = requires immediate response/action (deadlines, urgent requests, payment errors). mid = general information exchange or ongoing discussions. low = simple notifications, newsletters, automated system emails.
+  - CRITICAL: Do NOT create a Topic entity if there is no clearly discussed subject. Use the body text as the primary source; the subject line may support only when the body is too short/minimal.
+* Event Rules:
+  - The 'name' (title) of an Event entity MUST be the EventName.
+  - Extract ONLY if explicit date or time information is present in the text.
+  - CRITICAL: Do NOT create an Event entity if the 'Schedule' attribute cannot be populated.
+  - Do NOT extract class titles, content names, or session titles as Events unless accompanied by specific scheduling information.
+  - If 'Status' cannot be clearly determined, mark it as 'tentative'.
+* Attachment Rules:
+  - The Attachment entity's Summary must be based on the provided summary text and strictly follow the defined format.
+  - See integrated_document_rules for how Attachment extraction interacts with the '[첨부파일 요약]' section.
+
+1.3. Extraction Rules for Integrated Documents:
+  * MAIN CONTENT: Extract Email, Person, Organization, Topic, and Event entities from the main email header and body.
+  * If the text contains a section marked "[첨부파일 요약]", apply the following rules EXCLUSIVELY:
+    - Extract ONLY 'Attachment' type entities from this section.
+    - CRITICAL: Names, email addresses, organizations, topics, dates, and labels appearing inside this section are attachment content only and MUST NOT be extracted as separate entities.
+    - CRITICAL: DO NOT extract any Person, Topic, Organization, or Event entities from content inside this section, even if they appear meaningful.
+    - CRITICAL: Violating this rule is an extraction failure.
+
+2. Identify Relationships:
+  * Relationship directions are fixed — do NOT reverse them. Source and Target MUST match the specified entity types exactly.
+  * Format: '("relationship"{tuple_delimiter}<source>{tuple_delimiter}<target>{tuple_delimiter}<type>{tuple_delimiter}<description_in_Korean>{tuple_delimiter}<strength_1_10>)'
+
+  | Type | Source | Target | When to use |
+  |------|--------|--------|-------------|
+  | sent_by | Email | Person | Email sender |
+  | sent_to | Email | Person | Email recipient (To Field) |
+  | cc_to | Email | Person | CC recipient (CC field) |
+  | affiliated_with | Person | Organization | Person's affiliated organization |
+  | discusses | Email | Topic | Contextual topic discussed in email body |
+  | schedules | Email | Event | Event/Schedule mentioned in email |
+  | has_attachment | Email | Attachment | File attached to email |
+
+  Rules:
+    * CRITICAL: Each relationship MUST have exactly ONE type from the allowed list. NEVER combine multiple types in a single relationship.
+    * Self-mail rule: If the sender and receiver are the same email address, create TWO separate relationships (sent_by and sent_to).
+    * affiliated_with target MUST be an Organization type.
+    * sent_to MUST be used ONLY for primary recipients (To field). Use cc_to for carbon copy recipients.
+    * has_attachment MUST be created ONLY if the attachment is explicitly mentioned in the text.
+    * Do NOT use sent_by, sent_to, cc_to if no Email entity exists.
+    * Do NOT create relationships that are NOT clearly supported by the text.
+    * Relationship weight MUST be a float between 1.0 and 10.0. Explicit: 7.0+ / Inferred: 4.0 or below.
+    * Do NOT create duplicate relationships with the same source-target-type combination.
+    * Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description.
+
+3. Grounding Rules:
+   * Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings as entities.
+   * Do NOT extract serial numbers within filenames, or transaction identifiers such as invoice numbers, order numbers, or tracking IDs.
+   * CRITICAL: Only extract entities that represent meaningful, persistent concepts, people, organizations, or events.
+   * CRITICAL: An entity MUST NOT be created if any of its core fields (name, type, or description) cannot be populated with a valid, meaningful value.
+   * CRITICAL: Strings representing absence of value such as 'None', 'NONE', 'null', '없음', '-' MUST NOT be used as entity names under any type.
+   * CRITICAL: Do NOT create entities whose name consists solely of a person's display name without a valid email address.
+   * Do NOT create duplicate entities.
+   * CRITICAL: Every extracted entity MUST be linked to at least one other entity (typically an Email). DO NOT extract isolated entities.
+   * Output as a single list delimited by {record_delimiter}.
+   * End with {completion_delimiter}.
+
+---
+
+-Examples-
+
+Example 1
+Entity_types: Email, Person, Organization, Topic, Attachment
+Text:
+[메일 1]
+
+ID: 19d4da32341500e4
+제목: [Vocarush] 4월 스프린트 계획 확정
+구분: 발신
+날짜: 2026-04-02 18:02
+
+발신인: 김민준 <minjun.kim@vocarush.io>
+수신인: 박서연 <seoyeon.park@vocarush.io>
+참조(CC): 없음
+
+[라벨 정보]
+스프린트
+
+[첨부파일 정보]
+- sprint_plan.pdf (120.0 KB) [포함]
+
+[메일 본문]
+박서연님, 4월 스프린트 계획을 확정하여 공유드립니다.
+첨부파일 확인 부탁드립니다.
+Product팀 김민준 드림
+
+Output:
+("entity"{tuple_delimiter}19D4DA32341500E4{tuple_delimiter}Email{tuple_delimiter}Subject: [Vocarush] 4월 스프린트 계획 확정 | ID: 19d4da32341500e4 | Date: 2026-04-02 18:02 | Tone: formal | Summary: 4월 스프린트 계획을 공유하는 공식 메일)
+{record_delimiter}
+("entity"{tuple_delimiter}minjun.kim@vocarush.io{tuple_delimiter}Person{tuple_delimiter}Account: minjun.kim@vocarush.io | Name: 김민준)
+{record_delimiter}
+("entity"{tuple_delimiter}seoyeon.park@vocarush.io{tuple_delimiter}Person{tuple_delimiter}Account: seoyeon.park@vocarush.io | Name: 박서연)
+{record_delimiter}
+("entity"{tuple_delimiter}Vocarush{tuple_delimiter}Organization{tuple_delimiter}OrgName: Vocarush | Department: Product)
+{record_delimiter}
+("entity"{tuple_delimiter}스프린트 계획 수립{tuple_delimiter}Topic{tuple_delimiter}Priority: high | Summary: Vocarush 4월 스프린트 계획을 팀 내 공유하고 확정하는 논의)
+{record_delimiter}
+("entity"{tuple_delimiter}sprint_plan.pdf{tuple_delimiter}Attachment{tuple_delimiter}Filename: sprint_plan.pdf | Type: pdf | Summary: 4월 스프린트 계획 문서로, 각 업무의 우선순위와 담당자를 명확히 설정해 계획된 일정 내에 서비스를 성공적으로 출시하고자 하는 것을 목적으로 한다.)
+{record_delimiter}
+("relationship"{tuple_delimiter}19D4DA32341500E4{tuple_delimiter}minjun.kim@vocarush.io{tuple_delimiter}sent_by{tuple_delimiter}이메일의 발신자는 minjun.kim@vocarush.io이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D4DA32341500E4{tuple_delimiter}seoyeon.park@vocarush.io{tuple_delimiter}sent_to{tuple_delimiter}이메일의 수신자는 seoyeon.park@vocarush.io이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}minjun.kim@vocarush.io{tuple_delimiter}Vocarush{tuple_delimiter}affiliated_with{tuple_delimiter}minjun.kim@vocarush.io는 Vocarush Product팀에 소속되어 있다.{tuple_delimiter}9){record_delimiter}
+("relationship"{tuple_delimiter}19D4DA32341500E4{tuple_delimiter}스프린트 계획 수립{tuple_delimiter}discusses{tuple_delimiter}메일 본문에서 4월 스프린트 계획 수립을 주요 주제로 다룬다.{tuple_delimiter}9){record_delimiter}
+("relationship"{tuple_delimiter}19D4DA32341500E4{tuple_delimiter}sprint_plan.pdf{tuple_delimiter}has_attachment{tuple_delimiter}이메일에 스프린트 계획 문서가 첨부되어 있다.{tuple_delimiter}10){completion_delimiter}
+
+---
+Example 2
+Entity_types: Email, Person, Event
+Text:
+[메일 2]
+
+ID: 19d4a5b4a4703a36
+제목: Re: 수락
+구분: 수신
+날짜: 2026-04-02 03:43
+
+발신인: Winston from Anthropic <support@mail.anthropic.com>
+수신인: 최지유 <gpttitti@hansung.ac.kr>
+참조(CC): 김예은 <03yeah03@gmail.com>
+
+[라벨 정보]
+Recent-Labeled, 캘린더
+
+[첨부파일 정보]
+없음
+
+[메일 본문]
+3월 15일 오전 10시에 공학관에서 만나요.
+
+Output:
+("entity"{tuple_delimiter}19D4A5B4A4703A36{tuple_delimiter}Email{tuple_delimiter}Subject: Re: 수락 | ID: 19d4a5b4a4703a36 | Date: 2026-04-02 03:43 | Tone: formal | Summary: 수락 답변과 함께 공학관 미팅 일정을 안내하는 메일)
+{record_delimiter}
+("entity"{tuple_delimiter}support@mail.anthropic.com{tuple_delimiter}Person{tuple_delimiter}Account: support@mail.anthropic.com | Name: Winston from Anthropic)
+{record_delimiter}
+("entity"{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}Person{tuple_delimiter}Account: gpttitti@hansung.ac.kr | Name: 최지유)
+{record_delimiter}
+("entity"{tuple_delimiter}03yeah03@gmail.com{tuple_delimiter}Person{tuple_delimiter}Account: 03yeah03@gmail.com | Name: 김예은)
+{record_delimiter}
+("entity"{tuple_delimiter}공학관 미팅{tuple_delimiter}Event{tuple_delimiter}EventName: 공학관 미팅 | Schedule: 2026-03-15 10:00 | Location: 공학관 | Status: confirmed)
+{record_delimiter}
+("relationship"{tuple_delimiter}19D4A5B4A4703A36{tuple_delimiter}support@mail.anthropic.com{tuple_delimiter}sent_by{tuple_delimiter}이메일의 발신자는 support@mail.anthropic.com이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D4A5B4A4703A36{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}sent_to{tuple_delimiter}이메일의 수신자는 gpttitti@hansung.ac.kr이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D4A5B4A4703A36{tuple_delimiter}03yeah03@gmail.com{tuple_delimiter}cc_to{tuple_delimiter}이메일의 참조 수신자는 03yeah03@gmail.com이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D4A5B4A4703A36{tuple_delimiter}공학관 미팅{tuple_delimiter}schedules{tuple_delimiter}메일을 통해 공학관 미팅 일정이 안내되었다.{tuple_delimiter}10){completion_delimiter}
+
+---
+Example 3
+Entity_types: Email, Person
+Text:
+[메일 3]
+
+ID: 19d615cb9c3d0153
+제목: sisi
+구분: 발신
+날짜: 2026-04-06 14:55
+
+발신인: 최지유 <gpttitti@hansung.ac.kr>
+수신인: 최지유 <gpttitti@hansung.ac.kr>
+참조(CC): 없음
+
+[라벨 정보]
+없음
+
+[첨부파일 정보]
+없음
+
+[메일 본문]
+sisi
+
+Output:
+("entity"{tuple_delimiter}19D615CB9C3D0153{tuple_delimiter}Email{tuple_delimiter}Subject: sisi | ID: 19d615cb9c3d0153 | Date: 2026-04-06 14:55 | Tone: casual | Summary: 발신인과 수신인이 동일한 자기 자신에게 보낸 메일)
+{record_delimiter}
+("entity"{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}Person{tuple_delimiter}Account: gpttitti@hansung.ac.kr | Name: 최지유)
+{record_delimiter}
+("relationship"{tuple_delimiter}19D615CB9C3D0153{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}sent_by{tuple_delimiter}이메일의 발신자는 gpttitti@hansung.ac.kr이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D615CB9C3D0153{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}sent_to{tuple_delimiter}이메일의 수신자도 gpttitti@hansung.ac.kr로, 자기 자신에게 보낸 메일이다.{tuple_delimiter}10){completion_delimiter}
+
+---
+Example 4
+Entity_types: Email, Person, Attachment
+Text:
+[메일 17]
+
+ID: 19d8fd9a3fd77c73
+제목: 과제 제출
+구분: 발신
+날짜: 2026-04-15 15:34
+
+발신인: 최지유 <gpttitti@hansung.ac.kr>
+수신인: 최지유 <gpttitti@hansung.ac.kr>
+참조(CC): 없음
+
+[라벨 정보]
+없음
+
+[첨부파일 정보]
+- HW3_2471239_최지유.pdf (257.3 KB) [포함]
+
+[메일 본문]
+과제 제출합니다.
+
+[첨부파일 요약]
+File name: HW3_2471239_최지유.pdf
+Summary: 최지유 학생의 자료구조[C] 과제 3에 대한 내용으로, 연결리스트를 활용하여 여러 개의 큐를 관리하는 프로그램을 구현하였다.
+
+Output:
+("entity"{tuple_delimiter}19D8FD9A3FD77C73{tuple_delimiter}Email{tuple_delimiter}Subject: 과제 제출 | ID: 19d8fd9a3fd77c73 | Date: 2026-04-15 15:34 | Tone: casual | Summary: 첨부파일로 자료구조 과제를 제출하는 메일)
+{record_delimiter}
+("entity"{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}Person{tuple_delimiter}Account: gpttitti@hansung.ac.kr | Name: 최지유)
+{record_delimiter}
+("entity"{tuple_delimiter}HW3_2471239_최지유.pdf{tuple_delimiter}Attachment{tuple_delimiter}Filename: HW3_2471239_최지유.pdf | Type: pdf | Summary: 연결리스트를 활용하여 여러 개의 큐를 관리하는 프로그램을 구현한 자료구조 과제 3 제출물)
+{record_delimiter}
+("relationship"{tuple_delimiter}19D8FD9A3FD77C73{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}sent_by{tuple_delimiter}이메일의 발신자는 gpttitti@hansung.ac.kr이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D8FD9A3FD77C73{tuple_delimiter}gpttitti@hansung.ac.kr{tuple_delimiter}sent_to{tuple_delimiter}이메일의 수신자도 gpttitti@hansung.ac.kr로, 자기 자신에게 보낸 메일이다.{tuple_delimiter}10){record_delimiter}
+("relationship"{tuple_delimiter}19D8FD9A3FD77C73{tuple_delimiter}HW3_2471239_최지유.pdf{tuple_delimiter}has_attachment{tuple_delimiter}이메일에 자료구조 과제 PDF가 첨부되어 있다.{tuple_delimiter}10){completion_delimiter}
+
+---
+
+-Real Data-
+Entity_types: {entity_types}
+Text: {input_text}
+Output:

@@ -1,0 +1,128 @@
+You are an AI assistant that helps a human analyst explore and understand a personal email archive. Your goal is to produce structured summaries of email communities that help the user quickly grasp who is involved, what topics recur, and why this group of emails matters.
+
+-Goal-
+Write a comprehensive report of a community, given a list of entities that belong to the community as well as their relationships. The community is derived from a personal Gmail archive and may be centered around a person, an organization, or a recurring topic. The report will help the user understand the nature and importance of this email cluster.
+
+---
+
+-Report Structure-
+The report should include the following sections:
+
+* TITLE: A short but specific name for the community. Prefer using a person name or organization name when available. Write in Korean.
+* SUMMARY: An executive summary written in Korean describing: (1) what kind of community this is (person-based, org-based, or topic-based — pick the single most dominant type) (2) who the key participants are (3) what the emails in this cluster are generally about. Keep it under 3 sentences.
+* CATEGORY: Classify this community into exactly one of the following top-level categories. This field is used for hierarchical clustering — choose the category that best reflects the primary purpose of the emails in this cluster.
+  - "대인 커뮤니케이션" : 사람 간 직접 주고받는 이메일
+  - "프로젝트/학습" : 과제, 개발, 교육, 협업 등 실질적 업무/학습
+  - "서비스 커뮤니케이션" : 온보딩, 마케팅, 공지, 약관 등 정보성 이메일
+  - "트랜잭션" : 인증코드, 결제, 구독, 보안 알림 등 자동 발송 이메일
+* PURPOSE: State the core function/purpose of this community in a single sentence. Include the unique characteristic that distinguishes it from other communities. (e.g., "Receiving one-time authentication codes for OpenAI service login", "Team communication related to the VocaRush game development project")
+* IMPORTANCE RATING: A float score between 0-10 representing how significant this email cluster is to the user's activity. Score according to the following criteria:
+  - 8-10: 사람 간 직접 소통, 반복적 프로젝트 협업, 중요한 의사결정 포함
+  - 5-7: 구독/결제 관리, 서비스 공지 등 주기적으로 확인이 필요한 이메일
+  - 2-4: 자동 발송 트랜잭션 이메일 (인증코드, 보안 알림 등)
+  - 0-1: 마케팅, 광고, 일회성 알림 등 거의 무시해도 되는 이메일
+* RATING EXPLANATION: A single sentence in Korean explaining the score.
+* DETAILED FINDINGS: A list of 3-5 key insights about the community. Each insight should have a short summary followed by an explanatory paragraph grounded in the data. Write findings in Korean. Focus on the following angles when applicable:
+  1. Community identity — what person or topic anchors this cluster
+  2. Key emails — the most significant emails and what they contain
+  3. People and relationships — who sends to whom, and what roles they play
+  4. Recurring topics — what subjects or themes appear repeatedly
+  5. Events and schedules — any time-based information found in the emails
+  6. Organizations involved — what companies or teams appear
+
+Return output as a well-formed JSON-formatted string with the following format:
+    {
+    "title": <report_title>,
+    "summary": <executive_summary>,
+    "category": <top_level_category>,
+    "purpose": <single_sentence_purpose>,
+    "rating": <importance_rating>,
+    "rating_explanation": <rating_explanation>,
+    "findings": [
+        {
+            "summary": <insight_summary>,
+            "explanation": <insight_explanation>
+        }
+    ]
+}
+
+---
+
+-Grounding Rules-
+Points supported by data should list their data references as follows:
+"This is an example sentence supported by data references [Data: <dataset name> (record ids); <dataset name> (record ids)]."
+Do not list more than 5 record ids in a single reference. Instead, list the top 5 most relevant record ids and add "+more" to indicate that there are more.
+Do not include information where the supporting evidence is not provided.
+
+Additional rules:
+엔티티는 반복적으로 의미를 가지는 개념만 추출한다. 즉, 다른 이메일에서도 동일한 의미로 재등장할 수 있는 것만 포함한다.
+* Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings as entities.
+* Do NOT extract serial numbers within filenames, or transaction identifiers such as invoice numbers, order numbers, or tracking IDs.
+* CRITICAL: Only extract entities that represent meaningful, persistent concepts, people, organizations, or events.
+* CRITICAL: An entity MUST NOT be created if any of its core fields (name, type, or description) cannot be populated with a valid, meaningful value.
+* CRITICAL: Strings representing absence of value such as 'None', 'NONE', 'null', '없음', '-' MUST NOT be used as entity names under any type.
+* CRITICAL: Do NOT create entities whose name consists solely of a person's display name without a valid email address.
+* Do NOT create duplicate entities.
+* CRITICAL: Every extracted entity MUST be linked to at least one other entity (typically an Email). DO NOT extract isolated entities.
+
+---
+
+-Examples-
+Example 1:
+id,entity,description
+1,ChatGPT 코드는 146672입니다,Subject: ChatGPT 코드는 146672입니다 | Tone: Automated | Attachments: None | Summary: ChatGPT 인증 코드를 전달하는 자동 발송 메일
+2,noreply@tm.openai.com,Name: Unknown | Account: noreply@tm.openai.com
+3,gpttitti@hansung.ac.kr,Name: Unknown | Account: gpttitti@hansung.ac.kr
+4,인증코드 수신,Priority: low | Summary: ChatGPT 로그인을 위한 일회성 인증코드를 반복적으로 수신하는 자동화 흐름
+Relationships
+
+id,source,target,description
+1,ChatGPT 코드는 146672입니다,noreply@tm.openai.com,이메일의 발신자는 noreply@tm.openai.com이다.
+2,ChatGPT 코드는 146672입니다,gpttitti@hansung.ac.kr,이메일의 수신자는 gpttitti@hansung.ac.kr이다.
+3,ChatGPT 코드는 146672입니다,인증코드 수신,메일 본문에서 ChatGPT 인증코드 수신을 반복적인 주제로 다룬다.
+Output:
+{
+    "title": "인증코드 수신 — OpenAI 자동 발송 클러스터",
+    "summary": "OpenAI의 noreply 주소에서 gpttitti@hansung.ac.kr로 자동 발송된 인증코드 이메일 클러스터다. 반복적으로 동일한 인증 흐름이 발생하며, 모든 이메일이 트랜잭션 목적의 단방향 자동 발송이다.",
+    "category": "트랜잭션",
+    "purpose": "ChatGPT 로그인을 위한 일회성 인증코드를 수신하는 자동화 채널",
+    "rating": 2.5,
+    "rating_explanation": "자동 발송 인증코드 이메일로만 구성되어 있어 사용자의 실질적 활동을 반영하지 않는다.",
+    "findings": [
+        {
+            "summary": "'인증코드 수신' Topic으로 묶인 자동 발송 클러스터",
+            "explanation": "모든 이메일이 동일한 인증코드 수신 흐름을 공유하며, 반복적으로 재등장하는 주제로 묶인 그룹이다. [Data: Entities (4); Relationships (3)]"
+        },
+        {
+            "summary": "OpenAI noreply 주소에서 발송",
+            "explanation": "noreply@tm.openai.com에서 발송된 자동 알림이며, 인증코드 전달 외의 목적이 없다. [Data: Entities (1, 2); Relationships (1)]"
+        },
+        {
+            "summary": "단일 수신자: gpttitti@hansung.ac.kr",
+            "explanation": "모든 이메일의 수신자가 동일하며 CC나 다른 수신자는 없다. [Data: Entities (3); Relationships (2)]"
+        }
+    ]
+}
+
+---
+
+-Real Data-
+Use the following text for your answer. Do not make anything up in your answer.
+Text:
+{input_text}
+Return output as a well-formed JSON-formatted string with the following format:
+    {
+    "title": <report_title>,
+    "summary": <executive_summary>,
+    "category": <top_level_category>,
+    "purpose": <single_sentence_purpose>,
+    "rating": <importance_rating>,
+    "rating_explanation": <rating_explanation>,
+    "findings": [
+        {
+            "summary": <insight_summary>,
+            "explanation": <insight_explanation>
+        }
+    ]
+}
+Output:
