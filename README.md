@@ -26,10 +26,10 @@ pip install -r requirements.txt
 ```
 
 ## 3. 환경변수 설정
-`src/parquet/.env` : GmailWeaver에서 복붙하세요
+`src/parquet/.env` : 노션에서 복붙하세요(mail grapher용 .env)
 
 ## 4. MySQL 데이터베이스 생성
-기존에 있는거 쓰세요
+mail_grapher_db 를 사용. (노션 참고)
 
 ## 5. 백엔드 실행 (프로젝트 루트에서)
 ```bash
