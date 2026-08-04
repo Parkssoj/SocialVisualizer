@@ -5,7 +5,7 @@ from pathlib import Path
 
 class PromptTemplate:
     WORKFLOW_NAMES = {
-        "extract_graph", "summarize_descriptions", "extract_claims", "community_reports", "local_search", "global_search"
+        "extract_graph", "summarize_descriptions", "summarize_attachment", "extract_claims", "community_reports", "local_search", "global_search"
     }
     NESTED_WORKFLOWS = {
         "global_search" : ["map", "reduce", "knowledge"]
