@@ -8,7 +8,7 @@ encoding_model: o200k_base # cl100k_base에서 변경 (gpt-4o-mini 모델과 토
 
 models:
   default_chat_model:
-    type: openai_chat   # 원래 openai_chat. LLM 동시요청수 관측용 커스텀 provider (util/gmailweaver_llm_monitor.py)
+    type: openai_chat 
     model: ${GRAPHRAG_LLM_MODEL}
     api_key: ${GRAPHRAG_API_KEY}
     model_supports_json: true # JSON 출력 여부 지원
@@ -21,7 +21,7 @@ models:
     temperature: 0 # 답변의 일관성과 재현성 확보 (RAG에서는 보통 0을 권장)
 
   default_embedding_model:
-    type: openai_embedding   # 원래 openai_embedding. LLM 동시요청수 관측용 커스텀 provider (util/gmailweaver_llm_monitor.py)
+    type: openai_embedding  
     model: ${GRAPHRAG_EMBEDDING_MODEL}
     api_key: ${GRAPHRAG_API_KEY}
     model_supports_json: true
