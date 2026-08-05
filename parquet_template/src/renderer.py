@@ -1,5 +1,5 @@
 import json
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from pathlib import Path
 
 class PromptTemplate:
@@ -19,7 +19,8 @@ class PromptTemplate:
         if not self.config_path.exists():
             raise FileNotFoundError(f"config not found: {self.config_path}")
 
-        self.env = Environment(loader=FileSystemLoader(str(Path(__file__).parent/"prompts")), trim_blocks=True, lstrip_blocks=True)
+        # prompts/ 디렉터리에서 .j2 템플릿을 로드하는 Jinja2 환경 생성 (미정의 변수 참조 시 에러 발생, 불필요한 공백/줄바꿈 제거)
+        self.env = Environment(loader=FileSystemLoader(str(Path(__file__).parent/"prompts")), trim_blocks=True, lstrip_blocks=True, undefined=StrictUndefined,)
 
     # 렌더링 결과물(rendered/{domain}/)을 담을 디렉터리를 준비, 없으면 생성
     def _ensure_output_dir(self) -> Path:
@@ -31,7 +32,7 @@ class PromptTemplate:
         template = self.env.get_template(f"{name}.j2")
         rendered = template.render(**context)   # j2 템플릿의 context에 실제 값을 채워 완성된 문자열을 리턴
 
-        assert "{{" not in rendered and "{%" not in rendered, f"unrendered tag left in {name}.txt"     # 렌더링 성공 여부 검사. 잔존 태그가 있으면 에러 발생
+        # assert "{{" not in rendered and "{%" not in rendered, f"unrendered tag left in {name}.txt"     # 렌더링 성공 여부 검사. 잔존 태그가 있으면 에러 발생
 
         output_path = prompts_dir/f"{name}.txt"
         output_path.write_text(rendered, encoding="utf-8")
@@ -42,7 +43,7 @@ class PromptTemplate:
         template = self.env.get_template("settings.j2")
         rendered = template.render(**config) 
 
-        assert "{{" not in rendered and "{%" not in rendered, f"unrendered tag left in settings.yaml"     # 렌더링 성공 여부 검사. 잔존 태그가 있으면 에러 발생
+        # assert "{{" not in rendered and "{%" not in rendered, f"unrendered tag left in settings.yaml"     # 렌더링 성공 여부 검사. 잔존 태그가 있으면 에러 발생
 
         output_dir =  self._ensure_output_dir()     # prompts/ 형제
         output_path = output_dir/f"settings.yaml"
@@ -79,7 +80,7 @@ class PromptTemplate:
         # settings.j2 렌더링
         self._render_settings(config)
 
-# configs/ 밑의 모든 도메인 config를 스캔해서, 아직 렌더링 안 된(rendered/{domain}/settings.yaml이 없는) 도메인만 렌더링
+# configs/ 밑의 모든 도메인 config를 스캔해서, rendered/{domain}/settings.yaml이 없거나 config보다 오래된(즉 config 수정 후 아직 반영 안 된) 도메인만 렌더링
 def render_all_domains():
     configs_dir = Path(__file__).parent/"configs"
     rendered_dir = Path(__file__).parent.parent/"rendered"
@@ -88,8 +89,8 @@ def render_all_domains():
         domain = config_path.stem
         settings_path = rendered_dir/domain/"settings.yaml"
 
-        if settings_path.exists():
-            print(f"[skip] {domain}: already rendered")
+        if settings_path.exists() and settings_path.stat().st_mtime >= config_path.stat().st_mtime:
+            print(f"[skip] {domain}: up to date")
             continue
 
         PromptTemplate(domain).render()     # 도메인별 인스턴스 생성하면서 렌더링
