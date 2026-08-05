@@ -295,7 +295,7 @@
             "Events and schedules — any time-based information found in the emails",
             "Organizations involved — what companies or teams appear"
         ],
-        "output_format": "{\n    \"title\": <report_title>,\n    \"summary\": <executive_summary>,\n    \"category\": <top_level_category>,\n    \"purpose\": <single_sentence_purpose>,\n    \"rating\": <importance_rating>,\n    \"rating_explanation\": <rating_explanation>,\n    \"findings\": [\n        {\n            \"summary\": <insight_summary>,\n            \"explanation\": <insight_explanation>\n        }\n    ]\n}",
+        "output_format": "{{\n    \"title\": <report_title>,\n    \"summary\": <executive_summary>,\n    \"category\": <top_level_category>,\n    \"purpose\": <single_sentence_purpose>,\n    \"rating\": <importance_rating>,\n    \"rating_explanation\": <rating_explanation>,\n    \"findings\": [\n        {{\n            \"summary\": <insight_summary>,\n            \"explanation\": <insight_explanation>\n        }}\n    ]\n}}",
         "additional_rules_intro": "엔티티는 반복적으로 의미를 가지는 개념만 추출한다. 즉, 다른 이메일에서도 동일한 의미로 재등장할 수 있는 것만 포함한다.",
         "examples": [
             {
@@ -390,7 +390,7 @@
                 { "title": "메일 개수 카운팅", "body": "메일 개수를 셀 때는 반드시 type=EMAIL인 엔티티 수만 카운트한다. sent_to / sent_by 엣지 수를 메일 개수로 혼동하지 않는다. 동일 Email 노드에 연결된 sent_to 엣지가 여러 개여도 메일은 1통이다." },
                 { "title": "날짜 기반 필터링", "body": "사용자가 특정 날짜 또는 날짜 범위를 명시한 경우, Email.Date 필드가 해당 날짜와 일치하는 Email 엔티티만 key point로 추출한다. Email.Date가 None인 경우 해당 이메일은 \"날짜 정보 없음\"으로 별도 언급한다." }
             ],
-            "output_format": "{\n    \"points\": [\n        {\"description\": \"Description of point 1 [Data: Reports (report ids)]\", \"score\": score_value},\n        {\"description\": \"Description of point 2 [Data: Reports (report ids)]\", \"score\": score_value}\n    ]\n}",
+            "output_format": "{{\n    \"points\": [\n        {{\"description\": \"Description of point 1 [Data: Reports (report ids)]\", \"score\": score_value}},\n        {{\"description\": \"Description of point 2 [Data: Reports (report ids)]\", \"score\": score_value}}\n    ]\n}}",
             "modal_verb_note": "The response shall preserve the original meaning and use of modal verbs such as \"shall\", \"may\" or \"will\"."
         },
         "reduce": {
