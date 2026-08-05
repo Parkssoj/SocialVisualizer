@@ -22,6 +22,21 @@ from util.mail_summary import generate_mail_summaries
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_domains
 
+# threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
+# 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
+def _run_and_join(jobs):
+    errors = []
+    def _wrap(fn, args):
+        try:
+            fn(*args)
+        except Exception as e:
+            errors.append(e)
+    threads = [threading.Thread(target=_wrap, args=(fn, args)) for fn, args in jobs]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    if errors:
+        raise errors[0]
+
 # output 폴더를 3초 간격으로 감시해 인덱싱 단계 변화를 job 진행도에 반영
 # base_progress: subprocess 실행 전 세팅된 초기 진행도 — 이보다 낮은 값으로 되돌리지 않음
 # stop_event가 세트되면 루프 종료 (build_graphrag_index/update 완료 시 호출)
@@ -412,13 +427,11 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
         # valid_persons 조회가 비어서 키워드가 통째로 스킵되는 문제(FK 대상 없음)가 안 생김
         save_person_stats_to_db(paths, target_update_date)
 
-        db_threads = [
-            threading.Thread(target=save_mail_to_db, args=(paths, target_update_date)),
-            threading.Thread(target=save_keyword_stats_to_db, args=(paths, target_update_date)),
-            threading.Thread(target=generate_mail_summaries, args=(paths,)),
-        ]
-        for t in db_threads: t.start()
-        for t in db_threads: t.join()
+        _run_and_join([
+            (save_mail_to_db, (paths, target_update_date)),
+            (save_keyword_stats_to_db, (paths, target_update_date)),
+            (generate_mail_summaries, (paths,)),
+        ])
 
 
         update_job(job_id, progress=100, status="done", message="인덱싱 완료")
@@ -462,12 +475,10 @@ def run_graph_update_pipeline(job_id, paths, env):
         # mail_keyword는 person에 대한 FK이므로, person 저장이 끝난 뒤에 키워드를 넣어야 함
         save_person_stats_to_db(paths)
 
-        db_threads = [
-            threading.Thread(target=save_mail_to_db, args=(paths,)),
-            threading.Thread(target=save_keyword_stats_to_db, args=(paths,)),
-        ]
-        for t in db_threads: t.start()
-        for t in db_threads: t.join()
+        _run_and_join([
+            (save_mail_to_db, (paths,)),
+            (save_keyword_stats_to_db, (paths,)),
+        ])
 
         update_job(job_id, progress=100, status="done", message="업데이트 완료")
         broadcast({"type": "done", "job_id": job_id, "message": "업데이트 완료"})
