@@ -90,8 +90,7 @@ def save_person_stats_to_db(paths, update_date=None):
     """person 테이블에 기본 통계 저장 후, parquet 기반 LLM 프로필을 description에 함께 저장"""
 
     if not os.path.exists(paths.MAIL_CONTACTS_PATH):
-        print(f"[WARN] 파일이 없습니다: {paths.MAIL_CONTACTS_PATH}")
-        return
+        raise FileNotFoundError(f"통계 파일이 없습니다: {paths.MAIL_CONTACTS_PATH}")
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -379,8 +378,7 @@ def save_keyword_stats_to_db(paths,update_date=None):
     """
 
     if not os.path.exists(paths.MAIL_KEYWORDS_PATH):
-        print(f"[WARN] 파일이 없습니다: {paths.MAIL_KEYWORDS_PATH}")
-        return
+        raise FileNotFoundError(f"통계 파일이 없습니다: {paths.MAIL_KEYWORDS_PATH}")
 
     if update_date is None:
         latest_account = get_latest_mail_account(paths.USER_ID)
@@ -448,8 +446,7 @@ def rebuild_keyword_mail(paths, update_date=None):
     import pandas as pd, re, os
 
     if not os.path.exists(paths.MAIL_KEYWORDS_PATH):
-        print(f"[WARN] keyword 파일 없음: {paths.MAIL_KEYWORDS_PATH}")
-        return
+        raise FileNotFoundError(f"keyword 파일이 없습니다: {paths.MAIL_KEYWORDS_PATH}")
 
     if update_date is None:
         latest_account = get_latest_mail_account(paths.USER_ID)
