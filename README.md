@@ -96,7 +96,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ## 4. 가상환경 이름 지정 (lightrag-venv) + 의존성 설치
 
 ```bash
-export UV_PROJECT_ENVIRONMENT=mailgrapher-venv
+export UV_PROJECT_ENVIRONMENT=lightrag-venv
 uv venv lightrag-venv
 uv sync --extra test --extra offline
 ```
