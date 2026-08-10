@@ -72,6 +72,16 @@ def _strip_id_punct(mail_id: str) -> str:
 def _is_plausible_mail_id(mail_id: str) -> bool:
     return not (mail_id.isdigit() and len(mail_id) <= 6)
 
+# ID/계정 필드는 근거 추출(계정 매칭, 발신인 교정)에만 쓰고 사용자에게 보여줄 답변에서는 지운다.
+# "- ID: xxx"처럼 단독 줄이면 줄째로, "1. ID: xxx"처럼 번호 뒤에 붙어있으면 그 부분만 지우는데,
+# 후자의 경우 번호(예: "1.")만 남고 내용이 텅 빈 줄이 생기므로 그것도 같이 정리한다.
+def strip_ids_for_display(text: str) -> str:
+    text = re.sub(r'^[ \t]*[-*]?[ \t]*(ID|계정):\s*\S+[ \t]*\n?', '', text, flags=re.MULTILINE)
+    text = re.sub(r'(ID|계정):\s*\S+', '', text)
+    text = re.sub(r'^[ \t]*(?:\d+[.)]|[-*])[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
+
 # cli 호출 방식인 _run_graphrag() 대체용 (get_engines()로 캐싱된 LocalSearch, globalSearch 객체 직접 호출)
 def run_graphrag_query(message: str, original_message: str, paths, method: str = "local") -> tuple[str, list]:
     start_time = time.time()
@@ -112,10 +122,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                         seen.add(id)
                         source_ids.append({"id": id, "account": paths.USER_ID})
 
-                # ID는 근거 추출에만 쓰고, 사용자에게 보여줄 답변에서는 지운다 (연합 검색과 동일하게 처리)
-                display_answer = re.sub(r'^[ \t]*[-*]?[ \t]*ID:\s*\S+[ \t]*\n?', '', answer, flags=re.MULTILINE)
-                display_answer = re.sub(r'ID:\s*\S+', '', display_answer)
-                display_answer = re.sub(r'\n{3,}', '\n\n', display_answer).strip()
+                display_answer = strip_ids_for_display(answer)
 
                 return display_answer, source_ids # 답변 텍스트와 근거 메일 ID 목록을 튜플로 반환
 
@@ -256,7 +263,10 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                     "메일마다 'ID: 원본ID값'을 요약 문장에 섞어 쓰지 말고 그 메일 항목의 별도 줄로 표기하라. "
                     "'ID:' 뒤에는 반드시 데이터에 있는 실제 ID 값을 정확히 그대로 옮겨 적어야 한다. "
                     "답변에서 메일을 1번, 2번처럼 순서대로 나열하더라도 그 순번을 'ID: 1', 'ID: 2'처럼 "
-                    "ID인 것으로 쓰지 마라 — 그건 데이터에 없는 값을 지어내는 것이다."
+                    "ID인 것으로 쓰지 마라 — 그건 데이터에 없는 값을 지어내는 것이다. "
+                    "그리고 언급/근거로 삼은 메일마다 'ID:', '발신인:'과 같은 줄에 '계정: 이메일주소' 줄도 "
+                    "추가하라 — 그 메일이 어느 [계정: ...] 블록에서 나온 데이터인지, 컨텍스트에 표시된 "
+                    "계정 이메일 주소를 정확히 그대로 옮겨 적어라."
                 )
                 history_messages = [{"role": "system", "content": search_prompt}]
 
@@ -295,22 +305,30 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 answer = '\n\n'.join(_fix_paragraph_sender(p) for p in answer.split('\n\n'))
 
-                # merged_context(3계정 전체 컨텍스트) 전체를 훑는 폴백은 쓰지 않음 — 답변이 실제로
-                # 인용/근거로 삼지 않은 메일까지 죄다 "근거"로 잡혀서 오히려 오해를 부르기 때문
-                found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
-                found = [m for m in found if _is_plausible_mail_id(m)]
-                seen = set()
-                source_ids = []
-                for id in found:
-                    if id not in seen:
-                        seen.add(id)
-                        source_ids.append({"id": id, "account": _resolve_account(id)})
+                # 계정 이메일은 22자짜리 무작위 Message-ID보다 훨씬 짧고 컨텍스트에 반복 등장해서
+                # LLM이 그대로 옮겨 적기 쉬우므로, ID→계정 역추적 대신 LLM이 직접 쓴 '계정:' 값을 우선 신뢰한다.
+                # 실제 인덱싱된 계정 목록에 없는 값(오타/환각)은 조용히 버린다 — 확신 없는 건 안 보여준다는 원칙 유지.
+                valid_accounts = {p.USER_ID.strip().lower(): p.USER_ID for p, _ in engines}
+                cited_accounts = []
+                for m in re.findall(r'계정:\s*(\S+)', answer):
+                    real = valid_accounts.get(_strip_id_punct(m).strip().lower())
+                    if real:
+                        cited_accounts.append(real)
 
-                # ID는 계정 매칭(위 source_ids 추출)에만 쓰고, 사용자에게 보여줄 답변에서는 지운다.
-                # "- ID: xxx" 처럼 단독 줄이면 줄째로, 문장에 섞여 있으면 그 부분만 제거.
-                display_answer = re.sub(r'^[ \t]*[-*]?[ \t]*ID:\s*\S+[ \t]*\n?', '', answer, flags=re.MULTILINE)
-                display_answer = re.sub(r'ID:\s*\S+', '', display_answer)
-                display_answer = re.sub(r'\n{3,}', '\n\n', display_answer).strip()
+                if cited_accounts:
+                    source_ids = [{"id": None, "account": acc} for acc in cited_accounts]
+                else:
+                    # LLM이 '계정:'을 안 썼을 때만 예전 ID 기반 역추적으로 폴백
+                    found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
+                    found = [m for m in found if _is_plausible_mail_id(m)]
+                    seen = set()
+                    source_ids = []
+                    for id in found:
+                        if id not in seen:
+                            seen.add(id)
+                            source_ids.append({"id": id, "account": _resolve_account(id)})
+
+                display_answer = strip_ids_for_display(answer)
 
                 return display_answer, source_ids
 
