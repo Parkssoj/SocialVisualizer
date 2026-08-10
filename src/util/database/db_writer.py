@@ -36,23 +36,25 @@ def get_latest_mail_account(user_mail_account_id: str):
 
 def get_or_create_user_id(user_mail_account_id: str) -> str:
     """
-    이메일(user_mail_account_id)에 대응하는 user.user_id(UUID)를 조회하거나,
-    없으면 user 테이블에 새로 발급해 반환한다.
+    앱은 한 명의 사용자가 여러 메일 계정을 연결해 쓰는 구조라 user.user_id는
+    계정(user_mail_account_id)과 무관하게 앱 전체에서 하나만 존재해야 한다.
+    이미 발급된 user_id가 있으면 그대로 재사용하고, 없을 때만 새로 발급한다.
     """
-    latest = get_latest_mail_account(user_mail_account_id)
-    if latest:
-        return latest["user_id"]
-
-    new_user_id = str(uuid.uuid4())
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        cursor.execute("SELECT user_id FROM user LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+
+        new_user_id = str(uuid.uuid4())
         cursor.execute("INSERT INTO user (user_id) VALUES (%s)", (new_user_id,))
         conn.commit()
+        return new_user_id
     finally:
         cursor.close()
         conn.close()
-    return new_user_id
 
 
 def create_mail_account(user_mail_account_id, ended_at, index_time, mail_count, mail_platform):
@@ -326,6 +328,7 @@ def save_query_to_db(
     input_tokens: int = None,
     output_tokens: int = None,
     answer: str = None,
+    refer_kg: str = None,
 ):
     user_id = get_or_create_user_id(user_mail_account_id)
 
@@ -357,11 +360,11 @@ def save_query_to_db(
                 output_tokens,
                 cost_usd,
                 answer,
-                None,
+                refer_kg,
             )
         )
         conn.commit()
-        print(f"[DB] query 저장 완료: {user_mail_account_id} / {response_time:.2f}s / {normalized_scope} / {model_name} / in={input_tokens} out={output_tokens} cost=${cost_usd}")
+        print(f"[DB] query 저장 완료: {user_mail_account_id} / {response_time:.2f}s / {normalized_scope} / {model_name} / in={input_tokens} out={output_tokens} cost=${cost_usd} / refer_kg={refer_kg}")
     except Exception as e:
         conn.rollback()
         print(f"[ERROR] save_query_to_db 실패: {e}")

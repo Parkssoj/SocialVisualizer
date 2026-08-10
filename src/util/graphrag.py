@@ -51,10 +51,14 @@ def _run_graphrag(message, resMethod, raw_message, paths, resType):
         answer = match.group(1).strip() if match else stdout_text.strip()
         answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer)
         answer = re.sub(r'\*+|#+', '', answer)
+        # 메일 ID는 근거 추출용이라 사용자에게 보여줄 답변에서는 지운다 (graphrag_query.py와 동일한 처리)
+        answer = re.sub(r'^[ \t]*[-*]?[ \t]*ID:\s*\S+[ \t]*\n?', '', answer, flags=re.MULTILINE)
+        answer = re.sub(r'ID:\s*\S+', '', answer)
+        answer = re.sub(r'\n{3,}', '\n\n', answer)
         answer = answer.strip()
 
     try:
-        save_query_to_db(paths.GMAIL_ID, raw_message, elapsed, resMethod, answer=answer)
+        save_query_to_db(paths.USER_ID, raw_message, elapsed, resMethod, answer=answer)
     except Exception as e:
         print(f"[WARN] query DB 저장 실패 (무시): {e}")
 
