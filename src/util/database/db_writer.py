@@ -319,6 +319,51 @@ def update_mail_account_indexing_stats(user_mail_account_id: str, index_date, st
         conn.close()
 
 
+def save_graph_stats_to_db(paths, update_date=None):
+    """graphml_data.json을 읽어 노드/엣지 수를 mail_account 테이블에 저장"""
+    if not os.path.exists(paths.GRAPH_JSON_PATH):
+        print(f"[WARN] 그래프 JSON 파일이 없습니다: {paths.GRAPH_JSON_PATH}")
+        return
+
+    if update_date is None:
+        latest_account = get_latest_mail_account(paths.USER_ID)
+        if not latest_account:
+            print(f"[WARN] mail_account 테이블에 해당 유저가 없습니다: {paths.USER_ID}")
+            return
+        user_mail_account_id = latest_account["user_mail_account_id"]
+        update_date = latest_account["index_date"]
+    else:
+        user_mail_account_id = paths.USER_ID
+
+    with open(paths.GRAPH_JSON_PATH, "r", encoding="utf-8") as f:
+        graph_data = json.load(f)
+
+    node_count = len(graph_data.get("nodes", []))
+    edge_count = len(graph_data.get("edges", []))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE mail_account SET
+                node_count = %s,
+                edge_count = %s
+            WHERE user_mail_account_id = %s AND index_date = %s
+            """,
+            (node_count, edge_count, user_mail_account_id, update_date),
+        )
+        conn.commit()
+        print(f"[DB] mail_account 그래프 통계 저장 완료: node={node_count} edge={edge_count}")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERROR] save_graph_stats_to_db 실패: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def save_query_to_db(
     user_mail_account_id: str,
     context: str,

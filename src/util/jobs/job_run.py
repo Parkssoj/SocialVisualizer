@@ -16,7 +16,7 @@ from util.user_path import user_graphrag_init
 
 from config.settings import MAIL_BLOCK_SEP, BASE_DIR
 from util.extract_statics import start_timer,end_timer,format_elapsed_time, _extract_statics_pipeline
-from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, save_mail_folder_to_db, save_mail_to_db, collect_indexing_stats, update_mail_account_indexing_stats
+from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, save_mail_folder_to_db, save_mail_to_db, collect_indexing_stats, update_mail_account_indexing_stats, save_graph_stats_to_db
 from util.mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
@@ -418,6 +418,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
             )
         indexing_stats = collect_indexing_stats(paths)
         update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
+        save_graph_stats_to_db(paths, target_update_date)
 
         # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
         # mail_folder row가 먼저 존재해야 함 (동시 스레드로 돌리면 FK 위반 위험)
@@ -467,6 +468,7 @@ def run_graph_update_pipeline(job_id, paths, env):
         _extract_statics_pipeline(paths, mode='append')
         indexing_stats = collect_indexing_stats(paths)
         update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
+        save_graph_stats_to_db(paths)
 
         # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
         # 새로 추가된 폴더가 먼저 존재해야 함
