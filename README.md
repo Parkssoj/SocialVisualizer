@@ -93,24 +93,24 @@ uv --version
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
 
-## 4. 가상환경 이름 지정 (mailgrapher-venv) + 의존성 설치
+## 4. 가상환경 이름 지정 (lightrag-venv) + 의존성 설치
 
 ```bash
 export UV_PROJECT_ENVIRONMENT=mailgrapher-venv
-uv venv mailgrapher-venv
+uv venv lightrag-venv
 uv sync --extra test --extra offline
 ```
 
 영구 등록 (한 번만 실행, 완료):
 
 ```bash
-echo 'export UV_PROJECT_ENVIRONMENT=mailgrapher-venv' >> ~/.bashrc
+echo 'export UV_PROJECT_ENVIRONMENT=lightrag-venv' >> ~/.bashrc
 ```
 
 ## 5. 가상환경 활성화
 
 ```bash
-source mailgrapher-venv/Scripts/activate
+source lightrag-venv/Scripts/activate
 ```
 
 ## 6. 웹 UI 빌드
