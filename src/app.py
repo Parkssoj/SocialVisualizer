@@ -177,7 +177,7 @@ def run_query_async():
 
                 if resMethod == "local":
                     try:
-                        answer, source_ids = run_federated_local_search(full_message, message, accounts_paths)
+                        answer, source_ids = run_federated_local_search(full_message, message, accounts_paths, primary_user_id=user_id)
                     except Exception as e:
                         print(f"[ENGINE] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
                         try:
@@ -187,7 +187,7 @@ def run_query_async():
                             answer = _run_graphrag(full_message,message, resMethod, paths, resType)
                 else:
                     try:
-                        answer, source_ids = run_federated_global_search(full_message, message, accounts_paths)
+                        answer, source_ids = run_federated_global_search(full_message, message, accounts_paths, primary_user_id=user_id)
                     except Exception as e:
                         print(f"[ENGINE] 연합 글로벌 검색 실패, 선택된 계정으로 폴백: {e}")
                         try: # 엔진 객체 직접 호출 방식

@@ -13,6 +13,37 @@ from util.graphrag_engine import get_engines, get_and_reset_usage # 유저별 �
 from util.database.db_writer import save_query_to_db
 from config.settings import MAIL_BLOCK_SEP
 
+# 연합 검색은 query 테이블에 계정마다 행을 따로 남기지 않고 딱 1행만 저장한다.
+# user_id는 앱 전체에서 하나로 통일돼 있어 어느 계정으로 저장해도 동일하므로 primary_user_id는 FK 채우기용일 뿐이고,
+# 실제로 참고한 계정 목록은 refer_kg에 기록한다. 토큰 사용량은 참여한 계정들의 사용량을 전부 더한 총합으로 저장한다.
+def _save_federated_query(accounts_paths: list, primary_user_id: str, original_message: str,
+                           elapsed: float, method: str, answer: str, refer_accounts: list = None):
+    total_input = 0
+    total_output = 0
+    model_name = None
+    for paths in accounts_paths:
+        usage = get_and_reset_usage(paths.USER_ID, method)
+        total_input += usage["input_tokens"]
+        total_output += usage["output_tokens"]
+        if not model_name and usage["model_name"]:
+            model_name = usage["model_name"]
+
+    # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면(로컬 검색에서 인용이 하나도 안 잡힌 경우 등)
+    # 참여 계정 전체로 채워넣지 않고 그냥 비워둔다 — 억지로 채운 값은 틀린 정보를 남기는 것과 같음
+    refer_kg = ", ".join(refer_accounts) if refer_accounts else None
+
+    try:
+        save_query_to_db(
+            primary_user_id, original_message, elapsed, method,
+            model_name=model_name,
+            input_tokens=total_input,
+            output_tokens=total_output,
+            answer=answer,
+            refer_kg=refer_kg,
+        )
+    except Exception as e:
+        print(f"[WARN] 연합 검색 query DB 저장 실패 (무시): {e}")
+
 # 계정의 mail_latest.txt에서 "메일 ID → 실제 발신인" 매핑을 읽어온다.
 # GraphRAG가 조립한 컨텍스트나 LLM 답변을 정규식으로 다시 파싱하면 내부 포맷/토큰 잘림/LLM의 필드 혼동 때문에
 # 틀리기 쉬워서, 원본 파일에서 직접 읽어와 정답으로 덮어쓰는 방식이 훨씬 안정적이다.
@@ -35,6 +66,12 @@ def _load_account_sender_map(paths) -> dict:
 def _strip_id_punct(mail_id: str) -> str:
     return mail_id.strip(']),.;:》」』')
 
+# LLM이 답변에서 메일을 1, 2, 3... 처럼 순번을 매기다가 그 순번을 그대로 "ID: 2"로 써버리는 경우가 있음.
+# 실제 메일 ID는 항상 길고(16자리 hex, 또는 '@'가 포함된 긴 문자열) 이런 순수 짧은 숫자가 나올 수 없으므로,
+# 매칭 시도(=필연적으로 실패해서 "알 수 없음"으로 뜸) 자체를 하지 않고 미리 걸러낸다.
+def _is_plausible_mail_id(mail_id: str) -> bool:
+    return not (mail_id.isdigit() and len(mail_id) <= 6)
+
 # cli 호출 방식인 _run_graphrag() 대체용 (get_engines()로 캐싱된 LocalSearch, globalSearch 객체 직접 호출)
 def run_graphrag_query(message: str, original_message: str, paths, method: str = "local") -> tuple[str, list]:
     start_time = time.time()
@@ -56,6 +93,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
 
                 # 1차: 답변 텍스트에서 ID 추출
                 found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
+                found = [m for m in found if _is_plausible_mail_id(m)]
 
                 # 2차: LLM이 답변에 ID를 직접 안 썼을 때 → context_text(LLM에 넘긴 원본 청크)에서 추출
                 if not found:
@@ -64,6 +102,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                         ctx = '\n'.join(ctx)
                     if isinstance(ctx, str):
                         found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', ctx)]
+                        found = [m for m in found if _is_plausible_mail_id(m)]
 
                 # 순서 유지하면서 중복 제거. account를 같이 넣어서 연합 검색(run_federated_local_search) 결과와 형태를 통일함
                 seen = set()
@@ -73,7 +112,12 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                         seen.add(id)
                         source_ids.append({"id": id, "account": paths.USER_ID})
 
-                return answer, source_ids # 답변 텍스트와 근거 메일 ID 목록을 튜플로 반환
+                # ID는 근거 추출에만 쓰고, 사용자에게 보여줄 답변에서는 지운다 (연합 검색과 동일하게 처리)
+                display_answer = re.sub(r'^[ \t]*[-*]?[ \t]*ID:\s*\S+[ \t]*\n?', '', answer, flags=re.MULTILINE)
+                display_answer = re.sub(r'ID:\s*\S+', '', display_answer)
+                display_answer = re.sub(r'\n{3,}', '\n\n', display_answer).strip()
+
+                return display_answer, source_ids # 답변 텍스트와 근거 메일 ID 목록을 튜플로 반환
 
             result_container["result"] = loop.run_until_complete(_search())
 
@@ -116,7 +160,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
 # 답변 생성 LLM 호출은 전체를 합쳐서 딱 한 번만 실행한다.
 # (계정 수만큼 비싼 답변 생성 호출이 늘어나는 걸 막기 위함 — 컨텍스트 조립은 임베딩 검색이라 저렴함)
 def run_federated_local_search(message: str, original_message: str, accounts_paths: list,
-                                per_account_max_tokens: int = 3000) -> tuple[str, list]:
+                                primary_user_id: str = None, per_account_max_tokens: int = 3000) -> tuple[str, list]:
     start_time = time.time()
     result_container = {"result": None, "error": None}
 
@@ -186,6 +230,8 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 def _resolve_account(mail_id: str):
                     _, user_id = _find_real_id(mail_id)
+                    if not user_id:
+                        print(f"[FEDERATED] 계정 매칭 실패, 원본 ID: {mail_id!r}")
                     return user_id
 
                 # 답변 생성 설정(system_prompt/model 등)은 계정마다 동일하므로 첫 번째 엔진 것을 그대로 재사용
@@ -207,7 +253,10 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                     "절대 혼동하지 말 것 — 발신자를 쓸 때는 반드시 '발신인:' 필드의 이메일 주소를 쓰고, "
                     "'ID:' 필드의 값을 발신자 자리에 쓰지 마라. "
                     "목록으로 나열하든 묶어서 요약하든 답변 형식과 무관하게, 실제로 언급/근거로 삼은 "
-                    "메일마다 'ID: 원본ID값'을 요약 문장에 섞어 쓰지 말고 그 메일 항목의 별도 줄로 표기하라."
+                    "메일마다 'ID: 원본ID값'을 요약 문장에 섞어 쓰지 말고 그 메일 항목의 별도 줄로 표기하라. "
+                    "'ID:' 뒤에는 반드시 데이터에 있는 실제 ID 값을 정확히 그대로 옮겨 적어야 한다. "
+                    "답변에서 메일을 1번, 2번처럼 순서대로 나열하더라도 그 순번을 'ID: 1', 'ID: 2'처럼 "
+                    "ID인 것으로 쓰지 마라 — 그건 데이터에 없는 값을 지어내는 것이다."
                 )
                 history_messages = [{"role": "system", "content": search_prompt}]
 
@@ -249,6 +298,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                 # merged_context(3계정 전체 컨텍스트) 전체를 훑는 폴백은 쓰지 않음 — 답변이 실제로
                 # 인용/근거로 삼지 않은 메일까지 죄다 "근거"로 잡혀서 오히려 오해를 부르기 때문
                 found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
+                found = [m for m in found if _is_plausible_mail_id(m)]
                 seen = set()
                 source_ids = []
                 for id in found:
@@ -256,7 +306,13 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                         seen.add(id)
                         source_ids.append({"id": id, "account": _resolve_account(id)})
 
-                return answer, source_ids
+                # ID는 계정 매칭(위 source_ids 추출)에만 쓰고, 사용자에게 보여줄 답변에서는 지운다.
+                # "- ID: xxx" 처럼 단독 줄이면 줄째로, 문장에 섞여 있으면 그 부분만 제거.
+                display_answer = re.sub(r'^[ \t]*[-*]?[ \t]*ID:\s*\S+[ \t]*\n?', '', answer, flags=re.MULTILINE)
+                display_answer = re.sub(r'ID:\s*\S+', '', display_answer)
+                display_answer = re.sub(r'\n{3,}', '\n\n', display_answer).strip()
+
+                return display_answer, source_ids
 
             result_container["result"] = loop.run_until_complete(_search())
 
@@ -280,6 +336,19 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
     elapsed = time.time() - start_time
     answer, source_ids = result_container["result"]
     print(f"[FEDERATED] 검색 완료: {elapsed:.2f}초, 계정 {len(accounts_paths)}개")
+
+    # source_ids에서 실제로 인용된 계정만 refer_kg에 남긴다 (인용이 없으면 refer_kg는 비워둠)
+    referenced = []
+    seen_accounts = set()
+    for s in source_ids:
+        acc = s.get("account")
+        if acc and acc not in seen_accounts:
+            seen_accounts.add(acc)
+            referenced.append(acc)
+    _save_federated_query(
+        accounts_paths, primary_user_id or accounts_paths[0].USER_ID,
+        original_message, elapsed, "local", answer, referenced,
+    )
     return answer, source_ids
 
 # 여러 계정의 글로벌 서치(map-reduce)를 연합한다.
@@ -287,7 +356,8 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 # reduce 단계(최종 답변 합성)만 전체 계정의 map 결과를 모아 딱 1번만 실행해서 비용을 아낀다.
 # 참고: _map_response_single_batch / _reduce_response는 graphrag 라이브러리의 비공개(밑줄) 메서드라
 # 버전이 바뀌면 시그니처가 달라질 수 있다.
-def run_federated_global_search(message: str, original_message: str, accounts_paths: list) -> tuple[str, list]:
+def run_federated_global_search(message: str, original_message: str, accounts_paths: list,
+                                 primary_user_id: str = None) -> tuple[str, list]:
     start_time = time.time()
     result_container = {"result": None, "error": None}
 
@@ -306,7 +376,7 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
                         print(f"[FEDERATED-GLOBAL] {paths.USER_ID} 엔진 로드 실패, 스킵: {e}")
 
                 if not engines:
-                    return "인덱싱된 계정이 없습니다.", []
+                    return "인덱싱된 계정이 없습니다.", [], []
 
                 all_map_responses = []
                 for paths, engine in engines:
@@ -334,8 +404,10 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
                 answer = re.sub(r'\*+|#+', '', answer)
                 answer = answer.strip()
 
-                # 글로벌 서치는 원래도 개별 메일을 인용하는 방식이 아니라(전체 경향/패턴 요약) 근거 계정이 없음
-                return answer, []
+                # 글로벌 서치는 원래도 개별 메일을 인용하는 방식이 아니라(전체 경향/패턴 요약) 근거 계정이 없음.
+                # 다만 map 단계가 실제로 돌아간 계정 목록은 확실하므로 refer_kg용으로 같이 반환한다.
+                participated = [paths.USER_ID for paths, _ in engines]
+                return answer, [], participated
 
             result_container["result"] = loop.run_until_complete(_search())
 
@@ -357,8 +429,12 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
         raise result_container["error"]
 
     elapsed = time.time() - start_time
-    answer, source_ids = result_container["result"]
+    answer, source_ids, participated = result_container["result"]
     print(f"[FEDERATED-GLOBAL] 검색 완료: {elapsed:.2f}초, 계정 {len(accounts_paths)}개")
+    _save_federated_query(
+        accounts_paths, primary_user_id or accounts_paths[0].USER_ID,
+        original_message, elapsed, "global", answer, participated,
+    )
     return answer, source_ids
 
 # 질의 방법 분류
