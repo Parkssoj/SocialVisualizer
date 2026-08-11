@@ -3,6 +3,7 @@
 
 import os
 import re
+import json
 import asyncio # 비동기 실행 지원 (LocalSearch/GlobalSearch.search()가 async 함수라 필요)
 import traceback
 import threading
@@ -30,7 +31,7 @@ def _save_federated_query(accounts_paths: list, primary_user_id: str, original_m
 
     # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면(로컬 검색에서 인용이 하나도 안 잡힌 경우 등)
     # 참여 계정 전체로 채워넣지 않고 그냥 비워둔다 — 억지로 채운 값은 틀린 정보를 남기는 것과 같음
-    refer_kg = ", ".join(refer_accounts) if refer_accounts else None
+    refer_kg = json.dumps(refer_accounts) if refer_accounts else None
 
     try:
         save_query_to_db(
