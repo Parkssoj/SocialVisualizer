@@ -5,13 +5,18 @@
 // =============================================================================
 
 // ── Inter 폰트 (구글 폰트 CDN) ──────────────────────────────────────────────
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 // ── 전역 기본값 ──────────────────────────────────────────────────────────────
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 body {
-  font-family: 'Inter', 'Pretendard', 'Helvetica Neue', Arial, sans-serif !important;
+  font-family:
+    "Inter", "Pretendard", "Helvetica Neue", Arial, sans-serif !important;
   background: var(--gt-body-bg) !important;
   color: var(--gt-text-dark);
   letter-spacing: -0.01em;
@@ -29,7 +34,7 @@ body {
 // ── 로고 영역 ─────────────────────────────────────────────────────────────────
 .nav_title {
   background: rgba(0, 0, 0, 0.12) !important;
-  border-bottom: 1px solid rgba(52, 211, 153, 0.10) !important;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.1) !important;
   padding: 0 20px !important;
   height: 60px !important;
   display: flex !important;
@@ -53,7 +58,9 @@ body {
       filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.5)) !important;
     }
 
-    i { color: var(--gt-primary-light) !important; }
+    i {
+      color: var(--gt-primary-light) !important;
+    }
   }
 }
 
@@ -113,7 +120,9 @@ body {
 
 // br 태그 숨기기 (레이아웃 영향 제거)
 .left_col > .left_col.scroll-view > br,
-.left_col .scroll-view > br { display: none !important; }
+.left_col .scroll-view > br {
+  display: none !important;
+}
 
 // ── 메뉴 전체 래퍼 ────────────────────────────────────────────────────────────
 .profile + br + #sidebar-menu,
@@ -134,7 +143,7 @@ body {
   position: relative !important;
 
   &::before {
-    content: '' !important;
+    content: "" !important;
     display: block !important;
     width: 20px !important;
     height: 1px !important;
@@ -166,14 +175,17 @@ body {
   position: relative !important;
   text-decoration: none !important;
 
-  i, .bi {
+  i,
+  .bi {
     width: 20px !important;
     flex-shrink: 0 !important;
     text-align: center !important;
     font-size: 16px !important;
     line-height: 1 !important;
     color: var(--gt-sidebar-icon) !important;
-    transition: color 180ms ease, transform 180ms ease !important;
+    transition:
+      color 180ms ease,
+      transform 180ms ease !important;
   }
 
   > span:not(.bi):not(.badge) {
@@ -187,7 +199,9 @@ body {
     font-size: 10px !important;
     opacity: 0.5 !important;
     margin-left: auto !important;
-    transition: transform 200ms ease, opacity 200ms ease !important;
+    transition:
+      transform 200ms ease,
+      opacity 200ms ease !important;
   }
 
   &:hover {
@@ -199,7 +213,9 @@ body {
       transform: scale(1.1) !important;
     }
     .bi-chevron-down,
-    .bi-chevron-right { opacity: 0.8 !important; }
+    .bi-chevron-right {
+      opacity: 0.8 !important;
+    }
   }
 }
 
@@ -214,21 +230,29 @@ body {
 .side-menu > li.active > a,
 .side-menu > li > a.active,
 .side-menu > li.current-page > a {
-  background: linear-gradient(135deg, rgba(26,158,110,0.25) 0%, rgba(15,122,82,0.18) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(26, 158, 110, 0.25) 0%,
+    rgba(15, 122, 82, 0.18) 100%
+  ) !important;
   color: #fff !important;
-  border: 1px solid rgba(52, 211, 153, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.15) !important;
+  border: 1px solid rgba(52, 211, 153, 0.2) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.15) !important;
 
   i:not(.bi-chevron-down):not(.bi-chevron-right),
   .bi:not(.bi-chevron-down):not(.bi-chevron-right) {
     color: var(--gt-primary-light) !important;
   }
 
-  .bi-chevron-right { opacity: 1 !important; }
+  .bi-chevron-right {
+    opacity: 1 !important;
+  }
 
   // 왼쪽 액센트 바
   &::before {
-    content: '' !important;
+    content: "" !important;
     position: absolute !important;
     left: 0 !important;
     top: 50% !important;
@@ -246,7 +270,7 @@ body {
   background: rgba(0, 0, 0, 0.12) !important;
   margin: 2px 10px 4px !important;
   border-radius: 10px !important;
-  border: 1px solid rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
   overflow: hidden !important;
   padding: 4px 0 !important;
 
@@ -271,7 +295,7 @@ body {
 
     // 서브메뉴 도트
     &::before {
-      content: '' !important;
+      content: "" !important;
       position: absolute !important;
       left: 24px !important;
       top: 50% !important;
@@ -328,16 +352,10 @@ body {
 }
 
 // ── 상단 네비게이션 ───────────────────────────────────────────────────────────
+// 투명/고정 처리는 _header.scss에서 전체 사이트 공통으로 담당
 .top_nav {
-  background: #fff !important;
-  border-bottom: 1px solid var(--gt-border-color) !important;
-  box-shadow: 0 1px 0 var(--gt-border-color), 0 2px 12px rgba(15, 36, 25, 0.05) !important;
-  min-height: 60px !important;
-
   .nav_menu {
-    background: #fff !important;
-    min-height: 60px !important;
-    padding: 0 8px !important;
+    padding: 0 24px !important;
   }
 }
 
@@ -348,7 +366,9 @@ body {
   transition: color var(--gt-transition-fast) !important;
   line-height: 1 !important;
 
-  &:hover { color: var(--gt-primary) !important; }
+  &:hover {
+    color: var(--gt-primary) !important;
+  }
 }
 
 .nav_menu .nav.navbar-nav .user-profile {
@@ -362,7 +382,10 @@ body {
   border-radius: 10px !important;
   transition: all var(--gt-transition-fast) !important;
 
-  i { font-size: 20px !important; color: var(--gt-text-muted) !important; }
+  i {
+    font-size: 20px !important;
+    color: var(--gt-text-muted) !important;
+  }
   &:hover {
     background: var(--gt-gray-50) !important;
     color: var(--gt-primary) !important;
@@ -372,7 +395,9 @@ body {
 .dropdown-menu {
   border: 1px solid var(--gt-border-color) !important;
   border-radius: var(--gt-radius-lg) !important;
-  box-shadow: 0 8px 32px rgba(15, 36, 25, 0.12), 0 2px 8px rgba(15, 36, 25, 0.06) !important;
+  box-shadow:
+    0 8px 32px rgba(15, 36, 25, 0.12),
+    0 2px 8px rgba(15, 36, 25, 0.06) !important;
   padding: 6px !important;
   margin-top: 6px !important;
 
@@ -387,7 +412,8 @@ body {
     align-items: center !important;
     gap: 8px !important;
 
-    &:hover, &:focus {
+    &:hover,
+    &:focus {
       background: var(--gt-primary-glow) !important;
       color: var(--gt-primary-dark) !important;
     }
@@ -395,7 +421,8 @@ body {
 }
 
 // ── 패널 / 카드 ───────────────────────────────────────────────────────────────
-.panel, .x_panel {
+.panel,
+.x_panel {
   background: #fff !important;
   border: 1px solid var(--gt-border-color) !important;
   border-radius: var(--gt-radius-lg) !important;
@@ -432,15 +459,18 @@ body {
   font-weight: 600 !important;
   font-size: 13px !important;
   letter-spacing: 0.01em !important;
-  box-shadow: 0 2px 8px rgba(26, 158, 110, 0.30) !important;
+  box-shadow: 0 2px 8px rgba(26, 158, 110, 0.3) !important;
   transition: all var(--gt-transition-fast) !important;
 
-  &:hover, &:focus {
+  &:hover,
+  &:focus {
     background: linear-gradient(135deg, #157a56 0%, #0f5e40 100%) !important;
     box-shadow: 0 4px 16px rgba(26, 158, 110, 0.45) !important;
     transform: translateY(-1px);
   }
-  &:active { transform: translateY(0); }
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 .btn-default {
@@ -458,8 +488,13 @@ body {
 }
 
 // ── 인풋 / 폼 ────────────────────────────────────────────────────────────────
-.form-control, input[type="text"], input[type="email"],
-input[type="password"], input[type="number"], textarea, select {
+.form-control,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
   border: 1.5px solid var(--gt-input-border) !important;
   border-radius: var(--gt-radius-md) !important;
   font-size: 13px !important;
@@ -473,7 +508,9 @@ input[type="password"], input[type="number"], textarea, select {
     outline: none !important;
   }
 
-  &::placeholder { color: var(--gt-input-placeholder) !important; }
+  &::placeholder {
+    color: var(--gt-input-placeholder) !important;
+  }
 }
 
 // ── 테이블 ───────────────────────────────────────────────────────────────────
@@ -502,27 +539,41 @@ input[type="password"], input[type="number"], textarea, select {
       vertical-align: middle !important;
     }
 
-    &:hover td { background: var(--gt-table-hover) !important; }
+    &:hover td {
+      background: var(--gt-table-hover) !important;
+    }
   }
 }
 
 // ── 배지 ─────────────────────────────────────────────────────────────────────
-.badge, .label {
+.badge,
+.label {
   font-weight: 600 !important;
   letter-spacing: 0.03em !important;
   border-radius: var(--gt-radius-pill) !important;
   padding: 3px 10px !important;
 }
 
-.badge.bg-success, .label-success,
-.badge.bg-primary, .label-primary {
+.badge.bg-success,
+.label-success,
+.badge.bg-primary,
+.label-primary {
   background: var(--gt-primary-glow) !important;
   color: var(--gt-primary-dark) !important;
 }
 
-.badge.bg-info { background: rgba(14, 165, 160, 0.15) !important; color: #0ea5a0 !important; }
-.badge.bg-warning { background: rgba(212, 168, 67, 0.15) !important; color: #b8892c !important; }
-.badge.bg-danger { background: rgba(224, 82, 82, 0.15) !important; color: #c43030 !important; }
+.badge.bg-info {
+  background: rgba(14, 165, 160, 0.15) !important;
+  color: #0ea5a0 !important;
+}
+.badge.bg-warning {
+  background: rgba(212, 168, 67, 0.15) !important;
+  color: #b8892c !important;
+}
+.badge.bg-danger {
+  background: rgba(224, 82, 82, 0.15) !important;
+  color: #c43030 !important;
+}
 
 // ── 콘텐츠 영역 ───────────────────────────────────────────────────────────────
 .right_col {
@@ -536,16 +587,25 @@ a {
   text-decoration: none !important;
   transition: color var(--gt-transition-fast) !important;
 
-  &:hover { color: var(--gt-link-hover) !important; }
+  &:hover {
+    color: var(--gt-link-hover) !important;
+  }
 }
 
 // ── 스크롤바 (고급 그린) ──────────────────────────────────────────────────────
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
   background: var(--gt-border-dark);
   border-radius: 10px;
-  &:hover { background: var(--gt-primary); }
+  &:hover {
+    background: var(--gt-primary);
+  }
 }
 
 // ── 토글/메뉴 버튼 ────────────────────────────────────────────────────────────
@@ -555,7 +615,9 @@ a {
   padding: 16px 18px !important;
   transition: color var(--gt-transition-fast) !important;
 
-  &:hover { color: var(--gt-primary) !important; }
+  &:hover {
+    color: var(--gt-primary) !important;
+  }
 }
 
 // ── 홈 페이지 커스텀 ──────────────────────────────────────────────────────────
@@ -631,7 +693,9 @@ footer {
     color: var(--gt-primary-dark) !important;
   }
 
-  .bi-translate { color: var(--gt-primary) !important; }
+  .bi-translate {
+    color: var(--gt-primary) !important;
+  }
 }
 
 // ── 선택 강조 색 ──────────────────────────────────────────────────────────────
