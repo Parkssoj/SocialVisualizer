@@ -6,45 +6,61 @@
  */
 
 const NAV_ITEMS = [
-  { page: 'home', href: 'index.html', label: '홈' },
-  { page: 'search', href: 'search.html', label: '검색' },
-  { page: 'imap-collect', href: 'imap-collect.html', label: '메일 수집' },
+  { page: "home", href: "index.html", label: "홈" },
+  { page: "search", href: "search.html", label: "검색" },
+  { page: "imap-collect", href: "imap-collect.html", label: "메일 수집" },
   {
-    page: 'mylife', href: 'mylife.html', label: 'My Life',
+    page: "mylife",
+    href: "mylife.html",
+    label: "My Life",
     children: [
-      { page: 'mypeople', href: 'mypeople.html', label: 'My People' },
-      { page: 'mytime', href: 'mytime.html', label: 'My Time' },
-      { page: 'recap', href: 'recap.html', label: 'Recap' }
-    ]
+      { page: "mypeople", href: "mypeople.html", label: "My People" },
+      { page: "mytime", href: "mytime.html", label: "My Time" },
+      { page: "recap", href: "recap.html", label: "Recap" },
+    ],
   },
-  { page: 'graph-viz', href: 'graph-viz.html', label: '지식 그래프' }
+  { page: "graph-viz", href: "graph-viz.html", label: "지식 그래프" },
 ];
 
 export function renderHeader(activePage) {
-  const mountPoint = document.getElementById('app-header');
+  const mountPoint = document.getElementById("app-header");
   if (!mountPoint) return;
 
-  const navLinks = NAV_ITEMS.map(item => {
+  const navLinks = NAV_ITEMS.map((item) => {
     if (item.children) {
-      const groupActive = item.page === activePage || item.children.some(c => c.page === activePage);
-      const childLinks = item.children.map(
-        c => `<a href="${c.href}"${c.page === activePage ? ' class="active"' : ''}>${c.label}</a>`
-      ).join('');
+      const groupActive =
+        item.page === activePage ||
+        item.children.some((c) => c.page === activePage);
+      const childLinks = item.children
+        .map(
+          (c) =>
+            `<a href="${c.href}"${c.page === activePage ? ' class="active"' : ""}>${c.label}</a>`,
+        )
+        .join("");
       return `
         <div class="gw-tl-dropdown">
-          <a href="${item.href}" class="gw-tl gw-tl-dd-btn${groupActive ? ' active' : ''}">${item.label} <i class="bi bi-chevron-down" style="font-size:.65rem;margin-left:2px;"></i></a>
+          <a href="${item.href}" class="gw-tl gw-tl-dd-btn${groupActive ? " active" : ""}">${item.label} <i class="bi bi-chevron-down" style="font-size:.65rem;margin-left:2px;"></i></a>
           <div class="gw-tl-dd-menu">${childLinks}</div>
         </div>`;
     }
-    return `<a href="${item.href}" class="gw-tl${item.page === activePage ? ' active' : ''}">${item.label}</a>`;
-  }).join('');
+    return `<a href="${item.href}" class="gw-tl${item.page === activePage ? " active" : ""}">${item.label}</a>`;
+  }).join("");
 
   mountPoint.innerHTML = `
     <div class="top_nav">
       <div class="nav_menu d-flex align-items-center justify-content-between">
-        <nav class="gw-top-links" style="margin-left:16px;">${navLinks}</nav>
+        <div class="d-flex align-items-center">
+          <a href="index.html" class="gw-brand-logo">
+            <img src="/images/hero/sphere.png" class="gw-brand-logo-icon" alt="">
+            <span class="gw-brand-logo-text">Social Visualizer</span>
+          </a>
+          <nav class="gw-top-links">${navLinks}</nav>
+        </div>
         <nav class="nav navbar-nav ms-auto">
           <ul class="navbar-right d-flex align-items-center gap-3 pe-3">
+            <li class="nav-item">
+              <button type="button" class="gw-login-btn">로그인</button>
+            </li>
             <li class="nav-item dropdown">
               <a href="#" role="button" class="dropdown-toggle" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none;color:inherit;">
                 <i class="bi bi-translate" style="font-size:1.2rem;vertical-align:middle;"></i>
@@ -63,8 +79,8 @@ export function renderHeader(activePage) {
   `;
 }
 
-export function renderFooter(brand = 'MailGrapher') {
-  const mountPoint = document.getElementById('app-footer');
+export function renderFooter(brand = "MailGrapher") {
+  const mountPoint = document.getElementById("app-footer");
   if (!mountPoint) return;
   mountPoint.innerHTML = `<div class="float-end">${brand}</div><div class="clearfix"></div>`;
 }

@@ -293,9 +293,7 @@ body.nav-sm .left_col .menu_section h3 {
 }
 // Top navigation bar - uses Bootstrap 5 flexbox utilities in HTML
 .nav_menu {
-  background: var(--gt-white);
-  border-bottom: 1px solid var(--gt-border-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  background: transparent;
   margin-bottom: 0;
   padding-left: 10px;
 }
@@ -425,20 +423,44 @@ body .container.body .right_col {
 // =============================================================================
 
 // Text color utilities (legacy aliases)
-.blue { color: var(--gt-accent); }
-.purple { color: var(--gt-purple); }
-.green { color: var(--gt-primary); }
-.aero { color: #9cc2cb; } // Brand-specific, no Bootstrap equivalent
-.red { color: var(--gt-danger); }
-.dark { color: var(--gt-dark); }
+.blue {
+  color: var(--gt-accent);
+}
+.purple {
+  color: var(--gt-purple);
+}
+.green {
+  color: var(--gt-primary);
+}
+.aero {
+  color: #9cc2cb;
+} // Brand-specific, no Bootstrap equivalent
+.red {
+  color: var(--gt-danger);
+}
+.dark {
+  color: var(--gt-dark);
+}
 
 // Border color utilities (using !important for override capability)
-.border-blue { border-color: var(--gt-accent) !important; }
-.border-purple { border-color: var(--gt-purple) !important; }
-.border-green { border-color: var(--gt-primary) !important; }
-.border-aero { border-color: #9cc2cb !important; }
-.border-red { border-color: var(--gt-danger) !important; }
-.border-dark { border-color: var(--gt-dark) !important; }
+.border-blue {
+  border-color: var(--gt-accent) !important;
+}
+.border-purple {
+  border-color: var(--gt-purple) !important;
+}
+.border-green {
+  border-color: var(--gt-primary) !important;
+}
+.border-aero {
+  border-color: #9cc2cb !important;
+}
+.border-red {
+  border-color: var(--gt-danger) !important;
+}
+.border-dark {
+  border-color: var(--gt-dark) !important;
+}
 
 // Background color utilities (using CSS variables)
 .bg-green {
@@ -518,7 +540,7 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--gt-z-sticky);
-  background: var(--gt-white);
+  background: transparent;
 }
 .no-padding {
   padding: 0 !important;
@@ -1012,7 +1034,6 @@ a:focus {
   font-weight: 500;
   font-size: 14px;
   transition: all 0.3s ease;
-
 }
 
 // Icon styling for sidebar menu
@@ -3932,7 +3953,6 @@ ul.project_files li a i {
 
 /* *********  /verticle tabs  **************************** */
 
-
 /* *********  ecommerce  **************************** */
 
 .price {
@@ -4113,11 +4133,19 @@ form:after {
   width: 20%;
 }
 .login_content h1:after {
-  background: linear-gradient(to right, rgba(126, 126, 126, 1) 0%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(
+    to right,
+    rgba(126, 126, 126, 1) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
   right: 0;
 }
 .login_content h1:before {
-  background: linear-gradient(to left, rgba(126, 126, 126, 1) 0%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(
+    to left,
+    rgba(126, 126, 126, 1) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
   left: 0;
 }
 .login_content form {
@@ -4168,7 +4196,11 @@ form:after {
   padding-top: 10px;
 }
 .button {
-  background: linear-gradient(to bottom, rgba(247, 249, 250, 1) 0%, rgba(240, 240, 240, 1) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(247, 249, 250, 1) 0%,
+    rgba(240, 240, 240, 1) 100%
+  );
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
   border-radius: 0 0 5px 5px;
   border-top: 1px solid #cfd5d9;
@@ -4180,7 +4212,8 @@ form:after {
   margin-left: 38px;
 }
 .button a {
-  background: url(http://cssdeck.com/uploads/media/items/8/8bcLQqF.png) 0 -112px no-repeat;
+  background: url(http://cssdeck.com/uploads/media/items/8/8bcLQqF.png) 0 -112px
+    no-repeat;
   color: #7e7e7e;
   font-size: 17px;
   padding: 2px 0 2px 40px;
@@ -4255,28 +4288,39 @@ div[data-role="editor-toolbar"] {
   min-height: 38px;
 }
 
-.select2-container--default .select2-selection--single .select2-selection__rendered {
+.select2-container--default
+  .select2-selection--single
+  .select2-selection__rendered {
   color: var(--gt-text-primary);
   padding-top: 5px;
 }
 
-.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+.select2-container--default
+  .select2-selection--multiple
+  .select2-selection__rendered {
   padding-top: 3px;
 }
 
-.select2-container--default .select2-selection--single .select2-selection__arrow {
+.select2-container--default
+  .select2-selection--single
+  .select2-selection__arrow {
   height: 36px;
 }
 
-.select2-container--default .select2-selection--multiple .select2-selection__choice,
-.select2-container--default .select2-selection--multiple .select2-selection__clear {
+.select2-container--default
+  .select2-selection--multiple
+  .select2-selection__choice,
+.select2-container--default
+  .select2-selection--multiple
+  .select2-selection__clear {
   margin-top: 2px;
   border: none;
   border-radius: 0;
   padding: 3px 5px;
 }
 
-.select2-container--default.select2-container--focus .select2-selection--multiple {
+.select2-container--default.select2-container--focus
+  .select2-selection--multiple {
   border: 1px solid #ccc;
 }
 /** /Select2 **/
@@ -6160,10 +6204,18 @@ input[type="radio"].flat:disabled + label {
   }
 
   // Specific width classes to ensure inline widths work
-  .progress-bar[style*="width: 75%"] { width: 75% !important; }
-  .progress-bar[style*="width: 60%"] { width: 60% !important; }
-  .progress-bar[style*="width: 85%"] { width: 85% !important; }
-  .progress-bar[style*="width: 45%"] { width: 45% !important; }
+  .progress-bar[style*="width: 75%"] {
+    width: 75% !important;
+  }
+  .progress-bar[style*="width: 60%"] {
+    width: 60% !important;
+  }
+  .progress-bar[style*="width: 85%"] {
+    width: 85% !important;
+  }
+  .progress-bar[style*="width: 45%"] {
+    width: 45% !important;
+  }
 
   .small.fw-bold {
     font-size: 0.875rem;
@@ -6185,7 +6237,6 @@ input[type="radio"].flat:disabled + label {
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
   }
 }
-
 
 // Index2 Progress Bar Styles
 .progress-bar {
@@ -6213,7 +6264,6 @@ input[type="radio"].flat:disabled + label {
     background-color: #ffc107 !important;
   }
 
-
   // Animation complete state
   &.animation-complete {
     transition: none !important;
@@ -6229,7 +6279,7 @@ input[type="radio"].flat:disabled + label {
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
   }
 
   h3 {
@@ -6259,7 +6309,7 @@ input[type="radio"].flat:disabled + label {
     display: block;
     width: 100%;
     height: 80px !important;
-    
+
     canvas {
       width: 100% !important;
       height: 80px !important;
@@ -6273,7 +6323,7 @@ input[type="radio"].flat:disabled + label {
     padding-top: 12px;
     margin-top: 12px;
     font-size: 0.8rem;
-    
+
     span {
       font-weight: 500;
     }
@@ -6285,7 +6335,7 @@ input[type="radio"].flat:disabled + label {
   background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
   border: 1px solid #e9ecef;
   transition: all 0.3s ease;
-  
+
   &:hover {
     border-color: var(--gt-border-light);
     transform: translateY(-1px);
@@ -6300,10 +6350,18 @@ input[type="radio"].flat:disabled + label {
     justify-content: center;
     font-size: 20px;
 
-    &.primary { background: rgba(13, 110, 253, 0.1); }
-    &.success { background: rgba(25, 135, 84, 0.1); }
-    &.info { background: rgba(13, 202, 240, 0.1); }
-    &.secondary { background: rgba(108, 117, 125, 0.1); }
+    &.primary {
+      background: rgba(13, 110, 253, 0.1);
+    }
+    &.success {
+      background: rgba(25, 135, 84, 0.1);
+    }
+    &.info {
+      background: rgba(13, 202, 240, 0.1);
+    }
+    &.secondary {
+      background: rgba(108, 117, 125, 0.1);
+    }
   }
 }
 
@@ -6326,7 +6384,7 @@ input[type="radio"].flat:disabled + label {
 
 // Connected range (colored bar between handles)
 .noUi-connect {
-  background: linear-gradient(135deg, #1ABB9C 0%, #16a085 100%);
+  background: linear-gradient(135deg, #1abb9c 0%, #16a085 100%);
   border-radius: 4px;
 }
 
@@ -6338,10 +6396,12 @@ input[type="radio"].flat:disabled + label {
   right: -10px;
   border-radius: 50%;
   background: #ffffff;
-  border: 2px solid #1ABB9C;
+  border: 2px solid #1abb9c;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 
   &::before,
   &::after {
@@ -6374,7 +6434,7 @@ input[type="radio"].flat:disabled + label {
   position: absolute;
   border: none;
   border-radius: 6px;
-  background: #2A3F54;
+  background: #2a3f54;
   color: #ffffff;
   padding: 4px 10px;
   font-size: 12px;
@@ -6391,14 +6451,14 @@ input[type="radio"].flat:disabled + label {
 
   // Arrow
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -5px;
     left: 50%;
     transform: translateX(-50%);
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-top: 5px solid #2A3F54;
+    border-top: 5px solid #2a3f54;
   }
 }
 
@@ -6466,21 +6526,49 @@ input[type="radio"].flat:disabled + label {
 }
 
 // Common avatar sizes
-.avatar-xs { width: 32px; height: 32px; }
-.avatar-sm { width: 36px; height: 36px; }
-.avatar-md { width: 48px; height: 48px; }
-.avatar-lg { width: 50px; height: 50px; }
-.avatar-xl { width: 64px; height: 64px; }
-.avatar-xxl { width: 80px; height: 80px; }
+.avatar-xs {
+  width: 32px;
+  height: 32px;
+}
+.avatar-sm {
+  width: 36px;
+  height: 36px;
+}
+.avatar-md {
+  width: 48px;
+  height: 48px;
+}
+.avatar-lg {
+  width: 50px;
+  height: 50px;
+}
+.avatar-xl {
+  width: 64px;
+  height: 64px;
+}
+.avatar-xxl {
+  width: 80px;
+  height: 80px;
+}
 
 // Chart/widget container heights
-.chart-height-sm { height: 200px; }
-.chart-height-md { height: 300px; }
-.chart-height-lg { height: 350px; }
-.chart-height-xl { height: 400px; }
+.chart-height-sm {
+  height: 200px;
+}
+.chart-height-md {
+  height: 300px;
+}
+.chart-height-lg {
+  height: 350px;
+}
+.chart-height-xl {
+  height: 400px;
+}
 
 // Padding utilities for sidebar
-.ps-sidebar { padding-left: 15px; }
+.ps-sidebar {
+  padding-left: 15px;
+}
 
 // Progress bar heights (override Bootstrap's CSS variable)
 .progress-xs {
@@ -6511,14 +6599,16 @@ input[type="radio"].flat:disabled + label {
 }
 
 // Icon opacity
-.icon-muted { opacity: 0.7; }
+.icon-muted {
+  opacity: 0.7;
+}
 
 // Widget card styling (replaces inline padding/bg)
 .widget-card {
   padding: 20px;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 // Flex row with centered items
@@ -6528,58 +6618,104 @@ input[type="radio"].flat:disabled + label {
 }
 
 // Image thumbnail max widths
-.img-thumbnail-sm { max-width: 160px; }
-.img-thumbnail-md { max-width: 200px; }
+.img-thumbnail-sm {
+  max-width: 160px;
+}
+.img-thumbnail-md {
+  max-width: 200px;
+}
 
 // Common margin utilities (supplement Bootstrap)
-.mt-n15 { margin-top: 15px; }
-.mb-6 { margin-bottom: 6px; }
+.mt-n15 {
+  margin-top: 15px;
+}
+.mb-6 {
+  margin-bottom: 6px;
+}
 
 // Iframe no-border
-.iframe-noborder { border: 0; }
+.iframe-noborder {
+  border: 0;
+}
 
 // =============================================================================
 // 15. UTILITY CLASSES (to reduce inline styles)
 // =============================================================================
 
 // Avatar/Image size utilities
-.avatar-xs { width: 36px; height: 36px; }
-.avatar-sm { width: 40px; height: 40px; }
-.avatar-md { width: 48px; height: 48px; }
-.avatar-lg { width: 50px; height: 50px; }
-.avatar-xl { width: 100px; height: 100px; }
+.avatar-xs {
+  width: 36px;
+  height: 36px;
+}
+.avatar-sm {
+  width: 40px;
+  height: 40px;
+}
+.avatar-md {
+  width: 48px;
+  height: 48px;
+}
+.avatar-lg {
+  width: 50px;
+  height: 50px;
+}
+.avatar-xl {
+  width: 100px;
+  height: 100px;
+}
 
 // Progress bar height utilities (with Bootstrap 5 CSS variable override)
-.progress-xs { --bs-progress-height: 6px; height: 6px !important; }
-.progress-sm { --bs-progress-height: 8px; height: 8px !important; }
-.progress-md { --bs-progress-height: 20px; height: 20px !important; }
+.progress-xs {
+  --bs-progress-height: 6px;
+  height: 6px !important;
+}
+.progress-sm {
+  --bs-progress-height: 8px;
+  height: 8px !important;
+}
+.progress-md {
+  --bs-progress-height: 20px;
+  height: 20px !important;
+}
 
 // Chart container heights
-.chart-sm { height: 120px; }
-.chart-md { height: 250px; }
-.chart-lg { height: 370px; }
-.chart-xl { height: 400px; }
+.chart-sm {
+  height: 120px;
+}
+.chart-md {
+  height: 250px;
+}
+.chart-lg {
+  height: 370px;
+}
+.chart-xl {
+  height: 400px;
+}
 
 // Dropdown width utilities (for nav dropdowns)
-.dropdown-menu-sm { min-width: 200px; }
-.dropdown-menu-lg { min-width: 320px; }
+.dropdown-menu-sm {
+  min-width: 200px;
+}
+.dropdown-menu-lg {
+  min-width: 320px;
+}
 
 // Widget card styling
 .widget-card {
   padding: 20px;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 // Stat/metric display styling
 .stat-label {
-  color: #73879C;
+  color: #73879c;
   font-size: 10px;
   margin: 3px 0 0;
 }
 .stat-value {
-  color: #2A3F54;
+  color: #2a3f54;
   font-size: 12px;
   font-weight: 600;
   margin: 0;
@@ -6604,7 +6740,7 @@ input[type="radio"].flat:disabled + label {
 // Info box with border
 .info-box {
   background: #f7f7f7;
-  border: 1px solid #E6E9ED;
+  border: 1px solid #e6e9ed;
   border-radius: 3px;
   padding: 12px;
 }
@@ -6642,7 +6778,14 @@ input[type="radio"].flat:disabled + label {
 }
 
 // Logo heights
-.logo-sm { height: 35px; width: auto; }
+.logo-sm {
+  height: 35px;
+  width: auto;
+}
 
 // Skycons weather icon size
-.skycons-icon { width: 160px; height: 120px; margin: 0 auto; }
+.skycons-icon {
+  width: 160px;
+  height: 120px;
+  margin: 0 auto;
+}
