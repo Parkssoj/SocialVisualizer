@@ -4,18 +4,19 @@
 ### LLM settings ###
 ## There are a number of settings to tune the threading and token limits for LLM calls - check the docs.
 
-encoding_model: o200k_base # cl100k_base에서 변경 (gpt-4o-mini 모델과 토크나이저 일치)
+# encoding_model: o200k_base # cl100k_base에서 변경 (gpt-4o-mini 모델과 토크나이저 일치)
 
 models:
   default_chat_model:
     type: openai_chat 
     model: ${GRAPHRAG_CHAT_MODEL}
     api_key: ${GRAPHRAG_API_KEY}
+    # encoding_model: o200k_base
     model_supports_json: true # JSON 출력 여부 지원
     concurrent_requests: 50   # 동시에 보낼 수 있는 최대 요청 수. API Limit 주의
     async_mode: threaded # 멀티스레딩 방식으로 비동기 처리
     retry_strategy: native # 요청 실패 시 재시도 전략. 서버 응답에 따라 최적으로 자동 재시도
-    max_retries: -1 # set to -1 for dynamic retry logic (most optimal setting based on server response)
+    max_retries: 10 # set to -1 for dynamic retry logic (most optimal setting based on server response)
     tokens_per_minute: 180000   # 분당 토큰/요청 제한
     # requests_per_minute: 0
     temperature: 0 # 답변의 일관성과 재현성 확보 (RAG에서는 보통 0을 권장)
@@ -24,11 +25,12 @@ models:
     type: openai_embedding  
     model: ${GRAPHRAG_EMBEDDING_MODEL}
     api_key: ${GRAPHRAG_API_KEY}
+    # encoding_model: cl100k_base
     model_supports_json: true
     concurrent_requests: 50
     async_mode: threaded
     retry_strategy: native
-    max_retries: -1
+    max_retries: 10
     tokens_per_minute: 180000
     # requests_per_minute: 0
 
