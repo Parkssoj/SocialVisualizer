@@ -9,10 +9,13 @@ import traceback
 import threading
 import time
 import openai
+from dotenv import load_dotenv
 
 from util.graphrag_engine import get_engines, get_and_reset_usage # 유저별 캐싱된 local. global 엔진 반환 함수 임포트
 from util.database.db_writer import save_query_to_db
 from config.settings import MAIL_BLOCK_SEP
+
+load_dotenv("src/parquet/.env")
 
 # 연합 검색은 query 테이블에 계정마다 행을 따로 남기지 않고 딱 1행만 저장한다.
 # user_id는 앱 전체에서 하나로 통일돼 있어 어느 계정으로 저장해도 동일하므로 primary_user_id는 FK 채우기용일 뿐이고,
@@ -467,7 +470,7 @@ def _classify_query_method(message: str) -> str:
     client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
 
     res = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("GRAPHRAG_CHAT_MODEL"),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=10,
         temperature=0

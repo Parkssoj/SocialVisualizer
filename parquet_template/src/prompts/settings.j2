@@ -9,7 +9,7 @@ encoding_model: o200k_base # cl100k_base에서 변경 (gpt-4o-mini 모델과 토
 models:
   default_chat_model:
     type: openai_chat 
-    model: ${GRAPHRAG_LLM_MODEL}
+    model: ${GRAPHRAG_CHAT_MODEL}
     api_key: ${GRAPHRAG_API_KEY}
     model_supports_json: true # JSON 출력 여부 지원
     concurrent_requests: 50   # 동시에 보낼 수 있는 최대 요청 수. API Limit 주의

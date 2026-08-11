@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image, ImageChops
-
 from util.database.db_reader import get_person_descriptions
 
 load_dotenv("src/parquet/.env")
@@ -94,14 +93,14 @@ def _pick_style_attributes(seed_key: str) -> dict:
 def _infer_gender_presentation(name: str) -> str:
     """
     이미지 모델(gpt-image-1)에게 "이름 보고 알아서 성별 추론해"라고 맡기면 부정확할 때가 많아
-    (예: '최지유' → 남성으로 잘못 생성), 텍스트 추론에 강한 gpt-4o-mini로 먼저 판별해
+    (예: '최지유' → 남성으로 잘못 생성), 텍스트 추론에 강한 {SUB_TASK_CHAT_MODEL}로 먼저 판별해
     이미지 프롬프트에 명시적으로 박아 넣는다. 한국어 이름뿐 아니라 영어 등 다른 언어권 이름도
     함께 판단할 수 있도록 특정 문화권에 한정하지 않는다.
     반환: 'female' | 'male' | 'unknown'
     """
     try:
         result = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
             messages=[
                 {
                     "role": "system",
@@ -153,7 +152,7 @@ def _classify_sender(name: str, domain: str) -> str | None:
         return known
     try:
         result = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
             messages=[
                 {
                     "role": "system",

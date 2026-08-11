@@ -3,10 +3,11 @@ import os
 import sys
 import re
 import subprocess
-import threading  
+import threading
 import traceback
 import openai
 import networkx as nx
+from dotenv import load_dotenv
 
 from util.jobs.job_store import update_job, append_job_log
 from util.graphrag_progress import get_stage_progress
@@ -21,6 +22,8 @@ from util.mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_domains
+
+load_dotenv("src/parquet/.env")
 
 # threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
 # 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
@@ -64,7 +67,7 @@ def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("GRAPHRAG_CHAT_MODEL"),
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}

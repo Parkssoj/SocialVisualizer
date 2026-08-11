@@ -3,6 +3,9 @@ import re
 import time
 import datetime
 import calendar
+from dotenv import load_dotenv
+
+load_dotenv("src/parquet/.env")
 
 def _extract_date_range(message: str):
     today = datetime.datetime.now()
@@ -257,7 +260,7 @@ def run_date_range_query(message: str, paths) -> str:
 
     # 이메일 목록을 context로 넘겨서 LLM이 자연어로 답변 생성
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("GRAPHRAG_CAHT_MODEL"),
         messages=[
             {
                 "role": "system",
