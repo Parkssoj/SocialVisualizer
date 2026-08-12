@@ -21,7 +21,7 @@ from util.database.db_writer import create_mail_account,save_person_stats_to_db,
 from util.mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains
+from renderer import render_all_domains     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
 
 load_dotenv("src/parquet/.env")
 
@@ -72,7 +72,7 @@ def _summarize_attachment_text(text: str, paths, filename: str) -> str:
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}
             ],
-            max_tokens=150  # 한글 약 300자 기준
+            max_completion_tokens=150  # 한글 약 300자 기준. gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
