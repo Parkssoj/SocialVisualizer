@@ -1,33 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; frame-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; frame-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta
+      http-equiv="Referrer-Policy"
+      content="strict-origin-when-cross-origin"
+    />
+    <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
     <title>Recap | MailGrapher</title>
     <script type="module" src="/src/pages/recap.js"></script>
+    <!-- 헤더 로고(.gw-brand-logo-text)가 Instrument Serif를 쓰는데 이 페이지엔 없어서
+         Georgia/기본 serif로 폴백되며 홈 화면이랑 다르게(더 좁게) 보이던 것을 통일 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:SOFT,WONK,opsz,wght@0,0,9..144,100..900&display=block"
+      rel="stylesheet"
+    />
   </head>
 
   <body class="page-recap">
     <div class="container body">
       <div class="main_container">
-
         <div id="app-header"></div>
 
         <!-- ── Page Content ── -->
-        <main class="right_col" role="main" style="padding:0; overflow-y:auto;">
-
+        <main
+          class="right_col"
+          role="main"
+          style="padding: 0; overflow-y: auto"
+        >
           <!-- 히어로 배너 -->
           <div class="rc-hero">
             <div class="rc-hero-inner">
               <div class="rc-hero-label">Mail Analytics</div>
               <div class="rc-hero-title">📊 Recap</div>
-              <div class="rc-hero-sub" id="rcHeroSub">내 메일함 통계 한눈에 보기</div>
+              <div class="rc-hero-sub" id="rcHeroSub">
+                내 메일함 통계 한눈에 보기
+              </div>
               <div id="account-picker-mount"></div>
             </div>
             <a href="graph-viz.html" class="rc-hero-graph-link">
@@ -38,24 +56,33 @@
 
           <!-- 컨텐츠 -->
           <div class="rc-content">
-
             <!-- ── 1행: 수신/발신 2열 ── -->
             <div class="rc-grid2">
-
               <!-- 나에게 가장 많이 보낸 사람 -->
               <div class="rc-card">
                 <div class="rc-card-header">
                   <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#fff9e6;">📨</div>
+                    <div class="rc-card-title-icon" style="background: #fff9e6">
+                      📨
+                    </div>
                     나에게 많이 보낸 사람
                   </div>
-                  <span class="rc-card-badge" id="rcSenderBadge" style="display:none;"></span>
+                  <span
+                    class="rc-card-badge"
+                    id="rcSenderBadge"
+                    style="display: none"
+                  ></span>
                 </div>
                 <div id="rcSenderLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 데이터를 불러오는 중…
+                  <div class="rc-spinner"></div>
+                  데이터를 불러오는 중…
                 </div>
-                <div id="rcSenderError" class="rc-error" style="display:none;"></div>
-                <div id="rcSenderContent" style="display:none;">
+                <div
+                  id="rcSenderError"
+                  class="rc-error"
+                  style="display: none"
+                ></div>
+                <div id="rcSenderContent" style="display: none">
                   <div id="rcTopSender"></div>
                   <ul class="rc-bar-list" id="rcBarList"></ul>
                 </div>
@@ -65,40 +92,61 @@
               <div class="rc-card">
                 <div class="rc-card-header">
                   <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#e8f4fd;">📤</div>
+                    <div class="rc-card-title-icon" style="background: #e8f4fd">
+                      📤
+                    </div>
                     내가 많이 보낸 사람
                   </div>
-                  <span class="rc-card-badge" id="rcMySentBadge" style="display:none;"></span>
+                  <span
+                    class="rc-card-badge"
+                    id="rcMySentBadge"
+                    style="display: none"
+                  ></span>
                 </div>
                 <div id="rcMySentLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 데이터를 불러오는 중…
+                  <div class="rc-spinner"></div>
+                  데이터를 불러오는 중…
                 </div>
-                <div id="rcMySentError" class="rc-error" style="display:none;"></div>
-                <div id="rcMySentContent" style="display:none;">
+                <div
+                  id="rcMySentError"
+                  class="rc-error"
+                  style="display: none"
+                ></div>
+                <div id="rcMySentContent" style="display: none">
                   <div id="rcTopMySent"></div>
                   <ul class="rc-bar-list" id="rcMySentBarList"></ul>
                 </div>
               </div>
-
-            </div><!-- ── 1행 끝 ── -->
+            </div>
+            <!-- ── 1행 끝 ── -->
 
             <!-- ── 2열 그리드 시작 ── -->
             <div class="rc-grid2">
-
               <!-- 키워드 통계 -->
               <div class="rc-card">
                 <div class="rc-card-header">
                   <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#f0faf4;">✦</div>
+                    <div class="rc-card-title-icon" style="background: #f0faf4">
+                      ✦
+                    </div>
                     메일 속 주요 키워드
                   </div>
-                  <span class="rc-card-badge" id="rcKwBadge" style="display:none;"></span>
+                  <span
+                    class="rc-card-badge"
+                    id="rcKwBadge"
+                    style="display: none"
+                  ></span>
                 </div>
                 <div id="rcKwLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 키워드 분석 중…
+                  <div class="rc-spinner"></div>
+                  키워드 분석 중…
                 </div>
-                <div id="rcKwError" class="rc-error" style="display:none;"></div>
-                <div id="rcKwContent" style="display:none;">
+                <div
+                  id="rcKwError"
+                  class="rc-error"
+                  style="display: none"
+                ></div>
+                <div id="rcKwContent" style="display: none">
                   <div class="rc-wc-wrap" id="rcKwCanvas"></div>
                 </div>
               </div>
@@ -107,20 +155,40 @@
               <div class="rc-card">
                 <div class="rc-card-header">
                   <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#fff0f6;">💌</div>
+                    <div class="rc-card-title-icon" style="background: #fff0f6">
+                      💌
+                    </div>
                     친밀도
                   </div>
-                  <span class="rc-card-badge" id="rcAfBadge" style="display:none;"></span>
+                  <span
+                    class="rc-card-badge"
+                    id="rcAfBadge"
+                    style="display: none"
+                  ></span>
                 </div>
                 <div id="rcAfLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 친밀도 분석 중…
+                  <div class="rc-spinner"></div>
+                  친밀도 분석 중…
                 </div>
-                <div id="rcAfError" class="rc-error" style="display:none;"></div>
-                <div id="rcAfContent" style="display:none;">
+                <div
+                  id="rcAfError"
+                  class="rc-error"
+                  style="display: none"
+                ></div>
+                <div id="rcAfContent" style="display: none">
                   <div class="rc-af-donut-wrap">
                     <div class="rc-af-chart-container">
-                      <svg class="rc-af-donut-svg" viewBox="0 0 200 200" id="rcAfDonutSvg">
-                        <circle class="rc-af-donut-bg" cx="100" cy="100" r="82.5"></circle>
+                      <svg
+                        class="rc-af-donut-svg"
+                        viewBox="0 0 200 200"
+                        id="rcAfDonutSvg"
+                      >
+                        <circle
+                          class="rc-af-donut-bg"
+                          cx="100"
+                          cy="100"
+                          r="82.5"
+                        ></circle>
                       </svg>
                       <div class="rc-af-center-info">
                         <div class="rc-af-center-num" id="rcAfCenterNum">-</div>
@@ -131,26 +199,31 @@
                   </div>
                 </div>
               </div>
-
-
-            </div><!-- ── 2열 그리드 끝 ── -->
+            </div>
+            <!-- ── 2열 그리드 끝 ── -->
 
             <!-- ── 3행: 동기화 + 만족도 ── -->
             <div class="rc-grid2">
-
               <!-- 메일 동기화 통계 -->
               <div class="rc-card rc-sync-card">
                 <div class="rc-card-header">
                   <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#eff6ff;">🔄</div>
+                    <div class="rc-card-title-icon" style="background: #eff6ff">
+                      🔄
+                    </div>
                     메일 동기화 현황
                   </div>
                 </div>
                 <div id="rcSyncLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 동기화 정보 불러오는 중…
+                  <div class="rc-spinner"></div>
+                  동기화 정보 불러오는 중…
                 </div>
-                <div id="rcSyncError" class="rc-error" style="display:none;"></div>
-                <div id="rcSyncContent" style="display:none;">
+                <div
+                  id="rcSyncError"
+                  class="rc-error"
+                  style="display: none"
+                ></div>
+                <div id="rcSyncContent" style="display: none">
                   <div class="rc-sync-tiles">
                     <div class="rc-sync-tile rc-sync-tile--blue">
                       <div class="rc-sync-tile-icon">📬</div>
@@ -164,7 +237,12 @@
                     </div>
                     <div class="rc-sync-tile rc-sync-tile--teal">
                       <div class="rc-sync-tile-icon">📅</div>
-                      <div class="rc-sync-tile-num rc-sync-date" id="rcSyncDate">—</div>
+                      <div
+                        class="rc-sync-tile-num rc-sync-date"
+                        id="rcSyncDate"
+                      >
+                        —
+                      </div>
                       <div class="rc-sync-tile-label">마지막 동기화</div>
                     </div>
                   </div>
@@ -220,9 +298,8 @@
                 </div>
               </div>
               -->
-
-            </div><!-- ── 3행 끝 ── -->
-
+            </div>
+            <!-- ── 3행 끝 ── -->
           </div>
         </main>
 
