@@ -204,9 +204,9 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                         chunk_text = "\n".join(chunk_text)
 
                     # 계정 하나가 프롬프트 예산을 독점하지 않도록 계정별로 토큰 상한을 둠
-                    tokens = engine.token_encoder.encode(chunk_text)
+                    tokens = engine.tokenizer.encode(chunk_text)
                     if len(tokens) > per_account_max_tokens:
-                        chunk_text = engine.token_encoder.decode(tokens[:per_account_max_tokens])
+                        chunk_text = engine.tokenizer.decode(tokens[:per_account_max_tokens])
 
                     account_sender_maps[paths.USER_ID] = _load_account_sender_map(paths)
                     used_tokens = min(len(tokens), per_account_max_tokens)
@@ -272,21 +272,17 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                     "추가하라 — 그 메일이 어느 [계정: ...] 블록에서 나온 데이터인지, 컨텍스트에 표시된 "
                     "계정 이메일 주소를 정확히 그대로 옮겨 적어라."
                 )
-                history_messages = [{"role": "system", "content": search_prompt}]
-
-                # 여러 계정 내용을 종합하는 답변이라 계정 하나만 볼 때보다 더 길어질 수 있어 응답 길이 상한을 넉넉히 둠
-                federated_model_params = dict(first_engine.model_params)
-                federated_model_params["max_tokens"] = max(
-                    federated_model_params.get("max_tokens", 2000), 2000 * len(engines)
-                )
-
+                messages = [
+                    {"role": "system", "content": search_prompt},
+                    {"role": "user", "content": message},
+                ]
                 full_response = ""
-                async for token in first_engine.model.achat_stream(
-                    prompt=message,
-                    history=history_messages,
-                    model_parameters=federated_model_params,
-                ):
-                    full_response += token
+                response = await first_engine.model.completion_async(
+                    messages=messages,
+                    stream=True,
+                )
+                async for chunk in response:
+                    full_response += chunk.choices[0].delta.content or ""
 
                 answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', full_response)
                 answer = re.sub(r'\*+|#+', '', answer)
@@ -408,7 +404,11 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
                     )
                     # map: 커뮤니티 보고서 묶음마다 개별 LLM 호출 (계정별로 각자 실행)
                     map_responses = await asyncio.gather(*[
-                        engine._map_response_single_batch(context_data=data, query=message, **engine.map_llm_params)
+                        engine._map_response_single_batch(
+                            context_data=data, query=message,
+                            max_length=engine.map_max_length,
+                            **engine.map_llm_params,
+                        )
                         for data in context_result.context_chunks
                     ])
                     print(f"[FEDERATED-GLOBAL] {paths.USER_ID}: map 배치 {len(map_responses)}개")
@@ -472,7 +472,6 @@ def _classify_query_method(message: str) -> str:
     res = client.chat.completions.create(
         model=os.getenv("RAG_CHAT_MODEL"),
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=10,
         temperature=0
     )
 
