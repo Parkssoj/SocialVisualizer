@@ -432,19 +432,21 @@ def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
 
 
 def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
-    attrs = _pick_style_attributes(seed_key or name)
-    result = client.images.generate(
-        model=AVATAR_MODEL,
-        prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
-        size=AVATAR_SIZE,
-        quality=AVATAR_QUALITY,
-        background="transparent",
-        output_format="png",
-        n=1,
-    )
-    b64 = result.data[0].b64_json
-    raw_bytes = base64.b64decode(b64)
-    return _composite_on_color(raw_bytes, attrs["bg_rgb"])
+    # TEMP: GPT 이미지 생성 임시 비활성화
+    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
+    # attrs = _pick_style_attributes(seed_key or name)
+    # result = client.images.generate(
+    #     model=AVATAR_MODEL,
+    #     prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
+    #     size=AVATAR_SIZE,
+    #     quality=AVATAR_QUALITY,
+    #     background="transparent",
+    #     output_format="png",
+    #     n=1,
+    # )
+    # b64 = result.data[0].b64_json
+    # raw_bytes = base64.b64decode(b64)
+    # return _composite_on_color(raw_bytes, attrs["bg_rgb"])
 
 
 def _load_relationship_hints(user_id: str) -> dict:
