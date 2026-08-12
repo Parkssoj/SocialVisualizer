@@ -9,8 +9,8 @@
 models:
   default_chat_model:
     type: openai_chat 
-    model: ${GRAPHRAG_CHAT_MODEL}
-    api_key: ${GRAPHRAG_API_KEY}
+    model: ${RAG_CHAT_MODEL}
+    api_key: ${LLM_API_KEY}
     # encoding_model: o200k_base
     model_supports_json: true # JSON 출력 여부 지원
     concurrent_requests: 50   # 동시에 보낼 수 있는 최대 요청 수. API Limit 주의
@@ -23,8 +23,8 @@ models:
 
   default_embedding_model:
     type: openai_embedding  
-    model: ${GRAPHRAG_EMBEDDING_MODEL}
-    api_key: ${GRAPHRAG_API_KEY}
+    model: ${RAG_EMBEDDING_MODEL}
+    api_key: ${LLM_API_KEY}
     # encoding_model: cl100k_base
     model_supports_json: true
     concurrent_requests: 50

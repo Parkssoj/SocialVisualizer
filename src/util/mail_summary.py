@@ -25,7 +25,7 @@ def _extract_email(raw):
 
 
 def _summarize_with_llm(text, period_label, contacts):
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
     try:
         response = client.chat.completions.create(
             model=os.getenv("SUB_TASK_CHAT_MODEL"),

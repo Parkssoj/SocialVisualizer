@@ -13,7 +13,7 @@ from util.jobs.job_store import *
 # .env 로드
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("GRAPHRAG_API_KEY"))
+client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
 def start_timer():
     return {

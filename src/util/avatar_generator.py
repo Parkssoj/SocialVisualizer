@@ -15,7 +15,7 @@ from util.database.db_reader import get_person_descriptions
 
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("GRAPHRAG_API_KEY"))
+client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
 AVATAR_MODEL = "gpt-image-1"
 AVATAR_SIZE = "1024x1024"

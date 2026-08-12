@@ -156,11 +156,11 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
 
     # LLM: 최종 답변 생성용
     model = DirectOpenAIChatModel(
-        api_key=os.environ["GRAPHRAG_API_KEY"],
+        api_key=os.environ["LLM_API_KEY"],
         model=llm_config.model  # gpt-4o-mini
     )
     text_embedder = DirectOpenAIEmbedder(
-        api_key=os.environ["GRAPHRAG_API_KEY"],
+        api_key=os.environ["LLM_API_KEY"],
         model=emb_config.model
     )
 
@@ -234,7 +234,7 @@ def _build_global_engine(output_dir: str, graphrag_root: str) -> tuple[GlobalSea
     gs_config  = config.global_search  # settings.yaml의 global_search 설정
 
     model = DirectOpenAIChatModel(
-        api_key=os.environ["GRAPHRAG_API_KEY"],
+        api_key=os.environ["LLM_API_KEY"],
         model=llm_config.model
     )
     token_encoder = tiktoken.get_encoding(llm_config.encoding_model)

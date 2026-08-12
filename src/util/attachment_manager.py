@@ -35,10 +35,10 @@ def _summarize_attachment(text: str, filename: str, domain: str) -> str:
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
 
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
     try:
         response = client.chat.completions.create(
-            model=os.getenv("GRAPHRAG_CHAT_MODEL"),
+            model=os.getenv("RAG_CHAT_MODEL"),
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}

@@ -467,10 +467,10 @@ def _classify_query_method(message: str) -> str:
 
                 질문: {message}"""
 
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
 
     res = client.chat.completions.create(
-        model=os.getenv("GRAPHRAG_CHAT_MODEL"),
+        model=os.getenv("RAG_CHAT_MODEL"),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=10,
         temperature=0
