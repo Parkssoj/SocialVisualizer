@@ -9,6 +9,37 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── 탭 전환 (메일/메시지) ── */
+.gw-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 20px 32px 0 32px;
+  border-bottom: 1.5px solid #e8ecef;
+}
+.gw-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: #73879C;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.gw-tab-btn:hover { color: #2A3F54; }
+.gw-tab-btn.active {
+  color: #1a9e6e;
+  border-bottom-color: #26B99A;
+}
+
+.gw-tab-panel { display: none; }
+.gw-tab-panel.active { display: block; }
+
 /* ── 검색 CSS ── */
 .gw-search-top {
   padding: 20px 32px 20px 32px;

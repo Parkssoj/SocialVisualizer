@@ -24,6 +24,80 @@
   margin-bottom: 28px;
 }
 
+/* ── 탭 전환 ── */
+.gw-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1.5px solid #e8ecef;
+}
+.gw-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: #73879C;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.gw-tab-btn:hover { color: #2A3F54; }
+.gw-tab-btn.active {
+  color: #1a9e6e;
+  border-bottom-color: #26B99A;
+}
+
+.gw-tab-panel { display: none; }
+.gw-tab-panel.active { display: block; }
+
+/* ── 파일 드롭존 (카카오톡 업로드) ── */
+.gw-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 20px;
+  border: 2px dashed #dde3ea;
+  border-radius: 12px;
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.gw-dropzone:hover,
+.gw-dropzone.dragover {
+  border-color: #26B99A;
+  background: #f0faf7;
+}
+.gw-dropzone i {
+  font-size: 1.8rem;
+  color: #26B99A;
+}
+.gw-dropzone-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2A3F54;
+}
+.gw-dropzone-sub {
+  font-size: 0.78rem;
+  color: #73879C;
+}
+.gw-dropzone-file {
+  margin-top: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #eaf3de;
+  color: #3b6d11;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 /* ── 카드 ── */
 .gw-card {
   background: #fff;
