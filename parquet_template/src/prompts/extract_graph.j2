@@ -6,7 +6,7 @@
 -Steps-
 1. Identify Entities:
 1.1. Extract entities of the following types: '[{entity_types}]'
-Format: '("entity"{tuple_delimiter}<name>{tuple_delimiter}<type>{tuple_delimiter}<description>)'
+Format: '("entity"<|><name><|><type><|><description>)'
 {% for et in entity_types %}
   * {{ et.name }}: '{{ et.format }}'
 {% endfor %}
@@ -30,7 +30,7 @@ Format: '("entity"{tuple_delimiter}<name>{tuple_delimiter}<type>{tuple_delimiter
 
 2. Identify Relationships:
   * Relationship directions are fixed — do NOT reverse them. Source and Target MUST match the specified entity types exactly.
-  * Format: '("relationship"{tuple_delimiter}<source>{tuple_delimiter}<target>{tuple_delimiter}<type>{tuple_delimiter}<description_in_Korean>{tuple_delimiter}<strength_1_10>)'
+  * Format: '("relationship"<|><source><|><target><|><type><|><description_in_Korean><|><strength_1_10>)'
 
   | Type | Source | Target | When to use |
   |------|--------|--------|-------------|
@@ -47,8 +47,8 @@ Format: '("entity"{tuple_delimiter}<name>{tuple_delimiter}<type>{tuple_delimiter
 {% for r in grounding_rules %}
    * {{ r }}
 {% endfor %}
-   * Output as a single list delimited by {record_delimiter}.
-   * End with {completion_delimiter}.
+   * Output as a single list delimited by ##.
+   * End with <|COMPLETE|>.
 
 ---
 
@@ -61,13 +61,13 @@ Text:
 {{ ex.text }}
 
 Output:
-{% for e in ex.entities %}("entity"{tuple_delimiter}{{ e.name }}{tuple_delimiter}{{ e.type }}{tuple_delimiter}{{ e.description }})
-{record_delimiter}
-{% endfor %}{% for r in ex.relationships %}("relationship"{tuple_delimiter}{{ r.source }}{tuple_delimiter}{{ r.target }}{tuple_delimiter}{{ r.type }}{tuple_delimiter}{{ r.description }}{tuple_delimiter}{{ r.strength }}){% if not loop.last %}
-{record_delimiter}
+{% for e in ex.entities %}("entity"<|>{{ e.name }}<|>{{ e.type }}<|>{{ e.description }})
+##
+{% endfor %}{% for r in ex.relationships %}("relationship"<|>{{ r.source }}<|>{{ r.target }}<|>{{ r.type }}<|>{{ r.description }}<|>{{ r.strength }}){% if not loop.last %}
+##
 {% endif %}
 {% endfor %}
-{completion_delimiter}
+<|COMPLETE|>
 
 ---
 {% endfor %}
