@@ -52,12 +52,8 @@ frozenlist==1.8.0
 fsspec==2026.7.0
 future==1.0.0
 gensim==4.4.0
-<<<<<<< HEAD
 google-api-core==2.30.3
 google-genai==2.2.0
-graphrag==2.1.0
-graspologic==3.4.4
-=======
 graphrag==3.1.1
 graphrag-cache==3.1.1
 graphrag-chunking==3.1.1
@@ -66,7 +62,6 @@ graphrag-input==3.1.1
 graphrag-llm==3.1.1
 graphrag-storage==3.1.1
 graphrag-vectors==3.1.1
->>>>>>> c8a796eef6f9388713d545dc428ba44edabb24e3
 graspologic-native==1.2.5
 h11==0.16.0
 hf-xet==1.6.0
@@ -106,11 +101,8 @@ msal-extensions==1.3.1
 multidict==6.7.1
 murmurhash==1.0.15
 mysql-connector-python==9.6.0
-<<<<<<< HEAD
 nano-vectordb==0.0.4.3
-=======
 nest-asyncio2==1.7.2
->>>>>>> c8a796eef6f9388713d545dc428ba44edabb24e3
 networkx==3.6.1
 nltk==3.10.2
 numba==0.64.0
@@ -144,11 +136,8 @@ PyMuPDF==1.27.2
 pynndescent==0.6.0
 pyparsing==3.3.2
 pypdfium2==5.11.0
-<<<<<<< HEAD
 pypinyin==0.55.0
-=======
 pyreadline3==3.5.6
->>>>>>> c8a796eef6f9388713d545dc428ba44edabb24e3
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2

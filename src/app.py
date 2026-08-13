@@ -93,8 +93,12 @@ from util.attachment_manager import (
     _extract_text_from_pptx,
     _extract_text_from_xlsx,
     _extract_text_from_csv,
+    _run_attachment_pipeline,
 )
-from util.jobs.job_run import _summarize_attachment_text, _merge_summarized_attachments
+if RAG_ENGINE == "lightrag":
+    from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments
+elif RAG_ENGINE == "graphrag":
+    from util.jobs.job_run_graphrag import _summarize_attachment_text, _merge_summarized_attachments
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
