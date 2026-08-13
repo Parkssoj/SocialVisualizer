@@ -1,23 +1,23 @@
 {
     "config": "messenger",
-    "description": "카카오톡 대화 데이터에서 추출하는 지식 그래프 — 채팅방을 중심으로, 날짜 단위로 대화가 갈라지는 구조",
+    "description": "A knowledge graph extracted from KakaoTalk chat data — centered on ChatRoom, with conversations split by Date",
     "entity_types": [
-        { "name": "Person", "format": "Name: <카카오톡에 표시된 이름>" },
-        { "name": "Keyword", "format": "Term: <핵심 키워드>" },
-        { "name": "ChatRoom", "format": "Name: <채팅방 이름>" },
-        { "name": "Event", "format": "EventName: <event_title> | Schedule: <YYYY-MM-DD HH:MM/없음> | Location: <place/None>" },
-        { "name": "Date", "format": "Value: <YYYY-MM-DD> | Day: <요일>" },
-        { "name": "NamedEntity", "format": "Type: <장소/조직/제품·서비스/작품/인물/기타> | Description: <1문장 설명>" },
-        { "name": "Attachment", "format": "Type: <파일 유형>" }
+        { "name": "Person", "format": "Name: <display name as shown in KakaoTalk>" },
+        { "name": "Keyword", "format": "Term: <core keyword>" },
+        { "name": "ChatRoom", "format": "Name: <chat room name>" },
+        { "name": "Event", "format": "EventName: <event_title> | Schedule: <YYYY-MM-DD HH:MM/None> | Location: <place/None>" },
+        { "name": "Date", "format": "Value: <YYYY-MM-DD> | Day: <day of week>" },
+        { "name": "NamedEntity", "format": "Type: <장소/조직/제품·서비스/작품/인물/기타> | Description: <one-sentence description>" },
+        { "name": "Attachment", "format": "Type: <file type>" }
     ],
     "relationship_types" : [
-        { "name": "참여", "source": "Person", "target": "ChatRoom", "when": "그 사람이 이 채팅방의 대화 참여자일 때" },
-        { "name": "대화일", "source": "ChatRoom", "target": "Date", "when": "그 채팅방에서 해당 날짜에 대화가 있었을 때" },
-        { "name": "발화", "source": "Person", "target": "Date", "when": "그 사람이 해당 날짜에 메시지를 보냈을 때" },
-        { "name": "언급", "source": "Keyword", "target": "Date", "when": "그 키워드가 해당 날짜 대화에서 논의됐을 때" },
-        { "name": "언급", "source": "NamedEntity", "target": "Date", "when": "그 고유명사가 해당 날짜 대화에서 언급됐을 때" },
-        { "name": "예정", "source": "Event", "target": "Date", "when": "그 이벤트가 해당 날짜 대화에서 언급됐을 때" },
-        { "name": "공유", "source": "Attachment", "target": "Date", "when": "그 첨부파일이 해당 날짜 대화에서 공유됐을 때" }
+        { "name": "participates_in", "source": "Person", "target": "ChatRoom", "when": "When that person is a participant in this chat room's conversation" },
+        { "name": "active_on", "source": "ChatRoom", "target": "Date", "when": "When that chat room had a conversation on this date" },
+        { "name": "spoke_on", "source": "Person", "target": "Date", "when": "When that person sent a message on this date" },
+        { "name": "mentioned_on", "source": "Keyword", "target": "Date", "when": "When that keyword was discussed in this date's conversation" },
+        { "name": "mentioned_on", "source": "NamedEntity", "target": "Date", "when": "When that named entity was mentioned in this date's conversation" },
+        { "name": "scheduled_on", "source": "Event", "target": "Date", "when": "When that event was mentioned in this date's conversation" },
+        { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" }
     ],
     "grounding_rules": [
         "Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings shared in chat as entities.",
@@ -26,10 +26,10 @@
         "CRITICAL: Strings representing absence of value such as 'None', 'NONE', 'null', '없음', '-' MUST NOT be used as entity names under any type.",
         "Do NOT create duplicate entities.",
         "CRITICAL: Every extracted entity MUST be connected to at least one of ChatRoom or Date (directly or through another entity) — do NOT extract isolated entities floating with no connection to the conversation's room/date context.",
-        "Person 엔티티는 카카오톡에 표시된 이름을 그대로 식별자로 사용한다 — 이메일 주소가 없다는 이유로 생성을 거부하지 않는다.",
-        "동일 인물이 오탈자/이모지가 섞인 이름 변형으로 여러 번 등장해도 문맥상 명백히 동일인이면 하나의 Person으로 통합한다. 확신이 없으면 별개로 유지한다.",
-        "'님이 들어왔습니다', '님이 나갔습니다' 같은 시스템 안내 메시지의 주체는 Person 엔티티로 추출하지 않는다.",
-        "Keyword와 NamedEntity를 혼동하지 않는다 — 고유명사(채팅방 외의 특정 장소·조직·제품·작품명, 그리고 대화에 언급만 되고 직접 메시지를 보내지 않은 사람 이름)는 NamedEntity로, 일반적인 주제/화제어는 Keyword로 분류한다."
+        "A Person entity uses the display name exactly as shown in KakaoTalk as its identifier — do not refuse to create one just because there's no email address.",
+        "If the same person appears multiple times as name variants mixed with typos/emoji, merge them into a single Person when it's unambiguously the same person from context. If unsure, keep them as separate entities.",
+        "Do NOT extract the subject of system notification messages like '님이 들어왔습니다' (has entered) or '님이 나갔습니다' (has left) as a Person entity.",
+        "Do not confuse Keyword with NamedEntity — classify proper nouns (a specific place/organization/product/work name other than the chat room itself, and the name of a person who is only mentioned but never sends a message directly) as NamedEntity, and general topic/subject words as Keyword."
     ],
     "citation_rule": [
         "Points supported by data should list their data references as follows:",
@@ -38,10 +38,10 @@
         "Do not include information where the supporting evidence is not provided."
     ],
     "category_taxonomy": [
-        { "name": "일상 대화", "description": "친구/가족 등과 나누는 사적인 잡담·안부 대화" },
-        { "name": "프로젝트/협업", "description": "업무, 스터디, 팀 프로젝트 등 실질적 협업이 이뤄지는 대화" },
-        { "name": "모임/약속", "description": "일정 조율, 모임 계획 등 이벤트 중심 대화" },
-        { "name": "공지/알림", "description": "단체 공지나 시스템 알림 위주로, 실질적 대화가 거의 없는 방" }
+        { "name": "일상 대화", "description": "Private small talk/catching up with friends, family, etc." },
+        { "name": "프로젝트/협업", "description": "Conversations involving substantive collaboration such as work, study groups, or team projects" },
+        { "name": "모임/약속", "description": "Event-centered conversation such as scheduling and making plans to meet" },
+        { "name": "공지/알림", "description": "A room mostly consisting of group announcements or system notifications, with little substantive conversation" }
     ],
     "extract_graph": {
         "goal": "Given a day's worth of KakaoTalk chat messages from a single chat room and a list of entity types, identify all entities and the relationships between them. The conversation is naturally organized around two hub concepts: the ChatRoom it happened in, and the Date it happened on. Output both entities and relationships using the specified formats.",
@@ -86,17 +86,17 @@
         },
         "integrated_document_rules": null,
         "relationship_hints": [
-            { "name": "참여", "source": "Person", "target": "ChatRoom", "when": "그 사람이 이 채팅방의 대화 참여자일 때" },
-            { "name": "대화일", "source": "ChatRoom", "target": "Date", "when": "그 채팅방에서 해당 날짜에 대화가 있었을 때" },
-            { "name": "발화", "source": "Person", "target": "Date", "when": "그 사람이 해당 날짜에 메시지를 보냈을 때" },
-            { "name": "언급", "source": "Keyword", "target": "Date", "when": "그 키워드가 해당 날짜 대화에서 논의됐을 때" },
-            { "name": "언급", "source": "NamedEntity", "target": "Date", "when": "그 고유명사가 해당 날짜 대화에서 언급됐을 때" },
-            { "name": "예정", "source": "Event", "target": "Date", "when": "그 이벤트가 해당 날짜 대화에서 언급됐을 때" },
-            { "name": "공유", "source": "Attachment", "target": "Date", "when": "그 첨부파일이 해당 날짜 대화에서 공유됐을 때" }
+            { "name": "participates_in", "source": "Person", "target": "ChatRoom", "when": "When that person is a participant in this chat room's conversation" },
+            { "name": "active_on", "source": "ChatRoom", "target": "Date", "when": "When that chat room had a conversation on this date" },
+            { "name": "spoke_on", "source": "Person", "target": "Date", "when": "When that person sent a message on this date" },
+            { "name": "mentioned_on", "source": "Keyword", "target": "Date", "when": "When that keyword was discussed in this date's conversation" },
+            { "name": "mentioned_on", "source": "NamedEntity", "target": "Date", "when": "When that named entity was mentioned in this date's conversation" },
+            { "name": "scheduled_on", "source": "Event", "target": "Date", "when": "When that event was mentioned in this date's conversation" },
+            { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" }
         ],
         "relationship_rules": [
             "Only create a relationship when it is clearly and directly supported by the conversation text — do not infer relationships that aren't explicitly grounded.",
-            "CRITICAL: '참여' and '발화' relationships MUST only connect a Person who is confirmed as an actual message sender in the given text (their name precedes ':' in a message line) — never a person who is only mentioned inside another message's content.",
+            "CRITICAL: 'participates_in' and 'spoke_on' relationships MUST only connect a Person who is confirmed as an actual message sender in the given text (their name precedes ':' in a message line) — never a person who is only mentioned inside another message's content.",
             "Prefer connecting mentioned entities (Keyword/Event/NamedEntity/Attachment) to the Date they were mentioned on, and connecting Person/ChatRoom to that same Date, rather than building long indirect chains.",
             "Relationship weight MUST be a float between 1.0 and 10.0. Explicit/central to the conversation: 7.0+ / Brief mention: 4.0 or below.",
             "Do NOT create duplicate relationships with the same source-target-type combination.",
@@ -114,12 +114,12 @@
                     { "name": "강남역 저녁 약속", "type": "Event", "description": "EventName: 강남역 저녁 약속 | Schedule: 2024-01-01 19:00 | Location: 강남역" }
                 ],
                 "relationships": [
-                    { "source": "홍길동", "target": "가족톡", "type": "참여", "description": "홍길동은 가족톡 채팅방의 대화 참여자다.", "strength": 9 },
-                    { "source": "김영희", "target": "가족톡", "type": "참여", "description": "김영희는 가족톡 채팅방의 대화 참여자다.", "strength": 9 },
-                    { "source": "가족톡", "target": "2024-01-01", "type": "대화일", "description": "가족톡에서 2024-01-01에 대화가 있었다.", "strength": 10 },
-                    { "source": "홍길동", "target": "2024-01-01", "type": "발화", "description": "홍길동이 2024-01-01에 저녁 약속을 제안하는 메시지를 보냈다.", "strength": 9 },
-                    { "source": "김영희", "target": "2024-01-01", "type": "발화", "description": "김영희가 2024-01-01에 약속에 응답하는 메시지를 보냈다.", "strength": 9 },
-                    { "source": "강남역 저녁 약속", "target": "2024-01-01", "type": "예정", "description": "2024-01-01 대화에서 저녁 7시 강남역 약속이 언급되었다.", "strength": 10 }
+                    { "source": "홍길동", "target": "가족톡", "type": "participates_in", "description": "홍길동은 가족톡 채팅방의 대화 참여자다.", "strength": 9 },
+                    { "source": "김영희", "target": "가족톡", "type": "participates_in", "description": "김영희는 가족톡 채팅방의 대화 참여자다.", "strength": 9 },
+                    { "source": "가족톡", "target": "2024-01-01", "type": "active_on", "description": "가족톡에서 2024-01-01에 대화가 있었다.", "strength": 10 },
+                    { "source": "홍길동", "target": "2024-01-01", "type": "spoke_on", "description": "홍길동이 2024-01-01에 저녁 약속을 제안하는 메시지를 보냈다.", "strength": 9 },
+                    { "source": "김영희", "target": "2024-01-01", "type": "spoke_on", "description": "김영희가 2024-01-01에 약속에 응답하는 메시지를 보냈다.", "strength": 9 },
+                    { "source": "강남역 저녁 약속", "target": "2024-01-01", "type": "scheduled_on", "description": "2024-01-01 대화에서 저녁 7시 강남역 약속이 언급되었다.", "strength": 10 }
                 ]
             },
             {
@@ -133,12 +133,12 @@
                     { "name": "발표 자료 준비", "type": "Keyword", "description": "Term: 발표 자료 준비" }
                 ],
                 "relationships": [
-                    { "source": "박서연", "target": "스터디방", "type": "참여", "description": "박서연은 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
-                    { "source": "최민수", "target": "스터디방", "type": "참여", "description": "최민수는 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
-                    { "source": "스터디방", "target": "2024-02-03", "type": "대화일", "description": "스터디방에서 2024-02-03에 대화가 있었다.", "strength": 10 },
-                    { "source": "박서연", "target": "2024-02-03", "type": "발화", "description": "박서연이 2024-02-03에 발표 자료 진행 상황을 물었다.", "strength": 8 },
-                    { "source": "최민수", "target": "2024-02-03", "type": "발화", "description": "최민수가 2024-02-03에 발표 자료 준비 현황을 공유했다.", "strength": 8 },
-                    { "source": "발표 자료 준비", "target": "2024-02-03", "type": "언급", "description": "2024-02-03 대화에서 발표 자료 준비 상황이 논의되었다.", "strength": 8 }
+                    { "source": "박서연", "target": "스터디방", "type": "participates_in", "description": "박서연은 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
+                    { "source": "최민수", "target": "스터디방", "type": "participates_in", "description": "최민수는 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
+                    { "source": "스터디방", "target": "2024-02-03", "type": "active_on", "description": "스터디방에서 2024-02-03에 대화가 있었다.", "strength": 10 },
+                    { "source": "박서연", "target": "2024-02-03", "type": "spoke_on", "description": "박서연이 2024-02-03에 발표 자료 진행 상황을 물었다.", "strength": 8 },
+                    { "source": "최민수", "target": "2024-02-03", "type": "spoke_on", "description": "최민수가 2024-02-03에 발표 자료 준비 현황을 공유했다.", "strength": 8 },
+                    { "source": "발표 자료 준비", "target": "2024-02-03", "type": "mentioned_on", "description": "2024-02-03 대화에서 발표 자료 준비 상황이 논의되었다.", "strength": 8 }
                 ]
             },
             {
@@ -152,11 +152,11 @@
                     { "name": "자료구조", "type": "NamedEntity", "description": "Type: 기타 | Description: 학교 강의 과목명으로 언급된 자료구조 수업" }
                 ],
                 "relationships": [
-                    { "source": "최지유", "target": "스터디방", "type": "참여", "description": "최지유는 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
-                    { "source": "스터디방", "target": "2024-04-15", "type": "대화일", "description": "스터디방에서 2024-04-15에 대화가 있었다.", "strength": 10 },
-                    { "source": "최지유", "target": "2024-04-15", "type": "발화", "description": "최지유가 2024-04-15에 과제 제출 메시지를 보냈다.", "strength": 8 },
-                    { "source": "HW3_2471239.pdf", "target": "2024-04-15", "type": "공유", "description": "2024-04-15 대화에서 자료구조 과제 파일이 공유되었다.", "strength": 9 },
-                    { "source": "자료구조", "target": "2024-04-15", "type": "언급", "description": "2024-04-15 대화에서 자료구조 과목이 언급되었다.", "strength": 6 }
+                    { "source": "최지유", "target": "스터디방", "type": "participates_in", "description": "최지유는 스터디방 채팅방의 대화 참여자다.", "strength": 8 },
+                    { "source": "스터디방", "target": "2024-04-15", "type": "active_on", "description": "스터디방에서 2024-04-15에 대화가 있었다.", "strength": 10 },
+                    { "source": "최지유", "target": "2024-04-15", "type": "spoke_on", "description": "최지유가 2024-04-15에 과제 제출 메시지를 보냈다.", "strength": 8 },
+                    { "source": "HW3_2471239.pdf", "target": "2024-04-15", "type": "shared_on", "description": "2024-04-15 대화에서 자료구조 과제 파일이 공유되었다.", "strength": 9 },
+                    { "source": "자료구조", "target": "2024-04-15", "type": "mentioned_on", "description": "2024-04-15 대화에서 자료구조 과목이 언급되었다.", "strength": 6 }
                 ]
             }
         ]
@@ -165,7 +165,7 @@
         "goal": "You are a helpful assistant responsible for generating a comprehensive summary of the data provided below. Given one or two entities, and a list of descriptions, all related to the same entity or group of entities. Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions. If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary. Make sure it is written in third person, and include the entity names so we have the full context.",
         "additional_rules": [
             "Merge duplicate persons: if names differ only by minor typos/emoji or are clearly the same person from context, merge them into a single, unified entity description.",
-            "ChatRoom과 Date는 여러 블록에서 동일한 이름/값으로 반복 등장하는 게 정상이다 — 매번 같은 설명이 반복돼도 그대로 하나로 합쳐서 유지한다.",
+            "It's normal for ChatRoom and Date to reappear with the same name/value across multiple blocks — merge them into one even if the same description repeats every time.",
             "CRITICAL: Do NOT create an entity if its description is 'None' or contains no meaningful information.",
             "Output language: Write in Korean. However, keep proper nouns and service names in their original form."
         ],
@@ -230,21 +230,21 @@
             "rating_explanation_rule": "A single sentence in Korean explaining the score."
         },
         "rating_criteria": [
-            { "range": "8-10", "description": "구체적인 계획·의사결정이 이뤄진 대화 (일정 확정, 역할 분담, 중요한 합의 포함)" },
-            { "range": "5-7", "description": "반복적으로 등장하는 키워드가 있는 실질적인 일상/협업 대화" },
-            { "range": "2-4", "description": "단순 안부·잡담 위주의 대화" },
-            { "range": "0-1", "description": "시스템 메시지(입장/퇴장)만 있거나 실질적 내용이 거의 없는 대화" }
+            { "range": "8-10", "description": "Conversations where concrete plans or decisions were made (including confirmed schedules, role assignments, important agreements)" },
+            { "range": "5-7", "description": "Substantive everyday/collaborative conversation with a recurring keyword" },
+            { "range": "2-4", "description": "Conversation mostly consisting of simple greetings/small talk" },
+            { "range": "0-1", "description": "Conversation with only system messages (join/leave) or almost no substantive content" }
         ],
         "finding_angles": [
-            "Community identity — 이 클러스터를 대표하는 ChatRoom이나 Keyword가 무엇인지",
-            "Key dates — 가장 중요한 Date와 그날 오간 대화 내용",
-            "People and participation — 누가 주로 대화에 참여하는지",
-            "Recurring keywords — 반복적으로 등장하는 Keyword",
-            "Events and schedules — 대화에서 언급된 Event",
-            "Notable mentions — 언급된 NamedEntity나 공유된 Attachment"
+            "Community identity — what ChatRoom or Keyword represents this cluster",
+            "Key dates — the most important Date and what was discussed that day",
+            "People and participation — who mainly participates in the conversation",
+            "Recurring keywords — Keywords that appear repeatedly",
+            "Events and schedules — Events mentioned in the conversation",
+            "Notable mentions — NamedEntity mentioned or Attachment shared"
         ],
         "output_format": "{{\n    \"title\": <report_title>,\n    \"summary\": <executive_summary>,\n    \"category\": <top_level_category>,\n    \"purpose\": <single_sentence_purpose>,\n    \"rating\": <importance_rating>,\n    \"rating_explanation\": <rating_explanation>,\n    \"findings\": [\n        {{\n            \"summary\": <insight_summary>,\n            \"explanation\": <insight_explanation>\n        }}\n    ]\n}}",
-        "additional_rules_intro": "엔티티는 반복적으로 의미를 가지는 개념만 추출한다. 즉, 다른 대화에서도 동일한 의미로 재등장할 수 있는 것만 포함한다.",
+        "additional_rules_intro": "Only extract entities that represent recurring, meaningful concepts — include only things that could plausibly reappear with the same meaning in other conversations.",
         "examples": [
             {
                 "entities": [
@@ -260,7 +260,7 @@
                     { "id": 3, "source": "스터디방", "target": "2024-02-03", "description": "스터디방에서 2024-02-03에 대화가 있었다." },
                     { "id": 4, "source": "발표 자료 준비", "target": "2024-02-03", "description": "2024-02-03 대화에서 발표 자료 준비 상황이 논의되었다." }
                 ],
-                "output": "{\n    \"title\": \"스터디방 — 발표 자료 준비\",\n    \"summary\": \"스터디방에서 박서연과 최민수가 2024-02-03에 발표 자료 준비 상황을 확인하는 대화 클러스터다. 두 사람이 번갈아 진행 상황을 공유하고 검토를 약속하는 실질적인 협업 대화다.\",\n    \"category\": \"프로젝트/협업\",\n    \"purpose\": \"스터디 발표 자료 준비 진행 상황을 공유하고 검토를 조율하는 대화\",\n    \"rating\": 6.5,\n    \"rating_explanation\": \"반복적으로 등장하는 발표 준비라는 키워드가 있는 실질적인 협업 대화이기 때문이다.\",\n    \"findings\": [\n        {\n            \"summary\": \"'발표 자료 준비' 키워드로 묶인 협업 대화\",\n            \"explanation\": \"박서연과 최민수가 발표 자료 진행 상황을 공유하고 검토를 약속하는 실질적인 논의가 이뤄졌다. [Data: Entities (5); Relationships (4)]\"\n        },\n        {\n            \"summary\": \"두 명의 활발한 참여자: 박서연, 최민수\",\n            \"explanation\": \"두 사람 모두 스터디방에서 메시지를 주고받으며 적극적으로 참여했다. [Data: Entities (3, 4); Relationships (1, 2)]\"\n        }\n    ]\n}"
+                "output": "{{\n    \"title\": \"스터디방 — 발표 자료 준비\",\n    \"summary\": \"스터디방에서 박서연과 최민수가 2024-02-03에 발표 자료 준비 상황을 확인하는 대화 클러스터다. 두 사람이 번갈아 진행 상황을 공유하고 검토를 약속하는 실질적인 협업 대화다.\",\n    \"category\": \"프로젝트/협업\",\n    \"purpose\": \"스터디 발표 자료 준비 진행 상황을 공유하고 검토를 조율하는 대화\",\n    \"rating\": 6.5,\n    \"rating_explanation\": \"반복적으로 등장하는 발표 준비라는 키워드가 있는 실질적인 협업 대화이기 때문이다.\",\n    \"findings\": [\n        {{\n            \"summary\": \"'발표 자료 준비' 키워드로 묶인 협업 대화\",\n            \"explanation\": \"박서연과 최민수가 발표 자료 진행 상황을 공유하고 검토를 약속하는 실질적인 논의가 이뤄졌다. [Data: Entities (5); Relationships (4)]\"\n        }},\n        {{\n            \"summary\": \"두 명의 활발한 참여자: 박서연, 최민수\",\n            \"explanation\": \"두 사람 모두 스터디방에서 메시지를 주고받으며 적극적으로 참여했다. [Data: Entities (3, 4); Relationships (1, 2)]\"\n        }}\n    ]\n}}"
             }
         ]
     },
@@ -314,29 +314,29 @@
             "importance_score_rules": {
                 "highest_priority": "If the data includes a community report with a numeric `rank` field (scale 0-10), use that as the primary signal: base_score = rank × 10. Then adjust ±10 based on how directly the point answers the user's question. Example: rank=7 → base 70, highly relevant to query → final 80~85",
                 "field_modifiers_up": [
-                    "같은 ChatRoom/Date에 참여(발화) 엣지가 2명 이상 → +5",
-                    "Date에 연결된 Keyword/NamedEntity/Event가 함께 존재 (실질적 논의) → +5",
-                    "메시지 내용에 결정/확정/부탁/요청 등 액션 키워드 포함 → +10",
-                    "Event가 명시적 일정을 가짐 → +8"
+                    "2 or more participation/utterance edges to the same ChatRoom/Date → +5",
+                    "A Keyword/NamedEntity/Event connected to the Date also exists (substantive discussion) → +5",
+                    "Message content includes action keywords like decide/confirm/ask/request → +10",
+                    "Event has an explicit schedule → +8"
                 ],
                 "field_modifiers_down": [
-                    "그 Date에 발화한 Person이 1명뿐인 경우(셀프 메모성) → -15",
-                    "시스템 메시지([알림])만 있는 Date → -20"
+                    "Only 1 Person spoke on that Date (self-memo-like) → -15",
+                    "Date with only system messages ([알림]) → -20"
                 ],
                 "fallback": [
-                    "80-100 : 구체적인 계획·의사결정이 이뤄진 대화",
-                    "60-79  : 반복 등장하는 Keyword가 있는 실질적 대화",
-                    "40-59  : 일상적인 안부/잡담",
-                    "10-39  : 참여자가 적거나 내용이 빈약한 대화",
-                    "0-9    : 시스템 메시지만 있는 대화"
+                    "80-100 : Conversation where concrete plans/decisions were made",
+                    "60-79  : Substantive conversation with a recurring Keyword",
+                    "40-59  : Everyday greetings/small talk",
+                    "10-39  : Conversation with few participants or thin content",
+                    "0-9    : Conversation with only system messages"
                 ]
             },
             "extraction_rules": [
-                { "title": "참여자 — 하나의 풍부한 key point로 합치기", "body": "동일한 Date에 여러 발화 엣지가 있으면, 참여자 각각을 별개 포인트로 쪼개지 말고 아래 형식으로 하나로 합칠 것:\n  \"[ChatRoom명] [날짜] 대화에서 [참여자1, 참여자2]가 [Keyword/내용] 관련 대화를 나눴다.\"" },
-                { "title": "키워드 — 별도 key point로 추출", "body": "Keyword가 Date에 연결된 경우, 그 주제를 독립적인 key point로 추출할 것:\n  \"[날짜] 대화에서 [Keyword]에 대한 논의가 있었다.\"" },
-                { "title": "일정 — 언급 사실로 추출", "body": "Event와 예정 엣지가 있는 Date는 아래 형식으로 key point를 만들 것:\n  \"[날짜] 대화에서 [Event.EventName] 일정([Event.Schedule], [Event.Location])이 언급되었다.\"" },
-                { "title": "Community 필드 활용", "body": "community report에 `category` 또는 `purpose` 필드가 있으면:\n- category → 해당 대화 클러스터의 성격을 분류하는 데 사용\n- purpose  → 이 클러스터가 무엇을 위한 것인지 한 문장으로 설명하는 데 사용\n이 필드들을 key point의 맥락 설명에 적극 활용할 것." },
-                { "title": "대화 개수 카운팅", "body": "대화(일자) 개수를 셀 때는 반드시 type=DATE인 엔티티 수만 카운트한다. 발화 엣지 수를 대화 개수로 혼동하지 않는다." }
+                { "title": "Participants — merge into one rich key point", "body": "If the same Date has multiple utterance edges, don't split each participant into a separate point — merge them into one using the format below:\n  \"[ChatRoom명] [날짜] 대화에서 [참여자1, 참여자2]가 [Keyword/내용] 관련 대화를 나눴다.\"" },
+                { "title": "Keywords — extract as a separate key point", "body": "When a Keyword is connected to a Date, extract that topic as an independent key point:\n  \"[날짜] 대화에서 [Keyword]에 대한 논의가 있었다.\"" },
+                { "title": "Schedules — extract as a mention fact", "body": "For a Date with an Event and a scheduled_on edge, create a key point in the format below:\n  \"[날짜] 대화에서 [Event.EventName] 일정([Event.Schedule], [Event.Location])이 언급되었다.\"" },
+                { "title": "Using Community fields", "body": "If the community report has a `category` or `purpose` field:\n- category → use it to classify the nature of this conversation cluster\n- purpose  → use it to explain in one sentence what this cluster is for\nActively use these fields in the key point's context explanation." },
+                { "title": "Counting conversations", "body": "When counting conversations (days), count only entities with type=DATE. Do not confuse the number of utterance edges with the conversation count." }
             ],
             "output_format": "{{\n    \"points\": [\n        {{\"description\": \"Description of point 1 [Data: Reports (report ids)]\", \"score\": score_value}},\n        {{\"description\": \"Description of point 2 [Data: Reports (report ids)]\", \"score\": score_value}}\n    ]\n}}",
             "modal_verb_note": "The response shall preserve the original meaning and use of modal verbs such as \"shall\", \"may\" or \"will\"."
@@ -351,15 +351,15 @@
             "modal_verb_note": "The response shall preserve the original meaning and use of modal verbs such as \"shall\", \"may\" or \"will\".",
             "preserve_references_note": "The response should also preserve all the data references previously included in the analysts' reports, but do not mention the roles of multiple analysts in the analysis process.",
             "response_rules_before_category": [
-                { "title": "응답 상단 메타 헤더 (항상 포함)", "body": "답변 최상단에 아래 형식의 요약 헤더를 마크다운 blockquote로 포함하라. 해당 정보가 데이터에 없으면 그 줄만 생략하고, 절대 추정하거나 지어내지 않는다.\n\n> **관련 채팅방:** N개\n> **주요 참여자:** [실명, 쉼표 구분]\n> **기간:** YYYY-MM-DD ~ YYYY-MM-DD\n\n- 주요 참여자 산정 기준: 반드시 '참여' 또는 '발화' 관계로 ChatRoom/Date에 직접 연결된 Person만 포함한다. '언급' 관계로만 등장했거나 NamedEntity/Keyword로 언급된 이름은 대화 참여자가 아니므로 절대 포함하지 않는다.\n- 기간 산정 기준: context에 등장하는 모든 Date 엔티티의 Value 값(YYYY-MM-DD) 중 최솟값과 최댓값을 각각 시작/끝으로 사용한다. community report의 요약 문구에 있는 날짜가 아니라 반드시 Date 엔티티의 Value 필드 값을 직접 집계한다. Date 엔티티가 context에 전혀 없을 때만 이 줄을 생략한다." },
-                { "title": "중요 커뮤니티 강조 섹션 분리", "body": "key points 중 importance score ≥ 70 (또는 community report rank ≥ 7.0)에 해당하는 항목이 있으면, 본문을 아래 두 섹션으로 나눠서 제시한다:\n\n#### 주요 대화\n(score 높은 항목 — 구체적 계획·의사결정 등)\n\n#### 기타 대화\n(score 낮은 항목 — 일상 잡담, 시스템 메시지 등)\n\nscore가 모두 유사하거나 rank 정보가 없으면 이 구분을 생략해도 된다." }
+                { "title": "Top-of-response meta header (always include)", "body": "Include a summary header in the format below as a markdown blockquote at the very top of the response. If a piece of information isn't in the data, omit only that line — never guess or make it up.\n\n> **관련 채팅방:** N개\n> **주요 참여자:** [실명, 쉼표 구분]\n> **기간:** YYYY-MM-DD ~ YYYY-MM-DD\n\n- Criteria for 주요 참여자 (key participants): only include a Person directly connected to a ChatRoom/Date via a 'participates_in' or 'spoke_on' relationship. Never include a name that only appears via a 'mentioned_on' relationship, or one only mentioned as a NamedEntity/Keyword — those are not conversation participants.\n- Criteria for 기간 (period): use the minimum and maximum Value (YYYY-MM-DD) among all Date entities appearing in the context as the start/end. Aggregate directly from the Date entities' Value field — not a date found in a community report's summary text. Omit this line only when there are no Date entities in the context at all." },
+                { "title": "Separate a highlighted section for important communities", "body": "If any key points have importance score ≥ 70 (or community report rank ≥ 7.0), split the body into the two sections below:\n\n#### 주요 대화\n(high-score items — concrete plans/decisions, etc.)\n\n#### 기타 대화\n(low-score items — everyday chit-chat, system messages, etc.)\n\nIf all scores are similar or rank info is unavailable, this split may be omitted." }
             ],
             "response_rules_after_category": [
-                { "title": "날짜순 정렬", "body": "* 동일 Keyword를 공유하는 대화는 스레드로 묶어 서술한다.\n* 언급된 Event는 날짜순으로 정렬해 서술한다." },
-                { "title": "인물 통합 언급", "body": "동일 인물이 여러 커뮤니티에 걸쳐 등장하면 중복 설명 없이 한 번만 소개하고 이후에는 실명으로만 지칭한다." },
-                { "title": "대화 개수 표현", "body": "key points에서 Date 엔티티가 1개로 확인되는 커뮤니티에 대해서는 복수 표현을 쓰지 않는다." },
-                { "title": "날짜 기반 쿼리 응답", "body": "사용자가 특정 날짜를 지정한 경우:\n* Date.Value 기준으로 필터링한다.\n* 일치하는 대화가 없으면: \"해당 날짜의 대화가 데이터에 없습니다.\"라고 명시한다." },
-                { "title": "Community Report 필드 활용", "body": "context에 community report가 포함된 경우:\n* report.category → 대화 클러스터 성격 분류에 활용\n* report.purpose  → 클러스터 설명 시 한 문장 요약으로 활용\n* report.rank     → 중요도 판단 기준 (rank ≥ 7.0 우선 서술)" }
+                { "title": "Sort chronologically", "body": "* Describe conversations that share the same Keyword grouped together as a thread.\n* Describe mentioned Events sorted in date order." },
+                { "title": "Unified person mentions", "body": "If the same person appears across multiple communities, introduce them once without repeating the description, and refer to them only by name afterward." },
+                { "title": "Conversation-count phrasing", "body": "For a community where the key points confirm only 1 Date entity, do not use plural phrasing." },
+                { "title": "Date-based query response", "body": "When the user specifies a particular date:\n* Filter based on Date.Value.\n* If there is no matching conversation, state explicitly: \"해당 날짜의 대화가 데이터에 없습니다.\"" },
+                { "title": "Using Community Report fields", "body": "If the context includes a community report:\n* report.category → use to classify the nature of the conversation cluster\n* report.purpose  → use as a one-sentence summary when describing the cluster\n* report.rank     → criterion for importance (describe rank ≥ 7.0 first)" }
             ]
         },
         "knowledge": {
@@ -367,12 +367,12 @@
             "example": "\"This is an example sentence supported by real-world knowledge [LLM: verify].\"",
             "caution_intro": "When applying real-world knowledge to chat archive data, be especially cautious about the following cases — these are where assumptions most commonly go wrong:",
             "caution_cases": [
-                { "title": "인물 관계 추론", "description": "대화방 참여자 간의 실제 관계(가족, 친구, 동료 등)를 대화 내용만으로 단정할 때는 [LLM: verify]." },
-                { "title": "인물 역할 추론", "description": "발화자의 직책이나 역할을 대화 내용만으로 추론할 때는 [LLM: verify]. Person 노드의 Name 필드에 명시된 정보만 사실로 서술할 수 있다." },
-                { "title": "날짜/일정 추론", "description": "Event 노드에 명시된 날짜 외에 일정을 추론하거나 연도를 가정할 때는 [LLM: verify]. Event.Schedule 필드에 없는 날짜는 지어내지 않는다." },
-                { "title": "NamedEntity 추론", "description": "NamedEntity로 언급된 장소·조직·제품명이 외부에 알려진 것과 동일하다고 가정할 때는 [LLM: verify]." }
+                { "title": "Inferring personal relationships", "description": "Use [LLM: verify] when asserting participants' actual relationship (family, friends, colleagues, etc.) based solely on conversation content." },
+                { "title": "Inferring a person's role", "description": "Use [LLM: verify] when inferring a speaker's title or role from conversation content alone. Only information explicitly stated in the Person node's Name field may be stated as fact." },
+                { "title": "Inferring dates/schedules", "description": "Use [LLM: verify] when inferring a schedule beyond what's stated in the Event node, or assuming a year. Do not make up a date that isn't in the Event.Schedule field." },
+                { "title": "Inferring NamedEntity", "description": "Use [LLM: verify] when assuming a place/organization/product name mentioned as a NamedEntity is the same as a publicly known one." }
             ],
-            "closing_note": "데이터에 명시된 사실(엔티티 필드값, 관계 description)은 [LLM: verify] 없이 서술할 수 있다. 데이터에 없는 내용을 보완하거나 추론할 때만 이 태그를 사용한다."
+            "closing_note": "Facts explicitly stated in the data (entity field values, relationship descriptions) may be stated without [LLM: verify]. Use this tag only when supplementing or inferring content not present in the data."
         }
     },
     "summarize_attachment": {}

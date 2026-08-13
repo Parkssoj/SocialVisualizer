@@ -31,7 +31,7 @@ Format: '("entity"<|><name><|><type><|><description>)'
 2. Identify Relationships:
 {% if free_form_relationships %}
   * Identify direct, clearly stated, and meaningful relationships between any of the extracted entities. The relationship type is NOT restricted to a fixed list — use whatever concise Korean label best describes the relationship (e.g. "참여", "언급", "발생일").
-  * Format: '("relationship"{tuple_delimiter}<source>{tuple_delimiter}<target>{tuple_delimiter}<description_in_Korean>{tuple_delimiter}<strength_1_10>)'
+  * Format: '("relationship"<|><source><|><target><|><description_in_Korean><|><strength_1_10>)'
 {% if relationship_hints %}
 
   Common relationship patterns you will likely see (not an exhaustive list — use a different label when it fits better):
