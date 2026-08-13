@@ -1,5 +1,6 @@
 # user DB에 데이터 저장 함수
 import os
+import re
 import json
 import uuid
 import datetime
@@ -171,7 +172,8 @@ def save_person_stats_to_db(paths, update_date=None):
 
 _MODEL_COST_PER_1M = {
     "gpt-4o-mini": {"input": 0.150, "output": 0.600},
-    "gpt-4o":      {"input": 2.50,  "output": 10.00},
+    "gpt-4o": {"input": 2.50,  "output": 10.00},
+    "gpt-5.4-mini": {"input": 0.75,  "output": 4.50},
 }
 
 _EMBED_COST_PER_1M = {
@@ -199,11 +201,11 @@ def collect_indexing_stats(paths) -> dict:
     llm_calls = 0
     input_tokens = 0
     output_tokens = 0
-    llm_model = ""
+    llm_model = os.getenv("RAG_CHAT_MODEL", "")
 
     embed_calls = 0
     embed_tokens = 0
-    embed_model = ""
+    embed_model = os.getenv("RAG_EMBEDDING_MODEL", "")
 
     for folder in LLM_FOLDERS:
         folder_path = os.path.join(cache_dir, folder)
@@ -214,16 +216,11 @@ def collect_indexing_stats(paths) -> dict:
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                result = data.get("result", {})
-                usage = result.get("usage", {})
+                response = data.get("result", {}).get("response", {})  # v3 캐시 구조: result.response 아래에에 usage/model
+                usage = response.get("usage", {})
                 llm_calls += 1
                 input_tokens += usage.get("prompt_tokens", 0)
                 output_tokens += usage.get("completion_tokens", 0)
-                if not llm_model:
-                    llm_model = (
-                        data.get("input", {}).get("parameters", {}).get("model", "")
-                        or result.get("model", "")
-                    )
             except Exception as e:
                 print(f"[WARN] LLM 캐시 읽기 실패 {fpath}: {e}")
 
@@ -234,14 +231,10 @@ def collect_indexing_stats(paths) -> dict:
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                result = data.get("result", {})
-                usage = result.get("usage", {})
+                response = data.get("result", {}).get("response", {})  # v3 캐시 구조: result.response 아래에 usage/model
+                usage = response.get("usage", {})
                 embed_calls += 1
                 embed_tokens += usage.get("total_tokens", 0)
-                if not embed_model:
-                    embed_model = result.get("model", "") or (
-                        data.get("input", {}).get("parameters", {}).get("model", "")
-                    )
             except Exception as e:
                 print(f"[WARN] 임베딩 캐시 읽기 실패 {fpath}: {e}")
 

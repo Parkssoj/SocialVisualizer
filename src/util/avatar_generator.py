@@ -11,12 +11,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image, ImageChops
-
 from util.database.db_reader import get_person_descriptions
 
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("GRAPHRAG_API_KEY"))
+client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
 AVATAR_MODEL = "gpt-image-1"
 AVATAR_SIZE = "1024x1024"
@@ -94,14 +93,14 @@ def _pick_style_attributes(seed_key: str) -> dict:
 def _infer_gender_presentation(name: str) -> str:
     """
     이미지 모델(gpt-image-1)에게 "이름 보고 알아서 성별 추론해"라고 맡기면 부정확할 때가 많아
-    (예: '최지유' → 남성으로 잘못 생성), 텍스트 추론에 강한 gpt-4o-mini로 먼저 판별해
+    (예: '최지유' → 남성으로 잘못 생성), 텍스트 추론에 강한 {SUB_TASK_CHAT_MODEL}로 먼저 판별해
     이미지 프롬프트에 명시적으로 박아 넣는다. 한국어 이름뿐 아니라 영어 등 다른 언어권 이름도
     함께 판단할 수 있도록 특정 문화권에 한정하지 않는다.
     반환: 'female' | 'male' | 'unknown'
     """
     try:
         result = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
             messages=[
                 {
                     "role": "system",
@@ -153,7 +152,7 @@ def _classify_sender(name: str, domain: str) -> str | None:
         return known
     try:
         result = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
             messages=[
                 {
                     "role": "system",
@@ -432,20 +431,23 @@ def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
     return out.getvalue()
 
 
-#def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
-    attrs = _pick_style_attributes(seed_key or name)
-    result = client.images.generate(
-        model=AVATAR_MODEL,
-        prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
-        size=AVATAR_SIZE,
-        quality=AVATAR_QUALITY,
-        background="transparent",
-        output_format="png",
-        n=1,
-    )
-    b64 = result.data[0].b64_json
-    raw_bytes = base64.b64decode(b64)
-    return _composite_on_color(raw_bytes, attrs["bg_rgb"])
+
+def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
+    # TEMP: GPT 이미지 생성 임시 비활성화
+    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
+    # attrs = _pick_style_attributes(seed_key or name)
+    # result = client.images.generate(
+    #     model=AVATAR_MODEL,
+    #     prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
+    #     size=AVATAR_SIZE,
+    #     quality=AVATAR_QUALITY,
+    #     background="transparent",
+    #     output_format="png",
+    #     n=1,
+    # )
+    # b64 = result.data[0].b64_json
+    # raw_bytes = base64.b64decode(b64)
+    # return _composite_on_color(raw_bytes, attrs["bg_rgb"])
 
 
 def _load_relationship_hints(user_id: str) -> dict:

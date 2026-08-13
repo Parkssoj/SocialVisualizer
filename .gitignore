@@ -6,6 +6,7 @@ src/parquet/.env
 .vscode/
 gmailweaver-venv/
 mailgrapher-venv/
+lightrag-venv/
 
 # 벤더 라이브러리 (직접 pip install로 받는 게 맞고, 레포에 통째로 커밋할 필요 없음)
 LightRAG/
@@ -22,15 +23,17 @@ src/parquet/**/*.parquet
 src/parquet/input/attachment/
 parquet_template/rendered/
 
-# 개인정보 보호: input 폴더는 유지(구조만), 내용물은 무시
+# LightRAG generated artifacts
+LightRAG/
+lightrag.log
+
+# Privacy secure: input 폴더는 유지(구조만), 내용물은 무시
 src/parquet/input/*
 !src/parquet/input/.gitkeep
-
 user_data/*
 !user_data/.gitkeep
 
 # Python cache
 __pycache__/
 *.pyc
-
 .venv/
