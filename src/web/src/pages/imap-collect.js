@@ -32,24 +32,34 @@ function removeStoredImapJob(jobId) {
   localStorage.setItem(IMAP_JOBS_STORAGE_KEY, JSON.stringify(jobs));
 }
 
-// ── 인덱싱까지 끝난 패널을 잠시 보여준 뒤 목록에서 제거 ──
-function dismissJobPanel(panelEl, collectJobId, delayMs = 5000) {
-  removeStoredImapJob(collectJobId);
-  setTimeout(() => {
-    panelEl.style.transition = 'opacity 0.4s ease';
-    panelEl.style.opacity = '0';
-    setTimeout(() => {
-      panelEl.remove();
-      const jobsList = document.getElementById('jobs-list');
-      if (jobsList && !jobsList.children.length) {
-        jobsList.innerHTML = `
-          <div class="gw-log-empty" id="jobs-list-empty">
-            <i class="bi bi-clock-history" style="font-size:1.2rem;"></i>
-            수집을 시작하면 이곳에 로그가 표시됩니다.
-          </div>`;
-      }
-    }, 400);
-  }, delayMs);
+// ── 메시지(카카오톡) 탭의 진행 job 목록도 같은 방식으로 별도 키에 저장 (메일 job 목록과 안 섞이게) ──
+const MESSAGE_JOBS_STORAGE_KEY = 'gw_message_jobs';
+
+function loadStoredMessageJobs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(MESSAGE_JOBS_STORAGE_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function addStoredMessageJob(jobId, user) {
+  const jobs = loadStoredMessageJobs();
+  jobs.push({ jobId, user });
+  localStorage.setItem(MESSAGE_JOBS_STORAGE_KEY, JSON.stringify(jobs.slice(-IMAP_JOBS_STORAGE_MAX)));
+}
+
+function removeStoredMessageJob(jobId) {
+  const jobs = loadStoredMessageJobs().filter(j => j.jobId !== jobId);
+  localStorage.setItem(MESSAGE_JOBS_STORAGE_KEY, JSON.stringify(jobs));
+}
+
+// ── job이 끝나면(성공/실패 모두) localStorage 추적에서만 빼고, 패널 자체는 화면에 그대로 둔다.
+// 다음 새로고침 때 더 이상 복원되지 않는 방식으로 "사라지게" 하는 것 — 화면에서 즉시 지우지 않는다. ──
+function dismissJobPanel(panelEl, collectJobId, kind = 'mail') {
+  if (kind === 'message') removeStoredMessageJob(collectJobId);
+  else removeStoredImapJob(collectJobId);
 }
 
 // ── 수집 개수 "사용자 지정" 선택 시 입력칸 노출 ──
@@ -249,10 +259,10 @@ function jobSetProgress(panelEl, pct) {
   panelEl.querySelector('.job-progress-bar').style.width = pct + '%';
 }
 
-// ── 계정 하나의 수집 job 패널을 목록 맨 위에 새로 생성 ──
-function createJobPanel(user) {
-  const jobsList = document.getElementById('jobs-list');
-  const empty = document.getElementById('jobs-list-empty');
+// ── 계정(또는 카카오 대화방) 하나의 job 패널을 목록 맨 위에 새로 생성 ──
+function createJobPanel(user, kind = 'mail') {
+  const jobsList = document.getElementById(kind === 'message' ? 'message-jobs-list' : 'jobs-list');
+  const empty = jobsList.querySelector('.gw-log-empty');
   if (empty) empty.remove();
 
   const panelEl = document.createElement('div');
@@ -317,7 +327,7 @@ function handleJobEvent(data) {
   const entry = activeJobs.get(data.job_id);
   if (!entry) return; // 이 페이지가 추적 중인 job이 아니면 무시 (다른 계정/다른 탭의 이벤트일 수 있음)
 
-  const { panelEl, phase, collectJobId, user } = entry;
+  const { panelEl, phase, collectJobId, user, kind = 'mail' } = entry;
 
   if (data.type === 'progress') {
     if (data.message) jobAddLog(panelEl, data.message, phase === 'index' ? 'info' : '');
@@ -325,10 +335,10 @@ function handleJobEvent(data) {
   }
 
   if (data.type === 'failed') {
-    jobSetStatus(panelEl, 'failed', phase === 'index' ? '인덱싱 실패' : '실패');
+    jobSetStatus(panelEl, 'failed', phase === 'index' ? '인덱싱 중단' : '실패');
     jobAddLog(panelEl, `❌ ${data.message || '오류가 발생했습니다.'}`, 'error');
     activeJobs.delete(data.job_id);
-    dismissJobPanel(panelEl, collectJobId);
+    dismissJobPanel(panelEl, collectJobId, kind);
     return;
   }
 
@@ -338,7 +348,7 @@ function handleJobEvent(data) {
     jobSetStatus(panelEl, 'done', '인덱싱 완료');
     jobAddLog(panelEl, `✅ 인덱싱 완료`, 'success');
     activeJobs.delete(data.job_id);
-    dismissJobPanel(panelEl, collectJobId);
+    dismissJobPanel(panelEl, collectJobId, kind);
     return;
   }
 
@@ -349,17 +359,19 @@ function handleJobEvent(data) {
   if (result.ok === false) {
     jobSetStatus(panelEl, 'failed', '실패');
     jobAddLog(panelEl, `❌ ${result.error || '알 수 없는 오류'}`, 'error');
-    dismissJobPanel(panelEl, collectJobId);
+    dismissJobPanel(panelEl, collectJobId, kind);
     return;
   }
 
-  // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다.
-  localStorage.setItem('gw_user_id', user);
+  // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다. 카카오는 조회 UI 스코프 밖이라 건드리지 않음.
+  if (kind === 'mail') {
+    localStorage.setItem('gw_user_id', user);
+  }
 
   jobSetProgress(panelEl, 100);
   jobSetStatus(panelEl, 'done', '완료');
-  jobAddLog(panelEl, `✅ 수집 완료`, 'success');
-  jobAddLog(panelEl, `수집: ${result.added_count}개 / 중복 스킵: ${result.skipped_count}개`, 'success');
+  jobAddLog(panelEl, kind === 'message' ? `✅ 업로드 완료` : `✅ 수집 완료`, 'success');
+  jobAddLog(panelEl, `${kind === 'message' ? '저장' : '수집'}: ${result.added_count}개 / 중복 스킵: ${result.skipped_count}개`, 'success');
 
   panelEl.querySelector('.job-result-added').textContent = result.added_count ?? 0;
   panelEl.querySelector('.job-result-skipped').textContent = result.skipped_count ?? 0;
@@ -369,19 +381,27 @@ function handleJobEvent(data) {
     jobAddLog(panelEl, `인덱싱 job_id: ${result.job_id} — 인덱싱이 백그라운드에서 실행됩니다.`, 'info');
     jobSetStatus(panelEl, 'running', '인덱싱 중');
     jobAddLog(panelEl, '인덱싱이 백그라운드에서 진행 중입니다...', 'info');
-    activeJobs.set(result.job_id, { panelEl, phase: 'index', collectJobId, user });
+    // 서버가 재시작되면 job 저장소가 메모리 기반이라 인덱싱 job 정보가 통째로 사라진다.
+    // SSE만 기다리면 그 사실을 영영 알 수 없어서 "인덱싱 중"에 멈춰있게 되므로, 여기서도
+    // collect phase와 동일하게 REST로 한 번 상태를 확인(catch-up)한 뒤 SSE로 이어받는다.
+    trackCollectJob(getApiBase(), result.job_id, panelEl, user, kind, 'index', collectJobId);
   } else {
-    dismissJobPanel(panelEl, collectJobId);
+    dismissJobPanel(panelEl, collectJobId, kind);
   }
 }
 
 // job을 SSE로 추적 시작. SSE는 "연결 이후"의 이벤트만 받으므로, 연결 전에 이미 끝나버린 job을
 // 놓치지 않도록 상태를 한 번 REST로 확인해서 따라잡은 뒤(catch-up) 이어지는 진행상황은 SSE로 받는다.
-function trackCollectJob(flaskUrl, jobId, panelEl, user, phase = 'collect', collectJobId = jobId) {
+// kind에 따라 메일(/imap-collect-status)과 카카오(/message-upload-status) 상태 조회 엔드포인트를 구분한다.
+function trackCollectJob(flaskUrl, jobId, panelEl, user, kind = 'mail', phase = 'collect', collectJobId = jobId) {
   ensureSSE(flaskUrl);
-  activeJobs.set(jobId, { panelEl, phase, collectJobId, user });
+  activeJobs.set(jobId, { panelEl, phase, collectJobId, user, kind });
 
-  fetch(`${flaskUrl}/imap-collect-status/${jobId}`)
+  const statusUrl = kind === 'message'
+    ? `${flaskUrl}/message-upload-status/${jobId}`
+    : `${flaskUrl}/imap-collect-status/${jobId}`;
+
+  fetch(statusUrl)
     .then(res => res.json())
     .then(job => {
       if (job.status === 'not_found') {
@@ -529,8 +549,160 @@ const storedJobs = loadStoredImapJobs();
 if (storedJobs.length > 0) {
   const flaskUrl = getApiBase();
   storedJobs.forEach(({ jobId, user }) => {
-    const panelEl = createJobPanel(user);
+    const panelEl = createJobPanel(user, 'mail');
     jobAddLog(panelEl, '이전 수집 작업 상태를 이어서 확인하는 중...');
-    trackCollectJob(flaskUrl, jobId, panelEl, user);
+    trackCollectJob(flaskUrl, jobId, panelEl, user, 'mail');
+  });
+}
+
+// ══════════════════════════════════════
+// 메일 / 메시지 탭 전환
+// ══════════════════════════════════════
+function switchTab(tab) {
+  const isMail = tab === 'mail';
+  document.getElementById('tab-btn-mail').classList.toggle('active', isMail);
+  document.getElementById('tab-btn-mail').setAttribute('aria-selected', String(isMail));
+  document.getElementById('tab-btn-message').classList.toggle('active', !isMail);
+  document.getElementById('tab-btn-message').setAttribute('aria-selected', String(!isMail));
+  document.getElementById('tab-panel-mail').classList.toggle('active', isMail);
+  document.getElementById('tab-panel-message').classList.toggle('active', !isMail);
+}
+document.getElementById('tab-btn-mail').addEventListener('click', () => switchTab('mail'));
+document.getElementById('tab-btn-message').addEventListener('click', () => switchTab('message'));
+
+// ══════════════════════════════════════
+// 메시지 탭: 카카오톡 대화 업로드
+// ══════════════════════════════════════
+let messageFileText = null;
+
+// 클라이언트에서 파일 헤더 몇 줄만 보고 방 이름 후보를 추정 (서버의 guess_room_name과 같은 규칙).
+// 최종적으로는 사용자가 "대화방 이름" 입력칸에서 직접 확인/수정하므로 실패해도 치명적이지 않음.
+function guessMessageRoomNameClient(text, fallback) {
+  const lines = text.split(/\r?\n/).slice(0, 5);
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = line.match(/카카오톡\s*대화\s*[:：]?\s*(.+)/);
+    if (m && m[1].trim()) return m[1].trim();
+    break;
+  }
+  return fallback;
+}
+
+function handleMessageFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    messageFileText = reader.result;
+    const nameEl = document.getElementById('message-file-name');
+    nameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    nameEl.style.display = '';
+
+    const roomInput = document.getElementById('message-room-name');
+    if (!roomInput.value.trim()) {
+      roomInput.value = guessMessageRoomNameClient(messageFileText, file.name.replace(/\.txt$/i, ''));
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+const messageDropzone = document.getElementById('message-dropzone');
+document.getElementById('message-file-input').addEventListener('change', (e) => {
+  handleMessageFile(e.target.files[0]);
+});
+messageDropzone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  messageDropzone.classList.add('dragover');
+});
+messageDropzone.addEventListener('dragleave', () => messageDropzone.classList.remove('dragover'));
+messageDropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  messageDropzone.classList.remove('dragover');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) handleMessageFile(file);
+});
+
+async function startMessageUpload() {
+  const flaskUrl = getApiBase();
+  const roomName = document.getElementById('message-room-name').value.trim();
+  const syncMode = document.getElementById('message-sync-mode').value;
+
+  if (!messageFileText) { alert('업로드할 카카오톡 대화 .txt 파일을 선택하세요.'); return; }
+  if (!flaskUrl) { alert('Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.'); return; }
+
+  const btn = document.getElementById('message-upload-btn');
+  const spinner = document.getElementById('message-upload-spinner');
+  const icon = document.getElementById('message-upload-icon');
+  const hint = document.getElementById('message-upload-hint');
+
+  btn.disabled = true;
+  spinner.classList.add('visible');
+  icon.style.display = 'none';
+  hint.textContent = '서버에 업로드 중...';
+
+  const displayName = roomName || '카카오톡 대화';
+  const panelEl = createJobPanel(displayName, 'message');
+  jobAddLog(panelEl, `대화방: ${displayName}`);
+  jobAddLog(panelEl, `동기 모드: ${syncMode}`);
+  jobAddLog(panelEl, 'Flask 서버에 업로드 요청 전송 중...');
+
+  let started;
+  try {
+    const res = await fetch(`${flaskUrl}/message-upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: messageFileText, room_name: roomName, sync_mode: syncMode })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`서버 오류 (${res.status}): ${err.slice(0, 200)}`);
+    }
+
+    started = await res.json();
+    if (!started.ok || !started.jobId) {
+      throw new Error(started.error || '업로드 작업을 시작하지 못했습니다.');
+    }
+  } catch (err) {
+    jobSetStatus(panelEl, 'failed', '실패');
+    jobAddLog(panelEl, `❌ ${err.message}`, 'error');
+    hint.textContent = '업로드 실패. 로그를 확인하세요.';
+    console.error('[message-upload]', err);
+    btn.disabled = false;
+    spinner.classList.remove('visible');
+    icon.style.display = '';
+    return;
+  }
+
+  btn.disabled = false;
+  spinner.classList.remove('visible');
+  icon.style.display = '';
+  hint.textContent = '업로드가 백그라운드에서 진행 중입니다. 다른 대화방도 바로 시작할 수 있습니다.';
+
+  jobSetProgress(panelEl, 20);
+  jobAddLog(panelEl, '대화 파싱/저장이 백그라운드에서 시작됐습니다. 진행 상황을 확인하는 중...');
+
+  const finalName = started.room_name || displayName;
+  addStoredMessageJob(started.jobId, finalName);
+
+  // 다음 업로드를 바로 시작할 수 있게 폼을 초기 상태로 되돌림 (메일 탭의 resetForm()과 동일한 취지)
+  messageFileText = null;
+  document.getElementById('message-file-input').value = '';
+  document.getElementById('message-file-name').style.display = 'none';
+  document.getElementById('message-room-name').value = '';
+
+  trackCollectJob(flaskUrl, started.jobId, panelEl, finalName, 'message');
+}
+
+document.getElementById('message-upload-btn').addEventListener('click', startMessageUpload);
+
+// 이전에 시작해둔 카카오 업로드 job이 있으면 이어서 추적
+const storedMessageJobs = loadStoredMessageJobs();
+if (storedMessageJobs.length > 0) {
+  const flaskUrl = getApiBase();
+  storedMessageJobs.forEach(({ jobId, user }) => {
+    const panelEl = createJobPanel(user, 'message');
+    jobAddLog(panelEl, '이전 업로드 작업 상태를 이어서 확인하는 중...');
+    trackCollectJob(flaskUrl, jobId, panelEl, user, 'message');
   });
 }

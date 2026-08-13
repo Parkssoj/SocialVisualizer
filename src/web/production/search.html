@@ -26,8 +26,18 @@
         <!-- Page Content -->
         <main class="right_col" role="main" aria-label="Main content" style="padding: 0;">
 
-          <!-- ═══ 검색 패널 ═══ -->
-          <div id="panel-search">
+          <!-- ── 탭 전환 ── -->
+          <div class="gw-tabs" role="tablist">
+            <button type="button" class="gw-tab-btn active" id="tab-btn-mail" role="tab" aria-selected="true">
+              <i class="bi bi-envelope"></i> 메일
+            </button>
+            <button type="button" class="gw-tab-btn" id="tab-btn-message" role="tab" aria-selected="false">
+              <i class="bi bi-chat-dots"></i> 메시지
+            </button>
+          </div>
+
+          <!-- ═══ 메일 탭: 검색 패널 ═══ -->
+          <div id="panel-mail" class="gw-tab-panel active">
             <div class="gw-search-top">
               <div class="gw-search-box">
                 <input type="text" id="search-input" placeholder="메일에 대해 궁금한 것을 검색하세요..." autocomplete="off">
@@ -46,6 +56,31 @@
                 <div class="gw-empty">
                   <i class="bi bi-search"></i>
                   <p>검색어를 입력해 메일을 분석하세요.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ 메시지 탭: 카카오톡 대화 검색 ═══ -->
+          <div id="panel-message" class="gw-tab-panel">
+            <div class="gw-search-top">
+              <div class="gw-search-box">
+                <input type="text" id="message-search-input" placeholder="카카오톡 대화에 대해 궁금한 것을 검색하세요..." autocomplete="off">
+                <button id="message-search-btn" type="button">
+                  <i class="fas fa-search"></i>
+                </button>
+              </div>
+              <div class="gw-recent-searches" id="message-recent-searches-bar" style="display:none;">
+                <span class="gw-recent-label"><i class="fas fa-history me-1"></i>최근 검색:</span>
+                <div id="message-recent-tags"></div>
+                <span class="gw-recent-clear" id="message-clear-recent">전체 삭제</span>
+              </div>
+            </div>
+            <div class="gw-result-wrapper">
+              <div id="message-result-container">
+                <div class="gw-empty">
+                  <i class="bi bi-chat-dots"></i>
+                  <p>검색어를 입력해 카카오톡 대화를 분석하세요.</p>
                 </div>
               </div>
             </div>

@@ -1,7 +1,6 @@
 -Role-
 You are a helpful assistant responding to questions about data in the tables provided.
-The data originates from a personal email archive and contains the following entity
-types extracted by an entity extraction pipeline:
+{{ data_source_intro }}
 {% for et in entity_types %}
   * {{ et.name }} : {{ et.format }}
 {% endfor %}
@@ -47,8 +46,8 @@ Apply the following priority rules IN ORDER:
 
 ---
 
--Email-Specific Key Point Extraction Rules-
-When extracting key points from email archive data, apply ALL of the following rules:
+{{ extraction_rules_heading }}
+{{ extraction_rules_intro }}
 
 {% for r in extraction_rules %}
 Rule {{ loop.index }}. {{ r.title }}

@@ -4,8 +4,14 @@ import pandas as pd
 import json
 import argparse
 import os
+import re
 from config.settings import *
 from util.user_path import UserPaths
+
+# Email 엔티티의 description(예: "Subject: ... | ID: ... | Date: ...")에서 Subject 값만 추출
+def _extract_email_subject(description: str) -> str | None:
+    m = re.search(r"Subject:\s*(.+?)\s*\|", description)
+    return m.group(1).strip() if m and m.group(1).strip() else None
 
 # pandas에서 읽은 값을 JSON으로 저장 가능한 타입으로 변환
 def _convert(val):
@@ -52,12 +58,22 @@ def _build_nodes(entities_df: pd.DataFrame, communities_df: pd.DataFrame | None)
 
         # 엣지의 source/target이 title(이름)을 사용하므로 노드 ID도 title로 통일
         nid = str(row.get("title", row.get("name", row.get("id", _))))
+        entity_type = _convert(row.get("entity_type", row.get("type", None)))
+        description = _convert(row.get("description", None))
+
+        # Email 노드는 title이 mail_id(16자리 hex)라 그래프에 그대로 표시하면 너무 길고 안 읽혀서,
+        # description 안의 Subject 값을 표시용 라벨로 대신 쓴다. id(엣지 연결용)는 그대로 mail_id 유지.
+        label = nid
+        if str(entity_type).upper() == "EMAIL" and isinstance(description, str):
+            subject = _extract_email_subject(description)
+            if subject:
+                label = subject
 
         node = {
             "id":                nid,
-            "label":             nid, # 그래프 노드 안에 표시될 이름
-            "entity_type":       _convert(row.get("entity_type", row.get("type", None))), # 엔티티 종류
-            "description":       _convert(row.get("description", None)), # 엔티티 설명
+            "label":             label, # 그래프 노드 안에 표시될 이름
+            "entity_type":       entity_type, # 엔티티 종류
+            "description":       description, # 엔티티 설명
             "human_readable_id": _convert(row.get("human_readable_id", None)), # GraphRAG가 부여한 숫자 형태의 ID
             "source_id":         _convert(row.get("source_id", None)), # 이 엔티티가 어느 원본 문서에서 추출됐는지 추적용 ID
             "degree":            _convert(row.get("degree", None)), # 이 노드에 연결된 엣지 수

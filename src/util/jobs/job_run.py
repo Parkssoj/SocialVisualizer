@@ -96,7 +96,7 @@ def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mai
         block_text = f"{MAIL_BLOCK_SEP}\n{block}\n{MAIL_BLOCK_SEP}"
 
         # 블록에서 메일 ID 추출
-        m = re.search(r"^\s*ID:\s*(.+?)\s*$", block_text, re.MULTILINE)
+        m = re.search(r"^\s*\[ID\]\s*(.+?)\s*$", block_text, re.MULTILINE)
         mail_id = m.group(1).strip() if m else None
 
         # 해당 메일 ID에 첨부 내용이 없으면 그대로 추가
@@ -105,9 +105,10 @@ def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mai
             continue
 
         # 첨부 내용 섹션 생성
-        attachment_section = "\n[첨부 추출 내용]\n"
-        for item in attachment_texts_by_mail[mail_id]:
-            attachment_section += f"[File name] {item['name']}\n{item['text']}\n"
+        attachment_section = "\n[첨부파일 추출 내용]\n"
+        for i, item in enumerate(attachment_texts_by_mail[mail_id], start=1):
+            attachment_section += f"File {i}: {item['name']}\n{item['text']}\n\n"
+        attachment_section = attachment_section.rstrip() + "\n"
 
         # 블록 하단(마지막 구분선 직전)에 첨부 내용 삽입
         insert_pos = block_text.rfind(MAIL_BLOCK_SEP)
@@ -191,7 +192,7 @@ def _trim_mail_latest(paths, max_mails, job_id):
     # CSV도 트리밍 (GraphRAG는 csv를 읽음)
     trimmed_ids = set()
     for block in trimmed:
-        m = re.search(r'^\s*ID:\s*(.+?)\s*$', block, re.MULTILINE)
+        m = re.search(r'^\s*\[ID\]\s*(.+?)\s*$', block, re.MULTILINE)
         if m:
             trimmed_ids.add(m.group(1).strip())
     csv_path = paths.MAIL_LATEST_PATH.replace('.txt', '.csv')

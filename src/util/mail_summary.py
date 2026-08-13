@@ -10,7 +10,7 @@ load_dotenv("src/parquet/.env")
 
 
 def _extract_field(text, field_name):
-    m = re.search(rf'^{re.escape(field_name)}:\s*(.+)$', text, re.MULTILINE)
+    m = re.search(rf'^\[{re.escape(field_name)}\]\s*(.+)$', text, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 

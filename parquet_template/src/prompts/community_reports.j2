@@ -10,12 +10,12 @@ The report should include the following sections:
 
 * TITLE: {{ report_sections.title_rule }}
 * SUMMARY: {{ report_sections.summary_rule }}
-* CATEGORY: Classify this community into exactly one of the following top-level categories. This field is used for hierarchical clustering — choose the category that best reflects the primary purpose of the emails in this cluster.
+* CATEGORY: Classify this community into exactly one of the following top-level categories. This field is used for hierarchical clustering — choose the category that best reflects {{ category_field_scope }}.
 {% for c in category_taxonomy %}
   - "{{ c.name }}" : {{ c.description }}
 {% endfor %}
 * PURPOSE: {{ report_sections.purpose_rule }}
-* IMPORTANCE RATING: A float score between 0-10 representing how significant this email cluster is to the user's activity. Score according to the following criteria:
+* IMPORTANCE RATING: A float score between 0-10 representing how significant {{ importance_rating_scope }}. Score according to the following criteria:
 {% for r in rating_criteria %}
   - {{ r.range }}: {{ r.description }}
 {% endfor %}

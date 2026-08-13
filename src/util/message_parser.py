@@ -158,7 +158,7 @@ def build_message_blocks(messages: list[dict], room_name: str, max_per_block: in
                 "",
                 f"ID: {mail_id}",
                 f"채팅방: {room_name}",
-                f"날짜: {chunk[0]['dt'].strftime('%Y-%m-%d %H:%M:%S')}",
+                f"날짜: {date.isoformat()}",
                 "참여자: " + (", ".join(participants) if participants else "알 수 없음"),
                 "",
                 "[대화 내용]",
@@ -171,12 +171,9 @@ def build_message_blocks(messages: list[dict], room_name: str, max_per_block: in
 
 
 # 대화방 이름만으로 안정적인 합성 user_id를 만든다 (같은 방 이름을 다시 올리면 항상 같은 값 → append 대상 계정이 유지됨).
-# _mail_to_dir_name()이 한글을 전부 밑줄로 뭉개서 방 이름만으로는 폴더 충돌 가능성이 있으므로,
-# ASCII 해시 서픽스를 붙여 폴더명 레벨의 유니크성을 보장한다. 원본 표시 이름은 account.json에 그대로 보존됨.
+# _mail_to_dir_name()이 이 "[msg_xxxxxxxx]" 패턴을 인식해서 폴더명은 해시 부분만 쓰고,
+# 원본 표시 이름(한글 포함)은 account.json에 그대로 보존된다.
 def build_room_id(room_name: str) -> str:
     normalized = (room_name or "").strip()
     digest = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:8]
-    # 해시 접두어는 "kakao_" 그대로 유지 — 이미 저장된 방들의 room_id 문자열과 형식이 어긋나면
-    # 같은 방 이름을 다시 올려도 다른 계정으로 인식되어 버림. 도메인/라우트명만 message로 바꾸고
-    # 이 식별자 포맷 자체는 순수 내부 구현 디테일이라 안 건드림.
-    return f"{normalized} [kakao_{digest}]"
+    return f"{normalized} [msg_{digest}]"
