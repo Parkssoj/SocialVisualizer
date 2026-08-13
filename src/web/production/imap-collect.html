@@ -1,32 +1,19 @@
 <!doctype html>
 <html lang="ko">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://*.ngrok-free.dev https://*.ngrok-free.app https://*.ngrok.io; frame-src 'none'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
-    />
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta
-      http-equiv="Referrer-Policy"
-      content="strict-origin-when-cross-origin"
-    />
-    <meta
-      http-equiv="Permissions-Policy"
-      content="camera=(), microphone=(), geolocation=()"
-    />
-    <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
-    <link
-      rel="apple-touch-icon"
-      href="images/apple-touch-icon.svg"
-      sizes="180x180"
-    />
-    <link rel="manifest" href="site.webmanifest" />
-    <meta name="theme-color" content="rgb(42, 63, 84)" />
-    <title>메일 수집 | MailGrapher</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://*.ngrok-free.dev https://*.ngrok-free.app https://*.ngrok.io; frame-src 'none'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
+    <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.svg" sizes="180x180">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="rgb(42, 63, 84)">
+    <title>데이터 수집 | MailGrapher</title>
     <script type="module" src="/src/pages/imap-collect.js"></script>
     <!-- 헤더 로고(.gw-brand-logo-text)가 Instrument Serif를 쓰는데 이 페이지엔 없어서
          Georgia/기본 serif로 폴백되며 홈 화면이랑 다르게(더 좁게) 보이던 것을 통일 -->
@@ -48,12 +35,23 @@
           <div class="gw-collect-wrap">
             <div class="gw-page-title">
               <i class="bi bi-inbox-fill"></i>
-              메일 수집
+              데이터 수집
             </div>
-            <p class="gw-page-subtitle">
-              IMAP으로 메일 서버에 연결해 메일을 가져옵니다. 수집된 메일은
-              GraphRAG 인덱싱에 사용됩니다.
-            </p>
+
+            <p class="gw-page-subtitle">메일 또는 카카오톡 대화를 가져와 GraphRAG 인덱싱에 사용합니다.</p>
+
+            <!-- ── 탭 전환 ── -->
+            <div class="gw-tabs" role="tablist">
+              <button type="button" class="gw-tab-btn active" id="tab-btn-mail" role="tab" aria-selected="true">
+                <i class="bi bi-envelope"></i> 메일
+              </button>
+              <button type="button" class="gw-tab-btn" id="tab-btn-message" role="tab" aria-selected="false">
+                <i class="bi bi-chat-dots"></i> 메시지
+              </button>
+            </div>
+
+            <!-- ═══ 메일 탭 ═══ -->
+            <div class="gw-tab-panel active" id="tab-panel-mail" role="tabpanel">
 
             <!-- ── 카드 1: IMAP 서버 설정 ── -->
             <div class="gw-card">
@@ -263,8 +261,66 @@
                 수집을 시작하면 이곳에 로그가 표시됩니다.
               </div>
             </div>
-          </div>
-          <!-- /.gw-collect-wrap -->
+
+            </div><!-- /#tab-panel-mail -->
+
+            <!-- ═══ 메시지 탭 ═══ -->
+            <div class="gw-tab-panel" id="tab-panel-message" role="tabpanel">
+
+            <!-- ── 카드 1: 대화 파일 업로드 ── -->
+            <div class="gw-card">
+              <div class="gw-card-title">
+                <i class="bi bi-file-earmark-text"></i>
+                카카오톡 대화 파일
+              </div>
+
+              <label class="gw-dropzone" id="message-dropzone" for="message-file-input">
+                <i class="bi bi-cloud-arrow-up"></i>
+                <div class="gw-dropzone-text">
+                  대화 내보내기 .txt 파일을 여기로 끌어다 놓거나 클릭해서 선택하세요.
+                </div>
+                <div class="gw-dropzone-sub">모바일(안드로이드/iOS)·PC 내보내기 파일 모두 지원합니다.</div>
+                <div class="gw-dropzone-file" id="message-file-name" style="display:none;"></div>
+              </label>
+              <input type="file" id="message-file-input" accept=".txt" style="display:none;">
+
+              <div class="gw-form-grid" style="margin-top:18px;">
+                <div class="gw-form-group">
+                  <label class="gw-label">대화방 이름</label>
+                  <input id="message-room-name" class="gw-input" type="text" placeholder="예: 가족톡">
+                </div>
+                <div class="gw-form-group">
+                  <label class="gw-label">동기 모드</label>
+                  <select id="message-sync-mode" class="gw-select">
+                    <option value="append" selected>증분 (새 대화만)</option>
+                    <option value="rewrite">전체 재수집</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── 업로드 버튼 ── -->
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+              <button class="gw-collect-btn" id="message-upload-btn">
+                <div class="gw-spinner" id="message-upload-spinner"></div>
+                <i class="bi bi-upload" id="message-upload-icon"></i>
+                대화 업로드 시작
+              </button>
+              <span id="message-upload-hint" style="font-size:0.82rem;color:#73879C;"></span>
+            </div>
+
+            <!-- ── 진행상황 패널 목록 ── -->
+            <div class="gw-jobs-list" id="message-jobs-list">
+              <div class="gw-log-empty" id="message-jobs-list-empty">
+                <i class="bi bi-clock-history" style="font-size:1.2rem;"></i>
+                업로드를 시작하면 이곳에 로그가 표시됩니다.
+              </div>
+            </div>
+
+            </div><!-- /#tab-panel-message -->
+
+          </div><!-- /.gw-collect-wrap -->
+
         </main>
         <!-- /Page Content -->
       </div>

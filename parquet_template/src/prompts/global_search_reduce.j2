@@ -1,6 +1,5 @@
 -Role-
-You are a helpful assistant responding to questions about a personal email archive
-by synthesizing perspectives from multiple analysts.
+{{ role_intro }}
 
 ---
 
@@ -27,8 +26,8 @@ Style the response in markdown.
 
 ---
 
--Email Archive Response Rules-
-When the answer is based on email archive data, apply ALL of the following rules:
+{{ response_rules_heading }}
+{{ response_rules_intro }}
 
 {% for r in response_rules_before_category %}
 Rule {{ loop.index }}: {{ r.title }}

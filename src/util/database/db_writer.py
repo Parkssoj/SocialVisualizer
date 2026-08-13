@@ -34,13 +34,8 @@ def get_latest_mail_account(user_mail_account_id: str):
         cursor.close()
         conn.close()
 
-
+# 한 명의 사용자가 여러 메일 계정을 연결해 쓰므로 user_id는 하나만 존재함
 def get_or_create_user_id(user_mail_account_id: str) -> str:
-    """
-    앱은 한 명의 사용자가 여러 메일 계정을 연결해 쓰는 구조라 user.user_id는
-    계정(user_mail_account_id)과 무관하게 앱 전체에서 하나만 존재해야 한다.
-    이미 발급된 user_id가 있으면 그대로 재사용하고, 없을 때만 새로 발급한다.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -521,10 +516,10 @@ def rebuild_keyword_mail(paths, update_date=None):
     for _, row in df.iterrows():
         text = str(row.get('text', ''))
 
-        date_match   = re.search(r'^날짜:\s*(.+)$', text, re.MULTILINE)
-        sender_match = re.search(r'^발신인:\s*(.+)$', text, re.MULTILINE)
-        receiver_match = re.search(r'^수신인:\s*(.+)$', text, re.MULTILINE)
-        body_match   = re.search(r'\[메일 본문\]\s*\n(.*?)(?:\n=+|\Z)', text, re.DOTALL)
+        date_match   = re.search(r'^\[날짜\]\s*(.+)$', text, re.MULTILINE)
+        sender_match = re.search(r'^\[발신인\]\s*(.+)$', text, re.MULTILINE)
+        receiver_match = re.search(r'^\[수신인\]\s*(.+)$', text, re.MULTILINE)
+        body_match   = re.search(r'\[메일 본문\]\s*\n(.*?)(?:\n\[|\n=+|\Z)', text, re.DOTALL)
 
         mail_date = date_match.group(1).strip()[:10] if date_match else None
         sender    = parse_email(sender_match.group(1)) if sender_match else None
@@ -780,18 +775,17 @@ def save_mail_folder_to_db(paths, update_date=None):
     df = pd.read_parquet(text_units_path)
 
     # 메일 하나가 GraphRAG 청크 분할로 여러 text_unit 행이 될 수 있음.
-    # 메일 폴더 정보 헤더는 첫 청크에만 있으므로, document_ids(=메일) 단위로 묶어서
+    # 메일 폴더 정보 헤더는 첫 청크에만 있으므로, document_id(=메일) 단위로 묶어서
     # 그중 하나라도 메일 폴더 정보를 찾으면 그 값을 메일의 폴더로 쓰고, 청크 수가 아닌 메일 수로 카운트한다.
     folder_by_doc = {}
     for _, row in df.iterrows():
-        doc_ids = row.get('document_ids')
-        doc_key = tuple(doc_ids) if hasattr(doc_ids, '__iter__') and not isinstance(doc_ids, str) else doc_ids
+        doc_key = row.get('document_id')
 
         if folder_by_doc.get(doc_key):
             continue
 
         text = str(row.get('text', ''))
-        folder_match = re.search(r'\[라벨 정보\]\s*\n(.+)', text)
+        folder_match = re.search(r'\[폴더 정보\]\s*(.+)', text)
         folder_raw = folder_match.group(1).strip() if folder_match else None
         if folder_raw and folder_raw != '없음':
             folder_by_doc[doc_key] = folder_raw
@@ -879,35 +873,35 @@ def save_mail_to_db(paths, update_date=None):
     for _, row in df.iterrows():
         text = str(row.get('text', ''))
 
-        id_match = re.search(r'^ID:\s*(.+)$', text, re.MULTILINE)
+        id_match = re.search(r'^\[ID\]\s*(.+)$', text, re.MULTILINE)
         mail_id = id_match.group(1).strip() if id_match else None
         if not mail_id or mail_id in seen_ids:
             continue
         seen_ids.add(mail_id)
 
-        date_match = re.search(r'^날짜:\s*(.+)$', text, re.MULTILINE)
+        date_match = re.search(r'^\[날짜\]\s*(.+)$', text, re.MULTILINE)
         mail_date = date_match.group(1).strip() if date_match else None
 
         # mail.mail_folder_name은 NOT NULL이며 mail_folder에 대한 FK이므로, 파싱 실패 시에도
         # 값이 비어선 안 됨 → 'UNKNOWN'으로 대체 (save_mail_folder_to_db가 먼저 실행되어 있어야 함)
-        folder_match = re.search(r'\[라벨 정보\]\s*\n(.+)', text)
+        folder_match = re.search(r'\[폴더 정보\]\s*(.+)', text)
         folder_raw = folder_match.group(1).strip() if folder_match else None
         mail_folder_name = folder_raw if (folder_raw and folder_raw != '없음') else 'UNKNOWN'
 
-        sender_match = re.search(r'^발신인:\s*(.+)$', text, re.MULTILINE)
+        sender_match = re.search(r'^\[발신인\]\s*(.+)$', text, re.MULTILINE)
         sender = sender_match.group(1).strip() if sender_match else None
 
-        receiver_match = re.search(r'^수신인:\s*(.+)$', text, re.MULTILINE)
+        receiver_match = re.search(r'^\[수신인\]\s*(.+)$', text, re.MULTILINE)
         receiver = receiver_match.group(1).strip() if receiver_match else None
 
-        direction_match = re.search(r'^구분:\s*(.+)$', text, re.MULTILINE)
+        direction_match = re.search(r'^\[구분\]\s*(.+)$', text, re.MULTILINE)
         direction_raw = direction_match.group(1).strip() if direction_match else None
         direction = 'sent' if direction_raw == '발신' else ('received' if direction_raw == '수신' else None)
 
-        subject_match = re.search(r'^제목:\s*(.+)$', text, re.MULTILINE)
+        subject_match = re.search(r'^\[제목\]\s*(.+)$', text, re.MULTILINE)
         subject = subject_match.group(1).strip() if subject_match else ''
 
-        body_match = re.search(r'\[메일 본문\]\s*\n(.*?)(?:\n=+|\Z)', text, re.DOTALL)
+        body_match = re.search(r'\[메일 본문\]\s*\n(.*?)(?:\n\[|\n=+|\Z)', text, re.DOTALL)
         body = body_match.group(1).strip() if body_match else ''
 
         is_reply = bool(re.match(r'Re:\s*', subject, re.IGNORECASE))

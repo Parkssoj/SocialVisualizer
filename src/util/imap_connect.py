@@ -59,6 +59,18 @@ def _imap_utf7_decode_folder(name: str) -> str:
         i = j + 1
     return "".join(result)
 
+# 폴더를 여러 개 선택해서 같은 메일이 두 폴더 모두에 걸려있는 경우, 블록을 또 만들지 않고
+# 이미 만든 블록의 '[폴더 정보]' 줄에 새 폴더 이름만 추가한다 (Gmail 다중 라벨과 동일하게 콤마로 나열).
+def _add_folder_label(block_text: str, new_folder: str) -> str:
+    m = re.search(r'(\[폴더 정보\]\s*)(.*)', block_text)
+    if not m:
+        return block_text
+    existing = [f.strip() for f in m.group(2).split(',') if f.strip()]
+    if new_folder in existing:
+        return block_text
+    existing.append(new_folder)
+    return block_text[:m.start(2)] + ", ".join(existing) + block_text[m.end(2):]
+
 # IMAP LIST 응답에서 실제 폴더명을 추출
 def _imap_parse_list_line(line: bytes):
     try:
@@ -91,6 +103,7 @@ def _imap_fetch_content(host: str, port: int, use_ssl: bool, user: str, password
         all_blocks: list[str] = []
         all_attachments: list[dict] = []
         mail_index = 0
+        block_index_by_id: dict[str, int] = {}  # 이미 만든 블록을 폴더별로 다시 찾아 라벨만 덧붙이기 위한 인덱스
 
         for folder in folders:
             encoded_folder = _imap_utf7_encode_folder(folder)
@@ -166,9 +179,16 @@ def _imap_fetch_content(host: str, port: int, use_ssl: bool, user: str, password
                     if not message_id:
                         message_id = f"{folder}-{uid_str}"
 
+                    # 이전 폴더에서 이미 수집된 메일이면 블록을 새로 안 만들고 라벨 정보만 이 폴더로 덧붙인다
+                    if message_id in block_index_by_id:
+                        idx = block_index_by_id[message_id]
+                        all_blocks[idx] = _add_folder_label(all_blocks[idx], folder)
+                        continue
+
                     mail_index += 1
                     block_text, attachments_payload = _imap_build_block(mail_index, message_id, msg, folder, my_email)
                     all_blocks.append(block_text)
+                    block_index_by_id[message_id] = len(all_blocks) - 1
                     all_attachments.extend(attachments_payload)
 
                 if on_batch:

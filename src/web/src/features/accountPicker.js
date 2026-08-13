@@ -1,16 +1,20 @@
 /**
- * 계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정 목록을 가져와
+ * 계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정(또는 카카오 대화방) 목록을 가져와
  * container 안에 <select>를 렌더링하고, 확정된 user_id를 반환한다.
  * (해당 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
  *
  * @param {HTMLElement|null} container
  * @param {(userId: string) => void} [onChange] 전달하면 계정 변경 시 새로고침 대신 이 콜백을 호출한다
  *   (예: Graph Viz처럼 페이지 새로고침 없이 그 자리에서 다시 그려야 하는 경우).
+ * @param {{domain?: string, storageKey?: string}} [options] domain: /accounts에 넘길 도메인("mail"/"messenger").
+ *   storageKey: 마지막 선택값을 저장할 localStorage 키. 메일과 카카오가 서로 다른 "마지막 선택"을
+ *   기억하도록 도메인마다 별도 키를 쓴다 (기본값은 기존 메일 동작과 100% 동일).
  */
-export async function initAccountPicker(container, onChange) {
+export async function initAccountPicker(container, onChange, options = {}) {
+  const { domain = 'mail', storageKey = 'gw_user_id' } = options;
   injectStyle();
 
-  const current = localStorage.getItem('gw_user_id') || '';
+  const current = localStorage.getItem(storageKey) || '';
   let effective = current;
 
   let select = null;
@@ -26,7 +30,7 @@ export async function initAccountPicker(container, onChange) {
   }
 
   try {
-    const res = await fetch('/accounts');
+    const res = await fetch('/accounts?domain=' + encodeURIComponent(domain));
     const data = await res.json();
     const accounts = data.accounts || [];
 
@@ -34,7 +38,7 @@ export async function initAccountPicker(container, onChange) {
       select.innerHTML = '';
       if (accounts.length === 0) {
         const opt = document.createElement('option');
-        opt.textContent = '인덱싱된 계정 없음';
+        opt.textContent = domain === 'mail' ? '인덱싱된 계정 없음' : '인덱싱된 대화방 없음';
         select.appendChild(opt);
       } else {
         const hasCurrent = accounts.some(acc => acc.user_id === current);
@@ -47,7 +51,7 @@ export async function initAccountPicker(container, onChange) {
           select.appendChild(opt);
         });
         select.onchange = () => {
-          localStorage.setItem('gw_user_id', select.value);
+          localStorage.setItem(storageKey, select.value);
           if (onChange) {
             onChange(select.value);
           } else {
@@ -63,7 +67,7 @@ export async function initAccountPicker(container, onChange) {
     console.error('[accounts] 로드 실패:', err);
   }
 
-  localStorage.setItem('gw_user_id', effective);
+  localStorage.setItem(storageKey, effective);
   return effective;
 }
 

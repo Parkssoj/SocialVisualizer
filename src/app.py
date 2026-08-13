@@ -84,7 +84,17 @@ from util.file_manager import (
     _sanitize_filename,
     _delete_old_update_files
 )
-from util.attachment_manager import _run_attachment_pipeline
+from util.attachment_manager import (
+    _save_attachment_from_base64,
+    _extract_text_from_pdf,
+    _extract_text_from_docx,
+    _extract_text_from_hwp,
+    _extract_text_from_txt,
+    _extract_text_from_pptx,
+    _extract_text_from_xlsx,
+    _extract_text_from_csv,
+)
+from util.jobs.job_run import _summarize_attachment_text, _merge_summarized_attachments
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
@@ -135,6 +145,12 @@ from util.imap_connect import (
     _imap_parse_list_line,
     _imap_fetch_content
 )
+from util.message_parser import (
+    parse_message_export,
+    build_message_blocks,
+    guess_room_name,
+    build_room_id,
+)
 # 환경변수 로드
 load_dotenv("src/parquet/.env")
 
@@ -179,6 +195,7 @@ def run_query_async():
     resMethod = request.json.get('resMethod', 'local')
     resType = request.json.get('resType', 'text')
     user_id = data.get('user_id', '').strip()
+    domain = (data.get('domain') or 'mail').strip().lower()
 
     if not str(message).strip():
         return jsonify({'error': 'message가 비어있습니다.'}), 400
@@ -195,18 +212,28 @@ def run_query_async():
 
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
         try:
-            paths = UserPaths(BASE_DIR, user_id, "base")
             env = os.environ.copy()
             env["USER_ID"] = user_id
 
-            # 날짜 범위 쿼리일 시 parquet 직접 필터링해서 LLM에게 넘기기, 아니면 RAG_ENGINE에 따라 처리
-            answer = run_date_range_query(message, paths) # 이게 None이면 아래에서 GraphRAG/LightRAG로
+            # local/global, 날짜 범위 쿼리 모두 해당 도메인에서 인덱싱된 계정(또는 카카오 대화방) 전체를 대상으로 함(연합 검색).
+            accounts_paths = [UserPaths(BASE_DIR, uid, domain) for uid in list_indexed_user_ids(BASE_DIR, domain)]
+
+            # 인덱싱된 계정/방이 하나도 없을 때만 프론트가 보낸 user_id로 폴백 경로를 만든다.
+            # UserPaths()는 생성 시점에 폴더/account.json을 만드는 부작용이 있어서, 메시지 도메인처럼
+            # user_id가 실제 방을 가리키지 않는 자리표시자("message")인 경우 매 요청마다 유령 계정
+            # 폴더가 다시 생기는 걸 방지하기 위해 정말 필요할 때만(인덱싱된 계정이 없을 때만) 만든다.
+            if not accounts_paths:
+                accounts_paths = [UserPaths(BASE_DIR, user_id, domain)]
+
+            fallback_paths = accounts_paths[0]
+
+            # 날짜 범위 쿼리 직접 필터링(parquet)은 "발신인:/제목:" 같은 이메일 전용 필드 포맷을 가정하고
+            # 있어서 카카오 도메인엔 안 맞음 — mail 도메인일 때만 시도하고, 그 외엔 곧장 GraphRAG/LightRAG로 보낸다.
+            # accounts_paths 전체(인덱싱된 계정 전부)를 대상으로 연합해서 필터링한다.
+            answer = run_date_range_query(message, accounts_paths) if domain == "mail" else None # 이게 None이면 GraphRAG/LightRAG로
             source_ids = []  # 초기화
             if answer is None:
                 full_message = message + " 영어 말고 한국어로 답변해줘."
-
-                # 인덱싱된 계정 전체를 대상으로 함(연합 검색).
-                accounts_paths = [UserPaths(BASE_DIR, uid, "base") for uid in list_indexed_user_ids(BASE_DIR)] or [paths]
 
                 if RAG_ENGINE == "lightrag":
                     from util.lightrag_backend.lightrag_query import _classify_query_method as _classify_lightrag_method, run_federated_search, run_lightrag_query
@@ -214,39 +241,53 @@ def run_query_async():
                     # naive/mix/bypass)라 분류기도, 아래 호출도 모드를 그대로 통과시킨다.
                     resMethod = _classify_lightrag_method(message)
                     print(f"[QUERY] RAG_ENGINE=lightrag mode={resMethod}")
-                    try:
-                        answer, source_ids = run_federated_search(full_message, message, accounts_paths, resMethod, primary_user_id=user_id)
-                    except Exception as e:
-                        print(f"[ENGINE][lightrag] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
-                        # LightRAG는 CLI가 없어서 GraphRAG처럼 마지막에 subprocess로 더 폴백할 데가 없다.
-                        # 여기서도 실패하면 바깥 except가 잡아서 job을 error 상태로 남긴다.
-                        answer, source_ids = run_lightrag_query(full_message, message, paths, method=resMethod)
+
+                    if len(accounts_paths) == 1:
+                        # 계정(또는 방)이 하나뿐이면 연합 검색이 의미가 없으니 바로 단일 엔진으로 검색한다.
+                        answer, source_ids = run_lightrag_query(full_message, message, fallback_paths, method=resMethod)
+                    else:
+                        try:
+                            answer, source_ids = run_federated_search(full_message, message, accounts_paths, resMethod, primary_user_id=user_id)
+                        except Exception as e:
+                            print(f"[ENGINE][lightrag] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
+                            # LightRAG는 CLI가 없어서 GraphRAG처럼 마지막에 subprocess로 더 폴백할 데가 없다.
+                            # 여기서도 실패하면 바깥 except가 잡아서 job을 error 상태로 남긴다.
+                            answer, source_ids = run_lightrag_query(full_message, message, fallback_paths, method=resMethod)
+
                 elif RAG_ENGINE == "graphrag":
                     from util.graphrag_query import run_graphrag_query, run_federated_local_search, run_federated_global_search
                     resMethod = _classify_query_method(message)
                     print(f"[QUERY] RAG_ENGINE=graphrag mode={resMethod}")
 
-                    if resMethod == "local":
+                    if len(accounts_paths) == 1:
+                        # 계정(또는 방)이 하나뿐이면 연합 검색(계정 라벨링/ID 역추적)이 의미가 없으니
+                        # 바로 단일 엔진으로 검색한다.
+                        try:
+                            answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
+                        except Exception as e2:
+                            print(f"[ENGINE] API 실패, CLI fallback: {e2}")
+                            answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                    elif resMethod == "local":
                         try:
                             answer, source_ids = run_federated_local_search(full_message, message, accounts_paths, primary_user_id=user_id)
                         except Exception as e:
                             print(f"[ENGINE] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
                             try:
-                                answer, source_ids = run_graphrag_query(full_message, message, paths, method=resMethod)
+                                answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
                             except Exception as e2:
                                 print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                                answer = _run_graphrag(full_message,message, resMethod, paths, resType)
+                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
                     else:
                         try:
                             answer, source_ids = run_federated_global_search(full_message, message, accounts_paths, primary_user_id=user_id)
                         except Exception as e:
                             print(f"[ENGINE] 연합 글로벌 검색 실패, 선택된 계정으로 폴백: {e}")
                             try: # 엔진 객체 직접 호출 방식
-                                answer, source_ids = run_graphrag_query(full_message,message, paths, method=resMethod)
+                                answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
                             except Exception as e2:
                                 # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
                                 print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                                answer = _run_graphrag(full_message,message, resMethod, paths, resType)
+                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
                                 # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
@@ -342,7 +383,7 @@ def run_query():
     if not user_id:
         return jsonify({'error': 'user_id가 비어있습니다.'}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     message += " 영어 말고 한국어로 답변해줘."
 
     try:
@@ -358,10 +399,44 @@ def run_query():
 
     return jsonify({'result': answer})
 
+# 수집한 첨부파일을 메인 인덱싱이 시작되기 *전에* 텍스트 추출·요약해서 mail_latest.txt에
+# 병합해둔다. 그러면 CSV 빌드(_build_mail_csv)와 GraphRAG 인덱싱이 첨부 내용까지 포함한 채로
+# 한 번에 돈다.
+def _extract_and_merge_attachments(paths, attachments, user_id):
+    unprocessed = filter_unprocessed_attachments(user_id, attachments)
+    if not unprocessed:
+        return
+
+    attachment_texts_by_mail: dict[str, list[dict]] = {}
+    for file_info in unprocessed:
+        f_name = file_info.get("name") or "attachment.bin"
+        mail_id = str(file_info.get("mail_id") or "").strip()
+        try:
+            saved_path, original_name = _save_attachment_from_base64(file_info, paths.ATTACHMENT_DIR)
+            ext = os.path.splitext(original_name)[-1].lower()
+            mime = (file_info.get("mime") or "").lower()
+            file_text = ""
+            if ext == ".pdf" or "pdf" in mime:      file_text = _extract_text_from_pdf(saved_path)
+            elif ext == ".docx":                     file_text = _extract_text_from_docx(saved_path)
+            elif ext == ".hwp":                      file_text = _extract_text_from_hwp(saved_path)
+            elif ext == ".txt" or "plain" in mime:   file_text = _extract_text_from_txt(saved_path)
+            elif ext == ".pptx":                     file_text = _extract_text_from_pptx(saved_path)
+            elif ext == ".xlsx":                     file_text = _extract_text_from_xlsx(saved_path)
+            elif ext == ".csv":                      file_text = _extract_text_from_csv(saved_path)
+
+            if file_text and file_text.strip():
+                summary = _summarize_attachment_text(file_text.strip(), paths, original_name)
+                attachment_texts_by_mail.setdefault(mail_id, []).append({"name": original_name, "text": summary})
+        except Exception as e:
+            print(f"[UPLOAD] 첨부파일 추출 실패 {f_name}: {e}")
+
+    if attachment_texts_by_mail:
+        _merge_summarized_attachments(paths.MAIL_LATEST_PATH, attachment_texts_by_mail)
+        print(f"[UPLOAD] 첨부파일 {len(attachment_texts_by_mail)}건 본문에 병합 완료")
+
+    mark_attachments_as_processed(user_id, unprocessed)
+
 # 엔드포인트: POST /upload
-# 배치 시스템 지원
-# is_last 플래그 수신: 마지막 배치일 때만 GraphRAG 파이프라인 실행
-# 중간 배치: mail_latest.txt에 누적만 하고 GraphRAG 실행 안 함
 # mail_id 기반 중복 블록 체크: rewrite/append 관계없이 항상 적용
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -373,18 +448,19 @@ def upload():
     attachments = data.get("attachment") or []
     requested_mode = data.get("syncmode", "append")
     user_id = (data.get("user_id") or "").strip().lower()
-    is_last = data.get("is_last", True)
-    batch_offset = data.get("batch_offset", 0)
+    domain = (data.get("domain") or "mail").strip().lower()
+    # 메일은 최신 메일이 위로 오는 "받은편지함" 순서를, 카카오는 대화를 처음부터 읽어내려가는
+    # "대화 기록" 순서(오래된 게 위)를 기대하므로 도메인별로 정렬 방향을 다르게 함.
+    sort_newest_first = domain != "messenger"
 
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, domain)
 
     if not str(content).strip():
         return jsonify({"ok": False, "error": "content가 비어있습니다."}), 400
     if not user_id:
         return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
 
-    print("user gmail id =", user_id)
-    print(f"[UPLOAD] is_last={is_last}, batch_offset={batch_offset}")
+    print("user_id =", user_id)
 
     # append인데 기존 인덱스가 없으면 rewrite로 전환
     fallback_to_rewrite = False
@@ -398,10 +474,8 @@ def upload():
     # 2) 저장 디렉토리 준비
     os.makedirs(paths.MAIL_DIR, exist_ok=True)
 
-    # rewrite 첫 배치(offset=0)에서만 기존 첨부파일 폴더 초기화
-    # batch_offset=0(첫 배치)일 때만 삭제
-    if sync_mode == "rewrite" and batch_offset == 0:
-        # rewrite 첫 배치: input 폴더 내 기존 메일 파일 전체 초기화
+    if sync_mode == "rewrite":
+        # rewrite: input 폴더 내 기존 메일 파일 전체 초기화
         # mail_latest.txt, mail_latest.csv, inc_*.txt 등 전부 삭제
         # 이전 데이터가 남아있으면 중복 체크에 걸려 새 메일이 스킵되는 버그 방지
         if os.path.exists(paths.MAIL_DIR):
@@ -413,10 +487,10 @@ def upload():
                 except Exception as e:
                     print(f"[CLEAN] 파일 삭제 실패 (무시): {fpath} / {e}")
 
-            print(f"[CLEAN] input 폴더 초기화 완료 (첫 배치): {paths.MAIL_DIR}")
+            print(f"[CLEAN] input 폴더 초기화 완료: {paths.MAIL_DIR}")
         if os.path.exists(paths.ATTACHMENT_DIR):
             shutil.rmtree(paths.ATTACHMENT_DIR)
-            print(f"[CLEAN] attachment 폴더 초기화 완료 (첫 배치): {paths.ATTACHMENT_DIR}")
+            print(f"[CLEAN] attachment 폴더 초기화 완료: {paths.ATTACHMENT_DIR}")
 
         # [추가] 인덱스 준비 여부 판단 기준 파일 삭제 → 첨부파일 트리거가 인덱스 없음으로
         # 판단해 거절됨. rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지.
@@ -450,24 +524,23 @@ def upload():
         except Exception as e:
             print(f"[CLEAN] processed_attachments DB 초기화 실패 (무시): {e}")
 
-    # 3) 원본 메일 텍스트 저장
-    # rewrite 중간 배치는 "mail_latest.txt"에 "a" 모드로 이어붙임
-    # 첫 배치(batch_offset=0)일 때만 파일을 비우고 시작
-    # append 모드는 기존 방식 유지 (inc_*.txt로 별도 저장)
-    if sync_mode != "rewrite":  # rewrite는 여기서 파일 안 씀
+    # 3) 원본 메일 텍스트 저장 (append 모드만 — rewrite는 mail_latest.txt에 바로 씀)
+    if sync_mode != "rewrite":
         file_path = os.path.join(paths.MAIL_DIR, filename)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
     extracted_count = 0
     failed_attachments = []
+    valid_attachments = []
 
-    # 4) 첨부파일 메타데이터 카운트 (원본은 트리거가 별도 전송)
+    # 4) 첨부파일 메타데이터 카운트. 실제 텍스트 추출/그래프 반영은 인덱싱 직전 _extract_and_merge_attachments가 처리한다.
     for file_info in attachments:
         f_name = file_info.get("name") or "attachment.bin"
         mail_id = str(file_info.get("mail_id") or "").strip()
         if f_name and mail_id:
             extracted_count += 1
+            valid_attachments.append(file_info)
 
     # 5) 로그
     print(f"[UPLOAD] Received filename: {filename}")
@@ -476,7 +549,6 @@ def upload():
     print(f"[UPLOAD] Attachment extracted count: {extracted_count}")
     print(f"[UPLOAD] Requested mode: {requested_mode}")
     print(f"[UPLOAD] Actual mode: {sync_mode}")
-    print(f"[UPLOAD] is_last: {is_last}")
     print("[UPLOAD] cwd:", os.getcwd())
 
     added_count  = 0
@@ -484,18 +556,26 @@ def upload():
     saved_mail_path = ""
 
     # 메일 텍스트 누적 로직
-    # rewrite: 파일에 직접 이어붙이므로 중복 체크만 수행 (mail_latest.txt 재작성 불필요)
-    # append: 기존 방식 유지 (existing_text 읽어서 합친 후 mail_latest.txt 저장)
-    # 공통: mail_id 기반 중복 체크 → 배치 재시도 시 중복 삽입 방지
-    # 기존 mail_latest.txt에서 이미 저장된 mail_id 추출 (중복 방지용)
-    # rewrite 첫 배치: 파일을 새로 쓰는 시점이므로 기존 내용 무시
-    # 기존 파일의 mail_id를 읽으면 전부 중복으로 판단해서 스킵되는 버그 방지
-    if sync_mode == "rewrite" and batch_offset == 0:
+    # rewrite: mail_latest.txt를 새로 씀 (기존 내용 무시)
+    # append: 기존 mail_latest.txt를 읽어서 합친 후 재저장
+    # 공통: mail_id 기반 중복 체크
+    if sync_mode == "rewrite":
         existing_text = ""
         existing_ids  = set()
     else:
         existing_text = _read_latest_text(paths)
         existing_ids  = _extract_message_ids(existing_text)
+
+    # 카카오는 블록 ID가 "그 날짜의 대화 전체"를 가리켜서(이메일처럼 발송 시점에 내용이 고정되는 게
+    # 아니라 다음 내보내기 전까지 계속 자랄 수 있음), 기존에 저장된 가장 최근 날짜의 블록만 예외로
+    # 취급한다 — 그 날짜의 새 블록이 오면 "이미 있음"으로 스킵하지 않고 최신 내용으로 덮어쓴다.
+    # 그 외 과거 날짜는 이미 끝난 대화라 내용이 안 바뀌므로 지금처럼 ID 기준으로 정상 스킵한다.
+    overwrite_ids = set()
+    if domain == "messenger" and existing_ids:
+        dated_ids = [i for i in existing_ids if re.match(r"^\d{4}-\d{2}-\d{2}", i)]
+        if dated_ids:
+            latest_date = max(i[:10] for i in dated_ids)
+            overwrite_ids = {i for i in dated_ids if i.startswith(latest_date)}
 
     new_blocks    = _split_mail_blocks(content)
     append_blocks = []
@@ -505,44 +585,42 @@ def upload():
         if not msg_id:
             skipped_count += 1
             continue
-        if msg_id in existing_ids:
+        if msg_id in existing_ids and msg_id not in overwrite_ids:
             skipped_count += 1
             continue
         append_blocks.append(block.strip())
         existing_ids.add(msg_id)
 
+    # overwrite_ids 중 실제로 새 블록이 들어온 것만 "교체 확정"으로 남긴다 — 최신 날짜가 이번 파일에
+    # 아예 없는 예외적인 경우(부분 내보내기 등)까지 옛 블록을 지워버리면 데이터가 통째로 사라지므로,
+    # 대체본이 실제로 도착했을 때만 옛 블록 제거를 진행한다.
+    if overwrite_ids:
+        replaced_ids = {_extract_mail_id_from_block(b) for b in append_blocks}
+        overwrite_ids &= replaced_ids
+
     added_count = len(append_blocks)
 
-    # rewrite 첫 배치: 증분 파일 초기화
-    if sync_mode == "rewrite" and batch_offset == 0:
+    if sync_mode == "rewrite":
         _delete_incremental_files(paths)
 
-    if batch_offset == 0:  # rewrite/append 공통으로 밖으로 꺼냄
-        batch_job_id = "batch_" + user_id
-        create_job(batch_job_id, job_type="batch")
-        update_job(batch_job_id, status="running", message="배치 진행 중")
-        print(f"[UPLOAD] 배치 시작 job 생성: {batch_job_id}")
-
     if append_blocks:
-        append_blocks.sort(key=_extract_block_for_sort, reverse=True)
+        append_blocks.sort(key=_extract_block_for_sort, reverse=sort_newest_first)
         inc_content = "\n\n".join(append_blocks).strip() + "\n"
-        # 파일에 직접 이어붙이는 방식
-        # _renumber_mail_blocks 적용해서 최종 정리
-        # 마지막 배치일 때만 번호 재정렬 (중간 배치는 불완전한 상태)
         if sync_mode == "rewrite":
-            with open(paths.MAIL_LATEST_PATH, "a", encoding="utf-8") as f:
-                f.write(inc_content)  # 정제된 블록만 이어붙임
-            if is_last:
-                final_text = _read_latest_text(paths)
-                all_blocks = _split_mail_blocks(final_text)
-                all_blocks.sort(key=_extract_block_for_sort, reverse=True)  # 날짜 정렬
-                sorted_text = "\n\n".join(b.strip() for b in all_blocks).strip() + "\n"
-                with open(paths.MAIL_LATEST_PATH, "w", encoding="utf-8") as f:
-                    f.write(_renumber_mail_blocks(sorted_text))
+            with open(paths.MAIL_LATEST_PATH, "w", encoding="utf-8") as f:
+                f.write(_renumber_mail_blocks(inc_content))
         else:
             # append: 기존 내용 앞에 새 메일 추가 후 mail_latest.txt 저장
             existing_lines = existing_text.splitlines()
             existing_clean = "\n".join(existing_lines).lstrip("\n")
+            if overwrite_ids:
+                # 덮어쓰기 대상(카카오 최신 날짜) 블록은 기존 내용에서 먼저 제거 — 안 그러면 새 버전과
+                # 옛 버전이 둘 다 파일에 남아 중복된다.
+                kept_blocks = [
+                    b for b in _split_mail_blocks(existing_clean)
+                    if _extract_mail_id_from_block(b) not in overwrite_ids
+                ]
+                existing_clean = "\n\n".join(b.strip() for b in kept_blocks).strip()
             updated_content = inc_content + "\n" + existing_clean
             with open(paths.MAIL_LATEST_PATH, "w", encoding="utf-8") as f:
                 f.write(_renumber_mail_blocks(updated_content.strip()))
@@ -556,21 +634,23 @@ def upload():
             if mid:
                 new_ids.add(mid)
 
-        # statics 파이프라인
-        statics_job_id = str(uuid.uuid4())[:8]
-        create_job(statics_job_id, job_type="statics")
-        
-        if is_last and sync_mode == "rewrite":
-            final_text = _read_latest_text(paths)
-            statics_blocks = _split_mail_blocks(final_text)
-            statics_blocks = [b for b in statics_blocks if _extract_mail_id_from_block(b)]
-        else:
-            statics_blocks = append_blocks
+        # statics 파이프라인 — 발신/수신 연락처 집계 등 이메일 전용 통계라 base 도메인에서만 실행.
+        # 카카오는 sent_by/sent_to 같은 고정 관계 타입이 없어서 이 파이프라인이 의미 있는 결과를 못 냄.
+        if domain == "mail":
+            statics_job_id = str(uuid.uuid4())[:8]
+            create_job(statics_job_id, job_type="statics")
 
-        start_statics_pipeline_background(
-            statics_job_id, paths,
-            mode="rewrite" if sync_mode == "rewrite" else "append"
-        )
+            if sync_mode == "rewrite":
+                final_text = _read_latest_text(paths)
+                statics_blocks = _split_mail_blocks(final_text)
+                statics_blocks = [b for b in statics_blocks if _extract_mail_id_from_block(b)]
+            else:
+                statics_blocks = append_blocks
+
+            start_statics_pipeline_background(
+                statics_job_id, paths,
+                mode="rewrite" if sync_mode == "rewrite" else "append"
+            )
 
     else:
         saved_mail_path = ""
@@ -581,34 +661,9 @@ def upload():
     if saved_mail_path:
         print("[UPLOAD] saved mail path:", os.path.abspath(saved_mail_path))
 
-    # GraphRAG 파이프라인 실행 조건
-    # is_last=True 일 때만 실행
-    # 중간 배치(is_last=False): mail_latest.txt 누적만, GraphRAG 실행 안 함
-    # 마지막 배치(is_last=True): 전체 누적 텍스트로 GraphRAG 실행
-    # 배치 시스템 없는 기존 단일 호출: is_last 기본값 True → 기존 동작 유지
+    # GraphRAG 파이프라인 실행
     graph_job_id = str(uuid.uuid4())[:8]
 
-    if not is_last:
-        # 중간 배치: GraphRAG 실행 안 함, 누적만
-        print(f"[UPLOAD] 중간 배치 (is_last=False) → GraphRAG 실행 생략, 누적 중")
-        return jsonify({
-            "ok": True,
-            "requested_mode": requested_mode,
-            "actual_mode": sync_mode,
-            "is_last": is_last,
-            "fallback_to_rewrite": fallback_to_rewrite,
-            "added_count": added_count,
-            "skipped_count": skipped_count,
-            "attachment_received_count": len(attachments),
-            "attachment_extracted_count": extracted_count,
-        })
-
-    # 마지막 배치: GraphRAG 파이프라인 실행
-    batch_job_id = "batch_" + user_id
-    update_job(batch_job_id, status="done", message="배치 완료")
-    print(f"[UPLOAD] 배치 완료 job 닫기: {batch_job_id}")
-
-    # 마지막 배치: GraphRAG 파이프라인 실행
     if sync_mode == "rewrite":
         create_job(graph_job_id, job_type="index")
         update_job(graph_job_id, message="업로드 완료, 그래프 파이프라인 시작")
@@ -619,6 +674,11 @@ def upload():
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
 
+    # 첨부파일은 CSV 빌드 전에 텍스트 추출/요약해서 mail_latest.txt에 미리 병합해둔다 —
+    # 그래야 뒤이어 만드는 CSV/인덱싱에 첨부 내용까지 같이 반영된다 (순서 중요).
+    if valid_attachments:
+        _extract_and_merge_attachments(paths, valid_attachments, user_id)
+
     if sync_mode == "rewrite":
         update_dir = os.path.join(paths.GRAPHRAG_ROOT, "update_output")
         if os.path.exists(update_dir):
@@ -628,7 +688,6 @@ def upload():
         # _build_mail_csv는 동기 실행 후 GraphRAG 스레드 시작
         # CSV 파일이 완전히 쓰인 뒤 GraphRAG가 읽도록 순서 보장
         _build_mail_csv(paths)
-        # rewrite 배치 완료 시 총 누적 메일 수로 기록 (마지막 배치 added_count만 넘기면 일부만 저장되는 버그 방지)
         final_text = _read_latest_text(paths)
         total_mail_count = len([b for b in _split_mail_blocks(final_text) if _extract_mail_id_from_block(b)])
         print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 전체 인덱싱(rewrite) 시작 job_id={graph_job_id}")
@@ -671,7 +730,6 @@ def upload():
         "job_id": graph_job_id,
         "actual_mode": sync_mode,
         "fallback_to_rewrite": fallback_to_rewrite,
-        "is_last": is_last,
         "latest_path": os.path.abspath(paths.MAIL_LATEST_PATH),
         "saved_mail_path": os.path.abspath(saved_mail_path) if saved_mail_path else "",
         "attachment_dir": os.path.abspath(paths.ATTACHMENT_DIR),
@@ -690,11 +748,12 @@ def graph_data():
         return "", 200
 
     user_id = (request.args.get("user_id") or "").strip().lower()
+    domain = (request.args.get("domain") or "mail").strip().lower()
 
     if not user_id:
         return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, domain)
 
     # 그래프 시각화 json 경로도 엔진별로 분리돼 있다(paths.GRAPH_JSON_PATH는 GraphRAG,
     # paths.LIGHTRAG_GRAPH_JSON_PATH는 LightRAG) — job_run_lightrag.py의 build_graph_json이
@@ -739,7 +798,7 @@ def index_status():
     user_id = (request.args.get("user_id") or "").strip().lower()
     if not user_id:
         return jsonify({"error": "user_id가 비어있습니다."}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"indexed": _index_ready(paths)})
 
 # 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
@@ -800,7 +859,7 @@ def upload_attachments():
         is_last = data.get("is_last", False)
         if is_last:
             # 이미 누적된 attachment_latest.csv로 GraphRAG update 실행
-            paths = UserPaths(BASE_DIR, user_id, "base")
+            paths = UserPaths(BASE_DIR, user_id, "mail")
             if os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
                 job_id = str(uuid.uuid4())[:8]
                 create_job(job_id, job_type="attachment")
@@ -824,7 +883,7 @@ def upload_attachments():
                 return jsonify({"ok": True, "message": "finish signal received"})
         return jsonify({"ok": False, "error": "attachments가 비어있습니다."}), 400
     
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
 
     # 2) 메일 인덱스가 준비되지 않았으면 거절
     # 메일 본문 인덱싱 완료 전에 첨부파일 처리하면 불완전한 그래프에 update가 붙는 문제 방지
@@ -901,7 +960,7 @@ def send_mail_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     print(f"[MAIL_STATS] user_id={user_id}")
     print(f"[MAIL_STATS] path={paths.USER_ROOT}")
     return jsonify({"user_id": user_id, "data": get_mail_stats(paths)})
@@ -920,7 +979,7 @@ def send_keyword_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_keyword_stats(paths)})
 
 @app.route("/keyword-by-person-date", methods=["POST"]) # 각 사람마다 주고받은 메일의 키위드 리턴
@@ -951,7 +1010,7 @@ def rebuild_keyword_mail_route():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     try:
         rebuild_keyword_mail(paths)
         return jsonify({"ok": True, "message": "mail_keyword 테이블 재구성 완료"})
@@ -967,7 +1026,7 @@ def upload_contact_photos():
         return jsonify({"error": "user_id is required"}), 400
     if not isinstance(photos, dict) or not photos:
         return jsonify({"ok": True, "message": "사진 없음"}), 200
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     existing = {}
     if os.path.exists(paths.MAIL_PHOTOS_PATH):
@@ -984,7 +1043,7 @@ def get_contact_photos():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     if not os.path.exists(paths.MAIL_PHOTOS_PATH):
         return jsonify({}), 200
     with open(paths.MAIL_PHOTOS_PATH, "r", encoding="utf-8") as f:
@@ -996,7 +1055,7 @@ def get_person_avatars():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify(get_cached_person_avatars(paths))
 
 @app.route("/generate-person-avatars", methods=["POST"])
@@ -1006,13 +1065,13 @@ def generate_person_avatars():
     people = data.get("people", [])
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     result = generate_person_avatars_batch(paths, people)
     return jsonify({"user_id": user_id, "data": result})
 
 @app.route("/person-avatar-image/<user_id>/<filename>")
 def person_avatar_image(user_id, filename):
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
 @app.route("/self-avatar", methods=["POST"])
@@ -1021,7 +1080,7 @@ def get_self_avatar():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({}), 200
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"url": get_cached_self_avatar(paths)})
 
 @app.route("/generate-self-avatar", methods=["POST"])
@@ -1031,7 +1090,7 @@ def generate_self_avatar_route():
     name = data.get("name", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     url = generate_self_avatar(paths, name)
     return jsonify({"url": url})
 
@@ -1041,7 +1100,7 @@ def send_high_affinity_person_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_high_affinity_person_stats(paths)})
 
 @app.route("/user_rating_stats", methods=["POST"])
@@ -1050,7 +1109,7 @@ def send_user_rating_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_user_rating_stats()})
 
 @app.route("/mail_sync_stats", methods=["POST"])
@@ -1059,7 +1118,7 @@ def send_mail_sync_stats():
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_mail_sync_stats(paths)})
 
 @app.route("/mail-exchange-stats", methods=["POST"])
@@ -1117,7 +1176,7 @@ def send_person_emails_in_range():
 
     # 2) 제목/본문은 MySQL에 없으므로(집계용 테이블), 메일 ID별로 파일 캐시에서만 조회한다.
     #    캐시에 없는 메일은 건너뛴다.
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     mail_cache = _load_mail_message_cache(paths)
 
     def _fetch_one(ref):
@@ -1216,7 +1275,7 @@ def send_mail_summaries():
     if summary_type not in ("monthly", "yearly"):
         return jsonify({"error": "type must be 'monthly' or 'yearly'"}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
     if not os.path.exists(paths.MAIL_SUMMARIES_PATH):
         return jsonify({"error": "summaries not generated yet"}), 404
 
@@ -1235,7 +1294,7 @@ def contacts_proxy():
     if not user_id:
         return jsonify({'ok': False, 'error': 'user_id가 비어있습니다.'}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "base")
+    paths = UserPaths(BASE_DIR, user_id, "mail")
 
     if action == 'getFrequentContacts':
         max_results = int(data.get('maxResults', 100))
@@ -1435,8 +1494,6 @@ def imap_collect():
                     "attachment": attachments,
                     "syncmode": sync_mode,
                     "user_id": user_id,
-                    "is_last": True,
-                    "batch_offset": 0,
                     "mail_platform": mail_platform,
                 },
                 content_type="application/json",
@@ -1479,10 +1536,109 @@ def imap_collect_status(job_id):
         "error": job.get("error"),
     })
 
-# 지금까지 인덱싱된 유저 반환
+# 엔드포인트: POST /message-upload — 카카오톡 대화 내보내기(.txt)를 파싱해서 "message" 도메인으로 업로드/인덱싱.
+# /imap-collect와 동일한 패턴: 백그라운드 스레드에서 처리 후 내부적으로 /upload를 호출해 저장/인덱싱을 위임함.
+@app.route("/message-upload", methods=["POST"])
+def message_upload():
+    data = request.json or {}
+    raw_text = data.get("content") or ""
+    room_name_input = (data.get("room_name") or "").strip()
+    sync_mode = data.get("sync_mode") or "append"
+    filename_hint = (data.get("filename") or "").strip()
+
+    if not raw_text.strip():
+        return jsonify({"ok": False, "error": "대화 내용이 비어있습니다."}), 400
+
+    room_name = room_name_input or guess_room_name(raw_text, filename_hint or "카카오톡 대화")
+    room_id = build_room_id(room_name)
+
+    job_id = str(uuid.uuid4())[:8]
+    create_job(job_id, job_type="message_upload")
+
+    def _worker():
+        update_job(job_id, status="running", message="카카오톡 대화 파싱 중")
+        broadcast({"type": "progress", "job_id": job_id, "message": "카카오톡 대화 파싱 중"})
+
+        try:
+            messages = parse_message_export(raw_text)
+            blocks = build_message_blocks(messages, room_name)
+        except Exception as e:
+            traceback.print_exc()
+            update_job(job_id, status="error", message="실패", error=f"파싱 중 오류: {e}")
+            broadcast({"type": "failed", "job_id": job_id, "message": f"파싱 중 오류: {e}"})
+            return
+
+        if not blocks:
+            result = {"ok": True, "added_count": 0, "skipped_count": 0, "message": "파싱된 대화가 없습니다.", "room_id": room_id}
+            update_job(job_id, status="done", message="완료", result=result)
+            broadcast({"type": "done", "job_id": job_id, "message": "완료", "result": result})
+            return
+
+        content = "\n\n".join(blocks).strip() + "\n"
+        filename = f"message_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.txt"
+
+        update_job(job_id, message="파싱한 대화 저장/인덱싱 준비 중")
+        broadcast({"type": "progress", "job_id": job_id, "message": "파싱한 대화 저장/인덱싱 준비 중"})
+
+        try:
+            with app.test_request_context(
+                "/upload", method="POST",
+                json={
+                    "filename": filename,
+                    "content": content,
+                    "attachment": [],
+                    "syncmode": sync_mode,
+                    "user_id": room_id,
+                    "mail_platform": "message",
+                    "domain": "messenger",
+                },
+                content_type="application/json",
+            ):
+                result = upload()
+        except Exception as e:
+            traceback.print_exc()
+            update_job(job_id, status="error", message="실패", error=f"업로드 처리 중 오류: {e}")
+            broadcast({"type": "failed", "job_id": job_id, "message": f"업로드 처리 중 오류: {e}"})
+            return
+
+        body, status_code = result if isinstance(result, tuple) else (result, 200)
+        try:
+            body_data = body.get_json()
+        except Exception:
+            body_data = None
+
+        if status_code >= 400 or not body_data:
+            error_msg = (body_data or {}).get("error", "업로드 처리 실패")
+            update_job(job_id, status="error", message="실패", error=error_msg)
+            broadcast({"type": "failed", "job_id": job_id, "message": error_msg})
+            return
+
+        body_data["room_id"] = room_id
+        body_data["room_name"] = room_name
+        update_job(job_id, status="done", message="완료", result=body_data)
+        broadcast({"type": "done", "job_id": job_id, "message": "완료", "result": body_data})
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"ok": True, "jobId": job_id, "room_id": room_id, "room_name": room_name})
+
+@app.route('/message-upload-status/<job_id>', methods=['GET'])
+def message_upload_status(job_id):
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"status": "not_found"}), 404
+
+    return jsonify({
+        "status": job["status"],
+        "message": job.get("message", ""),
+        "result": job.get("result"),
+        "error": job.get("error"),
+    })
+
+# 지금까지 인덱싱된 유저(또는 카카오 대화방, ?domain=message) 반환
 @app.route("/accounts", methods=["GET"])
 def accounts_route():
-    return jsonify({"accounts": list_accounts(BASE_DIR)})
+    domain = (request.args.get("domain") or "mail").strip().lower()
+    return jsonify({"accounts": list_accounts(BASE_DIR, domain)})
 
 # 정적 파일을 vite 빌드 없이 소스에서 직접 서빙하는 라우트. 브라우저가 들어오면 flask+url을 localStorage에 저장 및 홈화면으로 리다이렉트
 @app.route('/imap-start')

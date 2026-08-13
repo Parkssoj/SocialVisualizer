@@ -13,7 +13,15 @@ _MAX_MAILS_CONFIG = {
     "03yeah03@gmail.com": 300,
 }
 
+# 카카오톡 방 이름(한글 포함) 뒤에 build_room_id()가 붙여주는 "[msg_xxxxxxxx]" 해시 식별자.
+# 방 이름을 그대로 폴더명에 넣으면 한글이 전부 언더바로 뭉개져서 이름 길이만큼 폴더명이
+# 들쭉날쭉해지므로, 이 패턴이 있으면 해시 부분만 폴더명으로 쓴다(짧고 항상 일관된 길이).
+_MSG_ROOM_ID_RE = re.compile(r"\[msg_([0-9a-f]{8})\]\s*$")
+
 def _mail_to_dir_name(user_id: str) -> str:
+    m = _MSG_ROOM_ID_RE.search(user_id)
+    if m:
+        return f"msg_{m.group(1)}"
     s = user_id.strip().lower()
     s = s.replace("@", "_at_")
     s = s.replace(".", "_")
@@ -29,36 +37,45 @@ class UserPaths:
 
         dir_name = _mail_to_dir_name(user_id)
 
-        self.USER_ROOT = os.path.join(base_dir, "user_data", dir_name)          # 계정 식별용 (domain 무관)
+        # user_data/<domain>/<계정 또는 단톡방>/ 구조 — 도메인(메일/카카오)별로 먼저 나누고
+        # 그 밑에 계정 폴더를 둔다. list_accounts()/list_indexed_user_ids()가 이 구조를 그대로
+        # 훑으면서 계정 목록을 찾는다.
+        self.USER_ROOT = os.path.join(base_dir, "user_data", domain, dir_name)
 
-        # RAG_ENGINE별로 저장 위치를 완전히 분리한다: user_data/<계정>/graphrag/<domain>/...,
-        # user_data/<계정>/lightrag/<domain>/... 이렇게 엔진 세그먼트를 하나 더 두었다.
-        # 예전엔 domain 폴더가 USER_ROOT 바로 밑에 있어서(user_data/<계정>/<domain>/parquet)
-        # LightRAG가 working_dir로 GRAPHRAG_ROOT를 그대로 재사용할 수밖에 없었고, 그 결과
-        # LightRAG의 그래프/벡터/KV 저장소 파일들이 GraphRAG의 parquet 출력 폴더 안에
-        # 섞여 저장됐다. 지금은 아예 다른 폴더를 쓰므로 이 문제가 없다.
-        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag", domain)     # GraphRAG 데이터 저장 위치 (domain별)
+        # RAG_ENGINE별로 저장 위치를 완전히 분리한다: user_data/<domain>/<계정>/graphrag/...,
+        # user_data/<domain>/<계정>/lightrag/... 이렇게 엔진 세그먼트를 하나 더 두었다.
+        # domain은 이미 USER_ROOT 경로에 반영돼 있으므로 여기서 다시 붙이지 않는다(중복 방지).
+        # 예전엔 엔진 세그먼트가 없어서 LightRAG가 working_dir로 GRAPHRAG_ROOT를 그대로
+        # 재사용할 수밖에 없었고, 그 결과 LightRAG의 그래프/벡터/KV 저장소 파일들이 GraphRAG의
+        # parquet 출력 폴더 안에 섞여 저장됐다. 지금은 아예 다른 폴더를 쓰므로 이 문제가 없다.
+        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag")     # GraphRAG 데이터 저장 위치
         self.GRAPHRAG_ROOT = os.path.join(self.DOMAIN_ROOT, "parquet")
 
         # LightRAG 저장소(rag_storage에 해당) 전용 루트. LightRAG()의 working_dir로 그대로 쓴다
         # (job_run_lightrag.py의 _lightrag_ainsert, lightrag_engine.py의 get_lightrag_instance 참고).
         # GraphRAG의 input(mail_latest.txt)/통계 JSON은 계속 GRAPHRAG_ROOT 밑에 두고 두 엔진이
         # 공유한다 — 그건 "RAG 엔진의 결과물"이 아니라 엔진과 무관한 원본/통계 데이터라서다.
-        self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag", domain)
+        # domain은 이미 USER_ROOT에 반영돼 있으므로 여기서 다시 붙이지 않는다.
+        self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag")
 
         # LightRAG용 그래프 시각화 json. GraphRAG의 GRAPH_JSON_PATH(DOMAIN_ROOT/json/...)와
         # 똑같은 스키마({nodes, edges})를 쓰지만, 결과물이 섞이지 않도록 LIGHTRAG_ROOT 밑에
         # 따로 둔다 (util/lightrag_backend/lightrag_graph_json.py가 씀).
-        self.LIGHTRAG_GRAPH_JSON_PATH = os.path.join(self.LIGHTRAG_ROOT, "json", "graphml_data.json")
+        self.LIGHTRAG_GRAPH_JSON_PATH = os.path.join(self.LIGHTRAG_ROOT, "json", "graph_data.json")
 
         self.USER_GRAPH_SETTINGS_PATH = os.path.join(self.GRAPHRAG_ROOT, "settings.yaml")
         self.USER_GRAPH_PROMPTS_PATH = os.path.join(self.GRAPHRAG_ROOT, "prompts")
 
-        self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graphml_data.json")
+        # graphrag_parquet2json.py로 파일명이 바뀐 지 오래된 스크립트라 이쪽(HEAD) 이름을 쓴다 —
+        # parquet2json.py는 이제 존재하지 않는 옛날 파일명.
+        self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graph_data.json")
         self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "graphrag_parquet2json.py")
 
         self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
-        self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "mail_latest.txt")
+        # domain이 메일/카카오 둘 다 지원하게 되면서 "mail_" 접두사가 항상 맞진 않아서
+        # "latest.txt"로 이름을 바꿨다. 다른 파일들은 전부 이 값을 paths.MAIL_LATEST_PATH로만
+        # 참조하고 파일명을 직접 하드코딩하지 않으므로, 여기 한 곳만 바꾸면 전체에 반영된다.
+        self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "latest.txt")
         self.ATTACHMENT_DIR = os.path.join(self.MAIL_DIR, "attachments")
 
         self.PARQUET_DIR = os.path.join(self.DOMAIN_ROOT, "parquet", "output") # output 폴더: parquet들 저장
@@ -78,13 +95,16 @@ class UserPaths:
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
         _ensure_account_meta(self)
 
-# 계정 폴더가 이미 존재하는 경우에만 원본 user_id를 메타 파일로 남겨서
-# 나중에 폴더명(디렉터리 sanitize로 인해 원본 문자열이 손실됨)만으로도
-# 실제 계정 목록을 복원할 수 있게 한다. (/accounts 엔드포인트에서 사용)
+# 원본 user_id를 메타 파일로 남겨서 나중에 폴더명(디렉터리 sanitize로 인해 원본 문자열이
+# 손실됨)만으로도 실제 계정 목록을 복원할 수 있게 한다. (/accounts 엔드포인트에서 사용)
+# 계정 폴더가 아직 없어도(=최초 업로드 시점) 여기서 바로 만든다 — 폴더가 생긴 뒤에야 메타를
+# 쓰면, 한글처럼 sanitize로 원본이 복구 불가능하게 뭉개지는 이름은 영영 복구할 기회가 없다
+# (영문 이메일 계정은 우연히 역추정이 가능해서 이 버그가 가려져 있었을 뿐임).
 def _ensure_account_meta(paths: "UserPaths"):
-    if not os.path.isdir(paths.USER_ROOT) or os.path.exists(paths.ACCOUNT_META_PATH):
+    if os.path.exists(paths.ACCOUNT_META_PATH):
         return
     try:
+        os.makedirs(paths.USER_ROOT, exist_ok=True)
         with open(paths.ACCOUNT_META_PATH, "w", encoding="utf-8") as f:
             json.dump({"user_id": paths.USER_ID}, f, ensure_ascii=False)
     except OSError:
@@ -103,9 +123,11 @@ def _account_indexed(paths) -> bool:
         return _is_index_ready(paths)
     return False
 
-# user_data 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환
-def list_accounts(base_dir: str) -> list[dict]:
-    user_data_dir = os.path.join(base_dir, "user_data")
+# user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환.
+# domain 파라미터는 카카오 등 다른 도메인 지원을 위한 것 — 아래에서 _account_indexed()를
+# 통해 RAG_ENGINE에 맞는 방식으로 인덱싱 여부를 판단한다(엔진별 분기는 여기 없음, 위 함수에 모여있음).
+def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
+    user_data_dir = os.path.join(base_dir, "user_data", domain)
     accounts = []
 
     if os.path.isdir(user_data_dir):
@@ -113,6 +135,7 @@ def list_accounts(base_dir: str) -> list[dict]:
             dir_path = os.path.join(user_data_dir, dir_name)
             if not os.path.isdir(dir_path):
                 continue
+            # user_data/{domain}/ 아래를 훑는 것 자체가 이미 도메인 필터링이라 별도 체크 불필요.
 
             meta_path = os.path.join(dir_path, ACCOUNT_META_FILENAME)
             user_id = None
@@ -128,8 +151,7 @@ def list_accounts(base_dir: str) -> list[dict]:
                 # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
                 user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
 
-            # TODO: 실제 domain 선택 로직이 생기면 "base" 리터럴을 그 값으로 교체
-            paths = UserPaths(base_dir, user_id, "base")
+            paths = UserPaths(base_dir, user_id, domain)
             accounts.append({
                 "user_id": user_id,
                 "indexed": _account_indexed(paths),
@@ -138,8 +160,8 @@ def list_accounts(base_dir: str) -> list[dict]:
     return accounts
 
 # 인덱싱까지 완료된 계정의 user_id만 반환 (연합 검색 대상 계정 목록으로 사용)
-def list_indexed_user_ids(base_dir: str) -> list[str]:
-    return [a["user_id"] for a in list_accounts(base_dir) if a["indexed"]]
+def list_indexed_user_ids(base_dir: str, domain: str = "mail") -> list[str]:
+    return [a["user_id"] for a in list_accounts(base_dir, domain) if a["indexed"]]
 
 # 도메인별 공용 settings.yaml, prompts를 사용자 parquet 폴더에 복사
 def user_graphrag_init(paths):

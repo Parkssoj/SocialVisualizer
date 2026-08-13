@@ -9,6 +9,14 @@ from config.settings import MAIL_BLOCK_SEP
 IMAP_SUPPORTED_ATT_EXTS = {".pdf", ".docx", ".hwp", ".pptx", ".xlsx", ".csv", ".txt"}
 IMAP_MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
 
+# 마케팅 메일이 프리헤더(받은편지함 미리보기 줄)를 채우는 데 쓰는 폭 0 문자들.
+# ZWSP/ZWNJ/ZWJ/LRM/RLM, 방향 제어 문자(202A-202E), 워드조이너, BOM/ZWNBSP.
+_INVISIBLE_CHARS = "".join(chr(c) for c in (
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+    0x2060, 0xFEFF,
+))
+
 # 메일 헤더(Subject 등) MIME 인코딩 디코딩
 def _imap_decode_header_str(raw) -> str:
     if not raw:
@@ -24,13 +32,15 @@ def _imap_decode_header_str(raw) -> str:
             decoded += text
     return decoded.strip()
 
-# 발신/수신인 "이름 <계정>" 포맷
+# 발신/수신인 "이름 <계정>" 포맷. 표시 이름이 없으면 계정 로컬파트(@ 앞부분)를 이름 대신 사용한다.
 def _imap_format_person(name: str, addr: str) -> str:
     name = (name or "").strip()
     addr = (addr or "").strip().lower()
     if not addr:
         return "없음"
-    if name and name.lower() != addr:
+    if not name:
+        name = addr.split("@")[0]
+    if name.lower() != addr:
         return f"{name} <{addr}>"
     return f"<{addr}>"
 
@@ -82,14 +92,24 @@ def _imap_extract_body(msg) -> str:
     # text/plain 파트인데도 실제로는 HTML 원본이 그대로 들어있는 자동발송 메일이 있어서,
     # 어느 파트에서 왔든 최종 본문에 남은 태그/주석은 방어적으로 한 번 더 제거한다.
     body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)  # HTML 주석(조건부 주석 포함) 먼저 제거
+    # <style>/<script> 블록은 태그만 지우면 안의 CSS/JS 텍스트가 그대로 본문에 남으므로 내용째로 제거
+    body = re.sub(r"<style[^>]*>.*?</style>", " ", body, flags=re.DOTALL | re.IGNORECASE)
+    body = re.sub(r"<script[^>]*>.*?</script>", " ", body, flags=re.DOTALL | re.IGNORECASE)
     body = re.sub(r"<[^>]+>", " ", body)
+
+    # 본문에 남는 링크(구독 해지/추적 URL 등)는 엔티티 추출에 노이즈만 될 뿐 의미 있는 정보가 아니라서 제거
+    body = re.sub(r"https?://\S+", " ", body)
+
+    # 마케팅 메일이 받은편지함 미리보기 줄을 숨기려고 채워 넣는 폭 0 문자(ZWNJ/ZWJ/LRM/RLM/BOM 등) 제거 —
+    # display:none 처리된 프리헤더 안에 들어있어 화면엔 안 보이지만 태그가 아니라서 위 단계로는 안 걸러짐
+    body = re.sub(f"[{_INVISIBLE_CHARS}]", "", body)
 
     body = body.replace("\r\n", "\n")
     body = re.sub(r"[ \t]+", " ", body)
     body = re.sub(r"\n{3,}", "\n\n", body)
     return body.strip()
 
-# 지원하는 첨부파일은 실제 데이토 수집하고, 지원하지 않으면 메타정보만 수집
+# 지원하는 첨부파일은 실제 데이터 수집하고, 지원하지 않으면 메타정보만 수집
 def _imap_collect_attachments(msg) -> tuple[list[dict], list[dict]]:
     infos, payloads = [], []
     if not msg.is_multipart():
@@ -143,7 +163,7 @@ def _imap_build_block(mail_index: int, mail_id: str, msg, folder: str, my_email:
     att_infos, att_payloads = _imap_collect_attachments(msg)
     if att_infos:
         attachment_info = "\n".join(
-            f"- {a['name']} ({a['size']/1024:.1f} KB) [{a['status']}]" for a in att_infos
+            f"- {a['name']} ({a['size']/1024:.1f} KB) ({a['status']})" for a in att_infos
         )
     else:
         attachment_info = "없음"
@@ -154,23 +174,20 @@ def _imap_build_block(mail_index: int, mail_id: str, msg, folder: str, my_email:
         MAIL_BLOCK_SEP,
         f"[메일 {mail_index}]",
         "",
-        f"ID: {mail_id}",
-        f"제목: {subject}",
-        f"구분: {direction}",
-        f"날짜: {date_str}",
+        f"[ID] {mail_id}",
+        f"[제목] {subject}",
+        f"[구분] {direction}",
+        f"[날짜] {date_str}",
+        f"[발신인] {_imap_format_person(from_name, from_addr)}",
+        "[수신인] " + (", ".join(_imap_format_person(n, a) for n, a in to_list) if to_list else "없음"),
+        "[참조(CC)] " + (", ".join(_imap_format_person(n, a) for n, a in cc_list) if cc_list else "없음"),
+        f"[폴더 정보] {folder}",
         "",
-        f"발신인: {_imap_format_person(from_name, from_addr)}",
-        "수신인: " + (", ".join(_imap_format_person(n, a) for n, a in to_list) if to_list else "없음"),
-        "참조(CC): " + (", ".join(_imap_format_person(n, a) for n, a in cc_list) if cc_list else "없음"),
-        "",
-        "[라벨 정보]",
-        folder,
+        "[메일 본문]",
+        body if body.strip() else "(none)",
         "",
         "[첨부파일 정보]",
         attachment_info,
-        "",
-        "[메일 본문]",
-        body,
         MAIL_BLOCK_SEP,
     ])
 

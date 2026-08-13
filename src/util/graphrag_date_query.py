@@ -184,10 +184,12 @@ def _extract_date_range(message: str):
 
     return None
 
-# parquet에서 날짜 범위에 맞는 이메일 필터링
+# parquet에서 날짜 범위에 맞는 이메일 필터링 (단일 계정)
 def _filter_emails_by_date(paths, start_date: str, end_date: str) -> list:
     import pandas as pd
     entity_path = os.path.join(paths.GRAPHRAG_ROOT, 'output', 'entities.parquet')
+    if not os.path.exists(entity_path):
+        return []
     df = pd.read_parquet(entity_path)
 
     email_df = df[df['type'].str.upper() == 'EMAIL'].copy() # 타입 필드가 EMAIL인 엔티티만 필터링
@@ -219,6 +221,7 @@ def _filter_emails_by_date(paths, start_date: str, end_date: str) -> list:
         summary_match = re.search(r'Summary:\s*(.+)', desc)
 
         results.append({
+            'account': paths.USER_ID,
             'title': title_match.group(1).strip() if title_match else '(제목 없음)',
             'id': id_match.group(1).strip() if id_match else '알 수 없음',
             'date': date_match.group(1),
@@ -229,8 +232,9 @@ def _filter_emails_by_date(paths, start_date: str, end_date: str) -> list:
     results.sort(key=lambda x: x['date'])
     return results
 
-# 질의에서 날짜 범위 측정하여 parquet 에서 날짜 필터링 하여 llm 답변
-def run_date_range_query(message: str, paths) -> str:
+# 질의에서 날짜 범위 측정하여 parquet 에서 날짜 필터링 하여 llm 답변.
+# accounts_paths: 연합 대상 계정 목록 (인덱싱된 계정 전체) — 계정별로 각자 parquet을 필터링한 뒤 합친다.
+def run_date_range_query(message: str, accounts_paths: list) -> str:
     import openai
     date_range = _extract_date_range(message) # 질의에서 날짜 범위 추출, 날짜 패턴 없으면 None 반환
     if not date_range:
@@ -238,18 +242,27 @@ def run_date_range_query(message: str, paths) -> str:
 
     start_date, end_date = date_range
     start_time = time.time()  # 시작 시간 측정
-    emails = _filter_emails_by_date(paths, start_date, end_date) # parquet에서 날짜 범위에 해당하는 이메일 필터링
-    print(f"[DEBUG] filtered emails count: {len(emails)}") 
+
+    # 계정별로 필터링한 뒤 하나로 합쳐서 날짜순 정렬 (연합)
+    emails = []
+    for paths in accounts_paths:
+        emails.extend(_filter_emails_by_date(paths, start_date, end_date))
+    emails.sort(key=lambda x: x['date'])
+    print(f"[DEBUG] filtered emails count: {len(emails)} (계정 {len(accounts_paths)}개)")
 
     if not emails: # 해당 기간 이메일 없으면 바로 없다고 메시지 반환
         print(f'date_query execution_time : {time.time() - start_time}')
         return f"{start_date} ~ {end_date} 사이에 수신된 이메일이 없습니다."
 
-    # 필터링된 이메일 목록 LLM에 넘길 텍스트로 변환
+    # 필터링된 이메일 목록 LLM에 넘길 텍스트로 변환.
+    # 계정이 둘 이상 섞여 있을 때만 '계정:' 줄을 붙여서, 계정이 하나뿐인 기존 동작은 그대로 유지한다.
+    show_account = len({e['account'] for e in emails}) > 1
     lines = []
     for i, e in enumerate(emails, 1):
+        account_line = f"   계정: {e['account']}\n" if show_account else ""
         lines.append(
             f"{i}. 제목: {e['title']}\n"
+            f"{account_line}"
             f"   ID: {e['id']}\n"
             f"   날짜: {e['date']}\n"
             f"   요약: {e['summary']}"
@@ -257,6 +270,12 @@ def run_date_range_query(message: str, paths) -> str:
     context = "\n\n".join(lines)
 
     client = openai.OpenAI(api_key=os.environ.get("llm_API_KEY"))
+
+    account_note = (
+        " 이메일마다 '계정:' 필드가 있으니, 여러 계정이 섞여 있다는 걸 인지하고 "
+        "각 이메일을 나열할 때 그 이메일의 '계정:' 값도 함께 표기하세요."
+        if show_account else ""
+    )
 
     # 이메일 목록을 context로 넘겨서 LLM이 자연어로 답변 생성
     response = client.chat.completions.create(
@@ -273,6 +292,7 @@ def run_date_range_query(message: str, paths) -> str:
                     "날짜 범위를 임의로 재해석하거나 변경하지 마세요. "
                     "목록이 비어있지 않다면 반드시 모든 이메일을 답변에 포함하세요."
                     "이메일 목록의 첫 번째부터 마지막까지 순서대로 전부 나열하세요."
+                    + account_note
                 )
             },
             {

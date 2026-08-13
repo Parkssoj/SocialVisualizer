@@ -1,10 +1,7 @@
 import os
-import re
-import openai  
 import zlib
 import uuid
 import base64
-import traceback   
 
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
@@ -29,36 +26,6 @@ elif RAG_ENGINE == "graphrag":
     from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
 
 load_dotenv("src/parquet/.env")
-
-# 첨부파일 텍스트 요약
-def _summarize_attachment(text: str, filename: str, domain: str) -> str:
-    pure_len = len(text.replace(" ", "").replace("\n", ""))
-    if pure_len < 500:
-        return text
-
-    prompt_path = os.path.join("parquet_template", "rendered", domain, "prompts", "summarize_attachment.txt")
-    with open(prompt_path, "r", encoding="utf-8") as f:
-        prompt = f.read().strip()
-
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
-    try:
-        response = client.chat.completions.create(
-            model=os.getenv("RAG_CHAT_MODEL"),
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": f"파일명: {filename}\n\n{text}"}
-            ],
-            max_tokens=150
-        )
-        result = response.choices[0].message.content.strip()
-        REFUSAL_PREFIXES = ("죄송", "I'm sorry", "I'm unable", "I cannot", "Sorry")
-        if result.startswith(REFUSAL_PREFIXES):
-            print(f"[summarize_attachment] LLM 거부 응답 감지: {filename}")
-            return ""
-        return result
-    except Exception as e:
-        print(f"[summarize_attachment error] {e}")
-        return ""
 
 # PDF 파일에서 텍스트 추출
 def _extract_text_from_pdf(file_path):
@@ -276,7 +243,7 @@ def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, i
         else:
             print(f"[JOB][attachment] 중간 배치 → GraphRAG update 생략, 누적 중")
             _delete_old_update_files(paths)
-            mark_attachments_as_processed(paths.GMAIL_ID, attachments)
+            mark_attachments_as_processed(paths.USER_ID, attachments)
             update_job(job_id, status="done", message="첨부파일 누적 완료 (중간 배치)")
             return
 
@@ -284,7 +251,7 @@ def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, i
         _delete_old_update_files(paths)
 
         # [추가] 7) 처리 완료된 첨부파일 DB에 기록 (다음 트리거에서 중복 방지)
-        mark_attachments_as_processed(paths.GMAIL_ID, attachments)
+        mark_attachments_as_processed(paths.USER_ID, attachments)
 
         update_job(job_id, progress=100, status="done", message="첨부파일 인덱싱 완료")
         print(f"[JOB][attachment] SUCCESS job_id={job_id}")
@@ -430,4 +397,5 @@ def _parse_attachment_file(raw: str) -> dict[str, list[dict]]:
             result.setdefault(mail_id, []).extend(items)
 
     return result
+
 

@@ -4,6 +4,7 @@
  */
 (function (global) {
   const COLORS = {
+    // 메일 도메인
     EMAIL: "#f87171", // 빨강
     PERSON: "#ffa255", // 주황
     TOPIC: "#eef616", // 노랑
@@ -11,6 +12,10 @@
     LABEL: "#60a5fa", // 파랑
     EVENT: "#a78bfa", // 보라
     ATTACHMENT:   "#7b8899", // 회청
+    CHATROOM: "#22d3ee", // 청록
+    DATE: "#6366f1", // 남색
+    KEYWORD: "#fbbf24", // 황금색
+    NAMEDENTITY: "#f472b6", // 분홍
     unknown: "#c9d1d9", // 회색
   };
   function renderGraph(svgEl, data) {
@@ -84,7 +89,7 @@
         "link",
         d3
           .forceLink(data.edges)
-          .id((d) => d.label)
+          .id((d) => d.id)
           .distance(140 * viewScale),
       )
       .force("charge", d3.forceManyBody().strength(-800 * viewScale))
