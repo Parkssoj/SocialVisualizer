@@ -3,6 +3,9 @@ import re
 import time
 import datetime
 import calendar
+from dotenv import load_dotenv
+
+load_dotenv("src/parquet/.env")
 
 def _extract_date_range(message: str):
     today = datetime.datetime.now()
@@ -266,7 +269,7 @@ def run_date_range_query(message: str, accounts_paths: list) -> str:
         )
     context = "\n\n".join(lines)
 
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+    client = openai.OpenAI(api_key=os.environ.get("llm_API_KEY"))
 
     account_note = (
         " 이메일마다 '계정:' 필드가 있으니, 여러 계정이 섞여 있다는 걸 인지하고 "
@@ -276,7 +279,7 @@ def run_date_range_query(message: str, accounts_paths: list) -> str:
 
     # 이메일 목록을 context로 넘겨서 LLM이 자연어로 답변 생성
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("RAG_CHAT_MODEL"),
         messages=[
             {
                 "role": "system",

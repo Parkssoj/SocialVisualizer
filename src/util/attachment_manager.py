@@ -15,7 +15,12 @@ from openpyxl import load_workbook
 from flask import send_from_directory
 
 from config.settings import *
-from util.file_manager import _sanitize_filename
+from util.file_manager import _sanitize_filename, _delete_old_update_files
+from util.jobs.job_store import update_job
+from util.database.db_writer import mark_attachments_as_processed
+from util.jobs.job_run import build_graphrag_update, build_graph_json
+
+load_dotenv("src/parquet/.env")
 
 # PDF 파일에서 텍스트 추출
 def _extract_text_from_pdf(file_path):

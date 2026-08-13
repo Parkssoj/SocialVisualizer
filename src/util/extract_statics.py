@@ -13,7 +13,7 @@ from util.jobs.job_store import *
 # .env 로드
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("GRAPHRAG_API_KEY"))
+client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
 def start_timer():
     return {
@@ -93,7 +93,7 @@ def _is_friendly_tone_with_llm(body: str) -> bool:
     """.strip()
 
     result = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("SUB_TASK_CHAT_MODEL"),
         messages=[
             {
                 "role": "system",
@@ -134,7 +134,7 @@ def extract_keywords_with_llm(body: str) -> list[str]:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
             messages=[
                 {"role": "system", "content": "당신은 텍스트에서 핵심 키워드를 추출하는 AI입니다."},
                 {"role": "user", "content": prompt}
@@ -437,7 +437,7 @@ def generate_person_descriptions(paths) -> dict:
     def _call_llm(person_email, name, prompt):
         try:
             result = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=os.getenv("SUB_TASK_CHAT_MODEL"),
                 messages=[
                     {
                         "role": "system",

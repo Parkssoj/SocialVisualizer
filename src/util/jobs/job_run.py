@@ -3,10 +3,11 @@ import os
 import sys
 import re
 import subprocess
-import threading  
+import threading
 import traceback
 import openai
 import networkx as nx
+from dotenv import load_dotenv
 
 from util.jobs.job_store import update_job, append_job_log
 from util.graphrag_progress import get_stage_progress
@@ -20,7 +21,9 @@ from util.database.db_writer import create_mail_account,save_person_stats_to_db,
 from util.mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains
+from renderer import render_all_domains     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
+
+load_dotenv("src/parquet/.env")
 
 # threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
 # 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
@@ -61,15 +64,15 @@ def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
 
-    client = openai.OpenAI(api_key=os.environ.get("GRAPHRAG_API_KEY"))
+    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("RAG_CHAT_MODEL"),
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}
             ],
-            max_tokens=150  # 한글 약 300자 기준
+            max_completion_tokens=150  # 한글 약 300자 기준. gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
