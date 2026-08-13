@@ -1,4 +1,9 @@
-# src/parquet2json.py
+# src/graphrag_parquet2json.py
+#
+# GraphRAG 전용 파일 (parquet2json.py에서 이름만 변경). GraphRAG의 entities/relationships/
+# communities parquet을 그래프 시각화용 json으로 변환한다. job_run_graphrag.py가 이 파일을
+# subprocess로 실행한다 (paths.GRAPH_BUILD_SCRIPT). LightRAG는 이 변환기를 쓰지 않는다
+# (job_run_lightrag.py의 build_graph_json 참고 — 아직 미구현 스텁).
 
 import pandas as pd
 import json
@@ -99,7 +104,7 @@ def _build_edges(rel_df: pd.DataFrame) -> list[dict]:
 
     return edges
  
-# job_run.py에서 subprocess로 이 파일을 실행하면 여기서 시작
+# job_run_graphrag.py에서 subprocess로 이 파일을 실행하면 여기서 시작
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-dir", required=True)

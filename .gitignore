@@ -7,6 +7,9 @@ src/parquet/.env
 gmailweaver-venv/
 mailgrapher-venv/
 
+# 벤더 라이브러리 (직접 pip install로 받는 게 맞고, 레포에 통째로 커밋할 필요 없음)
+LightRAG/
+
 # GraphRAG generated artifacts
 src/parquet/output/
 src/parquet/cache/

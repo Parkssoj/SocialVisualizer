@@ -1,3 +1,8 @@
+# src/util/graphrag_mail_summary.py
+#
+# GraphRAG 전용 파일 (mail_summary.py에서 이름만 변경). text_units.parquet을 직접 읽어
+# 월별/연별 메일 요약을 만든다. LightRAG 버전은 util/lightrag_backend/lightrag_mail_summary.py.
+
 import os
 import re
 import json

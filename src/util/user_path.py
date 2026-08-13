@@ -30,14 +30,32 @@ class UserPaths:
         dir_name = _mail_to_dir_name(user_id)
 
         self.USER_ROOT = os.path.join(base_dir, "user_data", dir_name)          # 계정 식별용 (domain 무관)
-        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, domain)                 # 실제 데이터 저장 위치 (domain별)
+
+        # RAG_ENGINE별로 저장 위치를 완전히 분리한다: user_data/<계정>/graphrag/<domain>/...,
+        # user_data/<계정>/lightrag/<domain>/... 이렇게 엔진 세그먼트를 하나 더 두었다.
+        # 예전엔 domain 폴더가 USER_ROOT 바로 밑에 있어서(user_data/<계정>/<domain>/parquet)
+        # LightRAG가 working_dir로 GRAPHRAG_ROOT를 그대로 재사용할 수밖에 없었고, 그 결과
+        # LightRAG의 그래프/벡터/KV 저장소 파일들이 GraphRAG의 parquet 출력 폴더 안에
+        # 섞여 저장됐다. 지금은 아예 다른 폴더를 쓰므로 이 문제가 없다.
+        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag", domain)     # GraphRAG 데이터 저장 위치 (domain별)
         self.GRAPHRAG_ROOT = os.path.join(self.DOMAIN_ROOT, "parquet")
+
+        # LightRAG 저장소(rag_storage에 해당) 전용 루트. LightRAG()의 working_dir로 그대로 쓴다
+        # (job_run_lightrag.py의 _lightrag_ainsert, lightrag_engine.py의 get_lightrag_instance 참고).
+        # GraphRAG의 input(mail_latest.txt)/통계 JSON은 계속 GRAPHRAG_ROOT 밑에 두고 두 엔진이
+        # 공유한다 — 그건 "RAG 엔진의 결과물"이 아니라 엔진과 무관한 원본/통계 데이터라서다.
+        self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag", domain)
+
+        # LightRAG용 그래프 시각화 json. GraphRAG의 GRAPH_JSON_PATH(DOMAIN_ROOT/json/...)와
+        # 똑같은 스키마({nodes, edges})를 쓰지만, 결과물이 섞이지 않도록 LIGHTRAG_ROOT 밑에
+        # 따로 둔다 (util/lightrag_backend/lightrag_graph_json.py가 씀).
+        self.LIGHTRAG_GRAPH_JSON_PATH = os.path.join(self.LIGHTRAG_ROOT, "json", "graphml_data.json")
 
         self.USER_GRAPH_SETTINGS_PATH = os.path.join(self.GRAPHRAG_ROOT, "settings.yaml")
         self.USER_GRAPH_PROMPTS_PATH = os.path.join(self.GRAPHRAG_ROOT, "prompts")
 
         self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graphml_data.json")
-        self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "parquet2json.py")
+        self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "graphrag_parquet2json.py")
 
         self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
         self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "mail_latest.txt")
@@ -72,10 +90,21 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
+# 계정 하나의 인덱싱 완료 여부를 RAG_ENGINE에 맞는 방식으로 판단한다.
+# app.py의 _index_ready()와 같은 분기지만, user_path.py가 app.py를 import할 수 없어서
+# (순환 참조) 여기 따로 둔다. RAG_ENGINE이 바뀌어도 이 함수만 보면 되도록 모아뒀다.
+def _account_indexed(paths) -> bool:
+    from config.settings import RAG_ENGINE
+    if RAG_ENGINE == "lightrag":
+        from util.lightrag_backend.lightrag_engine import is_index_ready
+        return is_index_ready(paths.LIGHTRAG_ROOT)
+    elif RAG_ENGINE == "graphrag":
+        from util.graphrag import _is_index_ready
+        return _is_index_ready(paths)
+    return False
+
 # user_data 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환
 def list_accounts(base_dir: str) -> list[dict]:
-    from util.graphrag import _is_index_ready
-
     user_data_dir = os.path.join(base_dir, "user_data")
     accounts = []
 
@@ -103,7 +132,7 @@ def list_accounts(base_dir: str) -> list[dict]:
             paths = UserPaths(base_dir, user_id, "base")
             accounts.append({
                 "user_id": user_id,
-                "indexed": _is_index_ready(paths),
+                "indexed": _account_indexed(paths),
             })
 
     return accounts

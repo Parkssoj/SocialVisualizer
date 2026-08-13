@@ -21,7 +21,12 @@ from config.settings import *
 from util.file_manager import _sanitize_filename, _delete_old_update_files
 from util.jobs.job_store import update_job
 from util.database.db_writer import mark_attachments_as_processed
-from util.jobs.job_run import build_graphrag_update, build_graph_json
+
+# RAG_ENGINE(config/settings.py)에 따라 첨부파일 인덱싱 업데이트 함수를 고른다.
+if RAG_ENGINE == "lightrag":
+    from util.jobs.job_run_lightrag import build_lightrag_update, build_graph_json
+elif RAG_ENGINE == "graphrag":
+    from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
 
 # 첨부파일 텍스트 요약
 def _summarize_attachment(text: str, filename: str, domain: str) -> str:
@@ -258,10 +263,13 @@ def _run_attachment_pipeline(job_id: str, paths, attachments: list, env: dict, i
 
         update_job(job_id, progress=60, message="GraphRAG Update 실행 중")
 
-        # 4) graphrag update → json 생성 (마지막 배치일 때만)
+        # 4) 인덱싱 엔진 update → json 생성 (마지막 배치일 때만)
         print(f"[JOB][attachment] is_last={is_last}, job_id={job_id}")
         if is_last:
-            build_graphrag_update(job_id, paths, env)
+            if RAG_ENGINE == "lightrag":
+                build_lightrag_update(job_id, paths, env)
+            elif RAG_ENGINE == "graphrag":
+                build_graphrag_update(job_id, paths, env)
             build_graph_json(job_id, paths, env)
         else:
             print(f"[JOB][attachment] 중간 배치 → GraphRAG update 생략, 누적 중")

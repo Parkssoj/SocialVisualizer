@@ -432,7 +432,7 @@ def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
     return out.getvalue()
 
 
-def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
+#def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
     attrs = _pick_style_attributes(seed_key or name)
     result = client.images.generate(
         model=AVATAR_MODEL,

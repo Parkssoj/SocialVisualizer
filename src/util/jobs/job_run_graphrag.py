@@ -17,7 +17,7 @@ from util.user_path import user_graphrag_init
 from config.settings import MAIL_BLOCK_SEP, BASE_DIR
 from util.extract_statics import start_timer,end_timer,format_elapsed_time, _extract_statics_pipeline
 from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, save_mail_folder_to_db, save_mail_to_db, collect_indexing_stats, update_mail_account_indexing_stats, save_graph_stats_to_db
-from util.mail_summary import generate_mail_summaries
+from util.graphrag_mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_domains
