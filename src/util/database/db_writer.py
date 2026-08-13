@@ -775,12 +775,11 @@ def save_mail_folder_to_db(paths, update_date=None):
     df = pd.read_parquet(text_units_path)
 
     # 메일 하나가 GraphRAG 청크 분할로 여러 text_unit 행이 될 수 있음.
-    # 메일 폴더 정보 헤더는 첫 청크에만 있으므로, document_ids(=메일) 단위로 묶어서
+    # 메일 폴더 정보 헤더는 첫 청크에만 있으므로, document_id(=메일) 단위로 묶어서
     # 그중 하나라도 메일 폴더 정보를 찾으면 그 값을 메일의 폴더로 쓰고, 청크 수가 아닌 메일 수로 카운트한다.
     folder_by_doc = {}
     for _, row in df.iterrows():
-        doc_ids = row.get('document_ids')
-        doc_key = tuple(doc_ids) if hasattr(doc_ids, '__iter__') and not isinstance(doc_ids, str) else doc_ids
+        doc_key = row.get('document_id')
 
         if folder_by_doc.get(doc_key):
             continue

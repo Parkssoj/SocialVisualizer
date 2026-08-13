@@ -189,8 +189,11 @@ def _save_mail_contact_stats(paths, mode: str = "rewrite"):
     emails   = entities_df[entities_df[type_col].str.upper() == 'EMAIL']
 
     # relationships.parquet 기준: 실제 sent_by/sent_to가 있는 연락처만
-    sent_by_count = rel_df[rel_df['description'] == 'sent_by'].groupby('target').size()
-    sent_to_count = rel_df[rel_df['description'].str.contains('sent_to')].groupby('target').size()
+    # description은 관계 타입명이 아니라 한국어 문장이므로("이메일의 발신자는 ~이다." 등),
+    # 타입은 별도 컬럼이 아니라 문장 안의 "발신자"/"수신자"/"참조" 패턴으로 구분해야 함
+    is_cc = rel_df['description'].str.contains('참조', na=False)
+    sent_by_count = rel_df[rel_df['description'].str.contains('발신자', na=False) & ~is_cc].groupby('target').size()
+    sent_to_count = rel_df[rel_df['description'].str.contains('수신자', na=False) & ~is_cc].groupby('target').size()
 
     all_contacts = set(sent_by_count.index) | set(sent_to_count.index)
     all_contacts.discard(paths.USER_ID.upper())   # 본인 제외
