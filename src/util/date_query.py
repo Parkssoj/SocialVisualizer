@@ -260,7 +260,7 @@ def run_date_range_query(message: str, paths) -> str:
 
     # 이메일 목록을 context로 넘겨서 LLM이 자연어로 답변 생성
     response = client.chat.completions.create(
-        model=os.getenv("GRAPHRAG_CAHT_MODEL"),
+        model=os.getenv("RAG_CHAT_MODEL"),
         messages=[
             {
                 "role": "system",
