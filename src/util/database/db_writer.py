@@ -308,7 +308,7 @@ def update_mail_account_indexing_stats(user_mail_account_id: str, index_date, st
 
 
 def save_graph_stats_to_db(paths, update_date=None):
-    """graphml_data.json을 읽어 노드/엣지 수를 mail_account 테이블에 저장"""
+    """graph_data.json을 읽어 노드/엣지 수를 mail_account 테이블에 저장"""
     if not os.path.exists(paths.GRAPH_JSON_PATH):
         print(f"[WARN] 그래프 JSON 파일이 없습니다: {paths.GRAPH_JSON_PATH}")
         return

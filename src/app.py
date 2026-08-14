@@ -20,7 +20,6 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed 
 )
-from util.date_query import run_date_range_query
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -40,11 +39,32 @@ from openpyxl import load_workbook
 
 # Job 이용 공통함수 import
 from util.jobs.job_store import *
-from util.jobs.job_run import (
-    start_graph_pipeline_background,
-    start_graph_update_pipeline_background
-)
 from config.settings import *
+
+# RAG_ENGINE(config/settings.py)에 따라 인덱싱 파이프라인 진입점을 고른다.
+# job_run_graphrag.py/job_run_lightrag.py 둘 다 함수 이름을
+# start_graph_pipeline_background/start_graph_update_pipeline_background로 맞춰뒀기 때문에
+# import 경로만 바뀌고 아래에서 이 함수들을 부르는 코드는 그대로 쓸 수 있다.
+if RAG_ENGINE == "lightrag":
+    from util.jobs.job_run_lightrag import (
+        start_graph_pipeline_background,
+        start_graph_update_pipeline_background
+    )
+elif RAG_ENGINE == "graphrag":
+    from util.jobs.job_run_graphrag import (
+        start_graph_pipeline_background,
+        start_graph_update_pipeline_background
+    )
+
+# 날짜 범위 질의(예: "어제 메일 보여줘") 처리 함수도 RAG_ENGINE에 따라 고른다.
+# GraphRAG 버전은 entities.parquet을 읽는데, LightRAG 버전(lightrag_date_query.py)은
+# 원본 mail_latest.txt를 직접 읽는다 — parquet이 없는 LightRAG 모드에서 이 함수가
+# 그대로 크래시 나던 문제를 여기서 고쳤다.
+if RAG_ENGINE == "lightrag":
+    from util.lightrag_backend.lightrag_date_query import run_date_range_query
+elif RAG_ENGINE == "graphrag":
+    from util.graphrag_date_query import run_date_range_query
+
 from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
 from util.database.db_reader import (
     get_mail_stats,
@@ -73,8 +93,12 @@ from util.attachment_manager import (
     _extract_text_from_pptx,
     _extract_text_from_xlsx,
     _extract_text_from_csv,
+    _run_attachment_pipeline,
 )
-from util.jobs.job_run import _summarize_attachment_text, _merge_summarized_attachments
+if RAG_ENGINE == "lightrag":
+    from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments
+elif RAG_ENGINE == "graphrag":
+    from util.jobs.job_run_graphrag import _summarize_attachment_text, _merge_summarized_attachments
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
@@ -101,6 +125,16 @@ from util.graphrag import (
     _is_index_ready
 )
 from util.graphrag_query import _classify_query_method
+
+# _is_index_ready(GraphRAG, output/stats.json 존재 여부)와 lightrag_engine.is_index_ready
+# (LightRAG, graphml 파일 존재 여부) 중 RAG_ENGINE에 맞는 쪽을 골라서 판단하는 공용 헬퍼.
+# append 전환 판단(/upload)과 첨부파일 처리 게이트(/upload-attachments)가 이걸 같이 쓴다.
+def _index_ready(paths) -> bool:
+    if RAG_ENGINE == "lightrag":
+        from util.lightrag_backend.lightrag_engine import is_index_ready
+        return is_index_ready(paths.LIGHTRAG_ROOT)
+    elif RAG_ENGINE == "graphrag":
+        return _is_index_ready(paths)
 from util.mail_data_manager import (
     _read_latest_text,
     _extract_message_ids,
@@ -124,6 +158,13 @@ from util.message_parser import (
 )
 # 환경변수 로드
 load_dotenv("src/parquet/.env")
+
+# RAG_ENGINE(GraphRAG/LightRAG 스위치)은 config/settings.py에 상수로 정의돼 있고
+# 위 "from config.settings import *"로 이미 가져온 상태 — 여기서 따로 안 읽는다.
+# 서버 시작 시 터미널에서 바로 보이도록 한 번 크게 찍어준다.
+print("=" * 60)
+print(f"[RAG_ENGINE] 서버가 사용할 RAG 엔진: {RAG_ENGINE.upper()}")
+print("=" * 60)
 
 # Flask 앱 초기화
 app = Flask(__name__)
@@ -175,7 +216,6 @@ def run_query_async():
     update_job(job_id, status="pending", result=None, resType=resType)
 
     def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
-        from util.graphrag_query import run_graphrag_query, run_federated_local_search, run_federated_global_search
         try:
             env = os.environ.copy()
             env["USER_ID"] = user_id
@@ -193,45 +233,67 @@ def run_query_async():
             fallback_paths = accounts_paths[0]
 
             # 날짜 범위 쿼리 직접 필터링(parquet)은 "발신인:/제목:" 같은 이메일 전용 필드 포맷을 가정하고
-            # 있어서 카카오 도메인엔 안 맞음 — mail 도메인일 때만 시도하고, 그 외엔 곧장 GraphRAG로 보낸다.
+            # 있어서 카카오 도메인엔 안 맞음 — mail 도메인일 때만 시도하고, 그 외엔 곧장 GraphRAG/LightRAG로 보낸다.
             # accounts_paths 전체(인덱싱된 계정 전부)를 대상으로 연합해서 필터링한다.
-            answer = run_date_range_query(message, accounts_paths) if domain == "mail" else None # 이게 None이면 GraphRAG로
+            answer = run_date_range_query(message, accounts_paths) if domain == "mail" else None # 이게 None이면 GraphRAG/LightRAG로
             source_ids = []  # 초기화
             if answer is None:
                 full_message = message + " 영어 말고 한국어로 답변해줘."
 
-                resMethod = _classify_query_method(message)
+                if RAG_ENGINE == "lightrag":
+                    from util.lightrag_backend.lightrag_query import _classify_query_method as _classify_lightrag_method, run_federated_search, run_lightrag_query
+                    # GraphRAG는 local/global 둘뿐이지만 LightRAG는 6개 모드(local/global/hybrid/
+                    # naive/mix/bypass)라 분류기도, 아래 호출도 모드를 그대로 통과시킨다.
+                    resMethod = _classify_lightrag_method(message)
+                    print(f"[QUERY] RAG_ENGINE=lightrag mode={resMethod}")
 
-                if len(accounts_paths) == 1:
-                    # 계정(또는 방)이 하나뿐이면 연합 검색(계정 라벨링/ID 역추적)이 의미가 없으니
-                    # 바로 단일 엔진으로 검색한다.
-                    try:
-                        answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
-                    except Exception as e2:
-                        print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                        answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
-                elif resMethod == "local":
-                    try:
-                        answer, source_ids = run_federated_local_search(full_message, message, accounts_paths, primary_user_id=user_id)
-                    except Exception as e:
-                        print(f"[ENGINE] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
+                    if len(accounts_paths) == 1:
+                        # 계정(또는 방)이 하나뿐이면 연합 검색이 의미가 없으니 바로 단일 엔진으로 검색한다.
+                        answer, source_ids = run_lightrag_query(full_message, message, fallback_paths, method=resMethod)
+                    else:
+                        try:
+                            answer, source_ids = run_federated_search(full_message, message, accounts_paths, resMethod, primary_user_id=user_id)
+                        except Exception as e:
+                            print(f"[ENGINE][lightrag] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
+                            # LightRAG는 CLI가 없어서 GraphRAG처럼 마지막에 subprocess로 더 폴백할 데가 없다.
+                            # 여기서도 실패하면 바깥 except가 잡아서 job을 error 상태로 남긴다.
+                            answer, source_ids = run_lightrag_query(full_message, message, fallback_paths, method=resMethod)
+
+                elif RAG_ENGINE == "graphrag":
+                    from util.graphrag_query import run_graphrag_query, run_federated_local_search, run_federated_global_search
+                    resMethod = _classify_query_method(message)
+                    print(f"[QUERY] RAG_ENGINE=graphrag mode={resMethod}")
+
+                    if len(accounts_paths) == 1:
+                        # 계정(또는 방)이 하나뿐이면 연합 검색(계정 라벨링/ID 역추적)이 의미가 없으니
+                        # 바로 단일 엔진으로 검색한다.
                         try:
                             answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
                         except Exception as e2:
                             print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                            answer = _run_graphrag(full_message,message, resMethod, fallback_paths, resType)
-                else:
-                    try:
-                        answer, source_ids = run_federated_global_search(full_message, message, accounts_paths, primary_user_id=user_id)
-                    except Exception as e:
-                        print(f"[ENGINE] 연합 글로벌 검색 실패, 선택된 계정으로 폴백: {e}")
-                        try: # 엔진 객체 직접 호출 방식
-                            answer, source_ids = run_graphrag_query(full_message,message, fallback_paths, method=resMethod)
-                        except Exception as e2:
-                            # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
-                            print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                            answer = _run_graphrag(full_message,message, resMethod, fallback_paths, resType)
-                            # source_ids = _extract_source_mail_ids(answer)
+                            answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                    elif resMethod == "local":
+                        try:
+                            answer, source_ids = run_federated_local_search(full_message, message, accounts_paths, primary_user_id=user_id)
+                        except Exception as e:
+                            print(f"[ENGINE] 연합 검색 실패, 선택된 계정으로 폴백: {e}")
+                            try:
+                                answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
+                            except Exception as e2:
+                                print(f"[ENGINE] API 실패, CLI fallback: {e2}")
+                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                    else:
+                        try:
+                            answer, source_ids = run_federated_global_search(full_message, message, accounts_paths, primary_user_id=user_id)
+                        except Exception as e:
+                            print(f"[ENGINE] 연합 글로벌 검색 실패, 선택된 계정으로 폴백: {e}")
+                            try: # 엔진 객체 직접 호출 방식
+                                answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
+                            except Exception as e2:
+                                # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
+                                print(f"[ENGINE] API 실패, CLI fallback: {e2}")
+                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                                # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
             update_job(job_id, status="done", result=result, source_ids=source_ids)
@@ -330,8 +392,14 @@ def run_query():
     message += " 영어 말고 한국어로 답변해줘."
 
     try:
-        answer = _run_graphrag(message, resMethod, paths, resType)
-    except RuntimeError as e:
+        if RAG_ENGINE == "lightrag":
+            print(f"[QUERY] RAG_ENGINE=lightrag mode={resMethod}")
+            from util.lightrag_backend.lightrag_query import run_lightrag_query
+            answer, _source_ids = run_lightrag_query(message, message, paths, method=resMethod)
+        elif RAG_ENGINE == "graphrag":
+            print(f"[QUERY] RAG_ENGINE=graphrag mode={resMethod}")
+            answer = _run_graphrag(message, resMethod, paths, resType)
+    except Exception as e:  # lightrag 쪽은 RuntimeError 외의 예외도 던질 수 있어 범위를 넓힘
         return jsonify({'error': str(e)}), 500
 
     return jsonify({'result': answer})
@@ -403,7 +471,7 @@ def upload():
     fallback_to_rewrite = False
     sync_mode = requested_mode
 
-    if requested_mode == "append" and not _is_index_ready(paths):
+    if requested_mode == "append" and not _index_ready(paths):
         print("[UPLOAD] index not ready -> fallback to rewrite")
         sync_mode = "rewrite"
         fallback_to_rewrite = True
@@ -429,15 +497,20 @@ def upload():
             shutil.rmtree(paths.ATTACHMENT_DIR)
             print(f"[CLEAN] attachment 폴더 초기화 완료: {paths.ATTACHMENT_DIR}")
 
-        # [추가] stats.json 삭제 → 첨부파일 트리거가 인덱스 없음으로 판단해 거절됨
-        # rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지
-        stats_path = os.path.join(paths.GRAPHRAG_ROOT, "output", "stats.json")
-        if os.path.exists(stats_path):
+        # [추가] 인덱스 준비 여부 판단 기준 파일 삭제 → 첨부파일 트리거가 인덱스 없음으로
+        # 판단해 거절됨. rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지.
+        # _index_ready()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
+        # LightRAG: graph_chunk_entity_relation.graphml) RAG_ENGINE에 맞는 파일을 지운다.
+        if RAG_ENGINE == "lightrag":
+            ready_marker_path = os.path.join(paths.LIGHTRAG_ROOT, "graph_chunk_entity_relation.graphml")
+        elif RAG_ENGINE == "graphrag":
+            ready_marker_path = os.path.join(paths.GRAPHRAG_ROOT, "output", "stats.json")
+        if os.path.exists(ready_marker_path):
             try:
-                os.remove(stats_path)
-                print(f"[CLEAN] stats.json 삭제 완료 (rewrite 시작)")
+                os.remove(ready_marker_path)
+                print(f"[CLEAN] 인덱스 준비 마커 삭제 완료 (rewrite 시작): {ready_marker_path}")
             except Exception as e:
-                print(f"[CLEAN] stats.json 삭제 실패 (무시): {e}")
+                print(f"[CLEAN] 인덱스 준비 마커 삭제 실패 (무시): {e}")
 
         try:
             from util.database.db_writer import get_latest_mail_account
@@ -622,6 +695,7 @@ def upload():
         _build_mail_csv(paths)
         final_text = _read_latest_text(paths)
         total_mail_count = len([b for b in _split_mail_blocks(final_text) if _extract_mail_id_from_block(b)])
+        print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 전체 인덱싱(rewrite) 시작 job_id={graph_job_id}")
         start_graph_pipeline_background(graph_job_id, paths, env, added_count=total_mail_count, max_mails=paths.MAX_MAILS, mail_platform=mail_platform)
 
     else:  # append
@@ -630,13 +704,30 @@ def upload():
             # new_ids 없을 때 None 반환하도록 수정했으므로 None이면 update 생략
             csv_path = _build_mail_csv(paths, mode="append", new_ids=new_ids)
             if csv_path:
+                print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 증분 업데이트 시작 job_id={graph_job_id}")
                 start_graph_update_pipeline_background(graph_job_id, paths, env)
             else:
                 update_job(graph_job_id, status="done", message="CSV 없음, 업데이트 생략")
                 print("[UPLOAD] CSV 생성 실패 → graphrag update 생략")
         else:
-            update_job(graph_job_id, status="done", message="추가된 새 메일 없음, 업데이트 생략")
-            print("[UPLOAD] new_ids 없음 → graphrag update 생략")
+            # 증분 대상(new_ids)이 없다고 해서 무조건 건너뛰면 안 되는 경우가 있다:
+            # 예를 들어 mail_latest.txt/인덱스는 그대로인데 MySQL만 초기화된 상황처럼,
+            # "새로 추가할 메일은 없지만 실제로는 처음부터 다시 채워 넣어야 하는" 상태일 수
+            # 있다. 이런 걸 사용자가 매번 수동으로 "전체 재인덱싱"을 눌러서 우회해야 했는데,
+            # 여기서 자동으로 rewrite 파이프라인으로 전환한다 — mail_latest.txt는 이미
+            # 최신/완전한 상태이므로 그걸 그대로 전체 인덱싱 입력으로 쓰면 된다.
+            # (LightRAG의 ainsert()는 upsert라서 이미 인덱싱된 문서를 다시 넣어도 안전하다 —
+            # job_run_lightrag.py의 build_lightrag_index 주석 참고.)
+            print("[UPLOAD] new_ids 없음 → 증분할 새 메일 없음, 전체 재인덱싱으로 전환")
+            update_job(graph_job_id, message="증분 대상 없음 → 전체 재인덱싱으로 전환")
+
+            _build_mail_csv(paths)
+            final_text = _read_latest_text(paths)
+            total_mail_count = len([b for b in _split_mail_blocks(final_text) if _extract_mail_id_from_block(b)])
+            print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 전체 인덱싱(rewrite, 증분 폴백) 시작 job_id={graph_job_id}")
+            start_graph_pipeline_background(graph_job_id, paths, env, added_count=total_mail_count, max_mails=paths.MAX_MAILS, mail_platform=mail_platform)
+            sync_mode = "rewrite"  # 응답 필드(actual_mode)에도 실제로 rewrite로 처리됐음을 반영
+            fallback_to_rewrite = True  # index-not-ready 폴백과 같은 필드로 프론트에 "요청과 다르게 처리됨"을 알림
 
     return jsonify({
         "ok": True,
@@ -669,11 +760,19 @@ def graph_data():
 
     paths = UserPaths(BASE_DIR, user_id, domain)
 
-    if not os.path.exists(paths.GRAPH_JSON_PATH):
+    # 그래프 시각화 json 경로도 엔진별로 분리돼 있다(paths.GRAPH_JSON_PATH는 GraphRAG,
+    # paths.LIGHTRAG_GRAPH_JSON_PATH는 LightRAG) — job_run_lightrag.py의 build_graph_json이
+    # 인덱싱 직후 후자를 채운다.
+    if RAG_ENGINE == "lightrag":
+        graph_json_path = paths.LIGHTRAG_GRAPH_JSON_PATH
+    elif RAG_ENGINE == "graphrag":
+        graph_json_path = paths.GRAPH_JSON_PATH
+
+    if not os.path.exists(graph_json_path):
         return jsonify({"nodes": [], "edges": [], "error": "graph json not found"}), 200
 
     try:
-        with open(paths.GRAPH_JSON_PATH, "rb") as f:
+        with open(graph_json_path, "rb") as f:
             raw = f.read().rstrip(b'\x00')  # null 바이트 제거 (비정상 종료 방어)
         data = json.loads(raw.decode("utf-8"))
         print(f"[GRAPH-DATA] 반환: {len(data.get('nodes', []))} 노드")
@@ -705,7 +804,7 @@ def index_status():
     if not user_id:
         return jsonify({"error": "user_id가 비어있습니다."}), 400
     paths = UserPaths(BASE_DIR, user_id, "mail")
-    return jsonify({"indexed": _is_index_ready(paths)})
+    return jsonify({"indexed": _index_ready(paths)})
 
 # 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
 @app.route('/init')
@@ -744,6 +843,120 @@ def static_js(path):
 def static_fonts(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'fonts')
     return send_from_directory(dist_dir, path)
+
+# 엔드포인트: POST /upload-attachments
+# 중복 처리 방지 로직 추가
+# 기존: 10분마다 전체 첨부파일을 무조건 처리
+# 변경: DB 조회로 이미 처리된 (user_id, mail_id, filename) 조합 필터링 후 처리
+# 처리 완료 후 DB에 기록 → 다음 트리거에서 중복 처리 방지
+@app.route("/upload-attachments", methods=["POST"])
+def upload_attachments():
+    # 1) 데이터 수신
+    data = request.json or {}
+    user_id = (data.get("user_id") or "").strip().lower()
+    attachments = data.get("attachments") or []
+
+    if not user_id:
+        return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
+    
+    if not attachments:
+        # attachments 없이 is_last=true만 온 경우 → GraphRAG update 트리거
+        is_last = data.get("is_last", False)
+        if is_last:
+            # 이미 누적된 attachment_latest.csv로 GraphRAG update 실행
+            paths = UserPaths(BASE_DIR, user_id, "mail")
+            if os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
+                job_id = str(uuid.uuid4())[:8]
+                create_job(job_id, job_type="attachment")
+                env = os.environ.copy()
+                env["PYTHONUNBUFFERED"] = "1"
+                if RAG_ENGINE == "lightrag":
+                    from util.jobs.job_run_lightrag import build_lightrag_update, build_graph_json
+                elif RAG_ENGINE == "graphrag":
+                    from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
+                def _finish():
+                    print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 첨부파일 인덱싱 업데이트 시작 job_id={job_id}")
+                    if RAG_ENGINE == "lightrag":
+                        build_lightrag_update(job_id, paths, env)
+                    elif RAG_ENGINE == "graphrag":
+                        build_graphrag_update(job_id, paths, env)
+                    build_graph_json(job_id, paths, env)
+                    _delete_old_update_files(paths)
+                    update_job(job_id, status="done", message="첨부파일 인덱싱 완료")
+                    print(f"[JOB][attachment] SUCCESS job_id={job_id}")
+                threading.Thread(target=_finish, daemon=True).start()
+                return jsonify({"ok": True, "message": "finish signal received"})
+        return jsonify({"ok": False, "error": "attachments가 비어있습니다."}), 400
+    
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+
+    # 2) 메일 인덱스가 준비되지 않았으면 거절
+    # 메일 본문 인덱싱 완료 전에 첨부파일 처리하면 불완전한 그래프에 update가 붙는 문제 방지
+    # 10분 트리거가 다음번에 재시도함
+    if not _index_ready(paths):
+        print(f"[upload-attachments] 메일 인덱스 미준비 → 요청 거절, 다음 트리거에서 재시도")
+        return jsonify({"ok": False, "error": "메일 인덱스 미준비, 다음 트리거에서 재시도됩니다."}), 409
+
+    # 3) 인덱싱/업데이트 중이면 거절 (graphrag 동시 실행 방지)
+    running_jobs = [j for j in get_all_jobs().values()
+                if j.get("status") == "running"
+                and j.get("job_type") in ("index", "update", "batch")]
+    
+    if running_jobs:
+        print(f"[upload-attachments] 인덱싱 진행 중 → 요청 거절, 다음 트리거에서 재시도")
+        return jsonify({"ok": False, "error": "인덱싱 진행 중, 다음 트리거에서 재시도됩니다."}), 409
+
+    # 4) 이미 처리된 첨부파일 필터링
+    is_last = data.get("is_last", True)
+    unprocessed = filter_unprocessed_attachments(user_id, attachments)
+
+    if not unprocessed:
+        print(f"[upload-attachments] 모두 이미 처리된 첨부파일 → 스킵")
+        if is_last and os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
+            job_id = str(uuid.uuid4())[:8]
+            create_job(job_id, job_type="attachment")
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            if RAG_ENGINE == "lightrag":
+                from util.jobs.job_run_lightrag import build_lightrag_update, build_graph_json
+            elif RAG_ENGINE == "graphrag":
+                from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
+            def _finish():
+                print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 첨부파일 인덱싱 업데이트 시작 job_id={job_id}")
+                if RAG_ENGINE == "lightrag":
+                    build_lightrag_update(job_id, paths, env)
+                elif RAG_ENGINE == "graphrag":
+                    build_graphrag_update(job_id, paths, env)
+                build_graph_json(job_id, paths, env)
+                _delete_old_update_files(paths)
+                update_job(job_id, status="done", message="첨부파일 인덱싱 완료")
+                print(f"[JOB][attachment] SUCCESS job_id={job_id}")
+            threading.Thread(target=_finish, daemon=True).start()
+            return jsonify({"ok": True, "message": "모두 처리됨, finish 실행"})
+        return jsonify({"ok": True, "skipped": len(attachments), "message": "모두 이미 처리된 첨부파일"})
+
+    # 5) 즉시 200 응답 (Apps Script 타임아웃 방지)
+    job_id = str(uuid.uuid4())[:8]
+    create_job(job_id, job_type="attachment")
+    update_job(job_id, message="첨부파일 수신 완료, 백그라운드 처리 시작")
+
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+
+    # 6) 백그라운드에서 처리 (미처리 첨부파일만 전달)
+    t = threading.Thread(
+        target=_run_attachment_pipeline,
+        args=(job_id, paths, unprocessed, env, is_last),
+        daemon=True
+    )
+    t.start()
+
+    return jsonify({
+        "ok": True,
+        "job_id": job_id,
+        "attachment_count": len(unprocessed),
+        "skipped_count": len(attachments) - len(unprocessed),
+    })
 
 # 웹앱용 통계 라우트
 @app.route("/mail-stats", methods=["POST"])

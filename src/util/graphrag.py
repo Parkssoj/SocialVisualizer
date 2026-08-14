@@ -5,7 +5,7 @@ import re
 import subprocess
 
 from util.jobs.job_store import update_job
-from util.jobs.job_run import build_graph_json,build_graphrag_index,build_graphrag_update
+from util.jobs.job_run_graphrag import build_graph_json,build_graphrag_index,build_graphrag_update
 from util.database.db_writer import save_query_to_db
 from util.file_manager import _read_json_file
 from util.graphrag_query import strip_ids_for_display
