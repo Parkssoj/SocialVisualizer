@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import OrbitingCirclesGlobe from "./ui/orbiting-circles-02.tsx";
+import { GlobeLive } from "./ui/cobe-globe-live.tsx";
 
 export default function HeroOrbit() {
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
@@ -13,12 +13,11 @@ export default function HeroOrbit() {
 
   return (
     <div className="gw-orbit-hero">
-      <img
-        className="gw-layer bg"
-        src="/images/hero/hero-bg.png"
-        alt=""
-        aria-hidden="true"
-      />
+      <div className="gw-globe-belt" aria-hidden="true">
+        <div className="gw-globe-belt-inner">
+          <GlobeLive />
+        </div>
+      </div>
 
       <div className="gw-orbit-left">
         <p
@@ -28,7 +27,7 @@ export default function HeroOrbit() {
           ✦ 황금 올리브
         </p>
         <h1
-          className="gw-hero-headline gw-hero-headline-glow gw-anim"
+          className="gw-hero-headline gw-anim"
           style={{ transitionDelay: "0.05s" }}
         >
           Social Visualizer
@@ -209,14 +208,6 @@ export default function HeroOrbit() {
             지식 그래프 보기 →
           </a>
         </div>
-      </div>
-
-      <div
-        className="gw-orbit-right gw-anim"
-        id="kgraph"
-        style={{ transitionDelay: "0.3s" }}
-      >
-        <OrbitingCirclesGlobe />
       </div>
 
       <div className="gw-trusted gw-anim" style={{ transitionDelay: "0.4s" }}>

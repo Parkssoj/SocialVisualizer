@@ -317,7 +317,7 @@ footer {
 .page-index .right_col {
   padding: 0 !important;
   overflow: hidden !important;
-  background: #efeae0 !important; /* hero-bg 이미지 로딩 전 대체 색상 */
+  background: #ffffff !important;
 }
 body,
 html {
@@ -348,6 +348,29 @@ html {
   z-index: 0;
 }
 
+/* ── 하단 지구본 horizon — 원(지구본) 전체 높이의 위쪽 1/3만 보이도록 잘라서
+   화면 아래에 가로로 넓게 걸쳐있는 느낌을 줌. GlobeLive 자체는 정사각형(aspect-square)이라
+   inner를 뷰포트 너비로 채우면 높이도 똑같이 커지고, 바깥 belt가 그 위쪽 1/3만 남기고 잘라냄. */
+.gw-globe-belt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 33vw;
+  max-height: 420px;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+}
+.gw-globe-belt-inner {
+  position: absolute;
+  top: 0;
+  left: 73%; // 중앙(50%)에서 오른쪽으로 절반 정도 이동 — 필요하면 이 %만 조절하면 됨
+  transform: translateX(-50%);
+  width: 100vw;
+  max-width: 1260px;
+}
+
 .gw-orbit-left {
   position: relative;
   z-index: 4;
@@ -363,7 +386,7 @@ html {
     sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #fcfbfb; // Ivory Glow
+  color: #a3823f; // 흰 배경용 — 골드/올리브 톤
   letter-spacing: 0.04em;
   text-align: left;
 }
@@ -409,7 +432,7 @@ html {
   font-size: 17px;
   font-weight: 400;
   line-height: 1.7;
-  color: #fcfbfb; // Ivory Glow
+  color: #57726b; // 흰 배경용 — 톤 다운된 올리브 그레이
   text-align: left;
 }
 
@@ -458,14 +481,14 @@ html {
     sans-serif;
   font-size: 15px;
   font-weight: 500;
-  color: #e8c28a !important; // Warm Gold
+  color: #b8853a !important; // 흰 배경에서도 대비가 나오도록 톤을 낮춘 Warm Gold
   text-decoration: none !important;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
 }
 .gw-hero-cta-secondary:hover {
-  color: #e8c28a !important;
-  border-color: #e8c28a;
+  color: #b8853a !important;
+  border-color: #b8853a;
 }
 
 /* ── 하단 "지원 메일 서비스" 영역 ── */
@@ -490,7 +513,7 @@ html {
 .gw-trusted-label {
   margin: 0 0 14px;
   font-size: 0.78rem;
-  color: #fff6e1; // Ivory Glow
+  color: #57726b; // 흰 배경용
   letter-spacing: 0.06em;
 }
 .gw-trusted-logos {
@@ -502,9 +525,9 @@ html {
 .gw-trusted-logo {
   font-size: 1rem;
   font-weight: 700;
-  color: #fff6e1; // Ivory Glow
+  color: #374132; // 흰 배경용
   letter-spacing: 0.02em;
-  opacity: 0.9;
+  opacity: 0.55;
 }
 
 /* ── 궤도 노드 앵커 — 배경 사진 속 구체/링 위치에 맞춰 4개 메뉴를 배치하는 투명 컨테이너 ── */

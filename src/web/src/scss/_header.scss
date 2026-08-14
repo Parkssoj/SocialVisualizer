@@ -45,15 +45,15 @@
     "SOFT" 0,
     "WONK" 0; // f/a/g 등 quirky한 대체 글자 모양 끄고 얌전한 형태로 (home.scss 헤드라인과 동일 이유)
   font-size: 1.3rem;
-  color: #f9ffff;
+  color: #000000;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
 .gw-login-btn {
   background: none;
-  border: 1px solid rgba(248, 246, 241, 0.5);
-  color: #f8f6f1;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  color: #000000;
   font-size: 0.86rem;
   font-weight: 500;
   padding: 6px 16px;
@@ -64,8 +64,8 @@
     border-color 0.15s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: #f8f6f1;
+    background: rgba(0, 0, 0, 0.08);
+    border-color: #000000;
   }
 }
 
@@ -99,7 +99,7 @@
   letter-spacing: 0.01em;
   // _green-luxury.scss의 전역 `a { color: var(--gt-link-color) !important }`가
   // 사이트 전체 링크를 초록색으로 강제하므로, 이를 이기기 위해 !important 필요
-  color: #ffffff !important;
+  color: #000000 !important;
   text-decoration: none;
   border: none;
   background: transparent;
@@ -128,7 +128,7 @@
 .gw-lang-trigger,
 .gw-lang-trigger i,
 #current-lang {
-  color: #ffffff !important;
+  color: #000000 !important;
 }
 
 /* '매일 분석 현황' FAB — indexingStatus.js가 런타임에 주입하는 초록 스타일을 올리브 톤으로 강제 교체 */
