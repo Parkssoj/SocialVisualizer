@@ -37,17 +37,44 @@ class UserPaths:
 
         dir_name = _mail_to_dir_name(user_id)
 
-        self.USER_ROOT = os.path.join(base_dir, "user_data", domain, dir_name)  # 계정 폴더 (도메인 폴더 하위)
-        self.DOMAIN_ROOT = self.USER_ROOT                                       # 데이터 저장 위치 — 도메인은 이미 상위 폴더 경로에 반영돼 있어 계정 폴더 바로 아래에 parquet/json을 둠
+        # user_data/<domain>/<계정 또는 단톡방>/ 구조 — 도메인(메일/카카오)별로 먼저 나누고
+        # 그 밑에 계정 폴더를 둔다. list_accounts()/list_indexed_user_ids()가 이 구조를 그대로
+        # 훑으면서 계정 목록을 찾는다.
+        self.USER_ROOT = os.path.join(base_dir, "user_data", domain, dir_name)
+
+        # RAG_ENGINE별로 저장 위치를 완전히 분리한다: user_data/<domain>/<계정>/graphrag/...,
+        # user_data/<domain>/<계정>/lightrag/... 이렇게 엔진 세그먼트를 하나 더 두었다.
+        # domain은 이미 USER_ROOT 경로에 반영돼 있으므로 여기서 다시 붙이지 않는다(중복 방지).
+        # 예전엔 엔진 세그먼트가 없어서 LightRAG가 working_dir로 GRAPHRAG_ROOT를 그대로
+        # 재사용할 수밖에 없었고, 그 결과 LightRAG의 그래프/벡터/KV 저장소 파일들이 GraphRAG의
+        # parquet 출력 폴더 안에 섞여 저장됐다. 지금은 아예 다른 폴더를 쓰므로 이 문제가 없다.
+        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag")     # GraphRAG 데이터 저장 위치
         self.GRAPHRAG_ROOT = os.path.join(self.DOMAIN_ROOT, "parquet")
+
+        # LightRAG 저장소(rag_storage에 해당) 전용 루트. LightRAG()의 working_dir로 그대로 쓴다
+        # (job_run_lightrag.py의 _lightrag_ainsert, lightrag_engine.py의 get_lightrag_instance 참고).
+        # GraphRAG의 input(mail_latest.txt)/통계 JSON은 계속 GRAPHRAG_ROOT 밑에 두고 두 엔진이
+        # 공유한다 — 그건 "RAG 엔진의 결과물"이 아니라 엔진과 무관한 원본/통계 데이터라서다.
+        # domain은 이미 USER_ROOT에 반영돼 있으므로 여기서 다시 붙이지 않는다.
+        self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag")
+
+        # LightRAG용 그래프 시각화 json. GraphRAG의 GRAPH_JSON_PATH(DOMAIN_ROOT/json/...)와
+        # 똑같은 스키마({nodes, edges})를 쓰지만, 결과물이 섞이지 않도록 LIGHTRAG_ROOT 밑에
+        # 따로 둔다 (util/lightrag_backend/lightrag_graph_json.py가 씀).
+        self.LIGHTRAG_GRAPH_JSON_PATH = os.path.join(self.LIGHTRAG_ROOT, "json", "graph_data.json")
 
         self.USER_GRAPH_SETTINGS_PATH = os.path.join(self.GRAPHRAG_ROOT, "settings.yaml")
         self.USER_GRAPH_PROMPTS_PATH = os.path.join(self.GRAPHRAG_ROOT, "prompts")
 
+        # graphrag_parquet2json.py로 파일명이 바뀐 지 오래된 스크립트라 이쪽(HEAD) 이름을 쓴다 —
+        # parquet2json.py는 이제 존재하지 않는 옛날 파일명.
         self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graph_data.json")
-        self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "parquet2json.py")
+        self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "graphrag_parquet2json.py")
 
         self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
+        # domain이 메일/카카오 둘 다 지원하게 되면서 "mail_" 접두사가 항상 맞진 않아서
+        # "latest.txt"로 이름을 바꿨다. 다른 파일들은 전부 이 값을 paths.MAIL_LATEST_PATH로만
+        # 참조하고 파일명을 직접 하드코딩하지 않으므로, 여기 한 곳만 바꾸면 전체에 반영된다.
         self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "latest.txt")
         self.ATTACHMENT_DIR = os.path.join(self.MAIL_DIR, "attachments")
 
@@ -83,10 +110,23 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
-# user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환
-def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
-    from util.graphrag import _is_index_ready
+# 계정 하나의 인덱싱 완료 여부를 RAG_ENGINE에 맞는 방식으로 판단한다.
+# app.py의 _index_ready()와 같은 분기지만, user_path.py가 app.py를 import할 수 없어서
+# (순환 참조) 여기 따로 둔다. RAG_ENGINE이 바뀌어도 이 함수만 보면 되도록 모아뒀다.
+def _account_indexed(paths) -> bool:
+    from config.settings import RAG_ENGINE
+    if RAG_ENGINE == "lightrag":
+        from util.lightrag_backend.lightrag_engine import is_index_ready
+        return is_index_ready(paths.LIGHTRAG_ROOT)
+    elif RAG_ENGINE == "graphrag":
+        from util.graphrag import _is_index_ready
+        return _is_index_ready(paths)
+    return False
 
+# user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환.
+# domain 파라미터는 카카오 등 다른 도메인 지원을 위한 것 — 아래에서 _account_indexed()를
+# 통해 RAG_ENGINE에 맞는 방식으로 인덱싱 여부를 판단한다(엔진별 분기는 여기 없음, 위 함수에 모여있음).
+def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
     user_data_dir = os.path.join(base_dir, "user_data", domain)
     accounts = []
 
@@ -114,7 +154,7 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
             paths = UserPaths(base_dir, user_id, domain)
             accounts.append({
                 "user_id": user_id,
-                "indexed": _is_index_ready(paths),
+                "indexed": _account_indexed(paths),
             })
 
     return accounts

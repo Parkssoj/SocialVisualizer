@@ -431,6 +431,7 @@ def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
     return out.getvalue()
 
 
+
 def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
     # TEMP: GPT 이미지 생성 임시 비활성화
     raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
