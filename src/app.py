@@ -65,7 +65,7 @@ if RAG_ENGINE == "lightrag":
 elif RAG_ENGINE == "graphrag":
     from util.graphrag_date_query import run_date_range_query
 
-from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
+from util.user_path import UserPaths, list_accounts, list_indexed_user_ids, _account_indexed
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
@@ -120,21 +120,12 @@ from util.sse_broadcaster import (
     broadcast
 )
 from config.db import get_db_connection
-from util.graphrag import (
-    _run_graphrag,
-    _is_index_ready
-)
+from util.graphrag import _run_graphrag
 from util.graphrag_query import _classify_query_method
 
-# _is_index_ready(GraphRAG, output/stats.json 존재 여부)와 lightrag_engine.is_index_ready
-# (LightRAG, graphml 파일 존재 여부) 중 RAG_ENGINE에 맞는 쪽을 골라서 판단하는 공용 헬퍼.
+# 인덱스 준비 여부 판단은 util/user_path.py의 _account_indexed()를 그대로 쓴다
+# (app.py에 똑같은 RAG_ENGINE 분기 로직이 중복돼 있던 걸 제거함).
 # append 전환 판단(/upload)과 첨부파일 처리 게이트(/upload-attachments)가 이걸 같이 쓴다.
-def _index_ready(paths) -> bool:
-    if RAG_ENGINE == "lightrag":
-        from util.lightrag_backend.lightrag_engine import is_index_ready
-        return is_index_ready(paths.LIGHTRAG_ROOT)
-    elif RAG_ENGINE == "graphrag":
-        return _is_index_ready(paths)
 from util.mail_data_manager import (
     _read_latest_text,
     _extract_message_ids,
@@ -470,7 +461,7 @@ def upload():
     fallback_to_rewrite = False
     sync_mode = requested_mode
 
-    if requested_mode == "append" and not _index_ready(paths):
+    if requested_mode == "append" and not _account_indexed(paths):
         print("[UPLOAD] index not ready -> fallback to rewrite")
         sync_mode = "rewrite"
         fallback_to_rewrite = True
@@ -498,7 +489,7 @@ def upload():
 
         # [추가] 인덱스 준비 여부 판단 기준 파일 삭제 → 첨부파일 트리거가 인덱스 없음으로
         # 판단해 거절됨. rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지.
-        # _index_ready()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
+        # _account_indexed()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
         # LightRAG: graph_chunk_entity_relation.graphml) RAG_ENGINE에 맞는 파일을 지운다.
         if RAG_ENGINE == "lightrag":
             ready_marker_path = os.path.join(paths.LIGHTRAG_ROOT, "graph_chunk_entity_relation.graphml")
@@ -803,7 +794,7 @@ def index_status():
     if not user_id:
         return jsonify({"error": "user_id가 비어있습니다."}), 400
     paths = UserPaths(BASE_DIR, user_id, "mail")
-    return jsonify({"indexed": _index_ready(paths)})
+    return jsonify({"indexed": _account_indexed(paths)})
 
 # 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
 @app.route('/init')
@@ -897,7 +888,7 @@ def upload_attachments():
     # 2) 메일 인덱스가 준비되지 않았으면 거절
     # 메일 본문 인덱싱 완료 전에 첨부파일 처리하면 불완전한 그래프에 update가 붙는 문제 방지
     # 10분 트리거가 다음번에 재시도함
-    if not _index_ready(paths):
+    if not _account_indexed(paths):
         print(f"[upload-attachments] 메일 인덱스 미준비 → 요청 거절, 다음 트리거에서 재시도")
         return jsonify({"ok": False, "error": "메일 인덱스 미준비, 다음 트리거에서 재시도됩니다."}), 409
 
