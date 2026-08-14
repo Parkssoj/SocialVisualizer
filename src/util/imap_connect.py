@@ -9,6 +9,26 @@ from util.imap_message import _imap_build_block
 
 IMAP_FETCH_BATCH_SIZE = 50 # 한 번의 FETCH 요청으로 가져올 메일 개수
 
+# IMAP 호스트 → 실제 메일 플랫폼 이름 매핑 (mail_account.mail_platform에 저장)
+_IMAP_HOST_PLATFORM_MAP = {
+    "imap.gmail.com": "gmail",
+    "imap.naver.com": "naver",
+    "imap.daum.net": "daum",
+    "imap.mail.me.com": "icloud",
+    "imap.kakao.com": "kakao",
+    "imap.mail.yahoo.com": "yahoo",
+}
+
+def _detect_imap_platform(host: str) -> str:
+    host_lower = (host or "").strip().lower()
+    if host_lower in _IMAP_HOST_PLATFORM_MAP:
+        return _IMAP_HOST_PLATFORM_MAP[host_lower]
+    # 매핑에 없는 커스텀 호스트는 도메인에서 서비스명을 추정 (예: imap.foo.co.kr -> foo)
+    labels = [p for p in host_lower.split(".") if p not in ("imap", "mail", "www")]
+    if len(labels) >= 2:
+        return labels[-2]
+    return host_lower or "imap"
+
 # IMAP 폴더명(RFC 3501 Modified UTF-7)에 한글 등 비-ASCII 문자가 있을 때 인코딩
 def _imap_utf7_encode_folder(folder: str) -> str:
     result = bytearray()

@@ -17,7 +17,8 @@
         { "name": "mentioned_on", "source": "Keyword", "target": "Date", "when": "When that keyword was discussed in this date's conversation" },
         { "name": "mentioned_on", "source": "NamedEntity", "target": "Date", "when": "When that named entity was mentioned in this date's conversation" },
         { "name": "scheduled_on", "source": "Event", "target": "Date", "when": "When that event was mentioned in this date's conversation" },
-        { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" }
+        { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" },
+        { "name": "interacts_with", "source": "Person", "target": "Person", "when": "When two people directly converse with each other within the same day's conversation — replying to, addressing, or having a back-and-forth exchange with one another" }
     ],
     "grounding_rules": [
         "Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings shared in chat as entities.",
@@ -60,7 +61,9 @@
                 "The 'name' of a Person entity MUST be the display name exactly as it appears before each message (e.g. '09:15 홍길동: ...' → name is '홍길동').",
                 "CRITICAL: Do NOT create a Person entity from a system/notification line (marked with '[알림]', e.g. '~님이 들어왔습니다').",
                 "CRITICAL: Do NOT create a Person entity for a name that only appears mentioned inside another person's message content (e.g. '민수한테 물어봐') when that name never itself appears as a message sender (i.e., never precedes ':' in a message line) within the given text. Extract such mentioned-only names as a NamedEntity (type: 인물) instead — see NamedEntity rules.",
-                "Integrate multiple mentions of the same person (including minor typos/emoji variants) into a single entity when the identity is unambiguous from context; if there is any doubt, keep them as separate entities."
+                "Integrate multiple mentions of the same person (including minor typos/emoji variants) into a single entity when the identity is unambiguous from context; if there is any doubt, keep them as separate entities.",
+                "When two Person entities directly converse with each other in the given text (one replies to, addresses, or has a back-and-forth exchange with the other), extract an 'interacts_with' relationship between them IN ADDITION TO their individual participates_in/spoke_on edges — do not extract only one or the other.",
+                "In the description of an 'interacts_with' relationship, note any observable interaction cues present in the text — speech level (반말/존댓말), nicknames or terms of address (애칭/호칭), and the tone of the exchange (e.g. 장난스러움, 격식적임, 다정함) — since these hint at how close the two people are. Do not invent cues that aren't actually observable in the text."
             ],
             "Keyword": [
                 "Extract concise, reusable terms or short phrases that were actually discussed — not full sentences.",
@@ -92,12 +95,13 @@
             { "name": "mentioned_on", "source": "Keyword", "target": "Date", "when": "When that keyword was discussed in this date's conversation" },
             { "name": "mentioned_on", "source": "NamedEntity", "target": "Date", "when": "When that named entity was mentioned in this date's conversation" },
             { "name": "scheduled_on", "source": "Event", "target": "Date", "when": "When that event was mentioned in this date's conversation" },
-            { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" }
+            { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" },
+            { "name": "interacts_with", "source": "Person", "target": "Person", "when": "When two people directly converse with each other within the same day's conversation — replying to, addressing, or having a back-and-forth exchange with one another" }
         ],
         "relationship_rules": [
             "Only create a relationship when it is clearly and directly supported by the conversation text — do not infer relationships that aren't explicitly grounded.",
             "CRITICAL: 'participates_in' and 'spoke_on' relationships MUST only connect a Person who is confirmed as an actual message sender in the given text (their name precedes ':' in a message line) — never a person who is only mentioned inside another message's content.",
-            "Prefer connecting mentioned entities (Keyword/Event/NamedEntity/Attachment) to the Date they were mentioned on, and connecting Person/ChatRoom to that same Date, rather than building long indirect chains.",
+            "Prefer connecting mentioned entities (Keyword/Event/NamedEntity/Attachment) to the Date they were mentioned on, and connecting Person/ChatRoom to that same Date, rather than building long indirect chains. The one exception is a direct Person-to-Person 'interacts_with' relationship when two people actually converse with each other — extract that in addition to (not instead of) their individual spoke_on/participates_in edges.",
             "Relationship weight MUST be a float between 1.0 and 10.0. Explicit/central to the conversation: 7.0+ / Brief mention: 4.0 or below.",
             "Do NOT create duplicate relationships with the same source-target-type combination.",
             "Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description."
@@ -119,7 +123,8 @@
                     { "source": "가족톡", "target": "2024-01-01", "type": "active_on", "description": "가족톡에서 2024-01-01에 대화가 있었다.", "strength": 10 },
                     { "source": "홍길동", "target": "2024-01-01", "type": "spoke_on", "description": "홍길동이 2024-01-01에 저녁 약속을 제안하는 메시지를 보냈다.", "strength": 9 },
                     { "source": "김영희", "target": "2024-01-01", "type": "spoke_on", "description": "김영희가 2024-01-01에 약속에 응답하는 메시지를 보냈다.", "strength": 9 },
-                    { "source": "강남역 저녁 약속", "target": "2024-01-01", "type": "scheduled_on", "description": "2024-01-01 대화에서 저녁 7시 강남역 약속이 언급되었다.", "strength": 10 }
+                    { "source": "강남역 저녁 약속", "target": "2024-01-01", "type": "scheduled_on", "description": "2024-01-01 대화에서 저녁 7시 강남역 약속이 언급되었다.", "strength": 10 },
+                    { "source": "홍길동", "target": "김영희", "type": "interacts_with", "description": "홍길동과 김영희가 서로 반말로 저녁 약속을 빠르게 주고받으며 정했다.", "strength": 7 }
                 ]
             },
             {
