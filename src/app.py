@@ -147,7 +147,8 @@ from util.mail_data_manager import (
 from util.file_manager import _delete_incremental_files
 from util.imap_connect import (
     _imap_parse_list_line,
-    _imap_fetch_content
+    _imap_fetch_content,
+    _detect_imap_platform
 )
 from util.message_parser import (
     parse_message_export,
@@ -1392,27 +1393,6 @@ def imap_list_folders():
                 conn.logout()
             except Exception:
                 pass
-
-# IMAP 호스트 → 실제 메일 플랫폼 이름 매핑 (mail_account.mail_platform에 저장)
-_IMAP_HOST_PLATFORM_MAP = {
-    "imap.gmail.com": "gmail",
-    "imap.naver.com": "naver",
-    "imap.daum.net": "daum",
-    "imap.mail.me.com": "icloud",
-    "outlook.office365.com": "outlook",
-    "imap-mail.outlook.com": "outlook",
-    "imap.mail.yahoo.com": "yahoo",
-}
-
-def _detect_imap_platform(host: str) -> str:
-    host_lower = (host or "").strip().lower()
-    if host_lower in _IMAP_HOST_PLATFORM_MAP:
-        return _IMAP_HOST_PLATFORM_MAP[host_lower]
-    # 매핑에 없는 커스텀 호스트는 도메인에서 서비스명을 추정 (예: imap.foo.co.kr -> foo)
-    labels = [p for p in host_lower.split(".") if p not in ("imap", "mail", "www")]
-    if len(labels) >= 2:
-        return labels[-2]
-    return host_lower or "imap"
 
 # 메일 수집 요청
 @app.route("/imap-collect", methods=["POST"])
