@@ -843,6 +843,11 @@ def static_fonts(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'fonts')
     return send_from_directory(dist_dir, path)
 
+@app.route('/images/<path:path>')
+def static_images(path):
+    dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'images')
+    return send_from_directory(dist_dir, path)
+
 # 엔드포인트: POST /upload-attachments
 # 중복 처리 방지 로직 추가
 # 기존: 10분마다 전체 첨부파일을 무조건 처리
