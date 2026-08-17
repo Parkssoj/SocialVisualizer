@@ -51,7 +51,7 @@ export function renderHeader(activePage) {
       <div class="nav_menu d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center">
           <a href="index.html" class="gw-brand-logo">
-            <img src="/images/hero/sphere.png" class="gw-brand-logo-icon" alt="">
+            <img src="/images/logos/socialvisualizer.png" class="gw-brand-logo-icon" alt="">
             <span class="gw-brand-logo-text">Social Visualizer</span>
           </a>
           <nav class="gw-top-links">${navLinks}</nav>
@@ -62,7 +62,7 @@ export function renderHeader(activePage) {
               <button type="button" class="gw-login-btn">로그인</button>
             </li>
             <li class="nav-item dropdown">
-              <a href="#" role="button" class="dropdown-toggle" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none;color:inherit;">
+              <a href="#" role="button" class="gw-lang-trigger dropdown-toggle" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none;">
                 <i class="bi bi-translate" style="font-size:1.2rem;vertical-align:middle;"></i>
                 <span id="current-lang" style="margin-left:4px;font-size:.9rem;">KO</span>
               </a>

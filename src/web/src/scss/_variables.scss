@@ -1,53 +1,54 @@
 // =============================================================================
-// GmailWeaver — Luxury Forest Green Design System
+// GmailWeaver — Luxury Amber/Orange Design System
+// (기존 "Luxury Forest Green" 팔레트를 동일한 구조로 유지한 채 주황/앰버 톤으로 전환)
 // =============================================================================
 
 :root {
   // =========================================================================
-  // Brand Colors — Deep Forest Green Palette
+  // Brand Colors — Warm Amber/Orange Palette
   // =========================================================================
-  --gt-primary: #1a9e6e;           // Emerald green (주 브랜드 색)
-  --gt-primary-dark: #157a56;      // 깊은 초록
-  --gt-primary-light: #22c78a;     // 밝은 민트 그린
-  --gt-primary-glow: rgba(26, 158, 110, 0.18);  // 글로우 효과용
+  --gt-primary: #f97316;           // Vivid orange (주 브랜드 색)
+  --gt-primary-dark: #c2410c;      // 깊은 주황
+  --gt-primary-light: #fb923c;     // 밝은 오렌지
+  --gt-primary-glow: rgba(249, 115, 22, 0.18);  // 글로우 효과용
   --gt-secondary: #e74c3c;         // 깊은 포레스트 다크 (사이드바)
   --gt-secondary-mid: #f05e50;     // 사이드바 중간 톤
-  --gt-accent: #34d399;            // 라이트 민트 (포인트)
+  --gt-accent: #fdba74;            // 라이트 오렌지 (포인트)
   --gt-accent-gold: #d4a843;       // 골드 포인트 (고급감)
 
   // =========================================================================
   // Semantic Colors
   // =========================================================================
-  --gt-success: #1a9e6e;
+  --gt-success: #f97316;
   --gt-info: #0ea5a0;              // 틸 블루
   --gt-warning: #d4a843;
   --gt-danger: #e05252;
   --gt-purple: #7c6fcd;
 
   // =========================================================================
-  // Neutral Colors — 따뜻한 그린 베이스 중립색
+  // Neutral Colors — 따뜻한 오렌지 베이스 중립색
   // =========================================================================
   --gt-white: #ffffff;
   --gt-black: #000000;
-  --gt-dark: #1b2e22;
-  --gt-gray-900: #1e2d24;
-  --gt-gray-800: #374840;
-  --gt-gray-700: #4f6358;
-  --gt-gray-600: #6b8278;
-  --gt-gray-500: #8a9e96;
-  --gt-gray-400: #aabdb5;
-  --gt-gray-300: #c8d8d2;
-  --gt-gray-200: #deeae5;
-  --gt-gray-100: #edf5f1;
-  --gt-gray-50: #f4faf7;
+  --gt-dark: #2b1f12;
+  --gt-gray-900: #2b2118;
+  --gt-gray-800: #453626;
+  --gt-gray-700: #5c4a38;
+  --gt-gray-600: #7a6552;
+  --gt-gray-500: #9c8770;
+  --gt-gray-400: #bfae98;
+  --gt-gray-300: #dccfbd;
+  --gt-gray-200: #ece2d5;
+  --gt-gray-100: #f5efe6;
+  --gt-gray-50: #faf6f0;
 
   // =========================================================================
   // Background Colors
   // =========================================================================
-  --gt-body-bg: #f0f7f3;           // 연한 그린 바디 배경
+  --gt-body-bg: #ffffff;           // 흰색 바디 배경 (홈 화면은 home.scss에서 별도로 흰색 강제)
   --gt-content-bg: #ffffff;
-  --gt-sidebar-bg: #0f2419;        // 딥 포레스트
-  --gt-sidebar-active-bg: #1a9e6e;
+  --gt-sidebar-bg: #241608;        // 딥 브라운(다크 앰버)
+  --gt-sidebar-active-bg: #f97316;
   --gt-panel-bg: #ffffff;
   --gt-input-bg: #ffffff;
   --gt-header-bg: #ffffff;
@@ -55,57 +56,57 @@
   // =========================================================================
   // Border Colors
   // =========================================================================
-  --gt-border-color: #d8ebe3;
-  --gt-border-light: #e8f2ec;
-  --gt-border-dark: #c0d9cc;
+  --gt-border-color: #ecdfd0;
+  --gt-border-light: #f5ece0;
+  --gt-border-dark: #d9c4ab;
 
   // =========================================================================
   // Text Colors
   // =========================================================================
-  --gt-text-primary: #4f6358;
-  --gt-text-dark: #1b2e22;
-  --gt-text-muted: #8a9e96;
+  --gt-text-primary: #5c4a38;
+  --gt-text-dark: #2b1f12;
+  --gt-text-muted: #9c8770;
   --gt-text-light: #ffffff;
-  --gt-link-color: #1a9e6e;
-  --gt-link-hover: #157a56;
+  --gt-link-color: #f97316;
+  --gt-link-hover: #c2410c;
 
   // =========================================================================
   // Sidebar
   // =========================================================================
-  --gt-sidebar-text: #b8d9c8;
+  --gt-sidebar-text: #f0d9bd;
   --gt-sidebar-heading: rgba(255,255,255,0.28);
-  --gt-sidebar-hover-bg: rgba(52, 211, 153, 0.10);
+  --gt-sidebar-hover-bg: rgba(249, 115, 22, 0.10);
   --gt-sidebar-active-text: #ffffff;
-  --gt-sidebar-icon: #4d9470;
+  --gt-sidebar-icon: #c2703a;
   --gt-sidebar-profile-bg: rgba(255,255,255,0.06);
-  --gt-sidebar-profile-border: rgba(52, 211, 153, 0.15);
+  --gt-sidebar-profile-border: rgba(249, 115, 22, 0.15);
 
   // =========================================================================
   // Navigation
   // =========================================================================
-  --gt-nav-bg: #f4faf7;
-  --gt-nav-active: #1a9e6e;
-  --gt-nav-border: #d8ebe3;
+  --gt-nav-bg: #faf3ea;
+  --gt-nav-active: #f97316;
+  --gt-nav-border: #ecdfd0;
 
   // =========================================================================
   // Tables
   // =========================================================================
-  --gt-table-border: #d8ebe3;
-  --gt-table-striped: rgba(26, 158, 110, 0.04);
-  --gt-table-hover: rgba(26, 158, 110, 0.08);
+  --gt-table-border: #ecdfd0;
+  --gt-table-striped: rgba(249, 115, 22, 0.04);
+  --gt-table-hover: rgba(249, 115, 22, 0.08);
 
   // =========================================================================
   // Forms
   // =========================================================================
-  --gt-input-border: #c8d8d2;
-  --gt-input-focus-border: #1a9e6e;
-  --gt-input-focus-shadow: 0 0 0 3px rgba(26, 158, 110, 0.15);
-  --gt-input-placeholder: #8a9e96;
+  --gt-input-border: #dccfbd;
+  --gt-input-focus-border: #f97316;
+  --gt-input-focus-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+  --gt-input-placeholder: #9c8770;
 
   // =========================================================================
   // Alerts
   // =========================================================================
-  --gt-alert-success-bg: #d4f0e6;
+  --gt-alert-success-bg: #fde3cf;
   --gt-alert-info-bg: #d0f0ee;
   --gt-alert-warning-bg: #fdf3dc;
   --gt-alert-danger-bg: #fde8e8;
@@ -130,13 +131,13 @@
   --gt-letter-spacing: -0.01em;
 
   // =========================================================================
-  // Shadows — 그린 틴트 그림자 (고급감)
+  // Shadows — 오렌지 틴트 그림자 (고급감)
   // =========================================================================
-  --gt-shadow-sm: 0 1px 3px rgba(15, 36, 25, 0.06);
-  --gt-shadow-md: 0 4px 12px rgba(15, 36, 25, 0.10), 0 1px 3px rgba(15, 36, 25, 0.06);
-  --gt-shadow-lg: 0 8px 24px rgba(15, 36, 25, 0.12), 0 3px 8px rgba(15, 36, 25, 0.08);
-  --gt-shadow-glow: 0 0 20px rgba(26, 158, 110, 0.25);
-  --gt-shadow-card: 0 2px 8px rgba(15, 36, 25, 0.07), 0 0 1px rgba(15, 36, 25, 0.04);
+  --gt-shadow-sm: 0 1px 3px rgba(43, 31, 18, 0.06);
+  --gt-shadow-md: 0 4px 12px rgba(43, 31, 18, 0.10), 0 1px 3px rgba(43, 31, 18, 0.06);
+  --gt-shadow-lg: 0 8px 24px rgba(43, 31, 18, 0.12), 0 3px 8px rgba(43, 31, 18, 0.08);
+  --gt-shadow-glow: 0 0 20px rgba(249, 115, 22, 0.25);
+  --gt-shadow-card: 0 2px 8px rgba(43, 31, 18, 0.07), 0 0 1px rgba(43, 31, 18, 0.04);
 
   // =========================================================================
   // Transitions
@@ -168,27 +169,27 @@
   --gt-z-tooltip: 1070;
 
   // =========================================================================
-  // Gradients — 시그니처 그린 그라디언트
+  // Gradients — 시그니처 오렌지 그라디언트
   // =========================================================================
-  --gt-gradient-primary: linear-gradient(135deg, #1a9e6e 0%, #0f7a52 100%);
-  --gt-gradient-sidebar: linear-gradient(180deg, #1a3d2a 0%, #122b1d 60%, #0e2218 100%);
-  --gt-gradient-accent: linear-gradient(135deg, #22c78a 0%, #1a9e6e 100%);
+  --gt-gradient-primary: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
+  --gt-gradient-sidebar: linear-gradient(180deg, #3d2410 0%, #2b1a0d 60%, #221407 100%);
+  --gt-gradient-accent: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
   --gt-gradient-gold: linear-gradient(135deg, #d4a843 0%, #b8892c 100%);
-  --gt-gradient-card: linear-gradient(145deg, #ffffff 0%, #f4faf7 100%);
+  --gt-gradient-card: linear-gradient(145deg, #ffffff 0%, #faf3ea 100%);
 }
 
 // =============================================================================
 // SCSS Variables
 // =============================================================================
 
-$gt-primary: #1a9e6e;
-$gt-primary-dark: #157a56;
-$gt-primary-light: #22c78a;
+$gt-primary: #f97316;
+$gt-primary-dark: #c2410c;
+$gt-primary-light: #fb923c;
 $gt-secondary: #e74c3c;
-$gt-accent: #34d399;
+$gt-accent: #fdba74;
 $gt-accent-gold: #d4a843;
 
-$gt-success: #1a9e6e;
+$gt-success: #f97316;
 $gt-info: #0ea5a0;
 $gt-warning: #d4a843;
 $gt-danger: #e05252;
@@ -196,15 +197,15 @@ $gt-purple: #7c6fcd;
 
 $gt-white: #ffffff;
 $gt-black: #000000;
-$gt-dark: #1b2e22;
-$gt-gray-600: #6b8278;
-$gt-gray-200: #deeae5;
-$gt-gray-100: #edf5f1;
-$gt-gray-50: #f4faf7;
+$gt-dark: #2b1f12;
+$gt-gray-600: #7a6552;
+$gt-gray-200: #ece2d5;
+$gt-gray-100: #f5efe6;
+$gt-gray-50: #faf6f0;
 
-$gt-body-bg: #f0f7f3;
-$gt-sidebar-bg: #0f2419;
-$gt-border-color: #d8ebe3;
+$gt-body-bg: #faf3ea;
+$gt-sidebar-bg: #241608;
+$gt-border-color: #ecdfd0;
 
 $color-classes: (
   'green': $gt-primary,

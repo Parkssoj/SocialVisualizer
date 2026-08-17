@@ -16,7 +16,7 @@
   gap: 10px;
 }
 .gw-page-title i {
-  color: #26b99a;
+  color: #fb923c;
 }
 .gw-page-subtitle {
   font-size: 0.875rem;
@@ -48,8 +48,8 @@
 }
 .gw-tab-btn:hover { color: #2A3F54; }
 .gw-tab-btn.active {
-  color: #1a9e6e;
-  border-bottom-color: #26B99A;
+  color: #f97316;
+  border-bottom-color: #fb923c;
 }
 
 .gw-tab-panel { display: none; }
@@ -72,12 +72,12 @@
 }
 .gw-dropzone:hover,
 .gw-dropzone.dragover {
-  border-color: #26B99A;
+  border-color: #fb923c;
   background: #f0faf7;
 }
 .gw-dropzone i {
   font-size: 1.8rem;
-  color: #26B99A;
+  color: #fb923c;
 }
 .gw-dropzone-text {
   font-size: 0.9rem;
@@ -119,7 +119,7 @@
   padding-bottom: 12px;
 }
 .gw-card-title i {
-  color: #26b99a;
+  color: #fb923c;
 }
 
 /* ── 폼 요소 ── */
@@ -156,8 +156,8 @@
     box-shadow 0.2s;
 }
 .gw-input:focus {
-  border-color: #26b99a;
-  box-shadow: 0 0 0 3px rgba(38, 185, 154, 0.12);
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
   background: #fff;
 }
 .gw-input::placeholder {
@@ -181,8 +181,8 @@
   padding-right: 32px;
 }
 .gw-select:focus {
-  border-color: #26b99a;
-  box-shadow: 0 0 0 3px rgba(38, 185, 154, 0.12);
+  border-color: #fb923c;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
 }
 
 /* ── 프리셋 칩 ── */
@@ -207,13 +207,13 @@
   transition: all 0.15s;
 }
 .gw-preset-chip:hover {
-  border-color: #26b99a;
-  color: #26b99a;
+  border-color: #fb923c;
+  color: #fb923c;
   background: #f0faf7;
 }
 .gw-preset-chip.active {
-  border-color: #26b99a;
-  background: #26b99a;
+  border-color: #fb923c;
+  background: #fb923c;
   color: #fff;
 }
 
@@ -236,13 +236,13 @@
   user-select: none;
 }
 .gw-folder-item:hover {
-  border-color: #26b99a;
+  border-color: #fb923c;
   background: #f0faf7;
 }
 .gw-folder-item.checked {
-  border-color: #26b99a;
+  border-color: #fb923c;
   background: #f0faf7;
-  color: #1a9e6e;
+  color: #f97316;
   font-weight: 600;
 }
 .gw-folder-item input[type="checkbox"] {
@@ -253,7 +253,7 @@
   color: #73879c;
 }
 .gw-folder-item.checked i {
-  color: #26b99a;
+  color: #fb923c;
 }
 .gw-folder-label {
   font-size: 0.87rem;
@@ -277,8 +277,8 @@
   transition: all 0.15s;
 }
 .gw-select-all-btn:hover {
-  border-color: #26b99a;
-  color: #1a9e6e;
+  border-color: #fb923c;
+  color: #f97316;
   background: #f0faf7;
 }
 
@@ -288,7 +288,7 @@
   align-items: center;
   gap: 10px;
   padding: 13px 32px;
-  background: linear-gradient(135deg, #26b99a 0%, #1a9e6e 100%);
+  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -298,11 +298,11 @@
   transition:
     transform 0.15s,
     box-shadow 0.15s;
-  box-shadow: 0 4px 16px rgba(38, 185, 154, 0.35);
+  box-shadow: 0 4px 16px rgba(251, 146, 60, 0.35);
 }
 .gw-collect-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(38, 185, 154, 0.45);
+  box-shadow: 0 6px 22px rgba(251, 146, 60, 0.45);
 }
 .gw-collect-btn:active {
   transform: scale(0.98);
@@ -350,8 +350,8 @@
   gap: 5px;
 }
 .gw-status-badge.running {
-  background: rgba(38, 185, 154, 0.12);
-  color: #1a9e6e;
+  background: rgba(251, 146, 60, 0.12);
+  color: #f97316;
 }
 .gw-status-badge.done {
   background: #eaf3de;
@@ -393,7 +393,7 @@
 }
 .gw-progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #26b99a, #34d399);
+  background: linear-gradient(90deg, #fb923c, #fdba74);
   width: 0%;
   transition: width 0.5s ease;
   border-radius: 0 2px 2px 0;
@@ -448,7 +448,7 @@
   word-break: break-word;
 }
 .gw-log-msg.success {
-  color: #1a9e6e;
+  color: #f97316;
   font-weight: 600;
 }
 .gw-log-msg.error {
@@ -494,7 +494,7 @@
   font-weight: 600;
   background: #f0faf7;
   border: 1px solid #d8ebe3;
-  color: #1a9e6e;
+  color: #f97316;
 }
 .gw-result-chip i {
   font-size: 1rem;
