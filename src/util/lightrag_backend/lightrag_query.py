@@ -90,9 +90,12 @@ def _load_account_sender_map(paths) -> dict:
     except OSError:
         return {}
     sender_map = {}
+    # 대괄호 형식("[ID] ...")과 콜론 형식("ID: ...") 둘 다 받는다 — 실제 mail_latest.txt는
+    # 대괄호 형식이라 콜론만 찾던 이전 버전은 항상 매칭 실패했다(다른 lightrag_* 파일들의
+    # 같은 버그와 동일한 원인/수정).
     for block in text.split(MAIL_BLOCK_SEP):
-        id_m = re.search(r'^ID:\s*(.+?)\s*$', block, re.MULTILINE)
-        sender_m = re.search(r'^발신인:\s*(.+?)\s*$', block, re.MULTILINE)
+        id_m = re.search(r'^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$', block, re.MULTILINE)
+        sender_m = re.search(r'^\s*(?:\[발신인\]|발신인:)\s*(.+?)\s*$', block, re.MULTILINE)
         if id_m and sender_m:
             sender_map[id_m.group(1).strip().lower()] = sender_m.group(1).strip()
     return sender_map
@@ -145,7 +148,7 @@ def run_lightrag_query(message: str, original_message: str, paths, method: str =
     # 절대 안 닫는 루프(lightrag_loop.py)에 코루틴만 제출한다 — 인스턴스와 그 백그라운드
     # 워커들이 항상 같은 루프에서 살기 때문에 그 문제가 근본적으로 없어진다.
     async def _search():
-        rag = await get_lightrag_instance(paths.USER_ID, paths.LIGHTRAG_ROOT)
+        rag = await get_lightrag_instance(paths.USER_ID, paths.LIGHTRAG_OUTPUT_DIR)
         param = QueryParam(mode=method)
 
         answer = await rag.aquery(message, param)
@@ -219,7 +222,7 @@ def run_federated_search(message: str, original_message: str, accounts_paths: li
 
         for paths in accounts_paths:
             try:
-                rag = await get_lightrag_instance(paths.USER_ID, paths.LIGHTRAG_ROOT)
+                rag = await get_lightrag_instance(paths.USER_ID, paths.LIGHTRAG_OUTPUT_DIR)
                 data = await rag.aquery_data(message, param)
             except Exception as e:
                 print(f"[FEDERATED] {paths.USER_ID} 인스턴스 로드/조회 실패, 스킵: {e}")
