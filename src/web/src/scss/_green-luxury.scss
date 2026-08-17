@@ -27,14 +27,14 @@ body {
 .left_col,
 .nav_side {
   background: var(--gt-gradient-sidebar) !important;
-  border-right: 1px solid rgba(52, 211, 153, 0.07) !important;
+  border-right: 1px solid rgba(253, 186, 116, 0.07) !important;
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18) !important;
 }
 
 // ── 로고 영역 ─────────────────────────────────────────────────────────────────
 .nav_title {
   background: rgba(0, 0, 0, 0.12) !important;
-  border-bottom: 1px solid rgba(52, 211, 153, 0.1) !important;
+  border-bottom: 1px solid rgba(253, 186, 116, 0.1) !important;
   padding: 0 20px !important;
   height: 60px !important;
   display: flex !important;
@@ -55,7 +55,7 @@ body {
       width: 26px !important;
       height: 26px !important;
       object-fit: contain !important;
-      filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.5)) !important;
+      filter: drop-shadow(0 0 6px rgba(253, 186, 116, 0.5)) !important;
     }
 
     i {
@@ -113,7 +113,7 @@ body {
       max-width: 100% !important;
       line-height: 1.2 !important;
       letter-spacing: -0.02em !important;
-      text-shadow: 0 0 18px rgba(52, 211, 153, 0.45) !important;
+      text-shadow: 0 0 18px rgba(253, 186, 116, 0.45) !important;
     }
   }
 }
@@ -147,7 +147,7 @@ body {
     display: block !important;
     width: 20px !important;
     height: 1px !important;
-    background: rgba(52, 211, 153, 0.2) !important;
+    background: rgba(253, 186, 116, 0.2) !important;
     margin-bottom: 8px !important;
   }
 }
@@ -232,11 +232,11 @@ body {
 .side-menu > li.current-page > a {
   background: linear-gradient(
     135deg,
-    rgba(26, 158, 110, 0.25) 0%,
+    rgba(249, 115, 22, 0.25) 0%,
     rgba(15, 122, 82, 0.18) 100%
   ) !important;
   color: #fff !important;
-  border: 1px solid rgba(52, 211, 153, 0.2) !important;
+  border: 1px solid rgba(253, 186, 116, 0.2) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 2px 8px rgba(0, 0, 0, 0.15) !important;
@@ -261,7 +261,7 @@ body {
     height: 60% !important;
     background: var(--gt-primary-light) !important;
     border-radius: 0 3px 3px 0 !important;
-    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6) !important;
+    box-shadow: 0 0 8px rgba(253, 186, 116, 0.6) !important;
   }
 }
 
@@ -310,13 +310,13 @@ body {
 
     &:hover {
       color: #fff !important;
-      background: rgba(52, 211, 153, 0.08) !important;
+      background: rgba(253, 186, 116, 0.08) !important;
       padding-left: 50px !important;
 
       &::before {
         background: var(--gt-primary-light) !important;
         opacity: 1 !important;
-        box-shadow: 0 0 6px rgba(52, 211, 153, 0.5) !important;
+        box-shadow: 0 0 6px rgba(253, 186, 116, 0.5) !important;
       }
     }
   }
@@ -325,7 +325,7 @@ body {
 // ── 사이드바 하단 푸터 ────────────────────────────────────────────────────────
 .sidebar-footer {
   background: rgba(0, 0, 0, 0.15) !important;
-  border-top: 1px solid rgba(52, 211, 153, 0.08) !important;
+  border-top: 1px solid rgba(253, 186, 116, 0.08) !important;
   padding: 10px 14px !important;
   display: flex !important;
   align-items: center !important;
@@ -345,7 +345,7 @@ body {
 
     &:hover {
       color: var(--gt-primary-light) !important;
-      background: rgba(52, 211, 153, 0.12) !important;
+      background: rgba(253, 186, 116, 0.12) !important;
       transform: translateY(-1px) !important;
     }
   }
@@ -459,13 +459,13 @@ body {
   font-weight: 600 !important;
   font-size: 13px !important;
   letter-spacing: 0.01em !important;
-  box-shadow: 0 2px 8px rgba(26, 158, 110, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3) !important;
   transition: all var(--gt-transition-fast) !important;
 
   &:hover,
   &:focus {
-    background: linear-gradient(135deg, #157a56 0%, #0f5e40 100%) !important;
-    box-shadow: 0 4px 16px rgba(26, 158, 110, 0.45) !important;
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%) !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.45) !important;
     transform: translateY(-1px);
   }
   &:active {
@@ -640,11 +640,11 @@ a {
 
 .gw-search-box button {
   background: var(--gt-gradient-primary) !important;
-  box-shadow: 0 4px 14px rgba(26, 158, 110, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
 
   &:hover {
-    background: linear-gradient(135deg, #157a56 0%, #0f5e40 100%) !important;
-    box-shadow: 0 6px 20px rgba(26, 158, 110, 0.5) !important;
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%) !important;
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5) !important;
   }
 }
 
@@ -680,26 +680,15 @@ footer {
 }
 
 // ── 언어 스위처 ───────────────────────────────────────────────────────────────
-#langDropdown {
-  color: var(--gt-text-dark) !important;
-  font-weight: 500 !important;
-  font-size: 13px !important;
-  padding: 6px 10px !important;
-  border-radius: var(--gt-radius-md) !important;
-  transition: all var(--gt-transition-fast) !important;
-
-  &:hover {
-    background: var(--gt-primary-glow) !important;
-    color: var(--gt-primary-dark) !important;
-  }
-
-  .bi-translate {
-    color: var(--gt-primary) !important;
-  }
-}
+// 예전 vanilla 헤더 시절 id(#langDropdown) 기준 규칙이었음 — 지금은 홈(React
+// Header.jsx, id 없음)과 다른 페이지(appHeader.js, id="langDropdown") 둘 다
+// _header.scss의 .gw-lang-trigger 클래스 규칙(검정색)으로 통일해서 관리 중.
+// 이 블록은 id 선택자라 .gw-lang-trigger(class)보다 우선순위가 높아서, id가
+// 있는 다른 페이지에서만 번역 아이콘이 초록색(var(--gt-primary))으로 새고
+// 홈 화면만 검정색으로 보이는 불일치의 원인이었음 — 완전히 제거함.
 
 // ── 선택 강조 색 ──────────────────────────────────────────────────────────────
 ::selection {
-  background: rgba(26, 158, 110, 0.2);
+  background: rgba(249, 115, 22, 0.2);
   color: var(--gt-primary-dark);
 }
