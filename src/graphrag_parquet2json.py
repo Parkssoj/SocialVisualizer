@@ -18,6 +18,19 @@ def _extract_email_subject(description: str) -> str | None:
     m = re.search(r"Subject:\s*(.+?)\s*\|", description)
     return m.group(1).strip() if m and m.group(1).strip() else None
 
+# 메신저 interacts_with 엣지 description 앞에 붙는 "[관계: 친구]" 태그(messenger.json의
+# summarize_descriptions/extract_graph 규칙 참고)를 분리해 별도 필드로 뽑아낸다.
+# 태그가 없으면(다른 도메인/엣지 타입) relation_label은 None, description은 원본 그대로 둔다.
+_RELATION_TAG_RE = re.compile(r"^\[관계:\s*([^\]]+?)\]\s*")
+
+def _extract_relation_tag(description: str | None) -> tuple[str | None, str | None]:
+    if not description:
+        return None, description
+    m = _RELATION_TAG_RE.match(description)
+    if not m:
+        return None, description
+    return m.group(1).strip(), description[m.end():].strip()
+
 # pandas에서 읽은 값을 JSON으로 저장 가능한 타입으로 변환
 def _convert(val):
     try:
@@ -103,13 +116,15 @@ def _build_edges(rel_df: pd.DataFrame) -> list[dict]:
     edges = []
  
     # relationships.parquet의 각 행(= 관계 하나)을 순회
-    for i, row in rel_df.iterrows(): 
+    for i, row in rel_df.iterrows():
+        relation_label, description = _extract_relation_tag(_convert(row.get("description", None)))
         edge = {
             "source":            str(row[src_col]), # 엣지 출발 노드
             "target":            str(row[tgt_col]), # 엣지 도착 노드
             "id":                _convert(row.get("id", str(i))), # 엣지 고유 식별자
             "human_readable_id": _convert(row.get("human_readable_id", None)), # GraphRAG가 부여한 숫자 형태의 ID
-            "description":       _convert(row.get("description", None)), # 엣지 설명문
+            "description":       description, # 엣지 설명문 ("[관계: ...]" 태그는 relation_label로 분리하고 제거)
+            "relation_label":    relation_label, # 사람-사람 interacts_with 엣지의 관계 카테고리(가족/연인/친구/동료/지인). 없으면 None
             "weight":            _convert(row.get("weight", 1.0)), # 엣지 가중치
             "source_id":         _convert(row.get("source_id", None)), # 관계가 어느 원본 문서에서 추출됐는지 추적용 ID
             "level":             _convert(row.get("level", None)), # GraphRAG 계층 레벨
