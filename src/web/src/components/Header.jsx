@@ -86,7 +86,7 @@ export default function Header({ activePage }) {
         <div className="d-flex align-items-center">
           <a href="index.html" className="gw-brand-logo">
             <img
-              src="/images/hero/sphere.png"
+              src="/images/logos/socialvisualizer.png"
               className="gw-brand-logo-icon"
               alt=""
             />

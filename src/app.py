@@ -65,7 +65,7 @@ if RAG_ENGINE == "lightrag":
 elif RAG_ENGINE == "graphrag":
     from util.graphrag_date_query import run_date_range_query
 
-from util.user_path import UserPaths, list_accounts, list_indexed_user_ids, _account_indexed
+from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
@@ -81,8 +81,7 @@ from util.database.db_reader import (
     get_person_mail_ids_in_range
 )
 from util.file_manager import (
-    _sanitize_filename,
-    _delete_old_update_files
+    _sanitize_filename
 )
 from util.attachment_manager import (
     _save_attachment_from_base64,
@@ -93,7 +92,6 @@ from util.attachment_manager import (
     _extract_text_from_pptx,
     _extract_text_from_xlsx,
     _extract_text_from_csv,
-    _run_attachment_pipeline,
 )
 if RAG_ENGINE == "lightrag":
     from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments
@@ -120,12 +118,21 @@ from util.sse_broadcaster import (
     broadcast
 )
 from config.db import get_db_connection
-from util.graphrag import _run_graphrag
+from util.graphrag import (
+    _run_graphrag,
+    _is_index_ready
+)
 from util.graphrag_query import _classify_query_method
 
-# 인덱스 준비 여부 판단은 util/user_path.py의 _account_indexed()를 그대로 쓴다
-# (app.py에 똑같은 RAG_ENGINE 분기 로직이 중복돼 있던 걸 제거함).
+# _is_index_ready(GraphRAG, output/stats.json 존재 여부)와 lightrag_engine.is_index_ready
+# (LightRAG, graphml 파일 존재 여부) 중 RAG_ENGINE에 맞는 쪽을 골라서 판단하는 공용 헬퍼.
 # append 전환 판단(/upload)과 첨부파일 처리 게이트(/upload-attachments)가 이걸 같이 쓴다.
+def _index_ready(paths) -> bool:
+    if RAG_ENGINE == "lightrag":
+        from util.lightrag_backend.lightrag_engine import is_index_ready
+        return is_index_ready(paths.LIGHTRAG_ROOT)
+    elif RAG_ENGINE == "graphrag":
+        return _is_index_ready(paths)
 from util.mail_data_manager import (
     _read_latest_text,
     _extract_message_ids,
@@ -461,7 +468,7 @@ def upload():
     fallback_to_rewrite = False
     sync_mode = requested_mode
 
-    if requested_mode == "append" and not _account_indexed(paths):
+    if requested_mode == "append" and not _index_ready(paths):
         print("[UPLOAD] index not ready -> fallback to rewrite")
         sync_mode = "rewrite"
         fallback_to_rewrite = True
@@ -489,7 +496,7 @@ def upload():
 
         # [추가] 인덱스 준비 여부 판단 기준 파일 삭제 → 첨부파일 트리거가 인덱스 없음으로
         # 판단해 거절됨. rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지.
-        # _account_indexed()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
+        # _index_ready()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
         # LightRAG: graph_chunk_entity_relation.graphml) RAG_ENGINE에 맞는 파일을 지운다.
         if RAG_ENGINE == "lightrag":
             ready_marker_path = os.path.join(paths.LIGHTRAG_ROOT, "graph_chunk_entity_relation.graphml")
@@ -794,7 +801,7 @@ def index_status():
     if not user_id:
         return jsonify({"error": "user_id가 비어있습니다."}), 400
     paths = UserPaths(BASE_DIR, user_id, "mail")
-    return jsonify({"indexed": _account_indexed(paths)})
+    return jsonify({"indexed": _index_ready(paths)})
 
 # 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
 @app.route('/init')
@@ -838,120 +845,6 @@ def static_fonts(path):
 def static_images(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'images')
     return send_from_directory(dist_dir, path)
-
-# 엔드포인트: POST /upload-attachments
-# 중복 처리 방지 로직 추가
-# 기존: 10분마다 전체 첨부파일을 무조건 처리
-# 변경: DB 조회로 이미 처리된 (user_id, mail_id, filename) 조합 필터링 후 처리
-# 처리 완료 후 DB에 기록 → 다음 트리거에서 중복 처리 방지
-@app.route("/upload-attachments", methods=["POST"])
-def upload_attachments():
-    # 1) 데이터 수신
-    data = request.json or {}
-    user_id = (data.get("user_id") or "").strip().lower()
-    attachments = data.get("attachments") or []
-
-    if not user_id:
-        return jsonify({"ok": False, "error": "user_id가 비어있습니다."}), 400
-    
-    if not attachments:
-        # attachments 없이 is_last=true만 온 경우 → GraphRAG update 트리거
-        is_last = data.get("is_last", False)
-        if is_last:
-            # 이미 누적된 attachment_latest.csv로 GraphRAG update 실행
-            paths = UserPaths(BASE_DIR, user_id, "mail")
-            if os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
-                job_id = str(uuid.uuid4())[:8]
-                create_job(job_id, job_type="attachment")
-                env = os.environ.copy()
-                env["PYTHONUNBUFFERED"] = "1"
-                if RAG_ENGINE == "lightrag":
-                    from util.jobs.job_run_lightrag import build_lightrag_update, build_graph_json
-                elif RAG_ENGINE == "graphrag":
-                    from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
-                def _finish():
-                    print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 첨부파일 인덱싱 업데이트 시작 job_id={job_id}")
-                    if RAG_ENGINE == "lightrag":
-                        build_lightrag_update(job_id, paths, env)
-                    elif RAG_ENGINE == "graphrag":
-                        build_graphrag_update(job_id, paths, env)
-                    build_graph_json(job_id, paths, env)
-                    _delete_old_update_files(paths)
-                    update_job(job_id, status="done", message="첨부파일 인덱싱 완료")
-                    print(f"[JOB][attachment] SUCCESS job_id={job_id}")
-                threading.Thread(target=_finish, daemon=True).start()
-                return jsonify({"ok": True, "message": "finish signal received"})
-        return jsonify({"ok": False, "error": "attachments가 비어있습니다."}), 400
-    
-    paths = UserPaths(BASE_DIR, user_id, "mail")
-
-    # 2) 메일 인덱스가 준비되지 않았으면 거절
-    # 메일 본문 인덱싱 완료 전에 첨부파일 처리하면 불완전한 그래프에 update가 붙는 문제 방지
-    # 10분 트리거가 다음번에 재시도함
-    if not _account_indexed(paths):
-        print(f"[upload-attachments] 메일 인덱스 미준비 → 요청 거절, 다음 트리거에서 재시도")
-        return jsonify({"ok": False, "error": "메일 인덱스 미준비, 다음 트리거에서 재시도됩니다."}), 409
-
-    # 3) 인덱싱/업데이트 중이면 거절 (graphrag 동시 실행 방지)
-    running_jobs = [j for j in get_all_jobs().values()
-                if j.get("status") == "running"
-                and j.get("job_type") in ("index", "update", "batch")]
-    
-    if running_jobs:
-        print(f"[upload-attachments] 인덱싱 진행 중 → 요청 거절, 다음 트리거에서 재시도")
-        return jsonify({"ok": False, "error": "인덱싱 진행 중, 다음 트리거에서 재시도됩니다."}), 409
-
-    # 4) 이미 처리된 첨부파일 필터링
-    is_last = data.get("is_last", True)
-    unprocessed = filter_unprocessed_attachments(user_id, attachments)
-
-    if not unprocessed:
-        print(f"[upload-attachments] 모두 이미 처리된 첨부파일 → 스킵")
-        if is_last and os.path.exists(os.path.join(paths.MAIL_DIR, "attachment_latest.csv")):
-            job_id = str(uuid.uuid4())[:8]
-            create_job(job_id, job_type="attachment")
-            env = os.environ.copy()
-            env["PYTHONUNBUFFERED"] = "1"
-            if RAG_ENGINE == "lightrag":
-                from util.jobs.job_run_lightrag import build_lightrag_update, build_graph_json
-            elif RAG_ENGINE == "graphrag":
-                from util.jobs.job_run_graphrag import build_graphrag_update, build_graph_json
-            def _finish():
-                print(f"[INDEX] RAG_ENGINE={RAG_ENGINE} 로 첨부파일 인덱싱 업데이트 시작 job_id={job_id}")
-                if RAG_ENGINE == "lightrag":
-                    build_lightrag_update(job_id, paths, env)
-                elif RAG_ENGINE == "graphrag":
-                    build_graphrag_update(job_id, paths, env)
-                build_graph_json(job_id, paths, env)
-                _delete_old_update_files(paths)
-                update_job(job_id, status="done", message="첨부파일 인덱싱 완료")
-                print(f"[JOB][attachment] SUCCESS job_id={job_id}")
-            threading.Thread(target=_finish, daemon=True).start()
-            return jsonify({"ok": True, "message": "모두 처리됨, finish 실행"})
-        return jsonify({"ok": True, "skipped": len(attachments), "message": "모두 이미 처리된 첨부파일"})
-
-    # 5) 즉시 200 응답 (Apps Script 타임아웃 방지)
-    job_id = str(uuid.uuid4())[:8]
-    create_job(job_id, job_type="attachment")
-    update_job(job_id, message="첨부파일 수신 완료, 백그라운드 처리 시작")
-
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
-
-    # 6) 백그라운드에서 처리 (미처리 첨부파일만 전달)
-    t = threading.Thread(
-        target=_run_attachment_pipeline,
-        args=(job_id, paths, unprocessed, env, is_last),
-        daemon=True
-    )
-    t.start()
-
-    return jsonify({
-        "ok": True,
-        "job_id": job_id,
-        "attachment_count": len(unprocessed),
-        "skipped_count": len(attachments) - len(unprocessed),
-    })
 
 # 웹앱용 통계 라우트
 @app.route("/mail-stats", methods=["POST"])

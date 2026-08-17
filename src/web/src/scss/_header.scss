@@ -27,23 +27,19 @@
 .gw-brand-logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   margin-right: 32px;
   flex-shrink: 0;
   text-decoration: none !important; // Bootstrap 링크 밑줄 무력화
 }
 .gw-brand-logo-icon {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 .gw-brand-logo-text {
-  font-family: "Fraunces", "Playfair Display", Georgia, serif;
-  font-weight: 400;
-  font-optical-sizing: auto;
-  font-variation-settings:
-    "SOFT" 0,
-    "WONK" 0; // f/a/g 등 quirky한 대체 글자 모양 끄고 얌전한 형태로 (home.scss 헤드라인과 동일 이유)
+  font-family: "Pretendard", "Inter", -apple-system, sans-serif;
+  font-weight: 600;
   font-size: 1.3rem;
   color: #000000;
   letter-spacing: 0.01em;
@@ -79,21 +75,15 @@
   align-items: center;
   padding: 10px 18px;
   border-radius: 8px;
-  // Fraunces/Playfair Display/Georgia는 한글 글리프가 없어서 "홈/검색/메일 수집/지식 그래프" 같은
-  // 한글 라벨은 이미 다음 폴백으로 넘어가고 있었음. 원래 마지막이 "serif"라 시스템 명조체로
-  // 떨어졌는데, 본문 설명(.gw-hero-desc)이랑 톤을 맞추려고 그 폰트 스택("Geist"/"Inter"/
-  // -apple-system/sans-serif)을 그대로 이어붙임 — 영문("My Life")은 여전히 Fraunces부터 시도하고,
-  // 한글은 -apple-system/sans-serif 폴백(시스템 고딕체)으로 떨어져서 설명 문단이랑 통일된 느낌.
+  // 영문("My Life" 등)만 Fraunces(세리프)로 먼저 시도되고 한글("홈/검색/메일 수집")은
+  // 글리프가 없어 바로 다음 폴백으로 넘어가던 상태라 영문/한글 글씨체가 서로 달라 보였음.
+  // .gw-brand-logo-text와 동일하게 Pretendard를 맨 앞에 둬서 영문/한글 전부 Pretendard로
+  // 통일(더 이상 안 쓰는 Fraunces 전용 opsz/변수축 속성도 같이 제거).
   font-family:
-    "Fraunces",
-    "Geist",
+    "Pretendard",
     "Inter",
     -apple-system,
     sans-serif;
-  font-optical-sizing: auto;
-  font-variation-settings:
-    "SOFT" 0,
-    "WONK" 0;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.01em;
@@ -129,6 +119,15 @@
 .gw-lang-trigger i,
 #current-lang {
   color: #000000 !important;
+}
+
+// 홈 화면(React Header.jsx)의 트리거는 Radix UI라서 "dropdown-toggle" 클래스가
+// 없어 Bootstrap 기본 캐럿(▾, .dropdown-toggle::after)이 안 붙는데, 다른 페이지
+// (appHeader.js)는 Bootstrap JS 드롭다운 동작을 위해 이 클래스가 꼭 필요해서
+// 캐럿이 같이 따라와 KO 옆에 삼각형이 보였음 — 홈 화면 기준(캐럿 없음)으로
+// 통일하기 위해 이 트리거에서만 Bootstrap 기본 캐럿을 숨김.
+.gw-lang-trigger.dropdown-toggle::after {
+  display: none;
 }
 
 /* '매일 분석 현황' FAB — indexingStatus.js가 런타임에 주입하는 초록 스타일을 올리브 톤으로 강제 교체 */
@@ -175,10 +174,10 @@
 
   &:hover {
     background: #f4f6f8;
-    color: #26b99a;
+    color: #fb923c;
   }
   &.active {
-    color: #26b99a;
+    color: #fb923c;
     font-weight: 700;
   }
 }

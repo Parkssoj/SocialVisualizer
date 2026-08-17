@@ -20,7 +20,7 @@
   gap: 8px;
   padding: 7px 16px;
   border-radius: 999px;
-  background: #1a9e6e;
+  background: #f97316;
   color: #fff;
   font-size: 13px;
   font-weight: 500;
@@ -29,10 +29,10 @@
   transition:
     background 0.18s,
     transform 0.15s;
-  box-shadow: 0 2px 10px rgba(26, 158, 110, 0.35);
+  box-shadow: 0 2px 10px rgba(249, 115, 22,0.35);
 }
 .log-fab:hover {
-  background: #0f7a52;
+  background: #c2410c;
   transform: translateY(-1px);
 }
 .log-fab:active {
@@ -89,7 +89,7 @@
   overflow: hidden;
   background: #fff;
   z-index: 9999;
-  box-shadow: 0 8px 32px rgba(26, 158, 110, 0.12);
+  box-shadow: 0 8px 32px rgba(249, 115, 22,0.12);
   max-height: 0;
   opacity: 0;
   pointer-events: none;
@@ -125,8 +125,8 @@
   padding: 3px 9px;
   border-radius: 999px;
   font-weight: 500;
-  background: rgba(26, 158, 110, 0.12);
-  color: #1a9e6e;
+  background: rgba(249, 115, 22,0.12);
+  color: #f97316;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -161,7 +161,7 @@
 .panel-btn {
   background: none;
   border: 1px solid #d8ebe3;
-  color: #1a9e6e;
+  color: #f97316;
   border-radius: 6px;
   padding: 3px 9px;
   font-size: 11px;
@@ -169,7 +169,7 @@
   transition: background 0.15s;
 }
 .panel-btn:hover {
-  background: rgba(26, 158, 110, 0.08);
+  background: rgba(249, 115, 22,0.08);
 }
 
 .progress-bar-wrap {
@@ -178,7 +178,7 @@
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1a9e6e, #34d399);
+  background: linear-gradient(90deg, #f97316, #fdba74);
   width: 0%;
   transition: width 0.5s ease;
   border-radius: 0 2px 2px 0;
@@ -261,7 +261,7 @@
   overflow-wrap: anywhere;
 }
 .log-pct {
-  color: #1a9e6e;
+  color: #f97316;
   font-weight: 500;
   margin-left: 4px;
 }
@@ -295,7 +295,7 @@
 }
 .footer-scroll-btn {
   font-size: 11px;
-  color: #1a9e6e;
+  color: #f97316;
   cursor: pointer;
   background: none;
   border: none;
@@ -371,6 +371,21 @@ html {
   max-width: 1260px;
 }
 
+/* 지구본(gw-globe-belt) 바로 위에 고정으로 떠있는 서비스 로고 궤도.
+   가로 위치는 지구본과 같은 73%로 맞추고, 세로는 지구본 벨트 높이(33vw, 최대 420px)
+   바로 위 지점에 살짝 띄움. */
+.gw-skills-orbit {
+  position: absolute;
+  left: 73%;
+  bottom: calc(min(33vw, 420px) - 120px);
+  transform: translateX(-50%);
+  z-index: 6; // .gw-trusted(4)·.gw-orbit-left(4)보다 위로 — 가운데 로고 노드가 뒤 배경/다른 영역에 안 묻히게
+  pointer-events: none; // 컨테이너 자체는 클릭 통과, 안쪽 로고 원들만 아래에서 다시 켜줌
+}
+.gw-skills-orbit * {
+  pointer-events: auto; // 로고 hover 시 라벨 툴팁 보이게
+}
+
 .gw-orbit-left {
   position: relative;
   z-index: 4;
@@ -386,7 +401,7 @@ html {
     sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #a3823f; // 흰 배경용 — 골드/올리브 톤
+  color: #6b6b6b;
   letter-spacing: 0.04em;
   text-align: left;
 }
@@ -395,13 +410,13 @@ html {
   // margin/font-weight/font-size/line-height를 40px 고정으로 눌러버려서 그 4개만 !important로 이김.
   // font-family/color는 그 전역 규칙이 애초에 안 건드리는 속성이라 !important 불필요.
   margin: 0 0 24px !important;
-  font-family: "Fraunces", "Playfair Display", Georgia, serif;
+  font-family:
+    "Pretendard",
+    "Inter",
+    -apple-system,
+    sans-serif;
   font-style: normal;
-  font-weight: 400 !important;
-  font-optical-sizing: auto; // 큰 헤드라인 크기에 맞는 opsz 모양을 브라우저가 자동으로 선택
-  font-variation-settings:
-    "SOFT" 0,
-    "WONK" 0; // f/a/g 등 quirky한 대체 글자 모양 끄고 얌전한 형태로
+  font-weight: 700 !important;
   font-size: clamp(2.9rem, 5.5vw, 5.8rem) !important;
   line-height: 1.28 !important;
   letter-spacing: normal;
@@ -463,15 +478,12 @@ html {
   font-size: 15px;
   font-weight: 500;
   text-decoration: none !important;
-  box-shadow: 0 8px 20px rgba(51, 63, 43, 0.28);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  box-shadow: none;
+  transition: transform 0.2s;
 }
 .gw-hero-cta-primary:hover {
   color: #2a2f35 !important;
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(51, 63, 43, 0.36);
 }
 .gw-hero-cta-secondary {
   font-family:
