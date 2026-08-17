@@ -130,7 +130,7 @@ from util.graphrag_query import _classify_query_method
 def _index_ready(paths) -> bool:
     if RAG_ENGINE == "lightrag":
         from util.lightrag_backend.lightrag_engine import is_index_ready
-        return is_index_ready(paths.LIGHTRAG_ROOT)
+        return is_index_ready(paths.LIGHTRAG_OUTPUT_DIR)
     elif RAG_ENGINE == "graphrag":
         return _is_index_ready(paths)
 from util.mail_data_manager import (
@@ -500,7 +500,7 @@ def upload():
         # _index_ready()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,
         # LightRAG: graph_chunk_entity_relation.graphml) RAG_ENGINE에 맞는 파일을 지운다.
         if RAG_ENGINE == "lightrag":
-            ready_marker_path = os.path.join(paths.LIGHTRAG_ROOT, "graph_chunk_entity_relation.graphml")
+            ready_marker_path = os.path.join(paths.LIGHTRAG_OUTPUT_DIR, "graph_chunk_entity_relation.graphml")
         elif RAG_ENGINE == "graphrag":
             ready_marker_path = os.path.join(paths.GRAPHRAG_ROOT, "output", "stats.json")
         if os.path.exists(ready_marker_path):
