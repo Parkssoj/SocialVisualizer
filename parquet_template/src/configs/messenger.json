@@ -30,7 +30,8 @@
         "A Person entity uses the display name exactly as shown in KakaoTalk as its identifier — do not refuse to create one just because there's no email address.",
         "If the same person appears multiple times as name variants mixed with typos/emoji, merge them into a single Person when it's unambiguously the same person from context. If unsure, keep them as separate entities.",
         "Do NOT extract the subject of system notification messages like '님이 들어왔습니다' (has entered) or '님이 나갔습니다' (has left) as a Person entity.",
-        "Do not confuse Keyword with NamedEntity — classify proper nouns (a specific place/organization/product/work name other than the chat room itself, and the name of a person who is only mentioned but never sends a message directly) as NamedEntity, and general topic/subject words as Keyword."
+        "Do not confuse Keyword with NamedEntity — classify proper nouns (a specific place/organization/product/work name other than the chat room itself, and the name of a person who is only mentioned but never sends a message directly) as NamedEntity, and general topic/subject words as Keyword.",
+        "CRITICAL: The given text is a chunk that may start mid-message, cut off by a chunk boundary in the middle of a 'HH:MM 이름: 메시지' line — e.g. a timestamp cut down to a bare trailing number like '13 이름: ...', or a sender name cut down to a bare trailing fragment like '님: ...' or '준: ...'. If the very first line of the given text does not look like a complete, well-formed 'HH:MM 이름: 메시지' line (valid HH:MM timestamp followed by a plausible full name), treat it as a truncated fragment: do NOT create any entity (Person, ChatRoom, or otherwise) from that fragment alone, and do NOT use it as a name/value anywhere. Only extract from that first line if the same name/value it would produce is already independently confirmed by a later, complete line in the same text."
     ],
     "citation_rule": [
         "Points supported by data should list their data references as follows:",
@@ -50,7 +51,8 @@
         "entity_type_rules": {
             "ChatRoom": [
                 "The 'name' of a ChatRoom entity MUST be exactly the value copied from the '채팅방:' field.",
-                "Always create a ChatRoom entity for the block — the same room name will appear identically across many blocks and gets merged into a single entity automatically, so extract it consistently every time rather than skipping it as 'already known'."
+                "Always create a ChatRoom entity for the block — the same room name will appear identically across many blocks and gets merged into a single entity automatically, so extract it consistently every time rather than skipping it as 'already known'.",
+                "CRITICAL EXCEPTION: In a 1:1 chat, the '채팅방:' value is often identical to the other participant's display name (e.g. 채팅방: 과외 학생 어머님, and that same name is also a Person who sends messages). If the '채팅방:' value exactly matches a Person entity's display name that you are also extracting from this same text, you MUST append ' (채팅방)' to the ChatRoom entity's name to keep it distinct (e.g. ChatRoom name becomes '과외 학생 어머님 (채팅방)') — do NOT let the ChatRoom and Person entities share the exact same name string, since identically-named entities of different types collide downstream. Apply this suffix consistently every time this exact room name appears, so it still merges into one ChatRoom entity across blocks. The Person entity itself keeps the plain display name, unchanged."
             ],
             "Date": [
                 "The 'name' of a Date entity MUST be the date portion only (YYYY-MM-DD), taken from the '날짜:' field — drop the time-of-day part.",
@@ -59,11 +61,13 @@
             ],
             "Person": [
                 "The 'name' of a Person entity MUST be the display name exactly as it appears before each message (e.g. '09:15 홍길동: ...' → name is '홍길동').",
+                "CRITICAL: In a 1:1 chat, the ChatRoom name is often identical (or nearly identical) to the other participant's display name (e.g. 채팅방: 과외 학생 어머님, and messages sent as '과외 학생 어머님: ...'). Do NOT treat 'I already created a ChatRoom entity with this name' as a reason to skip creating the Person entity — if a name precedes ':' in a message line, it MUST also get its own Person entity, even when that exact same name/string is already used as the ChatRoom entity's name.",
                 "CRITICAL: Do NOT create a Person entity from a system/notification line (marked with '[알림]', e.g. '~님이 들어왔습니다').",
                 "CRITICAL: Do NOT create a Person entity for a name that only appears mentioned inside another person's message content (e.g. '민수한테 물어봐') when that name never itself appears as a message sender (i.e., never precedes ':' in a message line) within the given text. Extract such mentioned-only names as a NamedEntity (type: 인물) instead — see NamedEntity rules.",
                 "Integrate multiple mentions of the same person (including minor typos/emoji variants) into a single entity when the identity is unambiguous from context; if there is any doubt, keep them as separate entities.",
                 "When two Person entities directly converse with each other in the given text (one replies to, addresses, or has a back-and-forth exchange with the other), extract an 'interacts_with' relationship between them IN ADDITION TO their individual participates_in/spoke_on edges — do not extract only one or the other.",
-                "In the description of an 'interacts_with' relationship, note any observable interaction cues present in the text — speech level (반말/존댓말), nicknames or terms of address (애칭/호칭), and the tone of the exchange (e.g. 장난스러움, 격식적임, 다정함) — since these hint at how close the two people are. Do not invent cues that aren't actually observable in the text."
+                "In the description of an 'interacts_with' relationship, note any observable interaction cues present in the text — speech level (반말/존댓말), nicknames or terms of address (애칭/호칭), and the tone of the exchange (e.g. 장난스러움, 격식적임, 다정함) — since these hint at how close the two people are. Do not invent cues that aren't actually observable in the text.",
+                "CRITICAL: The description of an 'interacts_with' relationship MUST start with a relationship-category tag in the exact format '[관계: <카테고리>] ' (followed by a space), where <카테고리> is the single best-fitting one of: 가족, 연인, 친구, 동료, 지인. Base it strictly on observable cues (반말/존댓말, 애칭, 대화 주제, 격식 수준, 채팅방 이름/맥락) — mostly task/project-oriented with neutral or polite tone → 동료; casual and personal but not clearly family/romantic → 친구; cues are ambiguous or too thin to tell → 지인 (do not guess 가족/연인 without a clear basis). After the tag, continue with the descriptive sentence as before."
             ],
             "Keyword": [
                 "Extract concise, reusable terms or short phrases that were actually discussed — not full sentences.",
@@ -124,7 +128,7 @@
                     { "source": "홍길동", "target": "2024-01-01", "type": "spoke_on", "description": "홍길동이 2024-01-01에 저녁 약속을 제안하는 메시지를 보냈다.", "strength": 9 },
                     { "source": "김영희", "target": "2024-01-01", "type": "spoke_on", "description": "김영희가 2024-01-01에 약속에 응답하는 메시지를 보냈다.", "strength": 9 },
                     { "source": "강남역 저녁 약속", "target": "2024-01-01", "type": "scheduled_on", "description": "2024-01-01 대화에서 저녁 7시 강남역 약속이 언급되었다.", "strength": 10 },
-                    { "source": "홍길동", "target": "김영희", "type": "interacts_with", "description": "홍길동과 김영희가 서로 반말로 저녁 약속을 빠르게 주고받으며 정했다.", "strength": 7 }
+                    { "source": "홍길동", "target": "김영희", "type": "interacts_with", "description": "[관계: 가족] 홍길동과 김영희가 서로 반말로 저녁 약속을 빠르게 주고받으며 정했다.", "strength": 7 }
                 ]
             },
             {
@@ -172,7 +176,9 @@
             "Merge duplicate persons: if names differ only by minor typos/emoji or are clearly the same person from context, merge them into a single, unified entity description.",
             "It's normal for ChatRoom and Date to reappear with the same name/value across multiple blocks — merge them into one even if the same description repeats every time.",
             "CRITICAL: Do NOT create an entity if its description is 'None' or contains no meaningful information.",
-            "Output language: Write in Korean. However, keep proper nouns and service names in their original form."
+            "Output language: Write in Korean. However, keep proper nouns and service names in their original form.",
+            "CRITICAL: When 'Entities' lists two Person names AND the Description List entries are full sentences (not 'Name:'/'Term:'/... format), this is a relationship (interacts_with) summary — see Example 3. Do NOT output just 'Name: <person1>, <person2>' in that case; that discards the entire relationship content.",
+            "CRITICAL: In a relationship summary (Case B), each Description List entry starts with a '[관계: <카테고리>] ' tag (카테고리 is one of 가족/연인/친구/동료/지인). Pick the single most representative category across all entries (majority vote; if tied, prefer whichever is more specific than 지인) and prefix your merged output with exactly one consolidated '[관계: <카테고리>] ' tag, followed by the synthesized paragraph. Do NOT keep multiple tags, drop the tag, or leave the tag out even if only one description is being merged."
         ],
         "examples": [
             {
@@ -192,6 +198,16 @@
                     "Name: 길동이"
                 ],
                 "output": "Name: 홍길동"
+            },
+            {
+                "type": "Relationship",
+                "entity_name": "이하은, 임준호",
+                "description_list": [
+                    "[관계: 동료] 이하은과 임준호가 반말로 발표 준비와 진행 상황을 주고받으며 협업했다.",
+                    "[관계: 동료] 임준호가 리허설 시점을 물었고 이하은이 발표 전날 저녁을 제안하며 자연스럽게 주고받았다.",
+                    "[관계: 친구] 이하은이 진행상황과 오류를 편하게 물었고 임준호가 바로 답하며 서로 협업하는 흐름이 이어졌다."
+                ],
+                "output": "[관계: 동료] 이하은과 임준호는 서로 반말을 사용하는 편한 관계로, 발표 준비와 리허설 일정, 진행 상황과 오류 확인 등을 자주 주고받으며 협업했다. 임준호가 리허설 시점을 묻자 이하은이 발표 전날 저녁을 제안하는 등 실무적인 조율이 자연스럽게 이루어졌다."
             }
         ]
     },
