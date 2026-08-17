@@ -3,7 +3,7 @@
 # graphrag_parquet2json.py(GraphRAG 버전)의 LightRAG 대응 파일. GraphRAG는 parquet
 # 여러 개(entities/relationships/communities)를 읽어서 그래프 시각화용 json을 만들었는데,
 # LightRAG는 parquet이 없고 대신 지식그래프 전체를 NetworkX GraphML 파일 하나
-# (graph_chunk_entity_relation.graphml, working_dir=paths.LIGHTRAG_ROOT 밑)로 저장한다.
+# (graph_chunk_entity_relation.graphml, working_dir=paths.LIGHTRAG_OUTPUT_DIR 밑)로 저장한다.
 # 여기서는 그 graphml을 읽어서 GraphRAG 버전과 동일한 {nodes, edges} JSON 스키마로
 # 변환한다 — src/json/graph-render.js(프론트엔드)는 어느 엔진에서 온 데이터인지 몰라도
 # 그대로 그릴 수 있게.
@@ -85,7 +85,7 @@ def _build_edges(graph: "nx.Graph") -> list[dict]:
 # 완료 직후 이 함수를 호출한다 (기존에는 미구현 스텁이었음). 인덱싱이 이미 rag.finalize_storages()
 # 까지 끝난 뒤에 호출되므로, LightRAG 내부 스토리지 락을 거치지 않고 파일을 직접 읽어도 안전하다.
 def build_lightrag_graph_json(paths) -> dict:
-    graphml_path = os.path.join(paths.LIGHTRAG_ROOT, _GRAPHML_FILENAME)
+    graphml_path = os.path.join(paths.LIGHTRAG_OUTPUT_DIR, _GRAPHML_FILENAME)
 
     if not os.path.exists(graphml_path):
         print(f"[GRAPH-JSON][lightrag] graphml 없음, 건너뜀: {graphml_path}")

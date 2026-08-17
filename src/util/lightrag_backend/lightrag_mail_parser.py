@@ -42,17 +42,22 @@ def parse_mail_blocks(paths) -> list[dict]:
         if not block:
             continue
 
-        id_m = re.search(r"^ID:\s*(.+?)\s*$", block, re.MULTILINE)
+        # 실제 mail_latest.txt는 "[ID] ...", "[날짜] ..." 같은 대괄호 형식을 쓰는데(폴더/본문
+        # 정규식은 원래부터 맞게 돼 있었음), 여기 여섯 필드만 콜론 형식("ID: ...")만 찾도록
+        # 돼 있어서 전부 항상 실패 → mail_id가 항상 None이라 모든 블록이 통째로 스킵되고
+        # parse_mail_blocks()가 매번 빈 리스트를 반환했다(= 통계/DB 저장/요약이 전부
+        # "mail_latest.txt 없음/비어있음"으로 오인돼 건너뛰어짐). 대괄호/콜론 둘 다 받도록 고쳤다.
+        id_m = re.search(r"^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$", block, re.MULTILINE)
         mail_id = id_m.group(1).strip() if id_m else None
         if not mail_id or mail_id in seen_ids:
             continue
         seen_ids.add(mail_id)
 
-        date_m = re.search(r"^날짜:\s*(.+?)\s*$", block, re.MULTILINE)
-        subject_m = re.search(r"^제목:\s*(.+?)\s*$", block, re.MULTILINE)
-        sender_m = re.search(r"^발신인:\s*(.+?)\s*$", block, re.MULTILINE)
-        receiver_m = re.search(r"^수신인:\s*(.+?)\s*$", block, re.MULTILINE)
-        direction_m = re.search(r"^구분:\s*(.+?)\s*$", block, re.MULTILINE)
+        date_m = re.search(r"^\s*(?:\[날짜\]|날짜:)\s*(.+?)\s*$", block, re.MULTILINE)
+        subject_m = re.search(r"^\s*(?:\[제목\]|제목:)\s*(.+?)\s*$", block, re.MULTILINE)
+        sender_m = re.search(r"^\s*(?:\[발신인\]|발신인:)\s*(.+?)\s*$", block, re.MULTILINE)
+        receiver_m = re.search(r"^\s*(?:\[수신인\]|수신인:)\s*(.+?)\s*$", block, re.MULTILINE)
+        direction_m = re.search(r"^\s*(?:\[구분\]|구분:)\s*(.+?)\s*$", block, re.MULTILINE)
         folder_m = re.search(r"\[라벨 정보\]\s*\n(.+)", block)
         body_m = re.search(r"\[메일 본문\]\s*\n(.*?)(?:\n=+|\Z)", block, re.DOTALL)
 
