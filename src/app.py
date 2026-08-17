@@ -96,9 +96,17 @@ from util.attachment_manager import (
     _run_attachment_pipeline,
 )
 if RAG_ENGINE == "lightrag":
-    from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments
+    from util.jobs.job_run_lightrag import (
+        _summarize_attachment_text,
+        _merge_summarized_attachments,
+        render_all_domains,
+    )
 elif RAG_ENGINE == "graphrag":
-    from util.jobs.job_run_graphrag import _summarize_attachment_text, _merge_summarized_attachments
+    from util.jobs.job_run_graphrag import (
+         _summarize_attachment_text,
+         _merge_summarized_attachments,
+         render_all_domains,
+    )
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
@@ -411,6 +419,9 @@ def _extract_and_merge_attachments(paths, attachments, user_id):
     unprocessed = filter_unprocessed_attachments(user_id, attachments)
     if not unprocessed:
         return
+
+    # 프롬프트의 최신 상태 유지
+    render_all_domains()
 
     attachment_texts_by_mail: dict[str, list[dict]] = {}
     for file_info in unprocessed:
