@@ -53,31 +53,46 @@ def _watch_graphrag_output(job_id, output_dir, start_time, stop_event, base_prog
             broadcast({"type": "progress", "job_id": job_id, "progress": prog, "message": msg})
 
 
+# SUB_TASK_CHAT_MODEL(Qwen2.5-7B, max_model_len=32768)에 안전하게 들어가도록 첨부파일
+# 텍스트 길이를 문자 수 기준으로 보수적으로 제한. 한글은 토큰 효율이 낮아(문자당 최대 1토큰
+# 근접) 25000자면 시스템 프롬프트+출력(150토큰) 여유를 두고도 32768 안에 충분히 들어감.
+MAX_ATTACHMENT_CHARS = 25000
+
 # 첨부파일 텍스트 요약 (공백/줄바꿈 제외 500자 미만이면 원문 그대로 반환)
 def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     pure_len = len(text.replace(" ", "").replace("\n", ""))
     if pure_len < 500:
         return text  # 짧은 텍스트는 요약 없이 그대로 반환
 
+    if len(text) > MAX_ATTACHMENT_CHARS:
+        print(f"[summarize_attachment] {filename}: {len(text)}자 → {MAX_ATTACHMENT_CHARS}자로 잘라서 요약 (컨텍스트 초과 방지)")
+        text = text[:MAX_ATTACHMENT_CHARS]
+
     prompt_path = os.path.join("parquet_template", "rendered", paths.DOMAIN, "prompts", "summarize_attachment.txt")
 
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
     try:
         response = client.chat.completions.create(
-            model=os.getenv("RAG_CHAT_MODEL"),
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),  # 첨부파일 요약 = 보조 작업 (기존 RAG_CHAT_MODEL에서 변경)
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}
             ],
-            max_completion_tokens=150  # 한글 약 300자 기준. gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
+            max_completion_tokens=150  # 한글 약 300자 기준. gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원이라 도입한 파라미터. vLLM도 호환 지원됨
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"[summarize_attachment error] {filename}: {e}")
-        return text  # 실패하면 원문 그대로 반환
+        # 실패해도 요약 성공 시 규격(max_completion_tokens=150 ≈ 한글 300자)에 맞춰 반환.
+        # 원문(최대 25000자)을 그대로 내보내면 후속 extract_graph/embedding 단계에서
+        # 그 메일 하나만 컨텍스트가 비정상적으로 커져 같은 문제가 재발할 수 있음.
+        return text[:300]
 
 # 요약된 첨부 텍스트를 mail_latest.txt 각 메일 블록 하단에 삽입
 def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mail: dict):
@@ -212,6 +227,63 @@ def _trim_mail_latest(paths, max_mails, job_id):
     append_job_log(job_id, f"[INFO] {msg}")
 
 
+# extract_graph 프롬프트의 few-shot 예시(parquet_template/src/configs/mail.json 등)에 있는
+# 엔티티를, 파인튜닝된 로컬 모델이 실제 추출 결과인 것처럼 그래프에 섞어 넣는 경우가 있다
+# (8B 모델이 few-shot 예시와 실제 입력을 완전히 구분하지 못해서 생기는 현상 — OpenAI에선 거의
+# 안 나던 문제). 인덱싱 완료 직후 아래 목록과 정확히 일치하는 엔티티/관계를 결과 parquet에서 제거한다.
+#
+# ⚠️ config의 examples를 전부 자동으로 blocklist에 넣으면 안 됨 — mail.json/messenger.json의
+# 다른 예시들(최지유, 김예은, gpttitti@hansung.ac.kr 등)은 일부러 이 계정의 실제 반복 등장
+# 인물/패턴을 그대로 예시로 쓴 것이라, 그것들을 걸러내면 진짜 데이터까지 같이 지워짐.
+# 그래서 "완전 허구"였던 예시(Vocarush/Nexbloom)의 사람/이메일/첨부/토픽만 수동으로 등록한다.
+# (조직명 VOCARUSH는 실제로 사용자의 진짜 프로젝트명과 겹쳐서 blocklist에서 제외 — 실제 데이터임)
+_FEWSHOT_LEAKAGE_BLOCKLIST = {
+    # 이전 예시(Vocarush) — 이미 생성된 그래프에 남아있을 수 있어 계속 걸러냄
+    "19D4DA32341500E4", "MINJUN.KIM@VOCARUSH.IO", "SEOYEON.PARK@VOCARUSH.IO",
+    "스프린트 계획 수립", "SPRINT_PLAN.PDF",
+    # 현재 예시(Nexbloom) — 이름을 실제 데이터와 안 겹치게 새로 지정했지만, 혹시 모를 누출 대비
+    "1A2B3C4D5E6F7890", "HAJUN.JUNG@NEXBLOOM.IO", "SOMIN.YOON@NEXBLOOM.IO",
+    "NEXBLOOM", "3분기 로드맵 검토", "ROADMAP_Q3.PDF",
+}
+
+# messenger.json/mail.json의 grounding_rules에 "None/NULL/없음/- 같은 값은 엔티티 이름으로
+# 쓰지 마라"는 지시가 이미 있는데도, 8B 로컬 모델이 필드가 비어있을 때 이 규칙을 안정적으로
+# 못 지키고 "NONE" 같은 문자열을 그대로 엔티티 이름으로 만들어버리는 경우가 있어 도메인 공용으로
+# 한 번 더 걸러낸다 (ChatRoom 등 특정 타입에 국한된 문제가 아니라 타입 무관하게 발생 가능).
+_NULL_VALUE_LITERALS = {"NONE", "NULL", "없음", "-"}
+
+
+def _filter_fewshot_leakage(paths):
+    import pandas as pd
+
+    blocklist = _FEWSHOT_LEAKAGE_BLOCKLIST | _NULL_VALUE_LITERALS
+    output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
+    entities_path = os.path.join(output_dir, "entities.parquet")
+    relationships_path = os.path.join(output_dir, "relationships.parquet")
+
+    removed_entities = 0
+    if os.path.exists(entities_path):
+        df = pd.read_parquet(entities_path)
+        mask = df["title"].astype(str).str.upper().isin(blocklist)
+        removed_entities = int(mask.sum())
+        if removed_entities:
+            df[~mask].to_parquet(entities_path, index=False)
+
+    removed_rels = 0
+    if os.path.exists(relationships_path):
+        df = pd.read_parquet(relationships_path)
+        mask = (
+            df["source"].astype(str).str.upper().isin(blocklist)
+            | df["target"].astype(str).str.upper().isin(blocklist)
+        )
+        removed_rels = int(mask.sum())
+        if removed_rels:
+            df[~mask].to_parquet(relationships_path, index=False)
+
+    if removed_entities or removed_rels:
+        print(f"[FILTER] few-shot 예시 누출 제거: 엔티티 {removed_entities}개, 관계 {removed_rels}개")
+
+
 # 백그라운드: GraphRAG 인덱싱
 def build_graphrag_index(job_id, paths, env, max_mails=None):
     print(f"[JOB][graphrag] START job_id={job_id}")
@@ -272,6 +344,11 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
         append_job_log(job_id, "[END] build_graphrag_index success")
         update_job(job_id, progress=90, message="GraphRAG 인덱싱 완료")
         print(f"[JOB][graphrag] SUCCESS job_id={job_id}")
+
+        try:
+            _filter_fewshot_leakage(paths)
+        except Exception as e:
+            print(f"[FILTER][WARN] few-shot 누출 필터링 실패 (무시): {e}")
 
     except Exception as e:
         print(f"[JOB][graphrag][ERROR] job_id={job_id} error={e}")

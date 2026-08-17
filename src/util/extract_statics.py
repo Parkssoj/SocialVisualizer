@@ -13,7 +13,10 @@ from util.jobs.job_store import *
 # .env 로드
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("LLM_API_KEY"),
+    base_url=os.getenv("SUB_TASK_API_BASE") or None,
+)
 
 def start_timer():
     return {

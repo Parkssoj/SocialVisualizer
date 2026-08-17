@@ -117,21 +117,21 @@
         "examples": [
             {
                 "entity_types": ["Email", "Person", "Organization", "Topic", "Attachment"],
-                "text": "[메일 1]\n\n[ID] 19d4da32341500e4\n[제목] [Vocarush] 4월 스프린트 계획 확정\n[구분] 발신\n[날짜] 2026-04-02 18:02\n[발신인] 김민준 <minjun.kim@vocarush.io>\n[수신인] 박서연 <seoyeon.park@vocarush.io>\n[참조(CC)] 없음\n[폴더 정보] 스프린트\n\n[메일 본문]\n박서연님, 4월 스프린트 계획을 확정하여 공유드립니다.\n첨부파일 확인 부탁드립니다.\nProduct팀 김민준 드림\n\n[첨부파일 정보]\n- sprint_plan.pdf (120.0 KB) (포함)",
+                "text": "[메일 1]\n\n[ID] 1a2b3c4d5e6f7890\n[제목] [Nexbloom] 3분기 로드맵 확정\n[구분] 발신\n[날짜] 2026-04-02 18:02\n[발신인] 정하준 <hajun.jung@nexbloom.io>\n[수신인] 윤소민 <somin.yoon@nexbloom.io>\n[참조(CC)] 없음\n[폴더 정보] 로드맵\n\n[메일 본문]\n윤소민님, 3분기 로드맵을 확정하여 공유드립니다.\n첨부파일 확인 부탁드립니다.\nProduct팀 정하준 드림\n\n[첨부파일 정보]\n- roadmap_q3.pdf (120.0 KB) (포함)",
                 "entities": [
-                    { "name": "19D4DA32341500E4", "type": "Email", "description": "Subject: [Vocarush] 4월 스프린트 계획 확정 | ID: 19d4da32341500e4 | Date: 2026-04-02 18:02 | Tone: formal | Summary: 4월 스프린트 계획을 공유하는 공식 메일" },
-                    { "name": "minjun.kim@vocarush.io", "type": "Person", "description": "Account: minjun.kim@vocarush.io | Name: 김민준" },
-                    { "name": "seoyeon.park@vocarush.io", "type": "Person", "description": "Account: seoyeon.park@vocarush.io | Name: 박서연" },
-                    { "name": "Vocarush", "type": "Organization", "description": "OrgName: Vocarush | Department: Product" },
-                    { "name": "스프린트 계획 수립", "type": "Topic", "description": "Priority: high | Summary: Vocarush 4월 스프린트 계획을 팀 내 공유하고 확정하는 논의" },
-                    { "name": "sprint_plan.pdf", "type": "Attachment", "description": "Filename: sprint_plan.pdf | Type: pdf | Summary: 4월 스프린트 계획 문서로, 각 업무의 우선순위와 담당자를 명확히 설정해 계획된 일정 내에 서비스를 성공적으로 출시하고자 하는 것을 목적으로 한다." }
+                    { "name": "1A2B3C4D5E6F7890", "type": "Email", "description": "Subject: [Nexbloom] 3분기 로드맵 확정 | ID: 1a2b3c4d5e6f7890 | Date: 2026-04-02 18:02 | Tone: formal | Summary: 3분기 로드맵을 공유하는 공식 메일" },
+                    { "name": "hajun.jung@nexbloom.io", "type": "Person", "description": "Account: hajun.jung@nexbloom.io | Name: 정하준" },
+                    { "name": "somin.yoon@nexbloom.io", "type": "Person", "description": "Account: somin.yoon@nexbloom.io | Name: 윤소민" },
+                    { "name": "Nexbloom", "type": "Organization", "description": "OrgName: Nexbloom | Department: Product" },
+                    { "name": "3분기 로드맵 검토", "type": "Topic", "description": "Priority: high | Summary: Nexbloom 3분기 로드맵을 팀 내 공유하고 확정하는 논의" },
+                    { "name": "roadmap_q3.pdf", "type": "Attachment", "description": "Filename: roadmap_q3.pdf | Type: pdf | Summary: 3분기 로드맵 문서로, 각 업무의 우선순위와 담당자를 명확히 설정해 계획된 일정 내에 서비스를 성공적으로 출시하고자 하는 것을 목적으로 한다." }
                 ],
                 "relationships": [
-                    { "source": "19D4DA32341500E4", "target": "minjun.kim@vocarush.io", "type": "sent_by", "description": "이메일의 발신자는 minjun.kim@vocarush.io이다.", "strength": 10 },
-                    { "source": "19D4DA32341500E4", "target": "seoyeon.park@vocarush.io", "type": "sent_to", "description": "이메일의 수신자는 seoyeon.park@vocarush.io이다.", "strength": 10 },
-                    { "source": "minjun.kim@vocarush.io", "target": "Vocarush", "type": "affiliated_with", "description": "minjun.kim@vocarush.io는 Vocarush Product팀에 소속되어 있다.", "strength": 9 },
-                    { "source": "19D4DA32341500E4", "target": "스프린트 계획 수립", "type": "discusses", "description": "메일 본문에서 4월 스프린트 계획 수립을 주요 주제로 다룬다.", "strength": 9 },
-                    { "source": "19D4DA32341500E4", "target": "sprint_plan.pdf", "type": "has_attachment", "description": "이메일에 스프린트 계획 문서가 첨부되어 있다.", "strength": 10 }
+                    { "source": "1A2B3C4D5E6F7890", "target": "hajun.jung@nexbloom.io", "type": "sent_by", "description": "이메일의 발신자는 hajun.jung@nexbloom.io이다.", "strength": 10 },
+                    { "source": "1A2B3C4D5E6F7890", "target": "somin.yoon@nexbloom.io", "type": "sent_to", "description": "이메일의 수신자는 somin.yoon@nexbloom.io이다.", "strength": 10 },
+                    { "source": "hajun.jung@nexbloom.io", "target": "Nexbloom", "type": "affiliated_with", "description": "hajun.jung@nexbloom.io는 Nexbloom Product팀에 소속되어 있다.", "strength": 9 },
+                    { "source": "1A2B3C4D5E6F7890", "target": "3분기 로드맵 검토", "type": "discusses", "description": "메일 본문에서 3분기 로드맵 검토를 주요 주제로 다룬다.", "strength": 9 },
+                    { "source": "1A2B3C4D5E6F7890", "target": "roadmap_q3.pdf", "type": "has_attachment", "description": "이메일에 로드맵 문서가 첨부되어 있다.", "strength": 10 }
                 ]
             },
             {

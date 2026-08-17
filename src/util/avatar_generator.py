@@ -15,7 +15,15 @@ from util.database.db_reader import get_person_descriptions
 
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
+# text_client: 성별/기업 판별 등 텍스트 판단(SUB_TASK_CHAT_MODEL, 로컬 Qwen으로 라우팅 가능)
+# image_client: gpt-image-1 이미지 생성 전용 — 로컬 모델이 없으므로 base_url 없이 항상 실제 OpenAI로 고정.
+#   두 클라이언트를 절대 합치지 말 것 — 합치면 이미지 생성 요청이 SUB_TASK_API_BASE(로컬 서버)로 새서 깨짐.
+text_client = OpenAI(
+    api_key=os.getenv("LLM_API_KEY"),
+    base_url=os.getenv("SUB_TASK_API_BASE") or None,
+)
+image_client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
+client = text_client  # 하위 호환용 별칭(아래 텍스트 판별 호출부에서 계속 사용)
 
 AVATAR_MODEL = "gpt-image-1"
 AVATAR_SIZE = "1024x1024"
@@ -436,7 +444,7 @@ def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key
     # TEMP: GPT 이미지 생성 임시 비활성화
     raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
     # attrs = _pick_style_attributes(seed_key or name)
-    # result = client.images.generate(
+    # result = image_client.images.generate(
     #     model=AVATAR_MODEL,
     #     prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
     #     size=AVATAR_SIZE,

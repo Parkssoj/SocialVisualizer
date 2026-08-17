@@ -196,11 +196,19 @@ def collect_indexing_stats(paths) -> dict:
     llm_calls = 0
     input_tokens = 0
     output_tokens = 0
-    llm_model = os.getenv("RAG_CHAT_MODEL", "")
+    # 인덱싱 온오프 스위치(INDEXING_COMPLETION_MODEL_ID)가 실제로 가리키는 모델을 그대로 라벨링.
+    # "indexing_chat_model"이면 로컬(INDEXING_CHAT_MODEL), 아니면("default_chat_model") OpenAI(RAG_CHAT_MODEL).
+    if os.getenv("INDEXING_COMPLETION_MODEL_ID") == "indexing_chat_model":
+        llm_model = os.getenv("INDEXING_CHAT_MODEL", "")
+    else:
+        llm_model = os.getenv("RAG_CHAT_MODEL", "")
 
     embed_calls = 0
     embed_tokens = 0
-    embed_model = os.getenv("RAG_EMBEDDING_MODEL", "")
+    if os.getenv("INDEXING_EMBEDDING_MODEL_ID") == "indexing_embedding_model":
+        embed_model = os.getenv("INDEXING_EMBEDDING_MODEL", "")
+    else:
+        embed_model = os.getenv("RAG_EMBEDDING_MODEL", "")
 
     for folder in LLM_FOLDERS:
         folder_path = os.path.join(cache_dir, folder)
