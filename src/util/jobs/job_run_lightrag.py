@@ -62,7 +62,7 @@ from util.lightrag_backend.lightrag_db_writer import save_mail_folder_to_db_ligh
 from util.lightrag_backend.lightrag_mail_summary import generate_mail_summaries_lightrag
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains
+from renderer import render_all_prompts
 
 # threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
 # 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
@@ -329,7 +329,7 @@ def build_lightrag_index(job_id, paths, env, max_mails=None):
     append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
 
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
@@ -388,7 +388,7 @@ def build_lightrag_update(job_id, paths, env):
     append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
 
     # mail_latest.csv 전체를 다시 넘긴다 (index와 동일한 소스). 이미 인덱싱된 id는
     # LightRAG가 내부적으로 알아서 스킵하므로, "새로 추가된 것만 골라 넘기는" 별도 로직이 필요 없다.
@@ -432,7 +432,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     append_job_log(job_id, "[START] run_graph_pipeline")
 
     # 프롬프트의 최신 상태 유지
-    render_all_domains()
+    render_all_prompts()
 
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")

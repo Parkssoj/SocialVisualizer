@@ -97,13 +97,13 @@ if RAG_ENGINE == "lightrag":
     from util.jobs.job_run_lightrag import (
         _summarize_attachment_text,
         _merge_summarized_attachments,
-        render_all_domains,
+        render_all_prompts,
     )
 elif RAG_ENGINE == "graphrag":
     from util.jobs.job_run_graphrag import (
          _summarize_attachment_text,
          _merge_summarized_attachments,
-         render_all_domains,
+         render_all_prompts,
     )
 from util.database.db_writer import (
     save_query_to_db,
@@ -419,7 +419,7 @@ def _extract_and_merge_attachments(paths, attachments, user_id):
         return
 
     # 프롬프트의 최신 상태 유지
-    render_all_domains()
+    render_all_prompts()
 
     attachment_texts_by_mail: dict[str, list[dict]] = {}
     for file_info in unprocessed:
