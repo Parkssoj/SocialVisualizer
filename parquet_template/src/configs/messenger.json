@@ -20,6 +20,7 @@
         { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" },
         { "name": "interacts_with", "source": "Person", "target": "Person", "when": "When two people directly converse with each other within the same day's conversation — replying to, addressing, or having a back-and-forth exchange with one another" }
     ],
+    "free_form_relationships": true,
     "grounding_rules": [
         "Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings shared in chat as entities.",
         "CRITICAL: Only extract entities that represent meaningful, persistent people, terms, events, or named things — not one-off chit-chat.",
@@ -46,7 +47,6 @@
     ],
     "extract_graph": {
         "goal": "Given a day's worth of KakaoTalk chat messages from a single chat room and a list of entity types, identify all entities and the relationships between them. The conversation is naturally organized around two hub concepts: the ChatRoom it happened in, and the Date it happened on. Output both entities and relationships using the specified formats.",
-        "free_form_relationships": true,
         "entity_type_rules": {
             "ChatRoom": [
                 "The 'name' of a ChatRoom entity MUST be exactly the value copied from the '채팅방:' field.",
@@ -88,21 +88,11 @@
             ]
         },
         "integrated_document_rules": null,
-        "relationship_hints": [
-            { "name": "participates_in", "source": "Person", "target": "ChatRoom", "when": "When that person is a participant in this chat room's conversation" },
-            { "name": "active_on", "source": "ChatRoom", "target": "Date", "when": "When that chat room had a conversation on this date" },
-            { "name": "spoke_on", "source": "Person", "target": "Date", "when": "When that person sent a message on this date" },
-            { "name": "mentioned_on", "source": "Keyword", "target": "Date", "when": "When that keyword was discussed in this date's conversation" },
-            { "name": "mentioned_on", "source": "NamedEntity", "target": "Date", "when": "When that named entity was mentioned in this date's conversation" },
-            { "name": "scheduled_on", "source": "Event", "target": "Date", "when": "When that event was mentioned in this date's conversation" },
-            { "name": "shared_on", "source": "Attachment", "target": "Date", "when": "When that attachment was shared in this date's conversation" },
-            { "name": "interacts_with", "source": "Person", "target": "Person", "when": "When two people directly converse with each other within the same day's conversation — replying to, addressing, or having a back-and-forth exchange with one another" }
-        ],
         "relationship_rules": [
             "Only create a relationship when it is clearly and directly supported by the conversation text — do not infer relationships that aren't explicitly grounded.",
             "CRITICAL: 'participates_in' and 'spoke_on' relationships MUST only connect a Person who is confirmed as an actual message sender in the given text (their name precedes ':' in a message line) — never a person who is only mentioned inside another message's content.",
             "Prefer connecting mentioned entities (Keyword/Event/NamedEntity/Attachment) to the Date they were mentioned on, and connecting Person/ChatRoom to that same Date, rather than building long indirect chains. The one exception is a direct Person-to-Person 'interacts_with' relationship when two people actually converse with each other — extract that in addition to (not instead of) their individual spoke_on/participates_in edges.",
-            "Relationship weight MUST be a float between 1.0 and 10.0. Explicit/central to the conversation: 7.0+ / Brief mention: 4.0 or below.",
+            "Relationship strength MUST be a float between 1.0 and 10.0. Explicit/central to the conversation: 7.0+ / Brief mention: 4.0 or below.",
             "Do NOT create duplicate relationships with the same source-target-type combination.",
             "Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description."
         ],
@@ -169,7 +159,7 @@
     "summarize_descriptions": {
         "goal": "You are a helpful assistant responsible for generating a comprehensive summary of the data provided below. Given one or two entities, and a list of descriptions, all related to the same entity or group of entities. Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions. If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary. Make sure it is written in third person, and include the entity names so we have the full context.",
         "additional_rules": [
-            "Merge duplicate persons: if names differ only by minor typos/emoji or are clearly the same person from context, merge them into a single, unified entity description.",
+            "This step only merges descriptions that already share the exact same entity name — it does NOT merge Person entities whose names differ due to typos/emoji variants. Cross-mention name normalization can only happen within a single day's conversation at extraction time (see extract_graph Person rules); name variants that appear on different dates are not resolved at this stage.",
             "It's normal for ChatRoom and Date to reappear with the same name/value across multiple blocks — merge them into one even if the same description repeats every time.",
             "CRITICAL: Do NOT create an entity if its description is 'None' or contains no meaningful information.",
             "Output language: Write in Korean. However, keep proper nouns and service names in their original form."
@@ -236,9 +226,9 @@
         },
         "rating_criteria": [
             { "range": "8-10", "description": "Conversations where concrete plans or decisions were made (including confirmed schedules, role assignments, important agreements)" },
-            { "range": "5-7", "description": "Substantive everyday/collaborative conversation with a recurring keyword" },
-            { "range": "2-4", "description": "Conversation mostly consisting of simple greetings/small talk" },
-            { "range": "0-1", "description": "Conversation with only system messages (join/leave) or almost no substantive content" }
+            { "range": "5-8", "description": "Substantive everyday/collaborative conversation with a recurring keyword" },
+            { "range": "2-5", "description": "Conversation mostly consisting of simple greetings/small talk" },
+            { "range": "0-2", "description": "Conversation with only system messages (join/leave) or almost no substantive content" }
         ],
         "finding_angles": [
             "Community identity — what ChatRoom or Keyword represents this cluster",
@@ -355,6 +345,7 @@
             "merge_instruction": "The final response should remove all irrelevant information from the analysts' reports and merge the cleaned information into a comprehensive answer that provides explanations of all the key points and implications appropriate for the response length and format.",
             "modal_verb_note": "The response shall preserve the original meaning and use of modal verbs such as \"shall\", \"may\" or \"will\".",
             "preserve_references_note": "The response should also preserve all the data references previously included in the analysts' reports, but do not mention the roles of multiple analysts in the analysis process.",
+            "category_grouping_rule": { "title": "Grouping by CATEGORY", "body": "If two or more communities share the same category, group and describe them together.\nArrange the sections in the following priority order:" },
             "response_rules_before_category": [
                 { "title": "Top-of-response meta header (always include)", "body": "Include a summary header in the format below as a markdown blockquote at the very top of the response. If a piece of information isn't in the data, omit only that line — never guess or make it up.\n\n> **관련 채팅방:** N개\n> **주요 참여자:** [실명, 쉼표 구분]\n> **기간:** YYYY-MM-DD ~ YYYY-MM-DD\n\n- Criteria for 주요 참여자 (key participants): only include a Person directly connected to a ChatRoom/Date via a 'participates_in' or 'spoke_on' relationship. Never include a name that only appears via a 'mentioned_on' relationship, or one only mentioned as a NamedEntity/Keyword — those are not conversation participants.\n- Criteria for 기간 (period): use the minimum and maximum Value (YYYY-MM-DD) among all Date entities appearing in the context as the start/end. Aggregate directly from the Date entities' Value field — not a date found in a community report's summary text. Omit this line only when there are no Date entities in the context at all." },
                 { "title": "Separate a highlighted section for important communities", "body": "If any key points have importance score ≥ 70 (or community report rank ≥ 7.0), split the body into the two sections below:\n\n#### 주요 대화\n(high-score items — concrete plans/decisions, etc.)\n\n#### 기타 대화\n(low-score items — everyday chit-chat, system messages, etc.)\n\nIf all scores are similar or rank info is unavailable, this split may be omitted." }
@@ -380,5 +371,5 @@
             "closing_note": "Facts explicitly stated in the data (entity field values, relationship descriptions) may be stated without [LLM: verify]. Use this tag only when supplementing or inferring content not present in the data."
         }
     },
-    "summarize_attachment": {}
+    "summarize_attachment": null
 }

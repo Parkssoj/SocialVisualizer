@@ -329,6 +329,8 @@ def build_lightrag_index(job_id, paths, env, max_mails=None):
     append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
+    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
+
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
 
@@ -386,6 +388,8 @@ def build_lightrag_update(job_id, paths, env):
     append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
+    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
+
     # mail_latest.csv 전체를 다시 넘긴다 (index와 동일한 소스). 이미 인덱싱된 id는
     # LightRAG가 내부적으로 알아서 스킵하므로, "새로 추가된 것만 골라 넘기는" 별도 로직이 필요 없다.
     texts, ids = _load_mail_rows_for_indexing(paths)
@@ -427,7 +431,9 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
+    # 프롬프트의 최신 상태 유지
+    render_all_domains()
+
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
 
@@ -507,7 +513,6 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
 

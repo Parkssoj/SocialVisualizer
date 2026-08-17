@@ -29,29 +29,20 @@ Format: '("entity"<|><name><|><type><|><description>)'
 {% endif %}
 
 2. Identify Relationships:
+  * Format: '("relationship"<|><source><|><target><|><description_in_Korean><|><strength_1_10>)'
 {% if free_form_relationships %}
   * Identify direct, clearly stated, and meaningful relationships between any of the extracted entities. The relationship type is NOT restricted to a fixed list — use whatever concise Korean label best describes the relationship (e.g. "참여", "언급", "발생일").
-  * Format: '("relationship"<|><source><|><target><|><description_in_Korean><|><strength_1_10>)'
-{% if relationship_hints %}
 
   Common relationship patterns you will likely see (not an exhaustive list — use a different label when it fits better):
-
-  | Type | Source | Target | When to use |
-  |------|--------|--------|-------------|
-{% for rt in relationship_hints %}
-  | {{ rt.name }} | {{ rt.source }} | {{ rt.target }} | {{ rt.when }} |
-{% endfor %}
-{% endif %}
 {% else %}
   * Relationship directions are fixed — do NOT reverse them. Source and Target MUST match the specified entity types exactly.
-  * Format: '("relationship"<|><source><|><target><|><description_in_Korean><|><strength_1_10>)'
+{% endif %}
 
   | Type | Source | Target | When to use |
   |------|--------|--------|-------------|
 {% for rt in relationship_types %}
   | {{ rt.name }} | {{ rt.source }} | {{ rt.target }} | {{ rt.when }} |
 {% endfor %}
-{% endif %}
 
   Rules:
 {% for r in relationship_rules %}
