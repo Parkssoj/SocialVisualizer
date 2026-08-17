@@ -29,20 +29,20 @@ Style the response in markdown.
 {{ response_rules_heading }}
 {{ response_rules_intro }}
 
+{% set category_rule_offset = response_rules_before_category|length %}
 {% for r in response_rules_before_category %}
 Rule {{ loop.index }}: {{ r.title }}
 {{ r.body }}
 
 {% endfor %}
-Rule 3: CATEGORY별 그룹핑
-동일한 category를 가진 커뮤니티가 2개 이상이면 해당 카테고리로 묶어 서술한다.
-아래 우선순위 순서로 섹션을 배치한다:
+Rule {{ category_rule_offset + 1 }}: {{ category_grouping_rule.title }}
+{{ category_grouping_rule.body }}
 {% for c in category_taxonomy %}
   {{ loop.index }}. {{ c.name }}
 {% endfor %}
 
 {% for r in response_rules_after_category %}
-Rule {{ loop.index + 3 }}: {{ r.title }}
+Rule {{ loop.index + category_rule_offset + 1 }}: {{ r.title }}
 {{ r.body }}
 
 {% endfor %}

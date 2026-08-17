@@ -18,6 +18,7 @@
         { "name": "schedules", "source": "Email", "target": "Event", "when": "Event/Schedule mentioned in email" },
         { "name": "has_attachment", "source": "Email", "target": "Attachment", "when": "File attached to email" }
     ],
+    "free_form_relationships": false,
     "grounding_rules": [
         "Do NOT extract one-time codes, OTPs, temporary tokens, or any ephemeral numeric/alphanumeric strings as entities.",
         "Do NOT extract serial numbers within filenames, or transaction identifiers such as invoice numbers, order numbers, or tracking IDs.",
@@ -42,7 +43,6 @@
     ],
     "extract_graph": {
         "goal": "Given a text document and a list of entity types, identify all entities and the relationships between them. Output both using the specified formats. The input may be an email, a structured table, or plain text — adapt accordingly.",
-        "free_form_relationships": false,
         "entity_type_rules": {
             "Email": [
                 "The 'name' (title) of an Email entity MUST always be the <mail_id> (Unique Identifier).",
@@ -110,7 +110,7 @@
             "has_attachment MUST be created ONLY if the attachment is explicitly mentioned in the text.",
             "Do NOT use sent_by, sent_to, cc_to if no Email entity exists.",
             "Do NOT create relationships that are NOT clearly supported by the text.",
-            "Relationship weight MUST be a float between 1.0 and 10.0. Explicit: 7.0+ / Inferred: 4.0 or below.",
+            "Relationship strength MUST be a float between 1.0 and 10.0. Explicit: 7.0+ / Inferred: 4.0 or below.",
             "Do NOT create duplicate relationships with the same source-target-type combination.",
             "Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description."
         ],
@@ -182,7 +182,7 @@
     "summarize_descriptions": {
         "goal": "You are a helpful assistant responsible for generating a comprehensive summary of the data provided below. Given one or two entities, and a list of descriptions, all related to the same entity or group of entities. Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions. If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary. Make sure it is written in third person, and include the entity names so we have the full context.",
         "additional_rules": [
-            "Merge duplicate persons: If entity names differ but share the same email address, or are clearly the same person from context, merge them into a single, unified entity description. Example: if '최지유', '지유띠니', and 'GPTTITTI@HANSUNG.AC.KR' all resolve to gpttitti@hansung.ac.kr, treat them as the same person.",
+            "Reconcile Name attribute conflicts within the same entity: by the time this step runs, the entity name (e.g. an Account/email) is already fixed, and this step only receives descriptions that already share that exact name. If those descriptions list different display names for the same Account (e.g. 'Name: 최지유' vs 'Name: 지유띠니'), keep a single consistent Name value in the merged description. This step does NOT merge entities that have different names — that identity resolution already happens at extraction time via the Account-based naming rule.",
             "CRITICAL: Do NOT create an entity if its description is 'None' or contains no meaningful information.",
             "Output language: Write in Korean. However, keep email addresses, proper nouns, and service names in their original form.",
             "Merge the two pieces of information into a single sentence. The 'Filename' and 'Type' fields are never duplicated across descriptions, so keep them as-is."
@@ -286,9 +286,9 @@
         },
         "rating_criteria": [
             { "range": "8-10", "description": "사람 간 직접 소통, 반복적 프로젝트 협업, 중요한 의사결정 포함" },
-            { "range": "5-7", "description": "구독/결제 관리, 서비스 공지 등 주기적으로 확인이 필요한 이메일" },
-            { "range": "2-4", "description": "자동 발송 트랜잭션 이메일 (인증코드, 보안 알림 등)" },
-            { "range": "0-1", "description": "마케팅, 광고, 일회성 알림 등 거의 무시해도 되는 이메일" }
+            { "range": "5-8", "description": "구독/결제 관리, 서비스 공지 등 주기적으로 확인이 필요한 이메일" },
+            { "range": "2-5", "description": "자동 발송 트랜잭션 이메일 (인증코드, 보안 알림 등)" },
+            { "range": "0-2", "description": "마케팅, 광고, 일회성 알림 등 거의 무시해도 되는 이메일" }
         ],
         "finding_angles": [
             "Community identity — what person or topic anchors this cluster",
@@ -303,15 +303,15 @@
         "examples": [
             {
                 "entities": [
-                    { "id": 1, "entity": "ChatGPT 코드는 146672입니다", "description": "Subject: ChatGPT 코드는 146672입니다 | Tone: Automated | Attachments: None | Summary: ChatGPT 인증 코드를 전달하는 자동 발송 메일" },
+                    { "id": 1, "entity": "19D1A2B3C4D5E6F7", "description": "Subject: ChatGPT 코드는 146672입니다 | ID: 19d1a2b3c4d5e6f7 | Date: 2026-03-10 09:12 | Tone: alert | Summary: ChatGPT 인증 코드를 전달하는 자동 발송 메일" },
                     { "id": 2, "entity": "noreply@tm.openai.com", "description": "Name: Unknown | Account: noreply@tm.openai.com" },
                     { "id": 3, "entity": "gpttitti@hansung.ac.kr", "description": "Name: Unknown | Account: gpttitti@hansung.ac.kr" },
                     { "id": 4, "entity": "인증코드 수신", "description": "Priority: low | Summary: ChatGPT 로그인을 위한 일회성 인증코드를 반복적으로 수신하는 자동화 흐름" }
                 ],
                 "relationships": [
-                    { "id": 1, "source": "ChatGPT 코드는 146672입니다", "target": "noreply@tm.openai.com", "description": "이메일의 발신자는 noreply@tm.openai.com이다." },
-                    { "id": 2, "source": "ChatGPT 코드는 146672입니다", "target": "gpttitti@hansung.ac.kr", "description": "이메일의 수신자는 gpttitti@hansung.ac.kr이다." },
-                    { "id": 3, "source": "ChatGPT 코드는 146672입니다", "target": "인증코드 수신", "description": "메일 본문에서 ChatGPT 인증코드 수신을 반복적인 주제로 다룬다." }
+                    { "id": 1, "source": "19D1A2B3C4D5E6F7", "target": "noreply@tm.openai.com", "description": "이메일의 발신자는 noreply@tm.openai.com이다." },
+                    { "id": 2, "source": "19D1A2B3C4D5E6F7", "target": "gpttitti@hansung.ac.kr", "description": "이메일의 수신자는 gpttitti@hansung.ac.kr이다." },
+                    { "id": 3, "source": "19D1A2B3C4D5E6F7", "target": "인증코드 수신", "description": "메일 본문에서 ChatGPT 인증코드 수신을 반복적인 주제로 다룬다." }
                 ],
                 "output": "{{\n    \"title\": \"인증코드 수신 — OpenAI 자동 발송 클러스터\",\n    \"summary\": \"OpenAI의 noreply 주소에서 gpttitti@hansung.ac.kr로 자동 발송된 인증코드 이메일 클러스터다. 반복적으로 동일한 인증 흐름이 발생하며, 모든 이메일이 트랜잭션 목적의 단방향 자동 발송이다.\",\n    \"category\": \"트랜잭션\",\n    \"purpose\": \"ChatGPT 로그인을 위한 일회성 인증코드를 수신하는 자동화 채널\",\n    \"rating\": 2.5,\n    \"rating_explanation\": \"자동 발송 인증코드 이메일로만 구성되어 있어 사용자의 실질적 활동을 반영하지 않는다.\",\n    \"findings\": [\n        {{\n            \"summary\": \"'인증코드 수신' Topic으로 묶인 자동 발송 클러스터\",\n            \"explanation\": \"모든 이메일이 동일한 인증코드 수신 흐름을 공유하며, 반복적으로 재등장하는 주제로 묶인 그룹이다. [Data: Entities (4); Relationships (3)]\"\n        }},\n        {{\n            \"summary\": \"OpenAI noreply 주소에서 발송\",\n            \"explanation\": \"noreply@tm.openai.com에서 발송된 자동 알림이며, 인증코드 전달 외의 목적이 없다. [Data: Entities (1, 2); Relationships (1)]\"\n        }},\n        {{\n            \"summary\": \"단일 수신자: gpttitti@hansung.ac.kr\",\n            \"explanation\": \"모든 이메일의 수신자가 동일하며 CC나 다른 수신자는 없다. [Data: Entities (3); Relationships (2)]\"\n        }}\n    ]\n}}"
             }
@@ -340,7 +340,7 @@
             "Record ids refer to the record ID, NOT the index.",
             "When citing Email entities, use the exact ID value from the 'ID:' field in the entity description. Do NOT paraphrase or abbreviate the ID."
         ],
-        "citation_example": "\"Person X is the owner of Company Y and subject to many allegations of wrongdoing [Data: Sources (15, 16), Reports (1), Entities (5, 7); Relationships (23); Claims (2, 7, 34, 46, 64, +more)].\"",
+        "citation_example": "\"Person X is the owner of Company Y and subject to many allegations of wrongdoing [Data: Sources (15, 16), Reports (1), Entities (5, 7); Relationships (23)].\"",
         "output_instructions": [
             "Produce the response strictly based on the provided data tables.",
             "Organize the response into clear sections as appropriate for the target length and format.",
@@ -393,7 +393,7 @@
                 { "title": "미확정 일정 — 미해결 항목으로 분류", "body": "Event.Status = \"tentative\"인 Event와 schedules 엣지가 있는 Email은 해당 key point description 앞에 \"[미확정]\" 태그를 붙일 것:\n  \"[미확정] [이메일 제목]에서 [Event.Schedule] [Event.Location] 일정이 언급되었으나 확정되지 않았다.\"" },
                 { "title": "다중 계정 Person — 실명으로 통합", "body": "Person 노드의 description에 특정 이메일 주소가 포함되어 있으면, 해당 이메일 주소를 Account로 가진 다른 Person 노드는 동일인으로 간주한다. 동일인으로 판단되는 경우 실명이 있는 노드의 이름으로 통합하여 언급한다." },
                 { "title": "Topic.Priority — 중요도 맥락 명시", "body": "Topic.Priority = \"high\"인 Topic이 discusses 엣지로 연결된 Email은 key point description에 \"(우선순위: 높음)\"을 포함할 것." },
-                { "title": "Community 필드 활용", "body": "community report에 `category` 또는 `purpose` 필드가 있으면:\n- category → 해당 이메일 클러스터의 성격을 분류하는 데 사용\n- purpose  → 이 클러스터가 무엇을 위한 것인지 한 문장으로 설명하는 데 사용\n- date_range  → 날짜 기반 필터링 시 활용\n- email_count → 메일 개수 표현 시 단수/복수 판단 기준으로 활용\n이 필드들을 key point의 맥락 설명에 적극 활용할 것." },
+                { "title": "Community 필드 활용", "body": "community report에 `category` 또는 `purpose` 필드가 있으면:\n- category → 해당 이메일 클러스터의 성격을 분류하는 데 사용\n- purpose  → 이 클러스터가 무엇을 위한 것인지 한 문장으로 설명하는 데 사용\n이 필드들을 key point의 맥락 설명에 적극 활용할 것." },
                 { "title": "메일 개수 카운팅", "body": "메일 개수를 셀 때는 반드시 type=EMAIL인 엔티티 수만 카운트한다. sent_to / sent_by 엣지 수를 메일 개수로 혼동하지 않는다. 동일 Email 노드에 연결된 sent_to 엣지가 여러 개여도 메일은 1통이다." },
                 { "title": "날짜 기반 필터링", "body": "사용자가 특정 날짜 또는 날짜 범위를 명시한 경우, Email.Date 필드가 해당 날짜와 일치하는 Email 엔티티만 key point로 추출한다. Email.Date가 None인 경우 해당 이메일은 \"날짜 정보 없음\"으로 별도 언급한다." }
             ],
@@ -409,6 +409,7 @@
             "merge_instruction": "The final response should remove all irrelevant information from the analysts' reports and merge the cleaned information into a comprehensive answer that provides explanations of all the key points and implications appropriate for the response length and format.",
             "modal_verb_note": "The response shall preserve the original meaning and use of modal verbs such as \"shall\", \"may\" or \"will\".",
             "preserve_references_note": "The response should also preserve all the data references previously included in the analysts' reports, but do not mention the roles of multiple analysts in the analysis process.",
+            "category_grouping_rule": { "title": "CATEGORY별 그룹핑", "body": "동일한 category를 가진 커뮤니티가 2개 이상이면 해당 카테고리로 묶어 서술한다.\n아래 우선순위 순서로 섹션을 배치한다:" },
             "response_rules_before_category": [
                 { "title": "응답 상단 메타 헤더 (항상 포함)", "body": "답변 최상단에 아래 형식의 요약 헤더를 마크다운 blockquote로 포함하라. 해당 정보가 데이터에 없으면 그 줄만 생략하고, 절대 추정하거나 지어내지 않는다.\n\n> **관련 커뮤니티:** N개\n> **주요 참여자:** [실명 또는 이메일, 쉼표 구분]\n> **기간:** YYYY-MM-DD ~ YYYY-MM-DD  ← Email.Date 또는 Event 데이터가 있을 때 포함\n> **미확정 항목:** N건          ← [미확정] 태그가 붙은 key point가 있을 때만 포함" },
                 { "title": "중요 커뮤니티 강조 섹션 분리", "body": "key points 중 importance score ≥ 70 (또는 community report rank ≥ 7.0)에 해당하는 항목이 있으면, 본문을 아래 두 섹션으로 나눠서 제시한다:\n\n#### 주요 커뮤니티\n(score 높은 항목 — 사람 간 직접 소통, 프로젝트 협업 등)\n\n#### 기타 커뮤니티\n(score 낮은 항목 — 트랜잭션, 마케팅 등)\n\nscore가 모두 유사하거나 rank 정보가 없으면 이 구분을 생략해도 된다." }
@@ -419,7 +420,7 @@
                 { "title": "첨부파일 언급", "body": "key point에 첨부파일 정보가 포함된 경우, 관련 메일 설명 안에 자연스럽게 \"[파일명] 첨부\" 형태로 포함한다. 별도 섹션으로 분리하지 않아도 된다." },
                 { "title": "메일 개수 표현", "body": "key points에서 Email 엔티티가 1개로 확인되는 커뮤니티에 대해서는 \"모든 이메일\", \"이메일들\" 같은 복수 표현을 사용하지 않는다. \"이메일 1통이 ~\" 형태의 단수 표현을 사용한다. community_report의 서술이 복수여도 실제 Email 엔티티 수를 우선한다." },
                 { "title": "날짜 기반 쿼리 응답", "body": "사용자가 특정 날짜를 지정한 경우:\n* Email.Date 또는 community_report.date_range 기준으로 필터링한다.\n* 일치하는 이메일이 없으면: \"해당 날짜에 수신/발신된 이메일이 데이터에 없습니다.\"라고 명시한다. \"데이터를 찾을 수 없습니다\" 같은 모호한 표현을 쓰지 않는다.\n* Email.Date가 None인 이메일은 별도로 언급한다: \"날짜 정보가 없는 이메일 N통이 존재합니다.\"" },
-                { "title": "Community Report 필드 활용", "body": "context에 community report가 포함된 경우:\n* report.category    → 이메일 클러스터 성격 분류에 활용\n* report.purpose     → 클러스터 설명 시 한 문장 요약으로 활용\n* report.rank      → 중요도 판단 기준 (rank ≥ 7.0 우선 서술)\n* report.date_range  → 날짜 기반 필터링에 활용\n* report.email_count → 메일 개수 단수/복수 표현 판단 기준으로 활용" }
+                { "title": "Community Report 필드 활용", "body": "context에 community report가 포함된 경우:\n* report.category    → 이메일 클러스터 성격 분류에 활용\n* report.purpose     → 클러스터 설명 시 한 문장 요약으로 활용\n* report.rank      → 중요도 판단 기준 (rank ≥ 7.0 우선 서술)" }
             ]
         },
         "knowledge": {

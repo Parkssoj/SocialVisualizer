@@ -230,7 +230,8 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
 
-    #user_graphrag_init(paths)
+    render_all_domains()
+    user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
     cmd = [
@@ -298,7 +299,9 @@ def build_graphrag_update(job_id,paths, env):
     append_job_log(job_id, f"[INFO] sys.executable={sys.executable}")
     append_job_log(job_id, f"[INFO] GRAPHRAG_ROOT={paths.GRAPHRAG_ROOT}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.GRAPHRAG_ROOT)}")
-    
+
+    render_all_domains()
+    user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
     cmd = [
@@ -377,8 +380,9 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
+    # 프롬프트의 최신 상태 유지
     render_all_domains()
-    user_graphrag_init(paths)
+
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
 
@@ -458,8 +462,6 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
-    render_all_domains()
-    user_graphrag_init(paths)
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
 
