@@ -90,6 +90,11 @@ class UserPaths:
         self.MAIL_AVATARS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "person_avatars.json")
         self.AVATAR_IMAGES_DIR  = os.path.join(self.MAIL_STATICS_PATH, "avatars")
         self.MAIL_MESSAGE_CACHE_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_message_cache.json")
+        # 메신저(messenger) 도메인 전용 중간 통계 JSON — mail_*과 같은 디렉터리를 쓰지만
+        # (이미 domain별로 폴더가 나뉘어 있어 파일명 겹칠 일 없음) 별도 이름으로 구분.
+        self.CHATROOM_PEOPLE_MESSAGES_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_messages.json")
+        self.MESSAGE_KEYWORDS_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_keyword_stats.json")
+        self.MESSAGE_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_summaries.json")
         self.UPDATE_DIR = os.path.join(self.GRAPHRAG_ROOT, "update_output")
         self.MAX_MAILS = _MAX_MAILS_CONFIG.get(user_id, None)
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
