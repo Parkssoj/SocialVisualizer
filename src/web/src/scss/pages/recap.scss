@@ -2,12 +2,12 @@
 
 /* ── 페이지 배경 ── */
 .right_col {
-  background: #f3f7f5;
+  background: #ffffff;
 }
 
 /* ── 히어로 배너 ── */
 .rc-hero {
-  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
+  background: linear-gradient(135deg, #431407 0%, #7c2d12 50%, #c2410c 100%);
   padding: 36px 40px 80px;
   position: relative;
   overflow: hidden;
@@ -26,7 +26,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #95d5b2;
+  color: #fb923c;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -39,7 +39,7 @@
 }
 .rc-hero-sub {
   font-size: 0.9rem;
-  color: #b7e4c7;
+  color: #fdba74;
   font-weight: 400;
 }
 #account-picker-mount {
@@ -59,7 +59,7 @@
   border: none;
   border-radius: 999px;
   padding: 8px 16px;
-  color: #1b4332;
+  color: #431407;
   text-decoration: none;
   font-weight: 700;
   font-size: 0.82rem;
@@ -70,7 +70,7 @@
   white-space: nowrap;
 }
 .rc-hero-graph-link:hover {
-  color: #1b4332;
+  color: #431407;
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   transform: translateY(-50%) translateX(-2px);
@@ -93,8 +93,8 @@
   border-radius: 20px;
   padding: 28px 32px;
   margin-bottom: 22px;
-  box-shadow: 0 4px 24px rgba(27, 67, 50, 0.09);
-  border: 1px solid rgba(200, 230, 215, 0.6);
+  box-shadow: 0 4px 24px rgba(67, 20, 7, 0.09);
+  border: 1px solid rgba(254, 215, 170, 0.6);
 }
 .rc-card-header {
   display: flex;
@@ -105,7 +105,7 @@
 .rc-card-title {
   font-size: 1rem;
   font-weight: 800;
-  color: #1b4332;
+  color: #431407;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -124,8 +124,8 @@
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 20px;
-  background: #d8f3dc;
-  color: #2d6a4f;
+  background: #fed7aa;
+  color: #7c2d12;
 }
 
 /* ── 로딩 / 에러 ── */
@@ -133,7 +133,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #52b788;
+  color: #ea580c;
   font-weight: 600;
   font-size: 0.88rem;
   padding: 20px 0;
@@ -141,8 +141,8 @@
 .rc-spinner {
   width: 22px;
   height: 22px;
-  border: 2.5px solid rgba(82, 183, 136, 0.2);
-  border-top-color: #40916c;
+  border: 2.5px solid rgba(234, 88, 12, 0.2);
+  border-top-color: #c2410c;
   border-radius: 50%;
   animation: rcspin 0.7s linear infinite;
   flex-shrink: 0;
@@ -296,7 +296,7 @@
 .rc-bar-fill {
   height: 100%;
   border-radius: 20px;
-  background: linear-gradient(90deg, #74c69d, #40916c);
+  background: linear-gradient(90deg, #f97316, #c2410c);
   width: 0;
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -312,7 +312,7 @@
 .rc-bar-count {
   font-size: 0.85rem;
   font-weight: 800;
-  color: #40916c;
+  color: #c2410c;
   text-align: right;
   white-space: nowrap;
 }
@@ -420,7 +420,7 @@
 .rc-af-center-num {
   font-size: 2.5rem;
   font-weight: 800;
-  color: #1b4332;
+  color: #431407;
   line-height: 1;
 }
 .rc-af-center-label {
