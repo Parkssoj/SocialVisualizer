@@ -21,7 +21,7 @@ from util.database.db_writer import create_mail_account,save_person_stats_to_db,
 from util.graphrag_mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
+from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
 
 load_dotenv("src/parquet/.env")
 
@@ -230,7 +230,7 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
 
-    render_all_domains()
+    render_all_prompts()
     user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
@@ -300,7 +300,7 @@ def build_graphrag_update(job_id,paths, env):
     append_job_log(job_id, f"[INFO] GRAPHRAG_ROOT={paths.GRAPHRAG_ROOT}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.GRAPHRAG_ROOT)}")
 
-    render_all_domains()
+    render_all_prompts()
     user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
@@ -381,7 +381,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     append_job_log(job_id, "[START] run_graph_pipeline")
 
     # 프롬프트의 최신 상태 유지
-    render_all_domains()
+    render_all_prompts()
 
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
