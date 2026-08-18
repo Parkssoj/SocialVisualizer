@@ -1,15 +1,18 @@
 # src/util/database/chatroom_db_writer.py
-#
-# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/
-# message_keyword/message_summarize 테이블에 인덱싱 결과를 저장한다.
-# get_db_connection/get_or_create_user_id/collect_indexing_stats는 도메인 독립적이라
-# db_writer.py 것을 그대로 재사용한다.
+# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/message_keyword/message_summarize 테이블에 데이터 저장
+# get_db_connection/get_or_create_user_id/collect_indexing_stats는 도메인 독립적이라 db_writer.py 것을 그대로 재사용
 
 import os
 import json
+import datetime
 from config.db import get_db_connection
 from util.database.db_writer import get_or_create_user_id, collect_indexing_stats
 
+def _normalize_datetime(value):
+    # chatroom.index_date는 DATETIME(초 단위, 마이크로초 없음) 컬럼이므로 형태 통일 목적
+    if isinstance(value, datetime.datetime):
+        return value.replace(microsecond=0)
+    return value
 
 def init_chatroom_tables():
     """서버 시작 시 chatroom 관련 6개 테이블이 없으면 자동 생성 (sql/message_schema.sql과 동일한 구조)"""
@@ -128,7 +131,7 @@ def init_chatroom_tables():
 
 
 def get_latest_chatroom(chatroom_id: str):
-    """chatroom 테이블에서 해당 chatroom_id의 가장 최근 레코드 반환. return: dict | None"""
+    # chatroom 테이블에서 해당 chatroom_id의 가장 최근 레코드 반환
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -152,7 +155,9 @@ def get_latest_chatroom(chatroom_id: str):
 
 
 def _resolve_chatroom_key(chatroom_id: str, update_date=None):
-    """(chatroom_id, index_date, user_id)를 반환. 아직 chatroom 레코드가 없고 update_date도 없으면 None."""
+    # chatroom 레코드의 (chatroom_id, index_date, user_id)를 반환. 아직 chatroom 레코드가 없고 update_date도 없으면 None.
+    update_date = _normalize_datetime(update_date)
+
     latest = get_latest_chatroom(chatroom_id)
     if update_date is None:
         if not latest:
@@ -163,8 +168,9 @@ def _resolve_chatroom_key(chatroom_id: str, update_date=None):
 
 
 def create_chatroom(chatroom_id, chatroom_name, ended_at, index_time, message_count, message_platform):
-    """chatroom 테이블에 인덱싱 결과 레코드 생성 (user_id 없으면 신규 발급)"""
+    # chatroom 테이블에 인덱싱 결과 레코드 생성 (user_id 없으면 신규 발급)
     user_id = get_or_create_user_id(chatroom_id)
+    ended_at = _normalize_datetime(ended_at)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -196,7 +202,7 @@ def create_chatroom(chatroom_id, chatroom_name, ended_at, index_time, message_co
 
 
 def update_chatroom_indexing_stats(chatroom_id: str, index_date, stats: dict):
-    """chatroom 테이블의 인덱싱 통계 컬럼을 업데이트"""
+    # chatroom 테이블의 인덱싱 컬럼 업데이트
     key = _resolve_chatroom_key(chatroom_id, index_date)
     if key is None:
         print(f"[WARN] update_chatroom_indexing_stats: chatroom 없음 {chatroom_id}")
@@ -249,7 +255,7 @@ def update_chatroom_indexing_stats(chatroom_id: str, index_date, stats: dict):
 
 
 def save_chatroom_graph_stats_to_db(paths, update_date=None):
-    """graph_data.json을 읽어 노드/엣지 수를 chatroom 테이블에 저장"""
+    # graph_data.json을 읽어 노드/엣지 수를 chatroom 테이블에 저장
     if not os.path.exists(paths.GRAPH_JSON_PATH):
         print(f"[WARN] 그래프 JSON 파일이 없습니다: {paths.GRAPH_JSON_PATH}")
         return
@@ -290,7 +296,7 @@ def save_chatroom_graph_stats_to_db(paths, update_date=None):
 
 
 def save_message_block_to_db(paths, update_date=None):
-    """text_units.parquet에서 대화 블록을 파싱해 message_block + participant 테이블에 저장"""
+    # text_units.parquet에서 대화 블록을 파싱해 message_block + participant 테이블에 저장
     from util.message_statics import _parse_message_blocks_from_parquet, _classify_message_tone_with_llm
 
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
@@ -369,7 +375,7 @@ def save_message_block_to_db(paths, update_date=None):
 
 
 def save_chatroom_people_to_db(paths, update_date=None):
-    """chatroom_people_messages.json 기반 메시지 수 + LLM 프로필(description)을 chatroom_people에 저장"""
+    # chatroom_people_messages.json 기반 메시지 수 + LLM 프로필(description)을 chatroom_people에 저장
     from util.message_statics import generate_chatroom_people_descriptions
 
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
@@ -424,7 +430,7 @@ def save_chatroom_people_to_db(paths, update_date=None):
 
 
 def save_message_keyword_to_db(paths, update_date=None):
-    """message_keyword_stats.json을 읽어 participant에 실제 존재하는 (참여자, 블록) 쌍만 message_keyword에 저장"""
+    # message_keyword_stats.json을 읽어 participant에 실제 존재하는 (참여자, 블록) 쌍만 message_keyword에 저장
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
     if key is None:
         print(f"[WARN] chatroom 테이블에 해당 채팅방이 없습니다: {paths.USER_ID}")
@@ -481,7 +487,7 @@ def save_message_keyword_to_db(paths, update_date=None):
 
 
 def save_message_summarize_to_db(paths, update_date=None):
-    """message_summaries.json(연/월별 LLM 요약)을 message_summarize 테이블에 저장"""
+    # message_summaries.json(연/월별 LLM 요약)을 message_summarize 테이블에 저장
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
     if key is None:
         print(f"[WARN] chatroom 테이블에 해당 채팅방이 없습니다: {paths.USER_ID}")

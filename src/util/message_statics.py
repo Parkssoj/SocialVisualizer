@@ -263,12 +263,18 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
             body = "\n".join(texts).strip()
             if not body:
                 continue
+            # extract_keywords_with_llm은 "이날 주요 키워드가 뭔지"만 중복 없이 뽑아준다 —
+            # 실제 언급 횟수는 이 사람이 이 블록에서 보낸 메시지 원문에서 직접 센다
+            # (조사가 붙어도 "나무를"/"나무가"처럼 부분 문자열로 그대로 들어있어 count()로 잡힘).
             keywords = extract_keywords_with_llm(body)
             for kw in keywords:
-                keyword_stats[kw] = keyword_stats.get(kw, 0) + 1
+                occurrence = sum(text.count(kw) for text in texts)
+                if occurrence <= 0:
+                    continue
+                keyword_stats[kw] = keyword_stats.get(kw, 0) + occurrence
                 mention_map.setdefault(kw, {}).setdefault(sender, {})
                 mention_map[kw][sender][block["block_id"]] = \
-                    mention_map[kw][sender].get(block["block_id"], 0) + 1
+                    mention_map[kw][sender].get(block["block_id"], 0) + occurrence
 
         processed_ids.add(block["block_id"])
 
