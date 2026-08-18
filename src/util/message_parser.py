@@ -171,9 +171,11 @@ def build_message_blocks(messages: list[dict], room_name: str, max_per_block: in
 
 
 # 대화방 이름만으로 안정적인 합성 user_id를 만든다 (같은 방 이름을 다시 올리면 항상 같은 값 → append 대상 계정이 유지됨).
-# _mail_to_dir_name()이 이 "[msg_xxxxxxxx]" 패턴을 인식해서 폴더명은 해시 부분만 쓰고,
-# 원본 표시 이름(한글 포함)은 account.json에 그대로 보존된다.
+# 방 이름(한글, 길이 제각각)을 그대로 ID에 넣으면 DB 쪽에서 chatroom_id가 여러 테이블의
+# 복합 PK/FK에 반복돼 InnoDB 인덱스 최대 길이(3072바이트)를 넘기는 문제가 있었다.
+# 그래서 ID는 항상 40자 고정 길이의 SHA1 hex(ASCII)만 쓴다. 사람이 읽을 표시용 이름은
+# 이 함수의 인자로 들어온 room_name을 호출부에서 별도로 보존해야 한다(예: chatroom 테이블의
+# chatroom_name 컬럼).
 def build_room_id(room_name: str) -> str:
     normalized = (room_name or "").strip()
-    digest = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:8]
-    return f"{normalized} [msg_{digest}]"
+    return hashlib.sha1(normalized.encode("utf-8")).hexdigest()
