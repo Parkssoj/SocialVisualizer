@@ -1,6 +1,12 @@
 {{ goal }}
 
--Entity Description Format Rules-
+-Two Possible Cases-
+This same prompt is used both to merge repeated descriptions of a SINGLE entity, and to merge repeated descriptions of a RELATIONSHIP between two entities. Determine which case you are in by looking at the Description List entries themselves — NOT just at how many names appear in "Entities":
+
+* Case A — Entity summary: the Description List entries already follow one of the compact key:value formats below (e.g. start with "Name:", "Term:", "Value:", "Subject:", "Account:", etc.). Follow -Entity Description Format Rules- below strictly.
+* Case B — Relationship summary: the Description List entries are instead full natural-language sentences describing an interaction/relationship (e.g. what the two people talked about, how they addressed each other). This happens even when "Entities" lists two Person-type names — do NOT be misled by that into treating it as Case A. In this case, do NOT apply the entity format rules and do NOT collapse the output into a "Name: ..." line — that would discard all the relationship information. Instead, write ONE comprehensive Korean paragraph in third person that synthesizes all the information across the description list, mentioning both entity names, resolving contradictions if any.
+
+-Entity Description Format Rules- (Case A only)
 Depending on the entity type, the format below must be strictly maintained. Natural language narration outside the format is prohibited.
 
 {% for et in entity_types %}

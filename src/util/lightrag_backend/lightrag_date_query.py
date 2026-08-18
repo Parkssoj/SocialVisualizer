@@ -223,7 +223,10 @@ def _filter_emails_by_date(paths, start_date: str, end_date: str) -> list:
         if not block:
             continue
 
-        date_m = re.search(r'^날짜:\s*(.+?)\s*$', block, re.MULTILINE)
+        # 실제 mail_latest.txt는 "[날짜] ...", "[ID] ..." 같은 대괄호 형식이라, 콜론 형식만
+        # 찾던 정규식은 항상 실패해서 이 함수가 매번 빈 결과를 반환했다(대괄호/콜론 둘 다 받도록
+        # 고침 — lightrag_mail_parser.py의 parse_mail_blocks()와 같은 버그/같은 수정).
+        date_m = re.search(r'^\s*(?:\[날짜\]|날짜:)\s*(.+?)\s*$', block, re.MULTILINE)
         if not date_m:
             continue  # 날짜 필드 없으면 걍 넘어감
 
@@ -235,8 +238,8 @@ def _filter_emails_by_date(paths, start_date: str, end_date: str) -> list:
         if not (start_dt <= mail_dt <= end_dt):
             continue  # 날짜 범위 밖이면 걍 넘어감
 
-        id_m = re.search(r'^ID:\s*(.+?)\s*$', block, re.MULTILINE)
-        title_m = re.search(r'^제목:\s*(.+?)\s*$', block, re.MULTILINE)
+        id_m = re.search(r'^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$', block, re.MULTILINE)
+        title_m = re.search(r'^\s*(?:\[제목\]|제목:)\s*(.+?)\s*$', block, re.MULTILINE)
 
         # [메일 본문] 섹션 이후를 본문으로 사용. GraphRAG판의 "summary"는 GraphRAG가 LLM으로
         # 요약한 값이었지만, 여기는 원본 본문 앞부분을 그대로 잘라 쓴다(컨텍스트 길이 제한용).

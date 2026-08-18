@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import OrbitingCirclesGlobe from "./ui/orbiting-circles-02.tsx";
+import { GlobeLive } from "./ui/cobe-globe-live.tsx";
+import { Component as HeroGridBackground } from "./ui/background-snippets.tsx";
+import OrbitingSkills from "./ui/orbiting-skills.tsx";
 
 export default function HeroOrbit() {
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
@@ -13,22 +15,26 @@ export default function HeroOrbit() {
 
   return (
     <div className="gw-orbit-hero">
-      <img
-        className="gw-layer bg"
-        src="/images/hero/hero-bg.png"
-        alt=""
-        aria-hidden="true"
-      />
+      <HeroGridBackground />
+      <div className="gw-globe-belt" aria-hidden="true">
+        <div className="gw-globe-belt-inner">
+          <GlobeLive />
+        </div>
+      </div>
+
+      <div className="gw-skills-orbit" aria-hidden="true">
+        <OrbitingSkills />
+      </div>
 
       <div className="gw-orbit-left">
         <p
           className="gw-hero-eyebrow gw-anim"
           style={{ transitionDelay: "0s" }}
         >
-          ✦ 황금 올리브
+          ✦ Golden Olive
         </p>
         <h1
-          className="gw-hero-headline gw-hero-headline-glow gw-anim"
+          className="gw-hero-headline gw-anim"
           style={{ transitionDelay: "0.05s" }}
         >
           Social Visualizer
@@ -205,26 +211,6 @@ export default function HeroOrbit() {
           <a href="search.html" className="gw-hero-cta-primary">
             시작하기
           </a>
-          <a href="graph-viz.html" className="gw-hero-cta-secondary">
-            지식 그래프 보기 →
-          </a>
-        </div>
-      </div>
-
-      <div
-        className="gw-orbit-right gw-anim"
-        id="kgraph"
-        style={{ transitionDelay: "0.3s" }}
-      >
-        <OrbitingCirclesGlobe />
-      </div>
-
-      <div className="gw-trusted gw-anim" style={{ transitionDelay: "0.4s" }}>
-        <p className="gw-trusted-label">Supported email services</p>
-        <div className="gw-trusted-logos">
-          <span className="gw-trusted-logo">Gmail</span>
-          <span className="gw-trusted-logo">NAVER</span>
-          <span className="gw-trusted-logo">iCloud</span>
         </div>
       </div>
     </div>

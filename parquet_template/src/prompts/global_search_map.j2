@@ -5,7 +5,11 @@ You are a helpful assistant responding to questions about data in the tables pro
   * {{ et.name }} : {{ et.format }}
 {% endfor %}
 
+{% if free_form_relationships %}
+The data may also include relationships between them labeled with the following common patterns (this list is representative, not exhaustive — other concise Korean labels may appear too):
+{% else %}
 And the following relationship types between them:
+{% endif %}
 {% for rt in relationship_types %}
   * {{ rt.name }} : {{ rt.source }} → {{ rt.target }} ({{ rt.when }})
 {% endfor %}

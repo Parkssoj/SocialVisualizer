@@ -44,7 +44,7 @@ _EMBEDDING_DIMS = {
     "text-embedding-ada-002": 1536,
 }
 
-from util.jobs.job_store import update_job, append_job_log
+from util.jobs.job_store import update_job, append_job_log, get_job
 from util.sse_broadcaster import broadcast
 from util.lightrag_backend.lightrag_progress import get_stage_progress
 
@@ -62,7 +62,7 @@ from util.lightrag_backend.lightrag_db_writer import save_mail_folder_to_db_ligh
 from util.lightrag_backend.lightrag_mail_summary import generate_mail_summaries_lightrag
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains
+from renderer import render_all_prompts
 
 # threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
 # 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
@@ -78,6 +78,27 @@ def _run_and_join(jobs):
     for t in threads: t.join()
     if errors:
         raise errors[0]
+
+
+# LightRAG 폴더도 GraphRAG 결과 폴더(cache/input/logs/output)처럼 나누기 위한 보조 함수.
+# LightRAG 라이브러리 자체는 working_dir 하나만 지원해서 완전히 똑같이는 못 나누고(위
+# user_path.py의 LIGHTRAG_OUTPUT_DIR 주석 참고), logs/는 여기서 직접 채운다.
+# input/은 user_path.py에서 paths.MAIL_DIR 자체가 RAG_ENGINE==lightrag일 때 LIGHTRAG_INPUT_DIR을
+# 가리키도록 바뀌어서(=LightRAG는 GraphRAG의 parquet/input을 더 이상 공유하지 않음), 원본이
+# 처음부터 여기 저장되므로 따로 사본을 뜰 필요가 없어졌다.
+
+# job_store(job_store.py)는 로그를 메모리에만 들고 있고 파일로 안 남기므로, job이 끝나는
+# 시점에 그 로그를 logs/ 밑에 파일로 떠서 남긴다.
+def _write_lightrag_job_log(paths, job_id, label):
+    try:
+        os.makedirs(paths.LIGHTRAG_LOGS_DIR, exist_ok=True)
+        job = get_job(job_id) or {}
+        lines = job.get("logs", [])
+        log_path = os.path.join(paths.LIGHTRAG_LOGS_DIR, f"{label}_{job_id}.log")
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+    except Exception as e:
+        print(f"[JOB][lightrag] 로그 파일 저장 실패(무시): {e}")
 
 
 # working_dir(=kv_store_doc_status.json이 있는 곳)을 3초 간격으로 감시해 문서 처리 비율을
@@ -141,8 +162,11 @@ def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mai
         # 구분선 복원
         block_text = f"{MAIL_BLOCK_SEP}\n{block}\n{MAIL_BLOCK_SEP}"
 
-        # 블록에서 메일 ID 추출
-        m = re.search(r"^\s*ID:\s*(.+?)\s*$", block_text, re.MULTILINE)
+        # 블록에서 메일 ID 추출. 실제 메일 블록은 "[ID] ..." 형식(대괄호)을 쓰는데
+        # 예전엔 여기가 "ID:" 형식만 찾아서 정규식이 항상 실패 → mail_id가 항상 None이 되고
+        # "첨부 내용 없음"으로 취급돼 요약이 절대 안 들어갔다. mail_data_manager.py의
+        # _extract_mail_id_from_block()과 같은 패턴으로 두 형식 다 받도록 고쳤다.
+        m = re.search(r"^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$", block_text, re.MULTILINE)
         mail_id = m.group(1).strip() if m else None
 
         # 해당 메일 ID에 첨부 내용이 없으면 그대로 추가
@@ -171,7 +195,7 @@ def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mai
         f.write("\n".join(merged_blocks) + "\n")
 
 
-# LightRAG가 인덱싱하며 만든 graph_chunk_entity_relation.graphml(paths.LIGHTRAG_ROOT 밑)을
+# LightRAG가 인덱싱하며 만든 graph_chunk_entity_relation.graphml(paths.LIGHTRAG_OUTPUT_DIR 밑)을
 # 읽어서 그래프 시각화용 json(paths.LIGHTRAG_GRAPH_JSON_PATH)으로 변환한다.
 # graphrag_parquet2json.py는 subprocess로 돌렸지만(GraphRAG CLI와 같은 방식), LightRAG는
 # 이미 파이썬 라이브러리를 직접 호출하는 구조라 변환기도 그냥 함수 호출로 처리한다.
@@ -248,12 +272,13 @@ def _load_mail_rows_for_indexing(paths) -> tuple[list[str], list[str]]:
 # LightRAG는 GraphRAG처럼 별도 CLI 프로세스를 띄우지 않고, 파이썬 코드 안에서
 # 인스턴스를 만들고 ainsert()를 직접 호출하는 방식이라 이 함수가 곧 "인덱싱 엔진"이다.
 #
-# working_dir은 paths.LIGHTRAG_ROOT(=user_data/<email>/lightrag/<domain>)를 쓴다.
+# working_dir은 paths.LIGHTRAG_OUTPUT_DIR(=user_data/<email>/lightrag/<domain>/output)을 쓴다.
 # 예전엔 GraphRAG 때 쓰던 paths.GRAPHRAG_ROOT(=.../graphrag/<domain>/parquet)를 그대로
 # 재사용했는데, 그러면 LightRAG의 그래프/벡터/KV 저장소(rag_storage에 해당하는 파일들:
 # graph_chunk_entity_relation.graphml, kv_store_*.json, vdb_*.json 등)가 GraphRAG의
 # parquet 출력 폴더 안에 뒤섞여 저장됐다. 이제 user_path.py에서 완전히 분리된 경로를
-# 만들어주므로 여기서도 LIGHTRAG_ROOT를 쓴다.
+# 만들어주므로 여기서도 LIGHTRAG_OUTPUT_DIR을 쓴다(GraphRAG 결과 폴더처럼 output/로 한 번
+# 더 나눈 이유는 user_path.py의 LIGHTRAG_OUTPUT_DIR 정의부 주석 참고).
 #
 # 주의(다음 단계에서 손볼 부분): 지금은 호출할 때마다 LightRAG 인스턴스를 새로 만든다.
 # lightrag_engine.py의 get_lightrag_instance()가 담당하는 "유저별 인스턴스 캐싱"은
@@ -274,7 +299,7 @@ async def _lightrag_ainsert(paths, texts: list[str], ids: list[str]):
     )
 
     rag = LightRAG(
-        working_dir=paths.LIGHTRAG_ROOT,
+        working_dir=paths.LIGHTRAG_OUTPUT_DIR,
         llm_model_func=llm_model_func,
         embedding_func=embedding_func,
     )
@@ -295,14 +320,16 @@ async def _lightrag_ainsert(paths, texts: list[str], ids: list[str]):
 def build_lightrag_index(job_id, paths, env, max_mails=None):
     print(f"[JOB][lightrag] START job_id={job_id}")
     print(f"[JOB][lightrag] cwd={os.getcwd()}")
-    print(f"[JOB][lightrag] LIGHTRAG_ROOT={paths.LIGHTRAG_ROOT}")
-    print(f"[JOB][lightrag] root_exists={os.path.exists(paths.LIGHTRAG_ROOT)}")
+    print(f"[JOB][lightrag] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
+    print(f"[JOB][lightrag] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
     update_job(job_id, progress=20, message="인덱싱 시작 (LightRAG)")
     append_job_log(job_id, "[START] build_lightrag_index")
     append_job_log(job_id, f"[INFO] cwd={os.getcwd()}")
-    append_job_log(job_id, f"[INFO] LIGHTRAG_ROOT={paths.LIGHTRAG_ROOT}")
-    append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_ROOT)}")
+    append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
+    append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
+
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
 
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
@@ -315,12 +342,12 @@ def build_lightrag_index(job_id, paths, env, max_mails=None):
 
     # util/lightrag_backend/lightrag_progress.py가 kv_store_doc_status.json을 3초 간격으로
     # 폴링해서 텍스트유닛→엔티티→관계 추출이 진행되는 동안에도(30~90% 구간) 문서 처리
-    # 비율을 보여준다. 이 파일이 LIGHTRAG_ROOT 밑에 생기므로 감시 대상도 LIGHTRAG_ROOT.
+    # 비율을 보여준다. 이 파일이 LIGHTRAG_OUTPUT_DIR 밑에 생기므로 감시 대상도 LIGHTRAG_OUTPUT_DIR.
     start_time = time.time()
     stop_event = threading.Event()
     watcher = threading.Thread(
         target=_watch_lightrag_progress,
-        args=(job_id, paths.LIGHTRAG_ROOT, start_time, stop_event, 30),
+        args=(job_id, paths.LIGHTRAG_OUTPUT_DIR, start_time, stop_event, 30),
         daemon=True,
     )
     watcher.start()
@@ -345,6 +372,7 @@ def build_lightrag_index(job_id, paths, env, max_mails=None):
     finally:
         stop_event.set()
         watcher.join(timeout=5)
+        _write_lightrag_job_log(paths, job_id, "index")
 
 
 # 백그라운드: 증분 업데이트. LightRAG는 ainsert()가 곧 upsert라서 이미 인덱싱된 id는
@@ -352,13 +380,15 @@ def build_lightrag_index(job_id, paths, env, max_mails=None):
 # build_lightrag_index()와 로직이 사실상 동일해졌고, _lightrag_ainsert()를 그대로 재사용한다.
 def build_lightrag_update(job_id, paths, env):
     print(f"[JOB][lightrag-update] START job_id={job_id}")
-    print(f"[JOB][lightrag-update] LIGHTRAG_ROOT={paths.LIGHTRAG_ROOT}")
-    print(f"[JOB][lightrag-update] root_exists={os.path.exists(paths.LIGHTRAG_ROOT)}")
+    print(f"[JOB][lightrag-update] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
+    print(f"[JOB][lightrag-update] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
 
     update_job(job_id, progress=20, message="업데이트 시작 (LightRAG)")
     append_job_log(job_id, "[START] build_lightrag_update")
-    append_job_log(job_id, f"[INFO] LIGHTRAG_ROOT={paths.LIGHTRAG_ROOT}")
-    append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_ROOT)}")
+    append_job_log(job_id, f"[INFO] LIGHTRAG_OUTPUT_DIR={paths.LIGHTRAG_OUTPUT_DIR}")
+    append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.LIGHTRAG_OUTPUT_DIR)}")
+
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 필요
 
     # mail_latest.csv 전체를 다시 넘긴다 (index와 동일한 소스). 이미 인덱싱된 id는
     # LightRAG가 내부적으로 알아서 스킵하므로, "새로 추가된 것만 골라 넘기는" 별도 로직이 필요 없다.
@@ -370,7 +400,7 @@ def build_lightrag_update(job_id, paths, env):
     stop_event = threading.Event()
     watcher = threading.Thread(
         target=_watch_lightrag_progress,
-        args=(job_id, paths.LIGHTRAG_ROOT, start_time, stop_event, 30),
+        args=(job_id, paths.LIGHTRAG_OUTPUT_DIR, start_time, stop_event, 30),
         daemon=True,
     )
     watcher.start()
@@ -392,6 +422,7 @@ def build_lightrag_update(job_id, paths, env):
 
     finally:
         stop_event.set()
+        _write_lightrag_job_log(paths, job_id, "update")
         watcher.join(timeout=5)
 
 
@@ -400,7 +431,9 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
+    # 프롬프트의 최신 상태 유지
+    render_all_prompts()
+
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
 
@@ -480,7 +513,6 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
 
