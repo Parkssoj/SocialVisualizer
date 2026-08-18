@@ -172,6 +172,16 @@ def _save_chatroom_people_messages(paths, mode: str = "rewrite"):
     print(f"[MSG_STATS] ({mode}) 참여자 {len(people)}명 메시지 이력 저장 완료 → {paths.CHATROOM_PEOPLE_MESSAGES_PATH}")
 
 
+# chatroom_people_messages.json(참여자별 메시지 리스트) 합산
+# 시스템 메시지는 JSON에 안 들어가므로 자동 제외
+def count_total_messages(paths) -> int:
+    if not os.path.exists(paths.CHATROOM_PEOPLE_MESSAGES_PATH):
+        return 0
+    with open(paths.CHATROOM_PEOPLE_MESSAGES_PATH, "r", encoding="utf-8") as f:
+        people = json.load(f).get("people", {})
+    return sum(len(messages) for messages in people.values())
+
+
 # 참여자별 메시지 이력(시간 포함)을 근거로 LLM 프로필 문장 생성 (DB 저장은 호출자가 담당)
 def generate_chatroom_people_descriptions(paths) -> dict:
     if not os.path.exists(paths.CHATROOM_PEOPLE_MESSAGES_PATH):
