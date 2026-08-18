@@ -113,6 +113,7 @@ from util.database.db_writer import (
     mark_attachments_as_processed,
     rebuild_keyword_mail,
 )
+from util.database.chatroom_db_writer import init_chatroom_tables
 from util.extract_statics import start_statics_pipeline_background
 from util.avatar_generator import (
     get_cached_person_avatars,
@@ -179,6 +180,7 @@ CORS(app)
 # 서버 시작 시 테이블 초기화 실행
 init_processed_attachments_table()
 init_mail_keyword_table()
+init_chatroom_tables()
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
