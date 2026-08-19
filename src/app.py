@@ -116,6 +116,8 @@ from util.database.db_writer import (
 from util.database.chatroom_db_writer import init_chatroom_tables
 from util.database.chatroom_reader import (
     list_indexed_chatrooms,
+    get_messenger_date_range,
+    get_chatroom_name,
     get_chatroom_people,
     get_chatroom_people_stats,
     get_chatroom_relationships,
@@ -1059,6 +1061,26 @@ def send_mail_exchange_stats():
 def send_messenger_chatrooms():
     chatrooms = list_indexed_chatrooms(BASE_DIR)
     return jsonify({"data": {"chatrooms": chatrooms}})
+
+@app.route("/messenger-date-range", methods=["POST"])
+def send_messenger_date_range():
+    return jsonify({"data": get_messenger_date_range(BASE_DIR)})
+
+@app.route("/chatroom-name", methods=["POST"])
+def send_chatroom_name():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    chatroom_name = get_chatroom_name(chatroom_id)
+    if chatroom_name is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": {"chatroom_name": chatroom_name},
+    })
 
 @app.route("/chatroom-people", methods=["POST"])
 def send_chatroom_people():
