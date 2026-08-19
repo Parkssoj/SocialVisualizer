@@ -26,6 +26,7 @@ from util.database.chatroom_db_writer import (
     save_message_block_to_db, save_chatroom_people_to_db, save_message_keyword_to_db,
 )
 from util.message_summary import generate_message_summaries
+from util.message_mood import recompute_all_message_moods
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
@@ -450,6 +451,12 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
             save_chatroom_people_to_db(paths, target_update_date)
             save_message_keyword_to_db(paths, target_update_date)
             generate_message_summaries(paths)
+
+            # Activity(다른 방과 비교)가 message_block 테이블을 조회하므로
+            # save_message_block_to_db가 끝난 뒤(위) 실행돼야 함.
+            # 이 방만 계산하지 않고 같은 계정의 모든 방을 다시 계산해서, 새 방이 추가될
+            # 때마다 Activity의 비교 기준(pool)이 항상 최신 상태를 반영하도록 한다.
+            recompute_all_message_moods(paths)
         else:
             _extract_statics_pipeline(paths, mode='rewrite')
 
