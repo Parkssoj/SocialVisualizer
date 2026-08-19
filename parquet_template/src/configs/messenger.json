@@ -27,7 +27,7 @@
         "CRITICAL: An entity MUST NOT be created if any of its core fields (name, type, or description) cannot be populated with a valid, meaningful value.",
         "CRITICAL: Strings representing absence of value such as 'None', 'NONE', 'null', '없음', '-' MUST NOT be used as entity names under any type.",
         "Do NOT create duplicate entities.",
-        "CRITICAL: Every extracted entity MUST be connected to at least one of ChatRoom or Date (directly or through another entity) — do NOT extract isolated entities floating with no connection to the conversation's room/date context.",
+        "CRITICAL: Every extracted entity MUST be connected to at least one of ChatRoom or Date (directly or through another entity) — do NOT extract isolated entities floating with no connection to the conversation's room/date context. EXCEPTION: If this chunk has no visible '채팅방:'/'날짜:' header (a headerless continuation chunk, per the chunking rule below), you cannot see the ChatRoom/Date to connect to. In that case, do NOT skip a genuinely significant Keyword/Event/NamedEntity/Attachment just because you can't anchor it to ChatRoom/Date — instead connect it to the Person who mentioned/sent it via a free-form relationship (e.g. type 'mentioned_by', description explaining what they mentioned) so it isn't floating. Person-to-Person 'interacts_with' and Person entities themselves are unaffected by this — they never needed a ChatRoom/Date anchor.",
         "A Person entity uses the display name exactly as shown in KakaoTalk as its identifier — do not refuse to create one just because there's no email address.",
         "If the same person appears multiple times as name variants mixed with typos/emoji, merge them into a single Person when it's unambiguously the same person from context. If unsure, keep them as separate entities.",
         "Do NOT extract the subject of system notification messages like '님이 들어왔습니다' (has entered) or '님이 나갔습니다' (has left) as a Person entity.",
@@ -50,9 +50,10 @@
         "goal": "Given a day's worth of KakaoTalk chat messages from a single chat room and a list of entity types, identify all entities and the relationships between them. The conversation is naturally organized around two hub concepts: the ChatRoom it happened in, and the Date it happened on. Output both entities and relationships using the specified formats.",
         "entity_type_rules": {
             "ChatRoom": [
-                "The 'name' of a ChatRoom entity MUST be exactly the value copied from the '채팅방:' field.",
-                "Always create a ChatRoom entity for the block — the same room name will appear identically across many blocks and gets merged into a single entity automatically, so extract it consistently every time rather than skipping it as 'already known'.",
-                "CRITICAL EXCEPTION: In a 1:1 chat, the '채팅방:' value is often identical to the other participant's display name (e.g. 채팅방: 과외 학생 어머님, and that same name is also a Person who sends messages). If the '채팅방:' value exactly matches a Person entity's display name that you are also extracting from this same text, you MUST append ' (채팅방)' to the ChatRoom entity's name to keep it distinct (e.g. ChatRoom name becomes '과외 학생 어머님 (채팅방)') — do NOT let the ChatRoom and Person entities share the exact same name string, since identically-named entities of different types collide downstream. Apply this suffix consistently every time this exact room name appears, so it still merges into one ChatRoom entity across blocks. The Person entity itself keeps the plain display name, unchanged."
+                "GATE (check this FIRST, before anything else about ChatRoom): scan the given text for the literal substring '채팅방:'. If you cannot point to that exact substring actually present in the given text, you MUST NOT output a ChatRoom entity at all this time — zero ChatRoom entities is the correct answer for such a chunk. Never invent, paraphrase, guess, or derive a ChatRoom name from message content, timestamps, sender lines, stray words, or anything else. This happens routinely — a long day's conversation is often split across multiple chunks, so only the first chunk of that day has the '채팅방:/날짜:/참여자:' header; later chunks are pure 'HH:MM 이름: 메시지' continuations with no header, and for those the right output has NO ChatRoom entity.",
+                "If (and only if) '채팅방:' is literally present: the ChatRoom entity's 'name' MUST be exactly the value copied from that field — copy the characters, do not paraphrase or summarize them.",
+                "When the '채팅방:' field is present, always create the ChatRoom entity for it — the same room name will appear identically across many blocks and gets merged into a single entity automatically, so extract it consistently every time rather than skipping it as 'already known'.",
+                "CRITICAL EXCEPTION — check this by COUNTING, not by comparing names: count the number of names listed in the '참여자:' field. If it is exactly 2 (a 1:1 chat), you MUST append ' (채팅방)' to the ChatRoom entity's name — ALWAYS, unconditionally, every single time you extract this ChatRoom in a 1:1 chat, whether or not the room name happens to visually resemble either participant's name. Do NOT decide this by checking 'does the room name match a Person name' — that check is unreliable; counting participants is not. (Reason: in a 1:1 KakaoTalk chat the room name is very often the other participant's display name, e.g. 채팅방: 과외 학생 어머님 with 참여자: 이하은, 과외 학생 어머님 — so ChatRoom name becomes '과외 학생 어머님 (채팅방)'. Identically-named ChatRoom/Person entities collide downstream, so this is never optional in a 2-participant room.) Apply the suffix consistently every time this exact room appears across blocks, so it still merges into one ChatRoom entity. The Person entity itself always keeps the plain display name, unchanged — never suffix a Person."
             ],
             "Date": [
                 "The 'name' of a Date entity MUST be the date portion only (YYYY-MM-DD), taken from the '날짜:' field — drop the time-of-day part.",
@@ -61,6 +62,7 @@
             ],
             "Person": [
                 "The 'name' of a Person entity MUST be the display name exactly as it appears before each message (e.g. '09:15 홍길동: ...' → name is '홍길동').",
+                "CRITICAL: A Person's 'name' must be ONLY the short display-name segment between the timestamp and the ':' — NEVER the timestamp itself, NEVER the ':' character, and NEVER the message content after it. If the name you are about to output contains a digit-colon pattern (like 'HH:MM') or looks like a full sentence/question, you mis-parsed the line — go back and re-extract just the name segment. This applies even in a headerless continuation chunk (no 채팅방:/날짜: visible) — the message-line format 'HH:MM 이름: 메시지' and how to split it never changes.",
                 "CRITICAL: In a 1:1 chat, the ChatRoom name is often identical (or nearly identical) to the other participant's display name (e.g. 채팅방: 과외 학생 어머님, and messages sent as '과외 학생 어머님: ...'). Do NOT treat 'I already created a ChatRoom entity with this name' as a reason to skip creating the Person entity — if a name precedes ':' in a message line, it MUST also get its own Person entity, even when that exact same name/string is already used as the ChatRoom entity's name.",
                 "CRITICAL: Do NOT create a Person entity from a system/notification line (marked with '[알림]', e.g. '~님이 들어왔습니다').",
                 "CRITICAL: Do NOT create a Person entity for a name that only appears mentioned inside another person's message content (e.g. '민수한테 물어봐') when that name never itself appears as a message sender (i.e., never precedes ':' in a message line) within the given text. Extract such mentioned-only names as a NamedEntity (type: 인물) instead — see NamedEntity rules.",
@@ -98,7 +100,9 @@
             "Prefer connecting mentioned entities (Keyword/Event/NamedEntity/Attachment) to the Date they were mentioned on, and connecting Person/ChatRoom to that same Date, rather than building long indirect chains. The one exception is a direct Person-to-Person 'interacts_with' relationship when two people actually converse with each other — extract that in addition to (not instead of) their individual spoke_on/participates_in edges.",
             "Relationship strength MUST be a float between 1.0 and 10.0. Explicit/central to the conversation: 7.0+ / Brief mention: 4.0 or below.",
             "Do NOT create duplicate relationships with the same source-target-type combination.",
-            "Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description."
+            "Relationship descriptions MUST be in Korean and MUST be a meaningful sentence — NEVER use the relationship type name itself as the description.",
+            "CRITICAL: A relationship's source and target MUST NEVER be the exact same name string — no self-relationships, ever, for any relationship type (participates_in, spoke_on, interacts_with, etc.). Before outputting a relationship, check: is source == target? If so, discard it entirely; do not output it. (This can otherwise slip in when a ChatRoom name that should have had a suffix like ' (채팅방)' gets written without it, making it look identical to a Person's name — the fix is to not create that relationship at all when source and target collide, not to guess which one is 'right'.)",
+            "REAL MISTAKE TO AVOID — this exact error has actually happened, do not repeat it: in a 1:1 chat named 채팅방: 김도현 (participants 김도현, 이하은), a wrong output was: (\"relationship\"<|>김도현<|>김도현<|>김도현 채팅방에서 대화가 있었다.<|>10) — this is INVALID (source==target, and the ChatRoom's required ' (채팅방)' suffix from the 1:1-chat rule above was dropped). The correct output for that same fact is: (\"relationship\"<|>김도현<|>김도현 (채팅방)<|>김도현은 김도현 (채팅방) 채팅방의 대화 참여자다.<|>9) — note the target carries the suffix, making it distinct from the Person's name. Apply the ' (채팅방)' suffix to a 1:1 room's ChatRoom name EVERY time you reference it in ANY relationship (participates_in, active_on, etc.), not just when first creating the entity."
         ],
         "examples": [
             {
@@ -156,6 +160,18 @@
                     { "source": "최지유", "target": "2024-04-15", "type": "spoke_on", "description": "최지유가 2024-04-15에 과제 제출 메시지를 보냈다.", "strength": 8 },
                     { "source": "HW3_2471239.pdf", "target": "2024-04-15", "type": "shared_on", "description": "2024-04-15 대화에서 자료구조 과제 파일이 공유되었다.", "strength": 9 },
                     { "source": "자료구조", "target": "2024-04-15", "type": "mentioned_on", "description": "2024-04-15 대화에서 자료구조 과목이 언급되었다.", "strength": 6 }
+                ]
+            },
+            {
+                "entity_types": ["ChatRoom", "Date", "Person"],
+                "text": "동아리방\n08:19 강민재: 완전 인정\n08:20 이하은: 이걸로 하자\n08:21 이하은: 파일: 포스터시안.pdf\n08:22 조은우: 오 예쁘다",
+                "entities": [
+                    { "name": "강민재", "type": "Person", "description": "Name: 강민재" },
+                    { "name": "이하은", "type": "Person", "description": "Name: 이하은" },
+                    { "name": "조은우", "type": "Person", "description": "Name: 조은우" }
+                ],
+                "relationships": [
+                    { "source": "이하은", "target": "조은우", "type": "interacts_with", "description": "[관계: 친구] 이하은이 포스터 시안을 공유하자 조은우가 예쁘다고 반응하며 편하게 대화했다.", "strength": 6 }
                 ]
             }
         ]

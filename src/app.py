@@ -97,13 +97,13 @@ if RAG_ENGINE == "lightrag":
     from util.jobs.job_run_lightrag import (
         _summarize_attachment_text,
         _merge_summarized_attachments,
-        render_all_domains,
+        render_all_prompts,
     )
 elif RAG_ENGINE == "graphrag":
     from util.jobs.job_run_graphrag import (
          _summarize_attachment_text,
          _merge_summarized_attachments,
-         render_all_domains,
+         render_all_prompts,
     )
 from util.database.db_writer import (
     save_query_to_db,
@@ -112,6 +112,13 @@ from util.database.db_writer import (
     filter_unprocessed_attachments,
     mark_attachments_as_processed,
     rebuild_keyword_mail,
+)
+from util.database.chatroom_db_writer import init_chatroom_tables
+from util.database.chatroom_reader import (
+    get_chatroom_people,
+    get_chatroom_people_stats,
+    get_chatroom_relationships,
+    get_chatroom_person_detail,
 )
 from util.extract_statics import start_statics_pipeline_background
 from util.avatar_generator import (
@@ -179,6 +186,7 @@ CORS(app)
 # 서버 시작 시 테이블 초기화 실행
 init_processed_attachments_table()
 init_mail_keyword_table()
+init_chatroom_tables()
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -419,7 +427,7 @@ def _extract_and_merge_attachments(paths, attachments, user_id):
         return
 
     # 프롬프트의 최신 상태 유지
-    render_all_domains()
+    render_all_prompts()
 
     attachment_texts_by_mail: dict[str, list[dict]] = {}
     for file_info in unprocessed:
@@ -1042,6 +1050,83 @@ def send_mail_exchange_stats():
         return jsonify({"error": "start_date and end_date are required"}), 400
 
     return jsonify({"data": get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date)})
+
+@app.route("/chatroom-people", methods=["POST"])
+def send_chatroom_people():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    people = get_chatroom_people(chatroom_id)
+    if people is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": {"people": people},
+    })
+
+@app.route("/chatroom-relationships", methods=["POST"])
+def send_chatroom_relationships():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    start_date  = data.get("start_date", "").strip()
+    end_date    = data.get("end_date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    # relationships는 이 기간에 실제로 활동한 사람들 사이의 관계만 추려서 반환하므로,
+    # 응답에는 노출하지 않지만 필터링 기준으로 쓸 활동 참여자 이름 집합이 필요하다.
+    people = get_chatroom_people_stats(chatroom_id, start_date, end_date)
+    if people is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    active_names = {p["name"] for p in people}
+    relationships = get_chatroom_relationships(paths, active_names)
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "start_date":  start_date,
+        "end_date":    end_date,
+        "data": {
+            "relationships": relationships,
+        },
+    })
+
+@app.route("/chatroom-person-detail", methods=["POST"])
+def send_chatroom_person_detail():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip() or None
+    start_date     = data.get("start_date", "").strip()
+    end_date       = data.get("end_date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    people = get_chatroom_person_detail(chatroom_id, start_date, end_date, participant_id)
+    if people is None:
+        if participant_id:
+            return jsonify({"error": "person not found"}), 404
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "start_date":     start_date,
+        "end_date":       end_date,
+        "data": {
+            "people": people,
+        },
+    })
 
 _mail_message_cache_lock = threading.Lock()
 
