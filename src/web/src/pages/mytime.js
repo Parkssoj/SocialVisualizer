@@ -33,7 +33,7 @@ const userIdPromise = initAccountPicker(document.getElementById('account-picker-
   const YEAR_KEYS = Object.keys(YEAR_DATA).sort();
 
   if (!ALL_KEYS.length) {
-    track.innerHTML = '<div style="color:#8fb5a9;font-size:.85rem;padding:20px 0;">아직 생성된 요약이 없습니다. 인덱싱을 먼저 실행해주세요.</div>';
+    track.innerHTML = '<div style="color:#8fb5a9;font-size:.78rem;padding:20px 0;">아직 생성된 요약이 없습니다. 인덱싱을 먼저 실행해주세요.</div>';
     return;
   }
 

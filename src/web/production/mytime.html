@@ -41,7 +41,20 @@
         <main class="right_col" role="main">
           <div class="mt-page">
             <div class="mt-page-header">
-              <div class="mt-title">My <span>Time</span></div>
+              <div class="mt-title-group">
+                <div class="mt-title">My <span>Time</span></div>
+                <!-- "My Time 옆에 메일과 메신저 버튼" 요청 — My People과 같은 버튼 스타일 재사용 -->
+                <div class="mp-channel-btns">
+                  <button class="mp-channel-btn" id="mt-mail-btn" type="button">
+                    <i class="bi bi-envelope"></i>
+                    <span>메일</span>
+                  </button>
+                  <button class="mp-channel-btn" id="mt-messenger-btn" type="button">
+                    <i class="bi bi-chat-dots"></i>
+                    <span>메신저</span>
+                  </button>
+                </div>
+              </div>
               <div class="mt-header-controls">
                 <div id="account-picker-mount"></div>
                 <div class="mt-mode-toggle">
@@ -75,7 +88,7 @@
                 </div>
               </aside>
 
-              <!-- 우측: 타임라인 요약 + 슬라이더 -->
+              <!-- 우측: 타임라인 요약 -->
               <div class="mt-col-main">
                 <div class="mt-main" id="mainCard">
                   <div class="mt-track" id="track"></div>
@@ -91,22 +104,25 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <!-- 포인터 -->
-                <div class="mt-pointer-wrap">
-                  <div class="mt-pointer-label">
-                    전체 타임라인 — 클릭으로 이동
-                  </div>
-                  <div class="mt-pointer-track" id="pointerTrack">
-                    <div class="mt-pointer-bg"></div>
-                    <div class="mt-pointer-window" id="pointerWindow"></div>
-                    <div class="mt-pointer-cursor" id="pointerCursor">
-                      <span class="mt-pointer-cursor-fallback">나</span>
-                    </div>
-                  </div>
-                  <div class="mt-pointer-axis" id="pointerAxis"></div>
+            <!-- "타임라인이 왼쪽창과 오른쪽창 전체로 펼쳐져있게" 요청에 따라, 원래
+                 오른쪽 컬럼(.mt-col-main) 안에만 있던 포인터/타임라인을 .mt-layout
+                 밖으로 꺼내서 왼쪽(.mt-side) + 오른쪽(.mt-col-main) 폭을 합친
+                 전체 너비로 펼침(id는 전부 그대로라 mytime.js 로직은 안 건드려도 됨) -->
+            <div class="mt-pointer-wrap">
+              <div class="mt-pointer-label">
+                전체 타임라인 — 클릭으로 이동
+              </div>
+              <div class="mt-pointer-track" id="pointerTrack">
+                <div class="mt-pointer-bg"></div>
+                <div class="mt-pointer-window" id="pointerWindow"></div>
+                <div class="mt-pointer-cursor" id="pointerCursor">
+                  <span class="mt-pointer-cursor-fallback">나</span>
                 </div>
               </div>
+              <div class="mt-pointer-axis" id="pointerAxis"></div>
             </div>
           </div>
         </main>
