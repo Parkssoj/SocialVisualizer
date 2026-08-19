@@ -175,6 +175,7 @@ def get_chatroom_person_detail(chatroom_id: str, start_date: str, end_date: str,
         for row in roster
     ]
 
+
 def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
     """chatroom_id의 start_date~end_date 기간에 걸치는 월별/연별 분위기 점수+설명을 반환.
     message_mood.generate_message_mood()가 저장한 message_mood 테이블을 읽는다.
@@ -184,8 +185,6 @@ def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
     if not latest:
         return None
     index_date, user_id = latest["index_date"], latest["user_id"]
-    # summary_period는 monthly면 "YYYY-MM", yearly면 "YYYY" 문자열이라
-    # start_date/end_date(YYYY-MM-DD)를 같은 자리수로 잘라서 비교한다.
     month_start, month_end = start_date[:7], end_date[:7]
     year_start, year_end = start_date[:4], end_date[:4]
 
@@ -204,7 +203,7 @@ def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
             ORDER BY summary_unit, summary_period
             """,
             (chatroom_id, index_date, user_id, month_start, month_end, year_start, year_end),
-                    )
+        )
         rows = cursor.fetchall()
     finally:
         cursor.close()
@@ -218,8 +217,9 @@ def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
             "mood_description": row["mood_description"],
         }
         (monthly if row["summary_unit"] == "monthly" else yearly).append(entry)
-    
+
     return {"monthly": monthly, "yearly": yearly}
+
 
 def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date: str, participant_id: str):
     """chatroom_id의 participant_id가 start_date~end_date 기간에 사용한 키워드별 언급 횟수를
