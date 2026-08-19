@@ -175,16 +175,15 @@ def get_chatroom_person_detail(chatroom_id: str, start_date: str, end_date: str,
         for row in roster
     ]
 
-
 def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
     """chatroom_id의 start_date~end_date 기간에 걸치는 월별/연별 분위기 점수+설명을 반환.
     message_mood.generate_message_mood()가 저장한 message_mood 테이블을 읽는다.
     chatroom_id가 인덱싱된 적 없으면 None."""
+
     latest = get_latest_chatroom(chatroom_id)
     if not latest:
         return None
     index_date, user_id = latest["index_date"], latest["user_id"]
-
     # summary_period는 monthly면 "YYYY-MM", yearly면 "YYYY" 문자열이라
     # start_date/end_date(YYYY-MM-DD)를 같은 자리수로 잘라서 비교한다.
     month_start, month_end = start_date[:7], end_date[:7]
@@ -198,14 +197,14 @@ def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
             SELECT summary_period, summary_unit, mood_score, mood_description
             FROM message_mood
             WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
-              AND (
+                AND (
                     (summary_unit = 'monthly' AND summary_period BETWEEN %s AND %s)
-                 OR (summary_unit = 'yearly'  AND summary_period BETWEEN %s AND %s)
-              )
+                OR (summary_unit = 'yearly'  AND summary_period BETWEEN %s AND %s)
+                )
             ORDER BY summary_unit, summary_period
             """,
             (chatroom_id, index_date, user_id, month_start, month_end, year_start, year_end),
-        )
+                    )
         rows = cursor.fetchall()
     finally:
         cursor.close()
@@ -219,5 +218,90 @@ def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
             "mood_description": row["mood_description"],
         }
         (monthly if row["summary_unit"] == "monthly" else yearly).append(entry)
-
+    
     return {"monthly": monthly, "yearly": yearly}
+
+def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date: str, participant_id: str):
+    """chatroom_id의 participant_id가 start_date~end_date 기간에 사용한 키워드별 언급 횟수를
+    반환. chatroom_id가 인덱싱된 적 없으면 None. participant_id가 그 채팅방 명단에 없으면 False.
+    참여자는 있지만 그 기간에 키워드가 없으면 빈 리스트."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT 1 FROM chatroom_people
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s AND participant_id = %s
+            """,
+            (chatroom_id, index_date, user_id, participant_id),
+        )
+        if cursor.fetchone() is None:
+            return False
+
+        cursor.execute(
+            """
+            SELECT k.keyword_name AS word, SUM(k.mention_count) AS count
+            FROM message_keyword k
+            JOIN message_block b
+              ON k.block_id = b.block_id AND k.chatroom_id = b.chatroom_id
+             AND k.index_date = b.index_date AND k.user_id = b.user_id
+            WHERE k.chatroom_id = %s AND k.index_date = %s AND k.user_id = %s
+              AND k.participant_name = %s
+              AND b.block_date BETWEEN %s AND %s
+            GROUP BY k.keyword_name
+            ORDER BY count DESC
+            """,
+            (chatroom_id, index_date, user_id, participant_id, start_date, end_date),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [{"word": row["word"], "count": int(row["count"] or 0)} for row in rows]
+
+
+def get_chatroom_summaries(chatroom_id: str, summarize_unit: str):
+    """chatroom_id의 summarize_unit("monthly"/"yearly") 단위 LLM 요약을 summary_period
+    오름차순으로 반환. chatroom_id가 인덱싱된 적 없으면 None. 요약이 아직 생성되지 않았으면
+    빈 리스트."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT summary_period, summarized_context, contacts
+            FROM message_summarize
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+              AND summarize_unit = %s
+            ORDER BY summary_period
+            """,
+            (chatroom_id, index_date, user_id, summarize_unit),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    result = []
+    for row in rows:
+        contacts = row["contacts"]
+        if contacts:
+            contacts = json.loads(contacts) if isinstance(contacts, str) else contacts
+        else:
+            contacts = []
+        result.append({
+            "summary_period": row["summary_period"],
+            "summarized_context": row["summarized_context"],
+            "contacts": contacts,
+        })
+    return result
