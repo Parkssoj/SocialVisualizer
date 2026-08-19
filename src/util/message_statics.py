@@ -10,6 +10,8 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from util.extract_statics import _run_and_join
+
 load_dotenv("src/parquet/.env")
 
 client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
@@ -302,5 +304,8 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
 
 def _extract_message_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
-    _save_chatroom_people_messages(paths, mode)
-    _save_message_keyword_stats(paths, mode)
+    # 서로 다른 출력 파일(people/keywords)에 쓰고 순서 의존성이 없어 병렬 실행
+    _run_and_join([
+        (_save_chatroom_people_messages, (paths, mode)),
+        (_save_message_keyword_stats, (paths, mode)),
+    ])
