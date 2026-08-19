@@ -6,11 +6,8 @@ import { changeLanguage } from "../utils/i18n.js";
  * 예전 appHeader.js의 NAV_ITEMS와 동일한 데이터. 이 배열만 고치면
  * 메뉴 항목이 늘거나 줄어도 화면이 자동으로 갱신됩니다.
  */
-// 요청 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
-// 예전엔 My People/My Time이 "My Life" 드롭다운 안에 숨어있고 Recap도 같이
-// 있었는데, 이번 요청으로 두 페이지를 최상위 메뉴로 바로 꺼내고(Recap은 삭제
-// 요청에 따라 메뉴에서 제외 — 관련 코드는 vite.config.js에서 주석 처리함)
-// 순서도 요청대로 재배열함.
+// 메뉴 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
+// Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
 const NAV_ITEMS = [
   { page: "home", href: "index.html", label: "홈" },
   { page: "imap-collect", href: "imap-collect.html", label: "데이터 업로드" },
@@ -97,8 +94,7 @@ export default function Header({ activePage }) {
         </div>
         <nav className="nav navbar-nav ms-auto">
           <ul className="navbar-right d-flex align-items-center gap-3 pe-3">
-            {/* "로그인 버튼이랑 번역 버튼 주석 처리" 요청에 따라 둘 다 주석 처리함
-                (완전 삭제 대신 나중에 필요하면 바로 되살릴 수 있도록 주석으로 남김).
+            {/* 로그인/번역 버튼 비활성화
             <li className="nav-item">
               <button type="button" className="gw-login-btn">
                 로그인
