@@ -61,6 +61,72 @@ def list_indexed_chatrooms(base_dir: str):
         conn.close()
 
 
+def get_messenger_date_range(base_dir: str):
+    """인덱싱된 모든 단톡방을 통틀어 가장 오래된/최근 메시지 날짜를 반환. message_block.
+    block_date의 전체 MIN/MAX(방마다 latest index_date 스냅샷 기준). 메신저 탭 타임라인이
+    특정 방과 무관하게 항상 같은 범위를 보여주도록(방을 오가도 슬라이더가 안 바뀌게) 인덱싱된
+    방이 없으면 first_date/last_date 모두 None."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        first_date, last_date = None, None
+        for acc in list_accounts(base_dir, "messenger"):
+            if not acc["indexed"]:
+                continue
+            chatroom_id = acc["user_id"]
+            latest = get_latest_chatroom(chatroom_id)
+            if not latest:
+                continue
+
+            cursor.execute(
+                """
+                SELECT MIN(block_date) AS first_date, MAX(block_date) AS last_date
+                FROM message_block
+                WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                """,
+                (chatroom_id, latest["index_date"], latest["user_id"]),
+            )
+            row = cursor.fetchone()
+            if row["first_date"] and (first_date is None or row["first_date"] < first_date):
+                first_date = row["first_date"]
+            if row["last_date"] and (last_date is None or row["last_date"] > last_date):
+                last_date = row["last_date"]
+
+        return {
+            "first_date": first_date.strftime("%Y-%m-%d") if first_date else None,
+            "last_date":  last_date.strftime("%Y-%m-%d")  if last_date  else None,
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_chatroom_name(chatroom_id: str):
+    """chatroom_id 하나로 chatroom_name만 조회. 프론트가 목록 화면을 거치지 않고
+    chatroom_id만 들고 있을 때 방 이름을 해석하는 용도. 인덱싱된 적 없으면 None."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT chatroom_name
+            FROM chatroom
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+            """,
+            (chatroom_id, index_date, user_id),
+        )
+        row = cursor.fetchone()
+        return row["chatroom_name"] if row else None
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def get_chatroom_people(chatroom_id: str):
     """chatroom_id의 참여자 전체 목록을 기간과 무관하게 반환(chatroom_people 테이블 그대로 —
     message_count도 전체 히스토리 누적값). chatroom_id가 인덱싱된 적 없으면 None."""
