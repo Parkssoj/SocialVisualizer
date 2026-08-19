@@ -787,14 +787,9 @@ function refreshSelfAvatarEl() {
 }
 
 /* ── 메일 / 메신저 채널 토글 ──
- * 요청: "처음 기본값은 메일"(mp-mail-view가 항상 먼저 뜸), "메신저를 누르면
- * 지금 되어있는 메일 대신 다른 새로운 창이 비동기로 띄워지도록 — 거기에는
- * 또 다른 기능을 만들 것".
- * 그래서 메신저 뷰(mp-messenger-view)는 페이지 로드 시점엔 내용 없이(로딩
- * 문구만) 비워두고, 메신저 버튼을 처음 누르는 순간에만 loadMessengerView()가
- * 비동기로 내용을 채워 넣음(지금은 실제 기능이 없어서 setTimeout으로 "비동기
- * 로딩"만 흉내내는 자리 — 나중에 여기서 실제 fetch/렌더링을 하면 됨).
- * 이후엔 이미 채워진 뷰를 그대로 보여주고 숨기기/보이기만 토글함(재로딩 X).
+ * 기본값은 메일 뷰(mp-mail-view). 메신저 버튼을 처음 누르는 순간에만
+ * loadMessengerView()가 비동기로 내용을 채움(현재는 setTimeout으로 로딩만
+ * 흉내냄 — 이후 fetch/렌더링 구현 예정). 이후엔 채워진 뷰를 토글만 함.
  */
 const mailBtn = document.getElementById("mp-mail-btn");
 const messengerBtn = document.getElementById("mp-messenger-btn");
