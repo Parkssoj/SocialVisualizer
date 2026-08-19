@@ -176,6 +176,51 @@ def get_chatroom_person_detail(chatroom_id: str, start_date: str, end_date: str,
     ]
 
 
+def get_chatroom_mood(chatroom_id: str, start_date: str, end_date: str):
+    """chatroom_id의 start_date~end_date 기간에 걸치는 월별/연별 분위기 점수+설명을 반환.
+    message_mood.generate_message_mood()가 저장한 message_mood 테이블을 읽는다.
+    chatroom_id가 인덱싱된 적 없으면 None."""
+
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+    month_start, month_end = start_date[:7], end_date[:7]
+    year_start, year_end = start_date[:4], end_date[:4]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT summary_period, summary_unit, mood_score, mood_description
+            FROM message_mood
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                AND (
+                    (summary_unit = 'monthly' AND summary_period BETWEEN %s AND %s)
+                OR (summary_unit = 'yearly'  AND summary_period BETWEEN %s AND %s)
+                )
+            ORDER BY summary_unit, summary_period
+            """,
+            (chatroom_id, index_date, user_id, month_start, month_end, year_start, year_end),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    monthly, yearly = [], []
+    for row in rows:
+        entry = {
+            "period": row["summary_period"],
+            "mood_score": float(row["mood_score"]) if row["mood_score"] is not None else None,
+            "mood_description": row["mood_description"],
+        }
+        (monthly if row["summary_unit"] == "monthly" else yearly).append(entry)
+
+    return {"monthly": monthly, "yearly": yearly}
+
+
 def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date: str, participant_id: str):
     """chatroom_id의 participant_id가 start_date~end_date 기간에 사용한 키워드별 언급 횟수를
     반환. chatroom_id가 인덱싱된 적 없으면 None. participant_id가 그 채팅방 명단에 없으면 False.
@@ -184,7 +229,6 @@ def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date:
     if not latest:
         return None
     index_date, user_id = latest["index_date"], latest["user_id"]
-
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
