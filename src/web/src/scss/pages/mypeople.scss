@@ -9,14 +9,18 @@ footer {
 }
 
 /* top_nav는 더 이상 여기서 따로 오버라이드하지 않음 — 공용 헤더(_header.scss)의
-   position:fixed; top:12px; 등을 그대로 써서 다른 페이지/홈 화면과 위치·디자인 통일.
-   그 헤더의 실제 높이(12px 여백 + 100px)에 맞춰 아래 right_col/.mp-page의 top도
-   57px → 136px로 맞춤(다른 페이지들이 쓰는 padding-top: 136px과 동일한 기준). */
+   position:fixed; top:15px; min-height:58px; 등을 그대로 써서 다른 페이지/홈 화면과
+   위치·디자인 통일. 이 페이지는 padding-top이 아니라 position:fixed + top으로 아래
+   right_col/.mp-page를 직접 띄우기 때문에, _header.scss의 top_nav의 top/min-height가
+   바뀔 때마다 여기 top 값도 "헤더 높이 + top + 24px" 공식으로 같이 맞춰야 함(안 그러면
+   이 페이지만 여백이 그대로 남음 — 실제로 한 번 이 문제가 있었음). top_nav가 top:3px/
+   min-height:100px에서 top:15px/min-height:58px로 바뀐 뒤에도 여기는 옛날 공식(127px)
+   그대로 남아있던 걸 발견해서 새 공식(58+15+24=97px)으로 같이 맞춤. */
 
 /* right_col: fixed, starts exactly at bottom of navbar */
 .right_col {
   position: fixed !important;
-  top: 136px !important;
+  top: 97px !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
@@ -32,7 +36,7 @@ footer {
 }
 .mp-page {
   position: fixed !important;
-  top: 136px !important;
+  top: 97px !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 100px !important;
@@ -73,7 +77,11 @@ footer {
 .mp-panel {
   width: 100%;
   background: rgba(255, 255, 255, 0.72);
-  border: 1.5px solid rgba(200, 230, 215, 0.8);
+  /* 원래는 rgba(200, 230, 215, 0.8)(연한 민트/초록빛) — 예전 초록 테마의 흔적이라
+     hex 색상 일괄 변환(주황 계열로) 때는 rgba라서 안 걸러졌었음. "창 겉 테두리를
+     검정이나 어두운 회색으로" 요청에 따라 어두운 회색(진갈색 계열, #302522 기준)
+     으로 바꿈 */
+  border: 1.5px solid rgba(48, 37, 34, 0.35);
   border-radius: 20px;
   backdrop-filter: blur(12px);
   box-shadow:
@@ -93,7 +101,7 @@ footer {
   width: 4px;
 }
 .mp-panel::-webkit-scrollbar-thumb {
-  background: #b8ddd0;
+  background: #ddc7b8;
   border-radius: 10px;
 }
 .mp-panel:has(.mp-detail.open) {
@@ -125,7 +133,7 @@ footer {
 .mp-title {
   font-size: clamp(1.6rem, 8cqw, 2.6rem);
   font-weight: 800;
-  color: #1b2e22;
+  color: #2e1d1b;
   letter-spacing: -0.04em;
 }
 .mp-title span {
@@ -139,6 +147,54 @@ footer {
   padding: 2px 8px;
   border-radius: 20px;
 }
+/* "13명 옆에 메일과 메신저 버튼" — mp-count 바로 옆에 붙는 채널 선택 버튼.
+   mp-brand-filter-btn과 같은 팔레트/톤으로 맞춤(주황 강조, 흰 배경) */
+.mp-channel-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+.mp-channel-btn {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  line-height: inherit;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1.5px solid rgba(251, 146, 60, 0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  /* "메일/메신저·계정 토글·광고제거·친밀도·타임슬라이더 날짜 글씨 크기를 통일"
+     요청 — 이 요소들은 서로 다른 컨테이너(.mp-panel vs .mp-timeline)에 있어서
+     기존처럼 cqw(컨테이너 폭 비율) 기반 clamp를 쓰면 컨테이너 폭이 다른 만큼
+     실제 렌더링 크기도 달라짐. 그래서 전부 고정 rem 값(0.78rem)으로 통일함 —
+     같은 값으로 맞춰야 어떤 컨테이너 안에 있든 항상 같은 글자 크기가 보장됨 */
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #3f302a;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.mp-channel-btn:hover {
+  border-color: #fb923c;
+  background: #fff;
+}
+.mp-channel-btn.active {
+  background: #fb923c;
+  border-color: #fb923c;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(251, 146, 60, 0.28);
+}
 /* ── 정렬 컨트롤 묶음(광고 제거 버튼 + 정렬 드롭다운) ── */
 .mp-header-controls {
   display: flex;
@@ -147,6 +203,12 @@ footer {
 }
 #account-picker-mount {
   margin-top: 20px;
+}
+/* accountPicker.js가 자체 <style>로 주입하는 .gw-account-picker(font-size:
+   0.85rem 고정)를 이 페이지에서만 다른 버튼들과 같은 크기로 덮어씀 — 공용
+   파일(다른 페이지에서도 씀)을 직접 고치는 대신 페이지 스코프로 오버라이드 */
+#account-picker-mount .gw-account-picker {
+  font-size: 0.78rem;
 }
 .mp-brand-filter-btn {
   box-sizing: border-box;
@@ -163,9 +225,9 @@ footer {
   border-radius: 10px;
   padding: 6px 16px;
   cursor: pointer;
-  font-size: clamp(0.68rem, 1.9cqw, 0.85rem);
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #2a3f35;
+  color: #3f302a;
   backdrop-filter: blur(8px);
   transition:
     border-color 0.15s,
@@ -201,9 +263,9 @@ footer {
   border-radius: 10px;
   padding: 6px 16px;
   cursor: pointer;
-  font-size: clamp(0.68rem, 1.9cqw, 0.85rem);
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #2a3f35;
+  color: #3f302a;
   backdrop-filter: blur(8px);
   transition:
     border-color 0.15s,
@@ -224,7 +286,7 @@ footer {
 }
 .mp-dropdown-chevron {
   font-size: clamp(0.58rem, 1.6cqw, 0.7rem);
-  color: #7aaa96;
+  color: #aa8a7a;
   transition: transform 0.18s;
 }
 .mp-dropdown-btn.open .mp-dropdown-chevron {
@@ -251,7 +313,7 @@ footer {
   padding: 9px 16px;
   font-size: clamp(0.68rem, 1.9cqw, 0.84rem);
   font-weight: 500;
-  color: #2a3f35;
+  color: #3f302a;
   cursor: pointer;
   transition: background 0.12s;
   display: flex;
@@ -259,7 +321,7 @@ footer {
   gap: 8px;
 }
 .mp-dropdown-item:hover {
-  background: #f0faf6;
+  background: #faf3f0;
   color: #fb923c;
 }
 .mp-dropdown-item.selected {
@@ -319,7 +381,7 @@ footer {
 
 /* 파스텔 팔레트 */
 .mp-card.c0 {
-  background: linear-gradient(150deg, #a8e8d8, #72cbb5);
+  background: linear-gradient(150deg, #e8c8a8, #cb9f72);
   box-shadow: 0 3px 14px rgba(114, 203, 181, 0.28);
 }
 .mp-card.c1 {
@@ -339,7 +401,7 @@ footer {
   box-shadow: 0 3px 14px rgba(248, 164, 196, 0.28);
 }
 .mp-card.c5 {
-  background: linear-gradient(150deg, #a4e8e4, #78d4d0);
+  background: linear-gradient(150deg, #e8d3a4, #d4b978);
   box-shadow: 0 3px 14px rgba(120, 212, 208, 0.28);
 }
 .mp-card.c6 {
@@ -428,7 +490,7 @@ footer {
   grid-column: 1 / -1;
   text-align: center;
   padding: 50px 0;
-  color: #a0b8b0;
+  color: #b8aaa0;
 }
 .mp-empty i {
   font-size: clamp(1.6rem, 5cqw, 2.5rem);
@@ -456,14 +518,14 @@ footer {
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  border-bottom: 1.5px solid #d4ece4;
+  border-bottom: 1.5px solid #ecded4;
   background: #f5faf8;
   flex-shrink: 0;
 }
 .mp-graph-panel-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1a5a4a;
+  color: #5a3a1a;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -473,9 +535,9 @@ footer {
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border: 1.5px solid #c4dfd8;
+  border: 1.5px solid #dfd1c4;
   background: #fff;
-  color: #1a5a4a;
+  color: #5a3a1a;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -483,7 +545,7 @@ footer {
   transition: background 0.12s;
 }
 .mp-graph-close:hover {
-  background: #e8f4f0;
+  background: #f4ede8;
 }
 
 /* ════════════════════════════════════
@@ -540,7 +602,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ab8ac;
+  color: #b8a49a;
   font-size: clamp(0.72rem, 0.85cqw, 0.9rem);
   transition:
     background 0.15s,
@@ -551,7 +613,7 @@ footer {
 }
 .mp-detail-close:hover {
   background: #fff;
-  color: #0f3d2e;
+  color: #3d220f;
   border-color: #fb923c;
   transform: scale(1.08);
 }
@@ -571,7 +633,7 @@ footer {
   min-height: 0;
   overflow: hidden;
   container-type: size;
-  background: linear-gradient(135deg, #ffffff 0%, #f2fbf7 55%, #edf4ff 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #fbf5f2 55%, #edf4ff 100%);
   border-bottom: 1.5px solid rgba(251, 146, 60, 0.12);
   position: relative;
 }
@@ -725,7 +787,7 @@ footer {
   gap: 6px;
   font-size: clamp(0.64rem, calc((100cqh - 42px) * 0.1), 0.88rem);
   font-weight: 700;
-  color: #0f6e56;
+  color: #6e3e0f;
   background: #fff;
   border: 1.5px solid rgba(251, 146, 60, 0.4);
   padding: clamp(4px, calc((100cqh - 42px) * 0.06), 7px)
@@ -750,7 +812,7 @@ footer {
 }
 .mp-detail-email {
   font-size: clamp(0.74rem, calc((100cqh - 42px) * 0.115), 1rem);
-  color: #8aaa98;
+  color: #aa908a;
   margin: 0;
   letter-spacing: 0.01em;
 }
@@ -780,7 +842,7 @@ footer {
   background: #5a94e8;
 }
 #mp-tab-stats {
-  background: #67ceb8;
+  background: #ce9e67;
 }
 #mp-tab-desc {
   background: #8cb4ef;
@@ -789,7 +851,7 @@ footer {
   opacity: 0.82;
 }
 .mp-detail-tab-btn.active-stats {
-  background: #67ceb8;
+  background: #ce9e67;
   box-shadow: 0 2px 10px rgba(103, 206, 184, 0.45);
 }
 .mp-detail-tab-btn.active-desc {
@@ -815,7 +877,7 @@ footer {
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr;
-  background: linear-gradient(180deg, #f6fcf9 0%, #f0faf4 100%);
+  background: linear-gradient(180deg, #f6fcf9 0%, #faf2f0 100%);
 }
 
 /* 키워드 탭 패널 */
@@ -845,7 +907,7 @@ footer {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(160deg, #f4f8ff 0%, #f0faf8 100%);
+  background: linear-gradient(160deg, #f4f8ff 0%, #faf5f0 100%);
   padding: clamp(20px, 2.5cqw, 36px) clamp(20px, 3cqw, 48px);
   flex-direction: column;
 }
@@ -923,7 +985,7 @@ footer {
   padding: clamp(4px, 0.5cqw, 6px) clamp(10px, 1.2cqw, 16px);
   font-size: clamp(0.7rem, 0.85cqw, 0.86rem);
   font-weight: 700;
-  color: #147a5c;
+  color: #7a4214;
   letter-spacing: 0.05em;
   box-sizing: border-box;
   box-shadow: 0 1px 4px rgba(251, 146, 60, 0.1);
@@ -1098,7 +1160,7 @@ footer {
 }
 .mp-email-tag.sent {
   background: rgba(251, 146, 60, 0.12);
-  color: #0f6e56;
+  color: #6e3e0f;
 }
 .mp-email-tag.received {
   background: rgba(90, 148, 232, 0.14);
@@ -1214,17 +1276,19 @@ footer {
   align-items: center;
 }
 .mp-tl-date-label {
-  font-size: clamp(0.68rem, 0.9cqw, 0.78rem);
+  /* 상단 mp-channel-btn/mp-brand-filter-btn/mp-dropdown-btn과 같은 0.78rem으로
+     통일(요청: "타임슬라이드 날짜 글씨들 글자 크기를 똑같이") */
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #0f7a62;
-  background: #e6f7f2;
+  color: #7a470f;
+  background: #f7eee6;
   padding: 3px 10px;
   border-radius: 20px;
   letter-spacing: 0.02em;
 }
 .mp-tl-selected {
-  font-size: clamp(0.7rem, 0.95cqw, 0.8rem);
-  color: #4a9c80;
+  font-size: 0.78rem;
+  color: #9c6c4a;
   font-weight: 500;
   text-align: center;
   flex: 1;
@@ -1293,7 +1357,7 @@ footer {
 }
 .mp-tl-track-wrap input[type="range"]::-webkit-slider-thumb:active {
   cursor: grabbing;
-  background: #e6f7f2;
+  background: #f7eee6;
 }
 .mp-tl-track-wrap input[type="range"]::-moz-range-thumb {
   width: 20px;
@@ -1325,11 +1389,11 @@ footer {
 .mp-tl-tick-line {
   width: 1.5px;
   height: 7px;
-  background: #7ab8a4;
+  background: #b8947a;
 }
 .mp-tl-tick-lbl {
-  font-size: clamp(0.6rem, 0.85cqw, 0.7rem);
-  color: #4a8872;
+  font-size: 0.78rem;
+  color: #88634a;
   font-weight: 600;
   white-space: nowrap;
 }

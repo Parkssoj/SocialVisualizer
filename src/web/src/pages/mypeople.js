@@ -786,6 +786,50 @@ function refreshSelfAvatarEl() {
   el.innerHTML = `<img src="${myAvatarUrl}" alt="나" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
 }
 
+/* ── 메일 / 메신저 채널 토글 ──
+ * 요청: "처음 기본값은 메일"(mp-mail-view가 항상 먼저 뜸), "메신저를 누르면
+ * 지금 되어있는 메일 대신 다른 새로운 창이 비동기로 띄워지도록 — 거기에는
+ * 또 다른 기능을 만들 것".
+ * 그래서 메신저 뷰(mp-messenger-view)는 페이지 로드 시점엔 내용 없이(로딩
+ * 문구만) 비워두고, 메신저 버튼을 처음 누르는 순간에만 loadMessengerView()가
+ * 비동기로 내용을 채워 넣음(지금은 실제 기능이 없어서 setTimeout으로 "비동기
+ * 로딩"만 흉내내는 자리 — 나중에 여기서 실제 fetch/렌더링을 하면 됨).
+ * 이후엔 이미 채워진 뷰를 그대로 보여주고 숨기기/보이기만 토글함(재로딩 X).
+ */
+const mailBtn = document.getElementById("mp-mail-btn");
+const messengerBtn = document.getElementById("mp-messenger-btn");
+const mailView = document.getElementById("mp-mail-view");
+const messengerView = document.getElementById("mp-messenger-view");
+let messengerLoaded = false;
+
+async function loadMessengerView() {
+  if (messengerLoaded) return;
+  // TODO: 여기에 메신저 전용 기능(다른 데이터 소스/카드 등)을 새로 만들면 됨.
+  // 지금은 자리만 마련해두고, 비동기로 "열리는" 느낌만 흉내냄.
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  messengerView.innerHTML = `
+    <div class="mp-empty">
+      <i class="bi bi-chat-dots"></i>
+      <p>메신저 기능은 아직 준비 중입니다.</p>
+    </div>
+  `;
+  messengerLoaded = true;
+}
+
+function setChannel(channel) {
+  const isMail = channel === "mail";
+  mailBtn.classList.toggle("active", isMail);
+  messengerBtn.classList.toggle("active", !isMail);
+  mailView.style.display = isMail ? "" : "none";
+  messengerView.style.display = isMail ? "none" : "";
+}
+
+mailBtn.addEventListener("click", () => setChannel("mail"));
+messengerBtn.addEventListener("click", async () => {
+  setChannel("messenger");
+  await loadMessengerView();
+});
+
 /* ── 광고(기업 발신자) 제거 토글 ── */
 const brandFilterBtn = document.getElementById("mp-brand-filter-btn");
 const brandFilterLabel = document.getElementById("mp-brand-filter-label");

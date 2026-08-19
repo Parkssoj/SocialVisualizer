@@ -29,7 +29,7 @@
   transition:
     background 0.18s,
     transform 0.15s;
-  box-shadow: 0 2px 10px rgba(249, 115, 22,0.35);
+  box-shadow: 0 2px 10px rgba(249, 115, 22, 0.35);
 }
 .log-fab:hover {
   background: #c2410c;
@@ -89,7 +89,7 @@
   overflow: hidden;
   background: #fff;
   z-index: 9999;
-  box-shadow: 0 8px 32px rgba(249, 115, 22,0.12);
+  box-shadow: 0 8px 32px rgba(249, 115, 22, 0.12);
   max-height: 0;
   opacity: 0;
   pointer-events: none;
@@ -125,7 +125,7 @@
   padding: 3px 9px;
   border-radius: 999px;
   font-weight: 500;
-  background: rgba(249, 115, 22,0.12);
+  background: rgba(249, 115, 22, 0.12);
   color: #f97316;
   display: flex;
   align-items: center;
@@ -169,7 +169,7 @@
   transition: background 0.15s;
 }
 .panel-btn:hover {
-  background: rgba(249, 115, 22,0.08);
+  background: rgba(249, 115, 22, 0.08);
 }
 
 .progress-bar-wrap {
@@ -325,6 +325,13 @@ html {
 }
 
 /* ══ Intelligence Orbit — 홈 히어로 (레이어드 이미지 에셋 합성) ══ */
+// 홈 화면은 위쪽의 ".page-index .right_col { padding: 0 !important; }"가
+// _header.scss의 ".right_col { padding-top: ... }"를 덮어써서 무효화시키기 때문에,
+// 헤더와 히어로 사이 간격은 오직 이 padding-top 값 하나로만 결정됨(다른 페이지처럼
+// right_col의 padding-top을 고쳐도 홈 화면에는 반영 안 됨) — top_nav의 top/min-height를
+// 바꾸면 "헤더 높이 + top + 24px" 공식으로 이 값도 같이 맞춰야 함.
+// top_nav의 top/min-height가 100px/3px에서 58px/15px로 바뀐 뒤에도 이 값이 옛날 공식
+// (127px) 그대로 남아있던 걸 발견해서 새 공식(58+15+24=97px)으로 같이 맞춤
 .gw-orbit-hero {
   position: relative;
   z-index: 1;
@@ -333,7 +340,10 @@ html {
   justify-content: space-between;
   gap: 40px;
   height: 100vh;
-  padding: 124px 6vw 0;
+  // custom.scss의 ".right_col > div:first-child { padding-top: 10px }"가
+  // (0,2,1) 명시도로 이 규칙의 (0,1,0)보다 높아서 padding-top만 10px로 눌려있었음
+  // (히어로가 .right_col의 첫 번째 자식 div라 이 범용 규칙에 걸림) → !important로 이김
+  padding: 97px 6vw 0 !important;
   overflow: hidden;
 }
 
@@ -438,7 +448,7 @@ html {
 }
 .gw-hero-desc {
   margin: 0 0 28px;
-  max-width: 540px;
+  max-width: 640px; // 540px였을 때 <br/> 뒤 문장이 폭이 좁아서 다시 줄바꿈되며 "시각화합니다."만 혼자 떨어져 나갔음 — 코드상 <br/>로 나눈 두 줄 그대로 렌더링되도록 넓힘
   font-family:
     "Geist",
     "Inter",
@@ -468,8 +478,8 @@ html {
   justify-content: center;
   padding: 14px 26px;
   border-radius: 999px;
-  background: #e9edf2; // Soft Mist
-  color: #2a2f35 !important; // 배경이 밝아져서 글자는 흰색 대신 어두운 톤으로 (안 그러면 안 보임)
+  background: #f97316; // 오렌지
+  color: #ffffff !important;
   font-family:
     "Geist",
     "Inter",
@@ -482,7 +492,7 @@ html {
   transition: transform 0.2s;
 }
 .gw-hero-cta-primary:hover {
-  color: #2a2f35 !important;
+  color: #ffffff !important;
   transform: translateY(-2px);
 }
 .gw-hero-cta-secondary {
@@ -551,13 +561,27 @@ html {
 }
 
 @media (max-width: 900px) {
+  // 데스크톱은 히어로를 100vh 안에 딱 맞춰 넣으려고 body/html/.right_col을 스크롤
+  // 자체가 안 되게 잠갔는데(overflow:hidden), 모바일은 세로로 다 쌓이면서 100vh를
+  // 넘기기 쉬워서 그대로 두면 CTA 버튼 같은 아래쪽 내용이 아예 안 보이게 잘림 →
+  // 모바일에서만 다시 스크롤 가능하게 풀어줌
+  body,
+  html {
+    overflow-y: auto;
+  }
+  .page-index .right_col {
+    overflow-y: auto !important;
+  }
   .gw-orbit-hero {
     flex-direction: column;
     justify-content: center;
     gap: 26px;
-    padding: 124px 20px 0;
+    // 위 데스크톱 규칙과 같은 이유로 !important 필요 (custom.scss의
+    // ".right_col > div:first-child" 규칙이 padding-top만 10px로 덮어씀)
+    padding: 124px 20px 48px !important;
     height: auto;
     min-height: 100vh;
+    overflow: visible;
   }
   .gw-orbit-left {
     max-width: 100%;
@@ -570,6 +594,17 @@ html {
     margin-left: auto;
     margin-right: auto;
   }
+  .gw-hero-headline {
+    // 데스크톱 clamp 최솟값(2.9rem)이 좁은 화면에서 "Social Visualizer"를
+    // nowrap과 함께 화면 밖으로 넘치게 만들어서, 모바일 전용으로 최솟값을 낮춤
+    font-size: clamp(2rem, 8vw, 3.4rem) !important;
+  }
+  .gw-hero-desc {
+    // 데스크톱은 한 줄 고정(nowrap)이지만 모바일 폭에선 그대로 두면 잘리기만 하므로
+    // 자동 줄바꿈으로 되돌리고, 최대 폭도 화면에 맞게 제한
+    white-space: normal;
+    max-width: 100%;
+  }
   .gw-hero-cta {
     justify-content: center;
   }
@@ -577,5 +612,34 @@ html {
     position: static;
     transform: none;
     margin-top: 20px;
+  }
+  .gw-trusted-logos {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  // 지구본은 화면 중앙 하단으로 옮겨서 장식으로만 남기고, 오비팅 스킬 궤도는
+  // 실측해보니 축소·재배치를 해도 원 지름이 커서 가운데 정렬된 헤드라인/설명
+  // 텍스트와 겹쳐 글자를 가려버리므로(z-index가 텍스트보다 위) 이 폭부터는 숨김
+  .gw-globe-belt {
+    height: 42vw;
+  }
+  .gw-globe-belt-inner {
+    left: 50%;
+  }
+  .gw-skills-orbit {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .gw-hero-headline {
+    font-size: clamp(1.7rem, 10vw, 2.6rem) !important;
+  }
+  .gw-hero-desc {
+    font-size: 15px;
+  }
+  .gw-globe-belt {
+    height: 55vw;
+    max-height: 240px;
   }
 }
