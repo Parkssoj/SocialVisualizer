@@ -34,7 +34,7 @@ const NAV_NODES = [
   {
     href: "imap-collect.html",
     icon: "bi-inbox-fill",
-    label: "메일 수집",
+    label: "데이터 업로드",
     angle: 70,
   },
   {

@@ -110,7 +110,7 @@ const defaultMarkers: LiveMarker[] = [
     id: "gmail",
     location: [37.42, -122.08],
     logo: "gmail.png",
-    label: "Gmail",
+    label: "Mail",
     message: "문의 드립니다.",
   },
   {
@@ -152,7 +152,7 @@ const defaultMarkers: LiveMarker[] = [
     id: "mumbai",
     location: [19.08, 72.88],
     logo: "gmail.png",
-    label: "Gmail",
+    label: "Mail",
     message: "회의 일정 조율 드립니다.",
   },
 
@@ -196,7 +196,7 @@ const defaultMarkers: LiveMarker[] = [
     id: "toronto",
     location: [43.65, -79.38],
     logo: "gmail.png",
-    label: "Gmail",
+    label: "Mail",
     message: "인터뷰 일정 안내드립니다.",
   },
 ];
@@ -401,32 +401,26 @@ export function GlobeLive({
                   boxShadow: `0 0 0 2px ${accent}26`,
                 }}
               />
-              {!isMessage && (
-                <span
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "0.66rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.05em",
-                    color: "#3a4234",
-                    textTransform: "uppercase" as const,
-                  }}
-                >
-                  {m.label}
-                </span>
-              )}
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "0.66rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                  color: "#3a4234",
+                  textTransform: "uppercase" as const,
+                }}
+              >
+                {m.label}
+              </span>
               <span
                 style={{
                   fontFamily: "system-ui, sans-serif",
                   fontSize: "0.79rem",
                   fontWeight: 500,
                   color: "#4b5245",
-                  ...(isMessage
-                    ? {}
-                    : {
-                        paddingLeft: "0.5rem",
-                        borderLeft: "1px solid rgba(47,54,43,0.14)",
-                      }),
+                  paddingLeft: "0.5rem",
+                  borderLeft: "1px solid rgba(47,54,43,0.14)",
                 }}
               >
                 {m.message}
