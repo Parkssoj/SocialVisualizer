@@ -542,3 +542,61 @@ def save_message_summarize_to_db(paths, update_date=None):
     finally:
         cursor.close()
         conn.close()
+
+
+def save_message_mood_to_db(paths, update_date=None):
+    # message_mood.json(연/월별 분위기 점수+설명)을 message_mood 테이블에 저장
+    key = _resolve_chatroom_key(paths.USER_ID, update_date)
+    if key is None:
+        print(f"[WARN] chatroom 테이블에 해당 채팅방이 없습니다: {paths.USER_ID}")
+        return
+    chatroom_id, update_date, user_id = key
+
+    if not os.path.exists(paths.MESSAGE_MOOD_PATH):
+        print(f"[WARN] 파일이 없습니다: {paths.MESSAGE_MOOD_PATH}")
+        return
+
+    with open(paths.MESSAGE_MOOD_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    rows = []
+    for period, info in data.get("yearly", {}).items():
+        rows.append((
+            period, "yearly", chatroom_id, update_date, user_id,
+            info.get("mood_description"),
+            info.get("mood_score"),
+        ))
+    for period, info in data.get("monthly", {}).items():
+        rows.append((
+            period, "monthly", chatroom_id, update_date, user_id,
+            info.get("mood_description"),
+            info.get("mood_score"),
+        ))
+
+    if not rows:
+        print("[WARN] save_message_mood_to_db: 저장할 데이터가 없습니다.")
+        return
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        insert_sql = """
+            INSERT INTO message_mood (
+                summary_period, summary_unit, chatroom_id, index_date, user_id,
+                mood_description, mood_score
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                mood_description = VALUES(mood_description),
+                mood_score = VALUES(mood_score)
+        """
+        cursor.executemany(insert_sql, rows)
+        conn.commit()
+        print(f"[DB] message_mood 테이블 저장 완료: {len(rows)}건")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERROR] save_message_mood_to_db 실패: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
