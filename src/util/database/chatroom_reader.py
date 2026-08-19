@@ -7,6 +7,58 @@ import json
 import os
 from config.db import get_db_connection
 from util.database.chatroom_db_writer import get_latest_chatroom
+from util.user_path import list_accounts
+
+
+def list_indexed_chatrooms(base_dir: str):
+    """인덱싱된 messenger 계정(msg_xxx = 단톡방 1개)마다 chatroom 테이블에서 방 이름·전체
+    메시지 수, chatroom_people에서 참여자 수를 모아 반환. 메신저 탭의 "단톡방 목록"
+    화면에서 사용 (아직 인덱싱 중/DB에 chatroom 레코드가 없는 계정은 목록에서 제외)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        rooms = []
+        for acc in list_accounts(base_dir, "messenger"):
+            if not acc["indexed"]:
+                continue
+            chatroom_id = acc["user_id"]
+            latest = get_latest_chatroom(chatroom_id)
+            if not latest:
+                continue
+            index_date, user_id = latest["index_date"], latest["user_id"]
+
+            cursor.execute(
+                """
+                SELECT chatroom_name, message_count
+                FROM chatroom
+                WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                """,
+                (chatroom_id, index_date, user_id),
+            )
+            meta = cursor.fetchone()
+            if not meta:
+                continue
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS participant_count
+                FROM chatroom_people
+                WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                """,
+                (chatroom_id, index_date, user_id),
+            )
+            participant_count = cursor.fetchone()["participant_count"]
+
+            rooms.append({
+                "chatroom_id": chatroom_id,
+                "chatroom_name": meta["chatroom_name"],
+                "message_count": int(meta["message_count"] or 0),
+                "participant_count": int(participant_count or 0),
+            })
+        return rooms
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def get_chatroom_people(chatroom_id: str):
