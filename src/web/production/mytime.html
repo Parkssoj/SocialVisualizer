@@ -43,9 +43,9 @@
             <div class="mt-page-header">
               <div class="mt-title-group">
                 <div class="mt-title">My <span>Time</span></div>
-                <!-- "My Time 옆에 메일과 메신저 버튼" 요청 — My People과 같은 버튼 스타일 재사용 -->
+                <!-- 메일/메신저 채널 버튼 (My People과 같은 스타일) -->
                 <div class="mp-channel-btns">
-                  <button class="mp-channel-btn" id="mt-mail-btn" type="button">
+                  <button class="mp-channel-btn active" id="mt-mail-btn" type="button">
                     <i class="bi bi-envelope"></i>
                     <span>메일</span>
                   </button>
@@ -57,6 +57,8 @@
               </div>
               <div class="mt-header-controls">
                 <div id="account-picker-mount"></div>
+                <!-- 메신저 뷰에서만 표시되는 채팅방 선택 토글(계정 토글과 같은 자리, 같은 스타일) -->
+                <div id="chatroom-picker-mount" style="display: none"></div>
                 <div class="mt-mode-toggle">
                   <button class="mt-mode-btn active" data-mode="month">
                     월별
@@ -66,63 +68,117 @@
               </div>
             </div>
 
-            <div class="mt-layout">
-              <!-- 좌측: 나 아바타 + "{아이디}'s Time" -->
-              <aside class="mt-side">
-                <div class="mt-side-title" id="mtSideTitle">
-                  My <span>Time</span>
-                </div>
+            <!-- 메일 뷰 (기본 표시) -->
+            <div class="mt-view" id="mt-mail-view">
+              <div class="mt-layout">
+                <!-- 좌측: 나 아바타 -->
+                <aside class="mt-side">
+                  <!-- 아바타 밑 "My" 라벨 -->
+                  <div class="mt-side-avatar" id="mtSideAvatar">
+                    <span class="mt-side-avatar-fallback">나</span>
+                  </div>
+                  <div class="mt-side-my-label">My</div>
 
-                <div class="mt-side-avatar" id="mtSideAvatar">
-                  <span class="mt-side-avatar-fallback">나</span>
-                </div>
+                  <!-- 4:3 이미지 슬롯 (placeholder, 나중에 img 삽입) -->
+                  <div class="mt-side-image-slot">
+                    <div class="mt-side-image-box" id="mtSideImageBox">
+                      <i class="bi bi-image"></i>
+                      <span>원하시는 시간을 클릭하시면<br>그 시간에 대한 이미지를 생성해드립니다.</span>
+                    </div>
+                  </div>
+                </aside>
 
-                <div class="mt-side-stat">
-                  <div class="mt-side-stat-label">지금 보는 시점</div>
-                  <div class="mt-side-stat-value" id="mtSideNow">—</div>
-                </div>
-
-                <div class="mt-side-range">
-                  <i class="bi bi-clock-history"></i
-                  ><span id="mtSideRange"></span>
-                </div>
-              </aside>
-
-              <!-- 우측: 타임라인 요약 -->
-              <div class="mt-col-main">
-                <div class="mt-main" id="mainCard">
-                  <div class="mt-track" id="track"></div>
-                  <div class="mt-info-area">
-                    <div class="mt-panel" id="infoPanel">
-                      <div class="mt-panel-top">
-                        <div class="mt-panel-period" id="panelPeriod"></div>
-                        <div class="mt-panel-count" id="panelCount"></div>
+                <!-- 우측: 타임라인 요약 -->
+                <div class="mt-col-main">
+                  <div class="mt-main" id="mainCard">
+                    <div class="mt-track" id="track"></div>
+                    <div class="mt-info-area">
+                      <div class="mt-panel" id="infoPanel">
+                        <div class="mt-panel-top">
+                          <div class="mt-panel-period" id="panelPeriod"></div>
+                          <div class="mt-panel-count" id="panelCount"></div>
+                        </div>
+                        <div class="mt-panel-summary" id="panelSummary"></div>
+                        <div class="mt-panel-contacts-title">주요 연락처</div>
+                        <div class="mt-panel-contacts" id="panelContacts"></div>
                       </div>
-                      <div class="mt-panel-summary" id="panelSummary"></div>
-                      <div class="mt-panel-contacts-title">주요 연락처</div>
-                      <div class="mt-panel-contacts" id="panelContacts"></div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              <!-- 전체 타임라인 — .mt-layout 밖에 둬서 좌우 컬럼 폭을 합친 전체 너비로 표시 -->
+              <div class="mt-pointer-wrap">
+                <div class="mt-pointer-dates">
+                  <span class="mt-pointer-date-label" id="mtPointerStartLbl">—</span>
+                  <span class="mt-pointer-label">전체 타임라인 — 클릭으로 이동</span>
+                  <span class="mt-pointer-date-label" id="mtPointerEndLbl">—</span>
+                </div>
+                <div class="mt-pointer-track" id="pointerTrack">
+                  <div class="mt-pointer-bg"></div>
+                  <div class="mt-pointer-window" id="pointerWindow"></div>
+                  <div class="mt-pointer-cursor" id="pointerCursor">
+                    <span class="mt-pointer-cursor-fallback">나</span>
+                  </div>
+                </div>
+                <div class="mt-pointer-axis" id="pointerAxis"></div>
+              </div>
             </div>
 
-            <!-- "타임라인이 왼쪽창과 오른쪽창 전체로 펼쳐져있게" 요청에 따라, 원래
-                 오른쪽 컬럼(.mt-col-main) 안에만 있던 포인터/타임라인을 .mt-layout
-                 밖으로 꺼내서 왼쪽(.mt-side) + 오른쪽(.mt-col-main) 폭을 합친
-                 전체 너비로 펼침(id는 전부 그대로라 mytime.js 로직은 안 건드려도 됨) -->
-            <div class="mt-pointer-wrap">
-              <div class="mt-pointer-label">
-                전체 타임라인 — 클릭으로 이동
-              </div>
-              <div class="mt-pointer-track" id="pointerTrack">
-                <div class="mt-pointer-bg"></div>
-                <div class="mt-pointer-window" id="pointerWindow"></div>
-                <div class="mt-pointer-cursor" id="pointerCursor">
-                  <span class="mt-pointer-cursor-fallback">나</span>
+            <!-- 메신저 뷰: 메일 뷰와 동일한 구성(왼쪽 이미지 칸 + 타임라인 트랙 + 요약 패널
+                 + 전체 타임라인). 첫 클릭 시 mytime.js가 /chatroom-summaries를 불러와 채움,
+                 기본은 숨김 -->
+            <div class="mt-view" id="mt-messenger-view" style="display: none">
+              <div class="mt-layout">
+                <!-- 좌측: 메일 뷰와 완전히 동일한 구성 -->
+                <aside class="mt-side">
+                  <div class="mt-side-avatar" id="msgSideAvatar">
+                    <span class="mt-side-avatar-fallback">나</span>
+                  </div>
+                  <div class="mt-side-my-label">My</div>
+
+                  <!-- 4:3 이미지 슬롯 (placeholder, 나중에 #msgSideImageBox 안에 img 삽입) -->
+                  <div class="mt-side-image-slot">
+                    <div class="mt-side-image-box" id="msgSideImageBox">
+                      <i class="bi bi-image"></i>
+                      <span>원하시는 시간을 클릭하시면<br>그 시간에 대한 이미지를 생성해드립니다.</span>
+                    </div>
+                  </div>
+                </aside>
+
+                <!-- 우측: 타임라인 요약 -->
+                <div class="mt-col-main">
+                  <div class="mt-main" id="msgMainCard">
+                    <div class="mt-track" id="msgTrack"></div>
+                    <div class="mt-info-area">
+                      <div class="mt-panel" id="msgInfoPanel">
+                        <div class="mt-panel-top">
+                          <div class="mt-panel-period" id="msgPanelPeriod"></div>
+                        </div>
+                        <div class="mt-panel-summary" id="msgPanelSummary"></div>
+                        <div class="mt-panel-contacts-title">주요 연락처</div>
+                        <div class="mt-panel-contacts" id="msgPanelContacts"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="mt-pointer-axis" id="pointerAxis"></div>
+
+              <div class="mt-pointer-wrap">
+                <div class="mt-pointer-dates">
+                  <span class="mt-pointer-date-label" id="msgPointerStartLbl">—</span>
+                  <span class="mt-pointer-label">전체 타임라인 — 클릭으로 이동</span>
+                  <span class="mt-pointer-date-label" id="msgPointerEndLbl">—</span>
+                </div>
+                <div class="mt-pointer-track" id="msgPointerTrack">
+                  <div class="mt-pointer-bg"></div>
+                  <div class="mt-pointer-window" id="msgPointerWindow"></div>
+                  <div class="mt-pointer-cursor" id="msgPointerCursor">
+                    <span class="mt-pointer-cursor-fallback">나</span>
+                  </div>
+                </div>
+                <div class="mt-pointer-axis" id="msgPointerAxis"></div>
+              </div>
             </div>
           </div>
         </main>

@@ -52,9 +52,8 @@
                 <div class="mp-title-wrap">
                   <div class="mp-title">My <span>People</span></div>
                   <span class="mp-count" id="mp-count"></span>
-                  <!-- "13명 옆에 메일과 메신저 버튼" 요청 — mp-count 바로 옆에 추가 -->
+                  <!-- 메일/메신저 채널 선택 버튼 -->
                   <div class="mp-channel-btns">
-                    <!-- "처음 기본값은 메일" 요청 — 메일 버튼에 처음부터 active 부여 -->
                     <button class="mp-channel-btn active" id="mp-mail-btn" type="button">
                       <i class="bi bi-envelope"></i>
                       <span>메일</span>
@@ -106,8 +105,7 @@
             <!-- 왼쪽+오른쪽 패널 행 -->
             <div class="mp-content">
               <div class="mp-left">
-                <!-- "메일과 메신저 중 기본값은 메일" 요청 — 기존 카드/그래프/디테일
-                     패널 전부를 "메일" 뷰로 감싸고 id를 붙임(기본 표시) -->
+                <!-- 메일 뷰 (기본 표시) -->
                 <div class="mp-panel" id="mp-mail-view">
                   <div class="mp-graph-panel" id="mp-graph-panel">
                     <div class="mp-graph-panel-header">
@@ -561,11 +559,7 @@
                   </div>
                 </div>
 
-                <!-- "메신저 누르면 지금 되어있는 메일 대신 다른 새로운 창이
-                     비동기로 띄워지도록" 요청 — 처음엔 안 만들어져 있다가(내용
-                     없음) 메신저 버튼을 처음 누르는 순간 mypeople.js가 비동기로
-                     내용을 채워 넣음(지금은 자리만, 실제 기능은 나중에 추가 예정).
-                     기본값은 메일이라 처음엔 항상 숨김(display:none) -->
+                <!-- 메신저 뷰: 첫 클릭 시 mypeople.js가 비동기로 내용 채움, 기본은 숨김 -->
                 <div class="mp-panel" id="mp-messenger-view" style="display: none">
                   <div class="mp-empty" id="mp-messenger-loading">
                     <i class="bi bi-chat-dots"></i>
