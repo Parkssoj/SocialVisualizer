@@ -206,8 +206,34 @@ function createTimeline(ids) {
 
     const axis = document.getElementById(ids.pointerAxis);
     axis.innerHTML = "";
-    YEAR_KEYS.forEach((y) => {
-      const pct = Math.max(0, Math.min(98, yearToPct(y) * 100));
+
+    // My People 타임슬라이더와 동일하게, 라벨 사이 실제 픽셀 간격이
+    // MIN_GAP_PX보다 좁으면 뒤 라벨을 건너뛴다(끝 라벨은 항상 유지).
+    const MIN_GAP_PX = 64;
+    const axisWidth = axis.offsetWidth || axis.getBoundingClientRect().width || 0;
+    const withPct = YEAR_KEYS.map((y) => ({
+      y,
+      pct: Math.max(0, Math.min(98, yearToPct(y) * 100)),
+    }));
+
+    let filtered = withPct.length ? [withPct[0]] : [];
+    for (let i = 1; i < withPct.length; i++) {
+      const prev = filtered[filtered.length - 1];
+      const gapPx = ((withPct[i].pct - prev.pct) / 100) * axisWidth;
+      if (gapPx >= MIN_GAP_PX || i === withPct.length - 1) {
+        filtered.push(withPct[i]);
+      }
+    }
+    if (filtered.length >= 2) {
+      const last = filtered[filtered.length - 1];
+      const beforeLast = filtered[filtered.length - 2];
+      const gapPx = ((last.pct - beforeLast.pct) / 100) * axisWidth;
+      if (gapPx < MIN_GAP_PX) {
+        filtered.splice(filtered.length - 2, 1);
+      }
+    }
+
+    filtered.forEach(({ y, pct }) => {
       const tick = document.createElement("div");
       tick.className = "mt-pa-tick";
       tick.style.left = pct + "%";
@@ -275,7 +301,7 @@ function createTimeline(ids) {
 
     const track = document.getElementById(ids.track);
     if (!ALL_KEYS.length) {
-      track.innerHTML = `<div style="color:#8fb5a9;font-size:.78rem;padding:20px 0;">${emptyMessage}</div>`;
+      track.innerHTML = `<div style="color:#a8a8a8;font-size:.78rem;padding:20px 0;">${emptyMessage}</div>`;
       return false;
     }
 

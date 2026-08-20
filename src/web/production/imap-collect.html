@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="images/apple-touch-icon.svg" sizes="180x180">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="rgb(42, 63, 84)">
-    <title>데이터 수집 | MailGrapher</title>
+    <title>데이터 업로드 | MailGrapher</title>
     <script type="module" src="/src/pages/imap-collect.js"></script>
     <!-- 헤더 폰트를 홈 화면(index.html)과 완전히 동일하게: Fraunces뿐 아니라
          Geist도 같이 불러와서 헤더/본문 폰트 로딩이 페이지마다 다르지 않게 통일 -->
@@ -41,10 +41,10 @@
           <div class="gw-collect-wrap">
             <div class="gw-page-title">
               <i class="bi bi-inbox-fill"></i>
-              데이터 수집
+              데이터 업로드
             </div>
 
-            <p class="gw-page-subtitle">메일 또는 카카오톡 대화를 가져와 GraphRAG 인덱싱에 사용합니다.</p>
+            <p class="gw-page-subtitle">메일 또는 카카오톡 대화는 Social Visualizer 서비스를 제공하는데 사용됩니다.</p>
 
             <!-- ── 탭 전환 ── -->
             <div class="gw-tabs" role="tablist">
@@ -59,11 +59,14 @@
             <!-- ═══ 메일 탭 ═══ -->
             <div class="gw-tab-panel active" id="tab-panel-mail" role="tabpanel">
 
+            <!-- ── 카드 1+2를 가로 1줄로 배치 ── -->
+            <div class="gw-collect-cards-row">
+
             <!-- ── 카드 1: IMAP 서버 설정 ── -->
             <div class="gw-card">
               <div class="gw-card-title">
                 <i class="bi bi-server"></i>
-                서버 설정
+                메일 계정 로그인
               </div>
 
               <!-- 프리셋 -->
@@ -102,7 +105,30 @@
                 </div>
               </div>
 
-              <div class="gw-form-grid cols-3">
+              <div class="gw-form-grid gw-uniform-grid" id="imap-server-grid">
+                <div class="gw-form-group">
+                  <label class="gw-label">이메일 주소</label>
+                  <input
+                    id="imap-user"
+                    class="gw-input"
+                    type="text"
+                    placeholder="you@example.com"
+                    value="@gmail.com"
+                  />
+                </div>
+                <div class="gw-form-group">
+                  <label class="gw-label">앱 비밀번호</label>
+                  <input
+                    id="imap-pass"
+                    class="gw-input"
+                    type="password"
+                    placeholder="앱 전용 비밀번호"
+                  />
+                </div>
+              </div>
+
+              <!-- IMAP 호스트/포트/SSL — UI에서는 숨김(프리셋 칩으로 자동 설정됨), 값은 그대로 전송용으로 유지 -->
+              <div class="gw-hidden-fields">
                 <div class="gw-form-group">
                   <label class="gw-label">IMAP 호스트</label>
                   <input
@@ -130,25 +156,6 @@
                     <option value="false">미사용 (143)</option>
                   </select>
                 </div>
-                <div class="gw-form-group">
-                  <label class="gw-label">이메일 주소</label>
-                  <input
-                    id="imap-user"
-                    class="gw-input"
-                    type="text"
-                    placeholder="you@example.com"
-                    value="@gmail.com"
-                  />
-                </div>
-                <div class="gw-form-group">
-                  <label class="gw-label">앱 비밀번호</label>
-                  <input
-                    id="imap-pass"
-                    class="gw-input"
-                    type="password"
-                    placeholder="앱 전용 비밀번호"
-                  />
-                </div>
               </div>
 
               <div
@@ -169,16 +176,16 @@
                 </button>
                 <span
                   id="folder-list-hint"
-                  style="font-size: 0.8rem; color: #73879c"
+                  style="font-size: 1rem; color: #73879c"
                 ></span>
               </div>
             </div>
 
-            <!-- ── 카드 2: 수집 옵션 ── -->
+            <!-- ── 카드 2: 옵션 ── -->
             <div class="gw-card">
               <div class="gw-card-title">
                 <i class="bi bi-sliders"></i>
-                수집 옵션
+                옵션
               </div>
 
               <!-- 폴더 선택 ("폴더 불러오기" 버튼으로 동적으로 채워짐) -->
@@ -192,7 +199,7 @@
                   "
                 >
                   <label class="gw-label" style="margin-bottom: 0"
-                    >수집 폴더</label
+                    >불러온 폴더</label
                   >
                   <button
                     type="button"
@@ -210,7 +217,7 @@
                 </div>
               </div>
 
-              <div class="gw-form-grid">
+              <div class="gw-form-grid gw-uniform-grid" id="imap-collect-grid">
                 <div class="gw-form-group">
                   <label class="gw-label">수집 개수 (폴더당)</label>
                   <select id="collect-limit" class="gw-select">
@@ -231,14 +238,16 @@
                   />
                 </div>
                 <div class="gw-form-group">
-                  <label class="gw-label">동기 모드</label>
+                  <label class="gw-label">모드</label>
                   <select id="sync-mode" class="gw-select">
-                    <option value="append" selected>증분 (새 메일만)</option>
-                    <option value="rewrite">전체 재수집</option>
+                    <option value="append">업데이트 안된 메일만</option>
+                    <option value="rewrite" selected>전체 업데이트</option>
                   </select>
                 </div>
               </div>
             </div>
+
+            </div><!-- /.gw-collect-cards-row -->
 
             <!-- ── 수집 버튼 ── -->
             <div
@@ -256,7 +265,7 @@
               </button>
               <span
                 id="collect-hint"
-                style="font-size: 0.82rem; color: #73879c"
+                style="font-size: 1rem; color: #73879c"
               ></span>
             </div>
 
@@ -285,7 +294,7 @@
                 <div class="gw-dropzone-text">
                   대화 내보내기 .txt 파일을 여기로 끌어다 놓거나 클릭해서 선택하세요.
                 </div>
-                <div class="gw-dropzone-sub">모바일(안드로이드/iOS)·PC 내보내기 파일 모두 지원합니다.</div>
+                <div class="gw-dropzone-sub">카카오톡 채팅방에서 대화내보내기가 가능합니다.</div>
                 <div class="gw-dropzone-file" id="message-file-name" style="display:none;"></div>
               </label>
               <input type="file" id="message-file-input" accept=".txt" style="display:none;">
@@ -312,7 +321,7 @@
                 <i class="bi bi-upload" id="message-upload-icon"></i>
                 대화 업로드 시작
               </button>
-              <span id="message-upload-hint" style="font-size:0.82rem;color:#73879C;"></span>
+              <span id="message-upload-hint" style="font-size:1rem;color:#73879C;"></span>
             </div>
 
             <!-- ── 진행상황 패널 목록 ── -->

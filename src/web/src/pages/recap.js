@@ -33,7 +33,7 @@ function initials(nameStr) {
 
 const AVATAR_COLORS = [
   ['#fcd34d','#f59e0b'], ['#a5b4fc','#818cf8'],
-  ['#86efac','#4ade80'], ['#f9a8d4','#ec4899'],
+  ['#c8c8c8','#a7a7a7'], ['#f9a8d4','#ec4899'],
   ['#67e8f9','#06b6d4'], ['#fca5a5','#ef4444'],
 ];
 
@@ -122,10 +122,10 @@ function renderSenderStats(data) {
 
 /* ── 워드 클라우드 색상 팔레트 ── */
 const WC_COLORS = [
-  '#1b4332','#2d6a4f','#40916c',
+  '#353535','#555555','#757575',
   '#e63946','#457b9d','#e07b39',
   '#7b2d8b','#1d6fa0','#b5451b',
-  '#2c6e49',
+  '#565656',
 ];
 
 function renderKeywordStats(data) {
@@ -171,7 +171,7 @@ function renderAffinityStats(data) {
 
   const AF_COLORS = [
     '#ec4899','#a78bfa','#f97316',
-    '#06b6d4','#10b981','#f59e0b','#ef4444',
+    '#06b6d4','#808080','#f59e0b','#ef4444',
   ];
   const RANK_LABELS = ['🥇','🥈','🥉'];
 

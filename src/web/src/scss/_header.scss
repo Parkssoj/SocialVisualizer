@@ -65,8 +65,8 @@
 }
 
 .gw-login-btn {
-  background: none;
-  border: 1px solid rgba(0, 0, 0, 0.5);
+  background: #fff;
+  border: none;
   color: #000000;
   font-size: 0.86rem;
   font-weight: 500;
@@ -76,13 +76,14 @@
   white-space: nowrap; // 좁은 화면에서 flex가 버튼을 눌러 "로그인" 글자가 줄바꿈되는 것 방지
   flex-shrink: 0;
   margin-top: 7px; // 다른 헤더 요소들과 정렬이 안 맞아서 이 버튼만 살짝 내림
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
   transition:
     background 0.15s,
-    border-color 0.15s;
+    box-shadow 0.15s;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.08);
-    border-color: #000000;
+    background: rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
   }
 }
 
@@ -153,11 +154,11 @@
 
 /* '매일 분석 현황' FAB — indexingStatus.js가 런타임에 주입하는 초록 스타일을 올리브 톤으로 강제 교체 */
 .log-fab {
-  background: linear-gradient(150deg, #4a5a3d 0%, #333f2b 100%) !important;
-  box-shadow: 0 8px 20px rgba(51, 63, 43, 0.28) !important;
+  background: linear-gradient(150deg, #525252 0%, #393939 100%) !important;
+  box-shadow: 0 8px 20px rgba(57, 57, 57, 0.28) !important;
 }
 .log-fab:hover {
-  background: linear-gradient(150deg, #566a47 0%, #3d4a35 100%) !important;
+  background: linear-gradient(150deg, #606060 0%, #444444 100%) !important;
 }
 
 // 900px는 nav 항목이 홈/검색/메일 수집/My Life/지식 그래프 5개였을 때 기준 —
@@ -181,9 +182,9 @@
   left: 0;
   padding-top: 6px;
   background: #fff;
-  border: 1px solid #e0e0e0;
+  border: none;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   z-index: 9999;
   min-width: 140px;
   padding: 6px 0;

@@ -15,46 +15,46 @@ function injectLogPanel() {
 
   const style = document.createElement('style');
   style.textContent = `
-    .log-fab { display:inline-flex; align-items:center; gap:8px; padding:7px 16px; border-radius:999px; background:#1a9e6e; color:#fff; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:background .18s,transform .15s; box-shadow:0 2px 10px rgba(26,158,110,0.35); }
-    .log-fab:hover { background:#0f7a52; transform:translateY(-1px); }
+    .log-fab { display:inline-flex; align-items:center; gap:8px; padding:7px 16px; border-radius:999px; background:#717171; color:#fff; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:background .18s,transform .15s; box-shadow:0 2px 10px rgba(113, 113, 113,0.35); }
+    .log-fab:hover { background:#555555; transform:translateY(-1px); }
     .log-fab:active { transform:scale(.97); }
     .fab-dot { width:8px; height:8px; border-radius:50%; background:#fff; opacity:.85; display:inline-block; }
-    .fab-dot.running { background:#6effc5; animation:dot-pulse 1.2s ease-in-out infinite; }
+    .fab-dot.running { background:#cdcdcd; animation:dot-pulse 1.2s ease-in-out infinite; }
     @keyframes dot-pulse { 0%,100%{opacity:.85;transform:scale(1);}50%{opacity:1;transform:scale(1.35);} }
     .fab-badge { position:absolute; top:-5px; right:-5px; background:#e24b4a; color:#fff; font-size:10px; font-weight:500; border-radius:999px; padding:1px 5px; min-width:16px; text-align:center; display:none; }
     .fab-badge.show { display:block; }
-    .panel-wrap { position:absolute; top:calc(100% + 10px); right:0; width:480px; border:1px solid #d8ebe3; border-radius:12px; overflow:hidden; background:#fff; z-index:9999; box-shadow:0 8px 32px rgba(26,158,110,0.12); max-height:0; opacity:0; pointer-events:none; transition:max-height .35s cubic-bezier(.22,1,.36,1),opacity .3s; max-width:calc(100vw - 24px); }
+    .panel-wrap { position:absolute; top:calc(100% + 10px); right:0; width:480px; border:none; border-radius:12px; overflow:hidden; background:#fff; z-index:9999; box-shadow:0 10px 30px rgba(0,0,0,0.28); max-height:0; opacity:0; pointer-events:none; transition:max-height .35s cubic-bezier(.22,1,.36,1),opacity .3s; max-width:calc(100vw - 24px); }
     .panel-wrap.open { max-height:480px; opacity:1; pointer-events:all; }
-    .panel-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f0f7f3; border-bottom:1px solid #d8ebe3; }
-    .panel-title { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:#1b2e22; }
-    .panel-status { font-size:11px; padding:3px 9px; border-radius:999px; font-weight:500; background:rgba(26,158,110,0.12); color:#1a9e6e; display:flex; align-items:center; gap:5px; }
+    .panel-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f4f4f4; border-bottom:1px solid #e4e4e4; }
+    .panel-title { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:500; color:#272727; }
+    .panel-status { font-size:11px; padding:3px 9px; border-radius:999px; font-weight:500; background:rgba(113, 113, 113,0.12); color:#717171; display:flex; align-items:center; gap:5px; }
     .panel-status.idle { background:#f4f4f4; color:#888; }
-    .panel-status.done { background:#eaf3de; color:#3b6d11; }
+    .panel-status.done { background:#eeeeee; color:#545454; }
     .panel-status.failed { background:#fcebeb; color:#a32d2d; }
     .status-indicator { width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
     .status-indicator.running { animation:dot-pulse 1.1s ease-in-out infinite; }
     .panel-actions { display:flex; gap:6px; }
-    .panel-btn { background:none; border:1px solid #d8ebe3; color:#1a9e6e; border-radius:6px; padding:3px 9px; font-size:11px; cursor:pointer; transition:background .15s; }
-    .panel-btn:hover { background:rgba(26,158,110,0.08); }
-    .progress-bar-wrap { height:3px; background:#d8ebe3; }
-    .progress-bar-fill { height:100%; background:linear-gradient(90deg,#1a9e6e,#34d399); width:0%; transition:width .5s ease; border-radius:0 2px 2px 0; }
-    .log-body { height:260px; overflow-y:auto; padding:10px 14px; font-size:12px; line-height:1.7; scrollbar-width:thin; scrollbar-color:#d8ebe3 transparent; }
+    .panel-btn { background:#fff; border:none; color:#717171; border-radius:6px; padding:3px 9px; font-size:11px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.12); transition:background .15s, box-shadow .15s; }
+    .panel-btn:hover { background:rgba(113, 113, 113,0.08); box-shadow:0 2px 5px rgba(113, 113, 113,0.25); }
+    .progress-bar-wrap { height:3px; background:#e4e4e4; }
+    .progress-bar-fill { height:100%; background:linear-gradient(90deg,#717171,#9d9d9d); width:0%; transition:width .5s ease; border-radius:0 2px 2px 0; }
+    .log-body { height:260px; overflow-y:auto; padding:10px 14px; font-size:12px; line-height:1.7; scrollbar-width:thin; scrollbar-color:#e4e4e4 transparent; }
     .log-body::-webkit-scrollbar { width:4px; }
-    .log-body::-webkit-scrollbar-thumb { background:#d8ebe3; border-radius:4px; }
+    .log-body::-webkit-scrollbar-thumb { background:#e4e4e4; border-radius:4px; }
     .log-line { display:flex; gap:6px; align-items:flex-start; padding:2px 0; animation:line-in .2s ease; min-width:0; width:100%; }
     @keyframes line-in { from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;} }
-    .log-ts { color:#b0c4bc; flex-shrink:0; font-size:11px; padding-top:1px; }
+    .log-ts { color:#bdbdbd; flex-shrink:0; font-size:11px; padding-top:1px; }
     .log-tag { flex-shrink:0; font-size:10px; font-weight:500; padding:1px 6px; border-radius:4px; min-width:36px; text-align:center; white-space:nowrap; display:inline-block; overflow:visible; height:auto; }
-    .log-tag.running { background:#e1f5ee; color:#0f6e56; }
-    .log-tag.done { background:#eaf3de; color:#3b6d11; }
+    .log-tag.running { background:#eeeeee; color:#4f4f4f; }
+    .log-tag.done { background:#eeeeee; color:#545454; }
     .log-tag.failed { background:#fcebeb; color:#a32d2d; }
     .log-msg { color:#333; word-break:break-word; min-width:0; overflow-wrap:anywhere; }
-    .log-pct { color:#1a9e6e; font-weight:500; margin-left:4px; }
+    .log-pct { color:#717171; font-weight:500; margin-left:4px; }
     .log-empty { height:100%; display:flex; align-items:center; justify-content:center; color:#aaa; font-size:12px; flex-direction:column; gap:6px; }
     .log-empty svg { opacity:.35; }
-    .panel-footer { padding:8px 14px; border-top:1px solid #d8ebe3; display:flex; align-items:center; justify-content:space-between; background:#f9fcfb; }
+    .panel-footer { padding:8px 14px; border-top:1px solid #e4e4e4; display:flex; align-items:center; justify-content:space-between; background:#f9fcfb; }
     .footer-count { font-size:11px; color:#888; }
-    .footer-scroll-btn { font-size:11px; color:#1a9e6e; cursor:pointer; background:none; border:none; display:flex; align-items:center; gap:4px; }
+    .footer-scroll-btn { font-size:11px; color:#717171; cursor:pointer; background:none; border:none; display:flex; align-items:center; gap:4px; }
     .footer-scroll-btn:hover { text-decoration:underline; }
   `;
   document.head.appendChild(style);
@@ -182,32 +182,32 @@ function initLogPanel() {
 
     return `
     <div id="userView" style="background:#fff;border-radius:12px;overflow:hidden;">
-      <div style="background:#f0f7f3;padding:16px 18px 14px;border-bottom:0.5px solid #d8ebe3;display:flex;flex-direction:column;gap:12px;">
+      <div style="background:#f4f4f4;padding:16px 18px 14px;border-bottom:0.5px solid #e4e4e4;display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:5px;background:#d8ebe3;border-radius:999px;padding:3px 10px;">
-            <div id="uvPillDot" style="width:6px;height:6px;border-radius:50%;background:#1a9e6e;"></div>
-            <span id="uvPillText" style="font-size:11px;font-weight:500;color:#0f6e56;">메일 분석 중</span>
+          <div style="display:flex;align-items:center;gap:5px;background:#e4e4e4;border-radius:999px;padding:3px 10px;">
+            <div id="uvPillDot" style="width:6px;height:6px;border-radius:50%;background:#717171;"></div>
+            <span id="uvPillText" style="font-size:11px;font-weight:500;color:#4f4f4f;">메일 분석 중</span>
           </div>
-          <button id="uvClose" style="font-size:11px;color:#b0c4bc;background:none;border:none;cursor:pointer;padding:0;">닫기</button>
+          <button id="uvClose" style="font-size:11px;color:#bdbdbd;background:none;border:none;cursor:pointer;padding:0;">닫기</button>
         </div>
         <div style="display:flex;align-items:flex-end;gap:10px;">
-          <span id="uvPct" style="font-size:52px;font-weight:500;color:#1b2e22;line-height:1;">0%</span>
+          <span id="uvPct" style="font-size:52px;font-weight:500;color:#272727;line-height:1;">0%</span>
           <div style="display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:5px;gap:3px;">
-            <span id="uvMsg" style="font-size:13px;font-weight:500;color:#1b2e22;">분석 준비 중</span>
+            <span id="uvMsg" style="font-size:13px;font-weight:500;color:#272727;">분석 준비 중</span>
             <span id="uvSub" style="font-size:11px;color:#73879C;">잠시만 기다려주세요</span>
           </div>
         </div>
       </div>
 
-      <div style="height:4px;background:#d8ebe3;">
-        <div id="uvBar" style="height:100%;background:#1a9e6e;width:0%;transition:width .5s ease;"></div>
+      <div style="height:4px;background:#e4e4e4;">
+        <div id="uvBar" style="height:100%;background:#717171;width:0%;transition:width .5s ease;"></div>
       </div>
 
       <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;">
         ${cards
           .map(
             c => `
-          <div id="uvCard${c.id}" style="background:#f9fcfb;border:0.5px solid #e1f5ee;border-radius:10px;padding:11px 13px;display:flex;align-items:center;gap:11px;">
+          <div id="uvCard${c.id}" style="background:#f9fcfb;border:0.5px solid #eeeeee;border-radius:10px;padding:11px 13px;display:flex;align-items:center;gap:11px;">
             <div id="uvCardIcon${c.id}" style="width:32px;height:32px;border-radius:8px;background:#f4f4f4;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s;">
               <svg width="14" height="14" fill="none" stroke="#ccc" stroke-width="2" viewBox="0 0 14 14" id="uvCardIconSvg${c.id}"><circle cx="7" cy="7" r="5"/></svg>
             </div>
@@ -239,7 +239,7 @@ function initLogPanel() {
     pctEl.textContent = Math.round(pct) + '%';
 
     const svgDone = `<svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5L12 3"/></svg>`;
-    const svgActive = `<svg width="14" height="14" fill="none" stroke="#1a9e6e" stroke-width="2" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 1.5"/></svg>`;
+    const svgActive = `<svg width="14" height="14" fill="none" stroke="#717171" stroke-width="2" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 1.5"/></svg>`;
     const svgWait = `<svg width="14" height="14" fill="none" stroke="#ccc" stroke-width="2" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5"/></svg>`;
 
     // 카드 매핑 (stepIdx → 카드 인덱스)
@@ -261,26 +261,26 @@ function initLogPanel() {
     ];
 
     if (type === 'done') {
-      pctEl.style.color = '#1a9e6e';
-      bar.style.background = '#1a9e6e';
+      pctEl.style.color = '#717171';
+      bar.style.background = '#717171';
       msgEl.textContent = '분석 완료!';
       subEl.textContent = '이제 메일을 검색할 수 있어요';
-      pillDot.style.background = '#1a9e6e';
+      pillDot.style.background = '#717171';
       pillText.textContent = '분석 완료';
-      pillText.style.color = '#0f6e56';
+      pillText.style.color = '#4f4f4f';
       for (let i = 0; i < 4; i++) {
         const icon = document.getElementById(`uvCardIcon${i}`);
         const title = document.getElementById(`uvCardTitle${i}`);
         const sub = document.getElementById(`uvCardSub${i}`);
         const badge = document.getElementById(`uvCardBadge${i}`);
         if (!icon) continue;
-        icon.style.background = '#1a9e6e';
+        icon.style.background = '#717171';
         icon.innerHTML = svgDone;
-        title.style.color = '#1b2e22';
+        title.style.color = '#272727';
         sub.style.color = '#73879C';
         badge.textContent = '완료';
-        badge.style.background = '#eaf3de';
-        badge.style.color = '#3b6d11';
+        badge.style.background = '#eeeeee';
+        badge.style.color = '#545454';
       }
     } else if (type === 'failed') {
       pctEl.style.color = '#e24b4a';
@@ -301,22 +301,22 @@ function initLogPanel() {
         const badge = document.getElementById(`uvCardBadge${i}`);
         if (!icon) continue;
         if (i < cardIdx) {
-          icon.style.background = '#1a9e6e';
+          icon.style.background = '#717171';
           icon.innerHTML = svgDone;
-          title.style.color = '#1b2e22';
+          title.style.color = '#272727';
           sub.style.color = '#73879C';
           badge.textContent = '완료';
-          badge.style.background = '#eaf3de';
-          badge.style.color = '#3b6d11';
+          badge.style.background = '#eeeeee';
+          badge.style.color = '#545454';
         } else if (i === cardIdx) {
-          icon.style.background = '#e1f5ee';
+          icon.style.background = '#eeeeee';
           icon.innerHTML = svgActive;
-          title.style.color = '#1b2e22';
+          title.style.color = '#272727';
           title.style.fontWeight = '500';
           sub.style.color = '#73879C';
           badge.textContent = '진행 중';
-          badge.style.background = '#e1f5ee';
-          badge.style.color = '#0f6e56';
+          badge.style.background = '#eeeeee';
+          badge.style.color = '#4f4f4f';
         } else {
           icon.style.background = '#f4f4f4';
           icon.innerHTML = svgWait;
@@ -345,18 +345,18 @@ function initLogPanel() {
     dd.id = 'logDropdown';
     dd.style.cssText = `
       position:absolute; top:calc(100% + 6px); right:0;
-      background:#fff; border:1px solid #d8ebe3; border-radius:10px;
+      background:#fff; border:none; border-radius:10px;
       overflow:hidden; z-index:10000; min-width:150px;
-      box-shadow:0 4px 16px rgba(26,158,110,0.12);
+      box-shadow:0 8px 24px rgba(0,0,0,0.28);
     `;
     dd.innerHTML = `
-      <div id="ddUser" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:12px;color:#1b2e22;border-bottom:1px solid #f0f7f3;transition:background .15s;">
-        <div style="width:22px;height:22px;border-radius:6px;background:#e1f5ee;display:flex;align-items:center;justify-content:center;">
-          <svg width="12" height="12" fill="none" stroke="#0f6e56" stroke-width="2" viewBox="0 0 16 16"><circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>
+      <div id="ddUser" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:12px;color:#272727;border-bottom:1px solid #f4f4f4;transition:background .15s;">
+        <div style="width:22px;height:22px;border-radius:6px;background:#eeeeee;display:flex;align-items:center;justify-content:center;">
+          <svg width="12" height="12" fill="none" stroke="#4f4f4f" stroke-width="2" viewBox="0 0 16 16"><circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>
         </div>
         사용자 보기
       </div>
-      <div id="ddDev" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:12px;color:#1b2e22;transition:background .15s;">
+      <div id="ddDev" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:12px;color:#272727;transition:background .15s;">
         <div style="width:22px;height:22px;border-radius:6px;background:#e8f0fe;display:flex;align-items:center;justify-content:center;">
           <svg width="12" height="12" fill="none" stroke="#185fa5" stroke-width="2" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 6h6M5 9h4"/></svg>
         </div>
@@ -462,12 +462,12 @@ function initLogPanel() {
     const bar = document.getElementById('uvBar');
     if (bar) {
       bar.style.width = '0%';
-      bar.style.background = '#1a9e6e';
+      bar.style.background = '#717171';
     }
     const pctEl2 = document.getElementById('uvPct');
     if (pctEl2) {
       pctEl2.textContent = '0%';
-      pctEl2.style.color = '#1a9e6e';
+      pctEl2.style.color = '#717171';
     }
   });
   document.getElementById('scrollBottomBtn').addEventListener('click', () => {
