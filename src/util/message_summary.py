@@ -27,7 +27,7 @@ def _summarize_with_llm(text, period_label, contacts):
                     "content": (
                         "주어진 채팅 대화 목록을 분석하여 아래 JSON 형식으로만 응답하세요.\n"
                         "{\n"
-                        '  "summary": "해당 기간의 주요 대화 내용을 3~5문장으로 한국어 요약",\n'
+                        '  "summary": "해당 기간의 주요 대화 내용을 3~5문장으로 한국어 요약( ~입니다. 어미로 통일)",\n'
                         '  "contacts": ["요약 내용과 관련된 대화 참여자 이름 목록"]\n'
                         "}\n"
                         "contacts는 아래 제공된 참여자 목록 중에서만 골라주세요."

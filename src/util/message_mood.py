@@ -102,7 +102,7 @@ def _judge_mood_with_llm(text, period_label):
                         "분석해 아래 JSON 형식으로만 응답하라.\n"
                         "{\n"
                         '  "private_ratio": 0~100 사이 숫자 (전체 대화 중 사적인 내용의 비율, %),\n'
-                        '  "description": "이 기간 대화 내용을 1~2문장으로 한국어 설명"\n'
+                        '  "description": "이 기간 대화 내용을 1~2문장으로 한국어 설명 (~입니다. 어미로 통일)"\n'
                         "}"
                     ),
                 },
