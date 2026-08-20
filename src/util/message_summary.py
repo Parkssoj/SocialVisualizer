@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.message_statics import _parse_message_blocks_from_parquet
 from util.database.chatroom_db_writer import save_message_summarize_to_db
+from util.summary_image_generator import generate_message_summary_images
 
 load_dotenv("src/parquet/.env")
 
@@ -133,3 +134,4 @@ def generate_message_summaries(paths):
     print(f"[message_summary] 저장 완료: {paths.MESSAGE_SUMMARIES_PATH}")
 
     save_message_summarize_to_db(paths)
+    generate_message_summary_images(paths)

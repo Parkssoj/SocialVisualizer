@@ -11,6 +11,7 @@ import openai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.database.db_writer import save_mail_summarize_to_db
+from util.summary_image_generator import generate_mail_summary_images
 
 load_dotenv("src/parquet/.env")
 
@@ -166,3 +167,4 @@ def generate_mail_summaries(paths):
     print(f"[mail_summary] 저장 완료: {paths.MAIL_SUMMARIES_PATH}")
 
     save_mail_summarize_to_db(paths)
+    generate_mail_summary_images(paths)

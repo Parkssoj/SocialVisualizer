@@ -996,6 +996,16 @@ def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
+@app.route("/mail-summary-image/<user_id>/<filename>")
+def mail_summary_image(user_id, filename):
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    return send_from_directory(paths.MAIL_SUMMARY_IMAGES_DIR, filename)
+
+@app.route("/message-summary-image/<chatroom_id>/<filename>")
+def message_summary_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_SUMMARY_IMAGES_DIR, filename)
+
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
     data = request.json or {}
