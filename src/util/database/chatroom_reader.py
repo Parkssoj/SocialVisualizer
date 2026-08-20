@@ -5,7 +5,6 @@
 
 import calendar
 import json
-import os
 from config.db import get_db_connection
 from util.database.chatroom_db_writer import get_latest_chatroom
 from util.user_path import list_accounts, UserPaths
@@ -269,40 +268,30 @@ def get_chatroom_people_stats(chatroom_id: str, start_date: str, end_date: str):
 
 
 def get_chatroom_relationships(paths, active_names: set) -> list:
-    """GraphRAG graph_data.json의 사람-사람 interacts_with 엣지 중 양쪽 다 active_names에
-    속한 것만 반환. graph_data.json이 없으면 빈 리스트.
-
-    GraphRAG가 같은 두 사람에 대해 날짜별로 서로 다른 방향(A→B, B→A)의 interacts_with 엣지를
-    각각 뽑아내고 완전히 병합하지 않는 경우가 있어서, 같은 두 사람 쌍은 무방향으로 취급해
-    strength(weight)가 가장 높은 엣지 하나만 남긴다."""
-    if not os.path.exists(paths.GRAPH_JSON_PATH):
+    """chatroom_relationship 테이블에서 이 채팅방의 사람-사람 관계 중 양쪽 다 active_names에
+    속한 것만 반환. 예전엔 매 요청마다 graph_data.json 전체를 읽어 스캔했지만, 인덱싱 시점에
+    chatroom_relationship 테이블로 옮겨 저장하면서(save_chatroom_relationships_to_db) 조회만
+    하도록 바꿨다 — 방향 병합(무방향 취급, 같은 쌍은 하나로 합침)도 저장 시점에 이미 끝나 있다."""
+    latest = get_latest_chatroom(paths.USER_ID)
+    if not latest:
         return []
+    index_date, user_id = latest["index_date"], latest["user_id"]
 
-    with open(paths.GRAPH_JSON_PATH, "r", encoding="utf-8") as f:
-        graph_data = json.load(f)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT person_a AS source, person_b AS target,
+                   relation_label, description
+            FROM chatroom_relationship
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+        """, (paths.USER_ID, index_date, user_id))
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
-    merged: dict = {}
-    for edge in graph_data.get("edges", []):
-        relation_label = edge.get("relation_label")
-        if not relation_label:
-            continue
-        source, target = edge.get("source"), edge.get("target")
-        if source not in active_names or target not in active_names:
-            continue
-
-        pair_key = tuple(sorted((source, target)))
-        candidate = {
-            "source": source,
-            "target": target,
-            "relation_label": relation_label,
-            "description": edge.get("description"),
-            "strength": edge.get("weight"),
-        }
-        existing = merged.get(pair_key)
-        if existing is None or (candidate["strength"] or 0) > (existing["strength"] or 0):
-            merged[pair_key] = candidate
-
-    return list(merged.values())
+    return [row for row in rows if row["source"] in active_names and row["target"] in active_names]
 
 
 def get_chatroom_person_detail(chatroom_id: str, start_date: str, end_date: str, participant_id: str = None):
