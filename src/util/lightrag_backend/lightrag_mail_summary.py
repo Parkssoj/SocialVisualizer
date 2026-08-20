@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from util.database.db_writer import save_mail_summarize_to_db
 from util.lightrag_backend.lightrag_mail_parser import parse_mail_blocks, extract_email
+from util.summary_image_generator import generate_mail_summary_images
 
 
 def _summarize_with_llm(text, period_label, contacts):
@@ -137,3 +138,4 @@ def generate_mail_summaries_lightrag(paths):
     print(f"[mail_summary][lightrag] 저장 완료: {paths.MAIL_SUMMARIES_PATH}")
 
     save_mail_summarize_to_db(paths)
+    generate_mail_summary_images(paths)

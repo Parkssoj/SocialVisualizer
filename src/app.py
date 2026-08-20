@@ -998,6 +998,16 @@ def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
+@app.route("/mail-summary-image/<user_id>/<filename>")
+def mail_summary_image(user_id, filename):
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    return send_from_directory(paths.MAIL_SUMMARY_IMAGES_DIR, filename)
+
+@app.route("/message-summary-image/<chatroom_id>/<filename>")
+def message_summary_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_SUMMARY_IMAGES_DIR, filename)
+
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
     data = request.json or {}
@@ -1329,6 +1339,24 @@ def send_chatroom_summaries():
     summaries = get_chatroom_summaries(chatroom_id, summarize_unit)
     if summaries is None:
         return jsonify({"error": "chatroom not found"}), 404
+
+    # image_url은 DB(message_summarize)가 아니라 message_summaries.json에만 있고
+    # 요약 생성 뒤 이미지 생성이 끝나는 대로 채워지므로, 여기서 summary_period 기준으로
+    # 병합해 내려준다(스키마 변경 없이 파일을 그대로 읽어 붙이는 방식).
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    image_urls = {}
+    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
+        try:
+            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
+                file_summaries = json.load(f)
+            for period, info in file_summaries.get(summarize_unit, {}).items():
+                if info.get("image_url"):
+                    image_urls[period] = info["image_url"]
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    for s in summaries:
+        s["image_url"] = image_urls.get(s["summary_period"])
 
     return jsonify({
         "chatroom_id":    chatroom_id,
