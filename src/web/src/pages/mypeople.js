@@ -25,16 +25,16 @@ const userIdPromise = initAccountPicker(
 /* 메신저 뷰용 채팅방 선택 토글 — My Time과 동일하게 accountPicker.js를
    domain:"messenger"로 재사용. 선택값은 storageKey("gw_chatroom_id")로
    localStorage에 저장됨. */
-let currentChatroomId = "";
+let selectedChatroomId = "";
 const chatroomIdPromise = initAccountPicker(
   document.getElementById("chatroom-picker-mount"),
   (chatroomId) => {
-    currentChatroomId = chatroomId;
+    selectedChatroomId = chatroomId;
   },
   { domain: "messenger", storageKey: "gw_chatroom_id" },
 );
 chatroomIdPromise.then((id) => {
-  currentChatroomId = id || "";
+  selectedChatroomId = id || "";
 });
 
 /* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ── */
@@ -323,6 +323,21 @@ let receivedStatsMap = {}; // email → 받은 메일수
 let currentDetailPerson = null; // 현재 열린 상세보기 person 객체
 let detailDebounceTimer = null;
 let myAvatarUrl = null; // 로그인한 사용자 본인의 아바타 이미지 URL (페이지 로드 시 1회 생성/캐시)
+let currentChannel = "mail"; // "mail" | "messenger" — 하단 타임라인이 어느 도메인 것인지
+let mailDateRange = null; // {first, last} ms — 메일 탭 타임라인 캐시
+let messengerDateRange = null; // {first, last} ms — 메신저 탭 타임라인 캐시 (전체 방 통합)
+let messengerChatrooms = null; // /messenger-chatrooms 캐시
+let currentChatroomId = null;
+let currentChatroomPeople = [];
+let currentDetailMode = "mail"; // "mail" | "messenger" — #mp-detail이 지금 뭘 보여주는 중인지
+let messengerScreen = "rooms"; // "rooms" | "people" — 메신저 탭에서 지금 어느 화면인지
+let roomSortMode = "name"; // "name" | "total" | "mood"
+let peopleSortMode = "name"; // "name" | "count"
+let currentChatroomName = "";
+let roomMoodCache = {}; // `${chatroom_id}|${start}|${end}` → 평균 분위기 점수 캐시
+let currentMessengerPerson = null; // 메신저 상세보기에서 열려있는 person 객체(currentDetailPerson은 메일 전용이라 별도로 둠)
+let currentMessengerDrawerMonth = null; // 월별 그래프 클릭으로 연 일별 서랍이 지금 어느 달을 보여주는 중인지
+let currentMessengerDayList = []; // 그 달의 일별 목록 캐시(하루 상세 봤다가 "날짜 목록"으로 돌아올 때 재요청 안 하려고)
 
 async function fetchSentStats() {
   const gmailId = (await userIdPromise) || "";
@@ -578,8 +593,9 @@ function kmeans1D(values, k) {
   if (actualK === 1) return [unique[0]];
 
   // 초기 중심: 유니크 값 범위에서 균등 간격으로 뽑음
-  let centroids = Array.from({ length: actualK }, (_, i) =>
-    unique[Math.round((i * (unique.length - 1)) / (actualK - 1))],
+  let centroids = Array.from(
+    { length: actualK },
+    (_, i) => unique[Math.round((i * (unique.length - 1)) / (actualK - 1))],
   );
 
   for (let iter = 0; iter < 100; iter++) {
@@ -609,9 +625,9 @@ function kmeans1D(values, k) {
   }
 
   // 중심끼리 너무 가까우면(사실상 같은 군집) 하나로 합쳐서 실제 군집 수만 반환
-  const sortedDesc = [...new Set(centroids.map((c) => Math.round(c * 1000) / 1000))].sort(
-    (a, b) => b - a,
-  );
+  const sortedDesc = [
+    ...new Set(centroids.map((c) => Math.round(c * 1000) / 1000)),
+  ].sort((a, b) => b - a);
   return sortedDesc;
 }
 
@@ -649,12 +665,11 @@ function renderAffinityBands(list, cardHtml) {
     cursor = end;
     if (!bandPeople.length) continue;
 
-    const bg = AFFINITY_BAND_BG[b] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
+    const bg =
+      AFFINITY_BAND_BG[b] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
     const bandBg = `hsl(${AFFINITY_BAND_HUE} ${bg.sat}% ${bg.light}%)`;
 
-    const cardsHtml = bandPeople
-      .map((p) => cardHtml(p, globalIdx++))
-      .join("");
+    const cardsHtml = bandPeople.map((p) => cardHtml(p, globalIdx++)).join("");
 
     const bandMax = pctOf(bandPeople[0]);
     const bandMin = pctOf(bandPeople[bandPeople.length - 1]);
@@ -678,7 +693,81 @@ function renderAffinityBands(list, cardHtml) {
   return bandsHtml.join("");
 }
 
-/* ── 타임라인 초기화 ── */
+/* ── 타임라인 초기화 ──
+ * 메일/메신저 두 탭이 서로 다른 날짜 범위를 갖고 채널 전환 시마다 initTimeline()을
+ * 다시 호출하므로, 리스너를 매번 새로 붙이면 중복 등록된다. 그래서 min/max input의
+ * change 리스너는 최초 1회만 붙이고, updateFill/msToVal/valToMs는 그때그때의
+ * globalFirst/globalLast(모듈 전역)를 읽도록 바깥으로 뺐다. */
+let timelineListenersAttached = false;
+
+function msToVal(ms) {
+  return Math.round(((ms - globalFirst) / (globalLast - globalFirst)) * 1000);
+}
+function valToMs(v) {
+  return globalFirst + (v / 1000) * (globalLast - globalFirst);
+}
+
+function updateFill() {
+  const inMin = document.getElementById("tl-min");
+  const inMax = document.getElementById("tl-max");
+  const fill = document.getElementById("tl-fill");
+  const minV = +inMin.value,
+    maxV = +inMax.value;
+  const lPct = minV / 10,
+    rPct = maxV / 10;
+  fill.style.left = lPct + "%";
+  fill.style.width = rPct - lPct + "%";
+  selMin = valToMs(minV);
+  selMax = valToMs(maxV);
+  document.getElementById("tl-selected-text").textContent =
+    `${fmtDate(selMin)} — ${fmtDate(selMax)}`;
+
+  if (currentChannel !== "mail") {
+    // 메신저 탭: 슬라이더로 고른 기간에 맞춰 지금 보고 있는 화면(단톡방 목록/참여자
+    // 목록)과, 열려있는 상세보기의 통계·키워드 탭을 다시 불러온다(디바운스).
+    if (currentChannel === "messenger") {
+      clearTimeout(statsDebounceTimer);
+      statsDebounceTimer = setTimeout(() => {
+        if (messengerScreen === "rooms") {
+          refreshMessengerRoomsForRange();
+        } else if (messengerScreen === "people" && currentChatroomId) {
+          fetchAndRenderChatroomPeople();
+        }
+        const detailEl = document.getElementById("mp-detail");
+        if (
+          currentDetailMode === "messenger" &&
+          currentMessengerPerson &&
+          detailEl &&
+          detailEl.classList.contains("open")
+        ) {
+          refreshMessengerDetailStats(currentMessengerPerson);
+        }
+      }, 300);
+    }
+    return;
+  }
+
+  sentStatsMap = {};
+  receivedStatsMap = {}; // 날짜 범위 변경 시 캐시 무효화
+  renderCards();
+  clearTimeout(statsDebounceTimer);
+  statsDebounceTimer = setTimeout(fetchPeriodStats, 120);
+  // 상세보기가 열려 있으면 기간별 데이터도 갱신
+  const detailEl = document.getElementById("mp-detail");
+  if (
+    currentDetailMode === "mail" &&
+    currentDetailPerson &&
+    detailEl &&
+    detailEl.classList.contains("open")
+  ) {
+    clearTimeout(detailDebounceTimer);
+    detailDebounceTimer = setTimeout(
+      () => refreshDetailStats(currentDetailPerson),
+      400,
+    );
+  }
+}
+
 function initTimeline(firstMs, lastMs) {
   globalFirst = firstMs;
   globalLast = lastMs;
@@ -689,7 +778,8 @@ function initTimeline(firstMs, lastMs) {
 
   const inMin = document.getElementById("tl-min");
   const inMax = document.getElementById("tl-max");
-  const fill = document.getElementById("tl-fill");
+  inMin.value = 0;
+  inMax.value = 1000;
 
   document.getElementById("tl-start-lbl").textContent = fmtDate(firstMs);
   document.getElementById("tl-end-lbl").textContent = fmtDate(lastMs);
@@ -697,52 +787,17 @@ function initTimeline(firstMs, lastMs) {
   /* 눈금 생성 (약 6~8개) */
   buildTicks(firstMs, lastMs);
 
-  function msToVal(ms) {
-    return Math.round(((ms - firstMs) / (lastMs - firstMs)) * 1000);
+  if (!timelineListenersAttached) {
+    timelineListenersAttached = true;
+    inMin.addEventListener("input", () => {
+      if (+inMin.value >= +inMax.value) inMin.value = +inMax.value - 1;
+      updateFill();
+    });
+    inMax.addEventListener("input", () => {
+      if (+inMax.value <= +inMin.value) inMax.value = +inMin.value + 1;
+      updateFill();
+    });
   }
-  function valToMs(v) {
-    return firstMs + (v / 1000) * (lastMs - firstMs);
-  }
-
-  function updateFill() {
-    const minV = +inMin.value,
-      maxV = +inMax.value;
-    const lPct = minV / 10,
-      rPct = maxV / 10;
-    fill.style.left = lPct + "%";
-    fill.style.width = rPct - lPct + "%";
-    selMin = valToMs(minV);
-    selMax = valToMs(maxV);
-    sentStatsMap = {};
-    receivedStatsMap = {}; // 날짜 범위 변경 시 캐시 무효화
-    document.getElementById("tl-selected-text").textContent =
-      `${fmtDate(selMin)} — ${fmtDate(selMax)}`;
-    renderCards();
-    clearTimeout(statsDebounceTimer);
-    statsDebounceTimer = setTimeout(fetchPeriodStats, 120);
-    // 상세보기가 열려 있으면 기간별 데이터도 갱신
-    const detailEl = document.getElementById("mp-detail");
-    if (
-      currentDetailPerson &&
-      detailEl &&
-      detailEl.classList.contains("open")
-    ) {
-      clearTimeout(detailDebounceTimer);
-      detailDebounceTimer = setTimeout(
-        () => refreshDetailStats(currentDetailPerson),
-        400,
-      );
-    }
-  }
-
-  inMin.addEventListener("input", () => {
-    if (+inMin.value >= +inMax.value) inMin.value = +inMax.value - 1;
-    updateFill();
-  });
-  inMax.addEventListener("input", () => {
-    if (+inMax.value <= +inMin.value) inMax.value = +inMin.value + 1;
-    updateFill();
-  });
 
   updateFill();
 }
@@ -776,7 +831,8 @@ function buildTicks(firstMs, lastMs) {
      보장된다. 마지막 포인트(lastMs)는 항상 남기고, 그 앞의 라벨이 마지막
      라벨과 너무 가까우면 그 앞 라벨을 대신 빼서 끝 지점 라벨이 밀리지 않게 한다. */
   const MIN_GAP_PX = 64;
-  const containerWidth = ticks.offsetWidth || ticks.getBoundingClientRect().width || 0;
+  const containerWidth =
+    ticks.offsetWidth || ticks.getBoundingClientRect().width || 0;
   const withPct = uniq.map((t) => ({
     t,
     pct: ((t - firstMs) / (lastMs - firstMs)) * 100,
@@ -862,15 +918,18 @@ async function loadPeople() {
   initMyAvatar();
 
   if (dateRange) {
-    initTimeline(
-      new Date(dateRange.first_date).getTime(),
-      new Date(dateRange.last_date).getTime(),
-    );
+    mailDateRange = {
+      first: new Date(dateRange.first_date).getTime(),
+      last: new Date(dateRange.last_date).getTime(),
+    };
   } else {
     const fallbackEnd = Date.now();
-    const fallbackStart = fallbackEnd - 1000 * 60 * 60 * 24 * 365 * 3;
-    initTimeline(fallbackStart, fallbackEnd);
+    mailDateRange = {
+      first: fallbackEnd - 1000 * 60 * 60 * 24 * 365 * 3,
+      last: fallbackEnd,
+    };
   }
+  initTimeline(mailDateRange.first, mailDateRange.last);
 }
 
 /* ── 모든 사람/발신자에 대해 아바타 생성 (이미 생성된 사람은 서버에서 캐시로 건너뜀)
@@ -959,48 +1018,374 @@ function refreshSelfAvatarEl() {
 }
 
 /* ── 메일 / 메신저 채널 토글 ──
- * 기본값은 메일 뷰(mp-mail-view). 메신저 버튼을 처음 누르는 순간에만
- * loadMessengerView()가 비동기로 내용을 채움(현재는 setTimeout으로 로딩만
- * 흉내냄 — 이후 fetch/렌더링 구현 예정). 이후엔 채워진 뷰를 토글만 함.
+ * 기본값은 메일(mp-mail-view가 항상 먼저 뜸). 메신저 탭은 첫 클릭 시
+ * /messenger-chatrooms로 인덱싱된 단톡방 목록을 불러와 카드 그리드로 보여주고,
+ * 방을 클릭하면 그 방 참여자 목록으로, 참여자를 클릭하면 메일 탭과 동일한
+ * #mp-detail 패널이 뜬다. 하단 타임라인도 탭마다 별도 날짜 범위(메일 계정 범위 /
+ * 인덱싱된 전체 단톡방 통합 범위)를 쓰도록 분리했다.
  */
 const mailBtn = document.getElementById("mp-mail-btn");
 const messengerBtn = document.getElementById("mp-messenger-btn");
 const mailView = document.getElementById("mp-mail-view");
 const messengerView = document.getElementById("mp-messenger-view");
 const accountPickerMount = document.getElementById("account-picker-mount");
-const chatroomPickerMount = document.getElementById(
-  "chatroom-picker-mount",
-);
+const chatroomPickerMount = document.getElementById("chatroom-picker-mount");
 let messengerLoaded = false;
 
-async function loadMessengerView() {
-  if (messengerLoaded) return;
-  // TODO: 여기에 메신저 전용 기능(다른 데이터 소스/카드 등)을 새로 만들면 됨.
-  // 지금은 자리만 마련해두고, 비동기로 "열리는" 느낌만 흉내냄.
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  messengerView.innerHTML = `
-    <div class="mp-empty">
-      <i class="bi bi-chat-dots"></i>
-      <p>메신저 기능은 아직 준비 중입니다.</p>
-    </div>
-  `;
-  messengerLoaded = true;
+/* ── 정렬 드롭다운: 메일/단톡방 목록/참여자 목록 3개 화면이 서로 다른 정렬 기준을 쓴다.
+ * #mp-dropdown-menu의 내용을 화면 전환마다 통째로 갈아끼우는 방식으로 공용 드롭다운
+ * 하나를 재사용한다. ── */
+const MAIL_SORT_OPTIONS = [
+  { value: "affinity", label: "친밀도" },
+  { value: "name", label: "이름" },
+  { value: "total", label: "송수신 횟수" },
+  { value: "received", label: "받은 메일수" },
+  { value: "sent", label: "보낸 메일수" },
+];
+const ROOM_SORT_OPTIONS = [
+  { value: "name", label: "이름" },
+  { value: "total", label: "총 채팅횟수" },
+  { value: "mood", label: "분위기" },
+];
+const PEOPLE_SORT_OPTIONS = [
+  { value: "name", label: "이름" },
+  { value: "count", label: "채팅횟수" },
+];
+
+function sortMenuHtml(options, currentMode) {
+  return options
+    .map(
+      (o) =>
+        `<div class="mp-dropdown-item${o.value === currentMode ? " selected" : ""}" data-sort="${o.value}">${o.label}</div>`,
+    )
+    .join("");
+}
+function refreshSortMenuForMail() {
+  ddMenu.innerHTML = sortMenuHtml(MAIL_SORT_OPTIONS, sortMode);
+  ddLabel.textContent = MAIL_SORT_OPTIONS.find(
+    (o) => o.value === sortMode,
+  ).label;
+}
+function refreshSortMenuForRooms() {
+  ddMenu.innerHTML = sortMenuHtml(ROOM_SORT_OPTIONS, roomSortMode);
+  ddLabel.textContent = ROOM_SORT_OPTIONS.find(
+    (o) => o.value === roomSortMode,
+  ).label;
+}
+function refreshSortMenuForPeople() {
+  ddMenu.innerHTML = sortMenuHtml(PEOPLE_SORT_OPTIONS, peopleSortMode);
+  ddLabel.textContent = PEOPLE_SORT_OPTIONS.find(
+    (o) => o.value === peopleSortMode,
+  ).label;
+}
+
+/* 방의 "분위기"는 /chatroom-mood(이미 있는 라우터)가 주는 월별 mood_score(0~100)를
+ * 타임슬라이더로 선택된 기간에 대해 평균 낸 값으로 정의한다. 슬라이더를 움직이면
+ * updateFill()에서 이 정렬을 다시 계산한다(아래 참고). */
+async function fetchRoomMoodScore(chatroomId) {
+  const startDate = msToDateStr(selMin);
+  const endDate = msToDateStr(selMax);
+  const cacheKey = `${chatroomId}|${startDate}|${endDate}`;
+  if (cacheKey in roomMoodCache) return roomMoodCache[cacheKey];
+  let score = null;
+  try {
+    const res = await fetch("/chatroom-mood", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatroom_id: chatroomId,
+        start_date: startDate,
+        end_date: endDate,
+      }),
+    });
+    if (res.ok) {
+      const j = await res.json();
+      const d = j.data || {};
+      const entries =
+        d.monthly && d.monthly.length ? d.monthly : d.yearly || [];
+      const scores = entries.map((e) => e.mood_score).filter((v) => v != null);
+      if (scores.length)
+        score = scores.reduce((a, b) => a + b, 0) / scores.length;
+    }
+  } catch (e) {
+    console.error("chatroom-mood 오류:", e);
+  }
+  roomMoodCache[cacheKey] = score;
+  return score;
+}
+
+async function getSortedRooms() {
+  const list = [...messengerChatrooms];
+  if (roomSortMode === "name") {
+    list.sort((a, b) => a.chatroom_name.localeCompare(b.chatroom_name, "ko"));
+  } else if (roomSortMode === "total") {
+    list.sort((a, b) => b.message_count - a.message_count);
+  } else if (roomSortMode === "mood") {
+    const scores = await Promise.all(
+      list.map((r) => fetchRoomMoodScore(r.chatroom_id)),
+    );
+    list.forEach((r, i) => (r._moodScore = scores[i]));
+    list.sort((a, b) => (b._moodScore ?? -1) - (a._moodScore ?? -1));
+  }
+  return list;
+}
+
+function sortPeopleList(list) {
+  const copy = [...list];
+  if (peopleSortMode === "count") {
+    copy.sort((a, b) => (b.message_count || 0) - (a.message_count || 0));
+  } else {
+    copy.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+  }
+  return copy;
 }
 
 function setChannel(channel) {
   const isMail = channel === "mail";
+  currentChannel = channel;
   mailBtn.classList.toggle("active", isMail);
   messengerBtn.classList.toggle("active", !isMail);
   mailView.style.display = isMail ? "" : "none";
   messengerView.style.display = isMail ? "none" : "";
+
   // 계정 토글 ↔ 채팅방 토글도 뷰에 맞춰 같이 전환
   accountPickerMount.style.display = isMail ? "" : "none";
   chatroomPickerMount.style.display = isMail ? "none" : "";
+
+  document.getElementById("account-picker-mount").style.display = isMail
+    ? ""
+    : "none";
+  document.getElementById("mp-brand-filter-btn").style.display = isMail
+    ? ""
+    : "none";
+  if (isMail) refreshSortMenuForMail();
+  else if (messengerScreen === "people") refreshSortMenuForPeople();
+  else refreshSortMenuForRooms();
+  if (isMail && mailDateRange) {
+    initTimeline(mailDateRange.first, mailDateRange.last);
+  } else if (!isMail && messengerDateRange) {
+    initTimeline(messengerDateRange.first, messengerDateRange.last);
+  }
 }
+
+async function ensureMessengerDateRange() {
+  if (!messengerDateRange) {
+    try {
+      const res = await fetch("/messenger-date-range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = res.ok ? (await res.json()).data || {} : {};
+      if (d.first_date && d.last_date) {
+        messengerDateRange = {
+          first: new Date(d.first_date).getTime(),
+          last: new Date(d.last_date).getTime(),
+        };
+      }
+    } catch (e) {
+      console.error("messenger-date-range 오류:", e);
+    }
+    if (!messengerDateRange) {
+      const fallbackEnd = Date.now();
+      messengerDateRange = {
+        first: fallbackEnd - 1000 * 60 * 60 * 24 * 365 * 3,
+        last: fallbackEnd,
+      };
+    }
+  }
+  initTimeline(messengerDateRange.first, messengerDateRange.last);
+}
+
+/* 방 목록은 타임슬라이더 기간에 따라 내용 자체가 바뀌므로(그 기간에 메시지 없는 방은
+ * 아예 빠짐) 캐시하지 않고 매번 현재 selMin/selMax로 다시 불러온다. */
+async function fetchMessengerChatroomsForRange() {
+  try {
+    const res = await fetch("/messenger-chatrooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        start_date: msToDateStr(selMin),
+        end_date: msToDateStr(selMax),
+      }),
+    });
+    messengerChatrooms = res.ok ? (await res.json()).data.chatrooms || [] : [];
+  } catch (e) {
+    console.error("messenger-chatrooms 오류:", e);
+    messengerChatrooms = [];
+  }
+}
+
+async function loadMessengerView() {
+  messengerView.innerHTML = `
+    <div class="mp-empty">
+      <i class="bi bi-chat-dots"></i>
+      <p>단톡방 목록을 불러오는 중...</p>
+    </div>
+  `;
+  await fetchMessengerChatroomsForRange();
+  await renderChatroomGrid();
+}
+
+/* 타임슬라이더가 움직였을 때(단톡방 목록 화면에 있는 동안) 다시 불러와 다시 그림 */
+async function refreshMessengerRoomsForRange() {
+  await fetchMessengerChatroomsForRange();
+  await renderChatroomGrid();
+}
+
+/* 단톡방 카드 아바타 = 참여자 이니셜 원을 인원수만큼 분할해 채움 — 상한 없이 인원수대로
+ * 칸이 늘어남. 줄마다 칸 수를 최대한 고르게 나눠(예: 5명 → 3+2, 3명 → 2+1) "줄 단위 flex"로
+ * 배치하므로, CSS grid처럼 마지막 줄에 빈 칸이 남아 원이 안 채워지는 문제가 없음. 참여자
+ * 정보가 없으면(top_participants 빈 배열) 기존 채팅 아이콘으로 대체. */
+function buildRoomAvatarHtml(room) {
+  const names = room.top_participants || [];
+  if (!names.length) return `<i class="bi bi-chat-dots-fill"></i>`;
+
+  const n = names.length;
+  const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+  const rowCount = Math.ceil(n / cols);
+  const cellFontEm = Math.min(0.42, 0.85 / cols).toFixed(2);
+
+  let idx = 0;
+  const rowsHtml = [];
+  for (let r = 0; r < rowCount; r++) {
+    const remaining = n - idx;
+    const remainingRows = rowCount - r;
+    const take = Math.ceil(remaining / remainingRows); // 남은 줄에 인원을 고르게 분배
+    const cellsHtml = names
+      .slice(idx, idx + take)
+      .map(
+        (name, i) =>
+          `<div class="mp-room-avatar-cell" style="background:${CARD_BG[(idx + i) % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[(idx + i) % AVATAR_COLORS_DETAIL.length]};font-size:${cellFontEm}em;">${esc(initials(name))}</div>`,
+      )
+      .join("");
+    idx += take;
+    rowsHtml.push(`<div class="mp-room-avatar-row">${cellsHtml}</div>`);
+  }
+  return `<div class="mp-room-avatar-grid">${rowsHtml.join("")}</div>`;
+}
+
+async function renderChatroomGrid() {
+  currentChatroomId = null;
+  messengerScreen = "rooms";
+  refreshSortMenuForRooms();
+  if (!messengerChatrooms.length) {
+    messengerView.innerHTML = `
+      <div class="mp-empty">
+        <i class="bi bi-chat-dots"></i>
+        <p>이 기간에 해당하는 단톡방이 없습니다.</p>
+      </div>
+    `;
+    return;
+  }
+  if (roomSortMode === "mood") {
+    messengerView.innerHTML = `
+      <div class="mp-empty">
+        <i class="bi bi-chat-dots"></i>
+        <p>분위기 계산 중...</p>
+      </div>
+    `;
+  }
+  messengerChatrooms = await getSortedRooms();
+  messengerView.innerHTML = `
+    <div class="mp-grid mp-room-grid" id="mp-room-grid">
+      ${messengerChatrooms
+        .map((r, i) => {
+          const moodText =
+            roomSortMode === "mood" && r._moodScore != null
+              ? ` · 분위기 ${Math.round(r._moodScore)}%`
+              : "";
+          return `
+        <div class="mp-card mp-room-card" data-idx="${i}" title="${esc(r.chatroom_name)}">
+          <div class="mp-avatar mp-room-avatar">${buildRoomAvatarHtml(r)}</div>
+          <div class="mp-name" style="font-size:${nameFontSize(r.chatroom_name)}">${esc(r.chatroom_name)}</div>
+          <div class="mp-period-badge">${r.participant_count}명 · ${r.message_count}건${moodText}</div>
+        </div>`;
+        })
+        .join("")}
+    </div>`;
+}
+
+async function openChatroom(chatroomId, chatroomName) {
+  currentChatroomId = chatroomId;
+  currentChatroomName = chatroomName;
+  messengerScreen = "people";
+  refreshSortMenuForPeople();
+  messengerView.innerHTML = `
+    <div class="mp-empty">
+      <i class="bi bi-people"></i>
+      <p>참여자를 불러오는 중...</p>
+    </div>
+  `;
+  await fetchAndRenderChatroomPeople();
+}
+
+/* 참여자 목록도 타임슬라이더 기간에 따라 바뀌므로(그 기간에 메시지 없는 사람은 빠짐)
+ * /chatroom-people(전체 기간) 대신 이미 있던 기간별 라우터 /chatroom-person-detail을
+ * 쓰고, 0건인 사람만 걸러낸다. 방 화면과 슬라이더 변경 둘 다 이 함수를 재사용. */
+async function fetchAndRenderChatroomPeople() {
+  let people = [];
+  try {
+    const res = await fetch("/chatroom-person-detail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatroom_id: currentChatroomId,
+        start_date: msToDateStr(selMin),
+        end_date: msToDateStr(selMax),
+      }),
+    });
+    const all = res.ok ? (await res.json()).data.people || [] : [];
+    people = all.filter((p) => (p.message_count || 0) > 0);
+  } catch (e) {
+    console.error("chatroom-person-detail 오류:", e);
+  }
+  renderChatroomPeople(currentChatroomName, sortPeopleList(people));
+}
+
+function renderChatroomPeople(chatroomName, people) {
+  currentChatroomPeople = people;
+  const cardsHtml = people.length
+    ? people
+        .map(
+          (p, i) => `
+        <div class="mp-card mp-person-card" data-idx="${i}" title="${esc(p.name)}">
+          <div class="mp-avatar" style="background:${CARD_BG[i % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[i % AVATAR_COLORS_DETAIL.length]};">${initials(p.name)}</div>
+          <div class="mp-name" style="font-size:${nameFontSize(p.name)}">${esc(p.name)}</div>
+          <div class="mp-period-badge">${p.message_count}건</div>
+        </div>`,
+        )
+        .join("")
+    : `<div class="mp-empty"><i class="bi bi-people"></i><p>이 기간엔 메시지를 보낸 참여자가 없습니다.</p></div>`;
+
+  messengerView.innerHTML = `
+    <div class="mp-messenger-room-header">
+      <button class="mp-back-btn" type="button"><i class="bi bi-arrow-left"></i> 단톡방 목록</button>
+      <span class="mp-messenger-room-name">${esc(chatroomName)}</span>
+    </div>
+    <div class="mp-grid" id="mp-person-grid">${cardsHtml}</div>`;
+}
+
+messengerView.addEventListener("click", (e) => {
+  const roomCard = e.target.closest(".mp-room-card");
+  if (roomCard) {
+    const room = messengerChatrooms[parseInt(roomCard.dataset.idx, 10)];
+    if (room) openChatroom(room.chatroom_id, room.chatroom_name);
+    return;
+  }
+  const personCard = e.target.closest(".mp-person-card");
+  if (personCard) {
+    const person = currentChatroomPeople[parseInt(personCard.dataset.idx, 10)];
+    if (person) openMessengerDetail(person);
+    return;
+  }
+  if (e.target.closest(".mp-back-btn")) renderChatroomGrid();
+});
 
 mailBtn.addEventListener("click", () => setChannel("mail"));
 messengerBtn.addEventListener("click", async () => {
   setChannel("messenger");
+  await ensureMessengerDateRange();
   await loadMessengerView();
 });
 
@@ -1028,19 +1413,33 @@ ddBtn.addEventListener("click", (e) => {
 ddMenu.addEventListener("click", async (e) => {
   const item = e.target.closest(".mp-dropdown-item");
   if (!item) return;
-  document
-    .querySelectorAll(".mp-dropdown-item")
-    .forEach((i) => i.classList.remove("selected"));
-  item.classList.add("selected");
-  ddLabel.textContent = item.textContent.replace("✓", "").trim();
-  sortMode = item.dataset.sort;
+  const chosen = item.dataset.sort;
   ddBtn.classList.remove("open");
   ddMenu.classList.remove("open");
-  if (sortMode === "sent") await fetchSentStats();
-  else if (sortMode === "received") await fetchReceivedStats();
-  else if (sortMode === "total")
-    await Promise.all([fetchSentStats(), fetchReceivedStats()]);
-  renderCards();
+
+  if (currentChannel === "mail") {
+    document
+      .querySelectorAll(".mp-dropdown-item")
+      .forEach((i) => i.classList.remove("selected"));
+    item.classList.add("selected");
+    ddLabel.textContent = item.textContent.replace("✓", "").trim();
+    sortMode = chosen;
+    if (sortMode === "sent") await fetchSentStats();
+    else if (sortMode === "received") await fetchReceivedStats();
+    else if (sortMode === "total")
+      await Promise.all([fetchSentStats(), fetchReceivedStats()]);
+    renderCards();
+  } else if (messengerScreen === "rooms") {
+    roomSortMode = chosen;
+    await renderChatroomGrid();
+  } else {
+    peopleSortMode = chosen;
+    refreshSortMenuForPeople();
+    renderChatroomPeople(
+      currentChatroomName,
+      sortPeopleList(currentChatroomPeople),
+    );
+  }
 });
 
 document.addEventListener("click", () => {
@@ -1220,6 +1619,375 @@ function renderBarChart(data) {
   chartArea.innerHTML = `<div style="display:inline-flex;align-items:stretch;gap:10px;min-width:100%;height:100%;justify-content:center;padding:0 8px;box-sizing:border-box;">${html}</div>`;
 }
 
+/* ── 메신저 참여자 상세: 월별 메시지 수 그래프 (보낸/받은 구분이 없는 단일 계열이라
+ * renderBarChart와 별도 함수로 둠 — 클릭해도 여는 목록이 없어서 data-month 등도 안 붙임) ── */
+function renderMessengerBarChart(data) {
+  const chartArea = document.getElementById("mp-chart");
+  const totalEl = document.getElementById("mp-stats-total");
+  const yEl = document.getElementById("mp-vchart-y");
+  if (!data || !data.monthly || !data.monthly.length) {
+    chartArea.innerHTML =
+      '<span style="color:#a0b8b0;font-size:0.82rem;font-style:italic;">메시지 데이터 없음</span>';
+    if (totalEl) totalEl.textContent = "";
+    if (yEl) yEl.innerHTML = "<span></span><span></span><span>0</span>";
+    return;
+  }
+  if (totalEl) totalEl.textContent = `총 ${data.total || 0}건`;
+  const maxVal = Math.max(...data.monthly.map((m) => m.count), 1);
+  if (yEl) {
+    const mid = Math.round(maxVal / 2);
+    yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
+  }
+
+  const YEAR_COLORS = ["#12886e", "#5a94e8"];
+  const yearGroups = [];
+  data.monthly.forEach((m) => {
+    const year = m.month.split("-")[0];
+    let g = yearGroups[yearGroups.length - 1];
+    if (!g || g.year !== year) {
+      g = { year, months: [] };
+      yearGroups.push(g);
+    }
+    g.months.push(m);
+  });
+
+  // 연/월 몇 개 안 되는 경우가 많아서 mail 차트처럼 내용 크기대로 두고 가운데 정렬하면
+  // 좌우에 빈 여백만 커 보이므로, 연도 블록과 월 막대 모두 flex:1로 늘려 항상 패널
+  // 전체 너비를 채우게 함(빈 여백에 몰려 보이는 문제 방지)
+  const html = yearGroups
+    .map((g, gi) => {
+      const yColor = YEAR_COLORS[gi % YEAR_COLORS.length];
+      const monthsHtml = g.months
+        .map((m) => {
+          const pct = Math.max(2, Math.round((m.count / maxVal) * 100));
+          const mon = m.month.split("-")[1];
+          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" title="${m.month}: ${m.count}건 (눌러서 일별로 보기)">
+              <div class="mp-vchart-bars">
+                <div class="mp-vchart-bar sent" style="height:${pct}%" title="${m.count}건"></div>
+              </div>
+              <div class="mp-vchart-label"><span class="mp-vchart-month">${mon}</span></div>
+            </div>`;
+        })
+        .join("");
+      return `<div style="display:flex;flex-direction:column;align-items:stretch;height:100%;background:${yColor}14;border-radius:8px;padding:0 6px;flex:1;min-width:0;">
+            <div style="text-align:center;padding:0 0 6px;flex-shrink:0;">
+              <span style="display:inline-block;font-size:0.74rem;font-weight:800;color:#fff;background:${yColor};padding:2px 11px;border-radius:8px;letter-spacing:0.02em;">${g.year}</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:5px;flex:1;min-height:0;">${monthsHtml}</div>
+          </div>`;
+    })
+    .join("");
+  chartArea.innerHTML = `<div style="display:flex;align-items:stretch;gap:10px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;">${html}</div>`;
+}
+
+/* ── 메신저 참여자 상세: 관계 방사형 다이어그램 (본인을 중심에 두고 이 방에서 함께 활동한
+ * 다른 참여자들을 둘레에 배치, 선 위에 관계 라벨을 얹음) ── */
+function renderRelationDiagram(personName, relationships) {
+  const el = document.getElementById("mp-desc-profile-content");
+  if (!relationships.length) {
+    el.innerHTML =
+      '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
+    return;
+  }
+  const size = 380,
+    center = size / 2,
+    radius = 130;
+  const others = relationships.map((r) => ({
+    name: r.source === personName ? r.target : r.source,
+    label: r.relation_label || "",
+  }));
+  const n = others.length;
+  const spokesHtml = others
+    .map((o, i) => {
+      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+      const x = center + radius * Math.cos(angle);
+      const y = center + radius * Math.sin(angle);
+      const midX = center + radius * 0.55 * Math.cos(angle);
+      const midY = center + radius * 0.55 * Math.sin(angle);
+      const color = WC_COLORS[i % WC_COLORS.length];
+      return `
+        <line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-opacity="0.4"/>
+        <rect x="${midX - 24}" y="${midY - 9}" width="48" height="18" rx="9" fill="${color}" fill-opacity="0.14"/>
+        <text x="${midX}" y="${midY + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${color}">${esc(o.label)}</text>
+        <circle cx="${x}" cy="${y}" r="26" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="1.5"/>
+        <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="800" fill="${color}">${esc(initials(o.name))}</text>
+        <text x="${x}" y="${y + 42}" text-anchor="middle" font-size="11" fill="#5a5a5a">${esc(o.name)}</text>`;
+    })
+    .join("");
+  el.innerHTML = `
+    <svg viewBox="0 0 ${size} ${size}" style="width:100%;max-width:400px;height:auto;display:block;margin:0 auto;">
+      ${spokesHtml}
+      <circle cx="${center}" cy="${center}" r="32" fill="#1a6e4a"/>
+      <text x="${center}" y="${center + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">${esc(initials(personName))}</text>
+    </svg>`;
+}
+
+/* ── 막대 클릭 → 오른쪽 이메일 목록 창 (실제 /mail-person-emails 조회) ── */
+let currentBarChartData = null;
+let activeDrawerMonth = null;
+
+document.getElementById("mp-chart").addEventListener("click", (e) => {
+  const group = e.target.closest(".mp-vchart-group");
+  if (!group || !group.dataset.month) return;
+  document
+    .querySelectorAll(".mp-vchart-group.active")
+    .forEach((g) => g.classList.remove("active"));
+  group.classList.add("active");
+
+  if (currentDetailMode === "mail") {
+    openEmailDrawer(
+      group.dataset.month,
+      +group.dataset.sent,
+      +group.dataset.recv,
+    );
+  } else if (currentDetailMode === "messenger") {
+    openMessengerDayList(group.dataset.month);
+  }
+});
+
+function fmtMonthLabel(month) {
+  const [y, m] = month.split("-");
+  return `${y}년 ${parseInt(m)}월`;
+}
+
+/* "YYYY-MM-DD HH:MM:SS" → "5일 19:34" */
+function fmtEmailDateTime(dateStr) {
+  const [datePart, timePart] = (dateStr || "").split(" ");
+  const day = parseInt((datePart || "").split("-")[2], 10) || "";
+  const time = (timePart || "").slice(0, 5);
+  return `${day}일 ${time}`;
+}
+
+/* 메일 ID로 Gmail 앱의 해당 메일 화면으로 바로 이동하는 딥링크를 만든다 */
+function gmailMessageUrl(id) {
+  return `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(id)}`;
+}
+
+function renderEmailDrawerList(emails) {
+  const listEl = document.getElementById("mp-echange-list-body");
+  if (!emails.length) {
+    listEl.innerHTML =
+      '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">이 기간에는 주고받은 메일이 없어요.</p>';
+    return;
+  }
+  const myName = sessionStorage.getItem("gw_user_name") || "나";
+  const personName = currentDetailPerson
+    ? resolveDisplayName(currentDetailPerson)
+    : "";
+  listEl.innerHTML = emails
+    .map((e) => {
+      const from = e.direction === "sent" ? myName : personName;
+      const to = e.direction === "sent" ? personName : myName;
+      return `
+          <a class="mp-email-card ${e.direction}" href="${e.gmailUrl || gmailMessageUrl(e.id)}" target="_blank" rel="noopener" title="Gmail에서 이 메일 열기">
+            <div class="mp-email-card-top">
+              <span class="mp-email-tag ${e.direction}">${e.direction === "sent" ? "보낸 메일" : "받은 메일"}</span>
+              <span class="mp-email-date">${fmtEmailDateTime(e.date)}</span>
+            </div>
+            <div class="mp-email-subject">${esc(e.subject)}</div>
+            <div class="mp-email-snippet">${esc(e.snippet)}</div>
+            <div class="mp-email-from">${esc(from)} → ${esc(to)}</div>
+          </a>`;
+    })
+    .join("");
+}
+
+async function openEmailDrawer(month, sentCount, recvCount) {
+  activeDrawerMonth = month;
+  const person = currentDetailPerson;
+  const personName = person ? resolveDisplayName(person) : "";
+  document.getElementById("mp-echange-list-title").textContent =
+    fmtMonthLabel(month);
+  document.getElementById("mp-echange-list-count").textContent =
+    `${personName} · 총 ${sentCount + recvCount}건 (보낸 ${sentCount} · 받은 ${recvCount})`;
+  document.getElementById("mp-echange-list-body").innerHTML =
+    '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
+
+  const chartview = document.getElementById("mp-echange-chartview");
+  const listview = document.getElementById("mp-echange-listview");
+  chartview.style.flex = "1 1 54%";
+  listview.style.flex = "1 1 44%";
+  listview.style.width = "";
+  listview.style.opacity = "1";
+  listview.style.pointerEvents = "auto";
+  listview.style.paddingLeft = "18px";
+  listview.style.borderLeft = "1px solid rgba(28,28,30,0.1)";
+
+  if (!person || !person.email) {
+    renderEmailDrawerList([]);
+    return;
+  }
+
+  const [y, m] = month.split("-").map(Number);
+  const monthStart = `${month}-01`;
+  const monthEnd = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+  const gmailId = (await userIdPromise) || "";
+
+  try {
+    const res = await fetch("/mail-person-emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: gmailId,
+        person_user_id: person.email,
+        start_date: monthStart,
+        end_date: monthEnd,
+      }),
+    });
+    if (activeDrawerMonth !== month) return; // 그 사이 다른 달을 클릭했으면 이 응답은 버림
+    renderEmailDrawerList(res.ok ? (await res.json()).data || [] : []);
+  } catch (e) {
+    console.error("메일 목록 조회 오류:", e);
+    if (activeDrawerMonth === month) renderEmailDrawerList([]);
+  }
+}
+
+function closeEmailDrawer() {
+  const chartview = document.getElementById("mp-echange-chartview");
+  const listview = document.getElementById("mp-echange-listview");
+  chartview.style.flex = "1 1 100%";
+  listview.style.flex = "0 0 0%";
+  listview.style.width = "0";
+  listview.style.opacity = "0";
+  listview.style.pointerEvents = "none";
+  listview.style.paddingLeft = "0";
+  listview.style.borderLeft = "none";
+  document
+    .querySelectorAll(".mp-vchart-group.active")
+    .forEach((g) => g.classList.remove("active"));
+}
+
+/* "2026-07-15" → "2026년 7월 15일" */
+function fmtDayLabel(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
+/* ── 메신저 상세: 월 막대 클릭 → 오른쪽 서랍에 "일별 목록" ── (메일의 openEmailDrawer와
+ * 같은 슬라이드 서랍(#mp-echange-chartview/#mp-echange-listview)을 재사용, 내용만 다름) */
+async function openMessengerDayList(month) {
+  currentMessengerDrawerMonth = month;
+  const person = currentMessengerPerson;
+
+  document.getElementById("mp-echange-list-title").textContent =
+    fmtMonthLabel(month);
+  document.getElementById("mp-echange-list-count").textContent = person
+    ? `${person.name} · 날짜를 누르면 그날 대화를 볼 수 있어요`
+    : "";
+  document.getElementById("mp-echange-list-body").innerHTML =
+    '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
+
+  const chartview = document.getElementById("mp-echange-chartview");
+  const listview = document.getElementById("mp-echange-listview");
+  chartview.style.flex = "1 1 54%";
+  listview.style.flex = "1 1 44%";
+  listview.style.width = "";
+  listview.style.opacity = "1";
+  listview.style.pointerEvents = "auto";
+  listview.style.paddingLeft = "18px";
+  listview.style.borderLeft = "1px solid rgba(28,28,30,0.1)";
+
+  if (!person || !currentChatroomId) {
+    currentMessengerDayList = [];
+    renderMessengerDayList([]);
+    return;
+  }
+
+  try {
+    const res = await fetch("/chatroom-person-daily-stats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatroom_id: currentChatroomId,
+        participant_id: person.participant_id,
+        month,
+      }),
+    });
+    if (currentMessengerDrawerMonth !== month) return; // 그 사이 다른 달을 클릭했으면 이 응답은 버림
+    const days = res.ok ? (await res.json()).data.days || [] : [];
+    currentMessengerDayList = days;
+    renderMessengerDayList(days);
+  } catch (e) {
+    console.error("chatroom-person-daily-stats 오류:", e);
+    currentMessengerDayList = [];
+    renderMessengerDayList([]);
+  }
+}
+
+function renderMessengerDayList(days) {
+  const listEl = document.getElementById("mp-echange-list-body");
+  if (!days.length) {
+    listEl.innerHTML =
+      '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">이 달엔 보낸 메시지가 없어요.</p>';
+    return;
+  }
+  listEl.innerHTML = days
+    .map(
+      (d) => `
+        <button class="mp-day-row" type="button" data-date="${d.date}">
+          <span class="mp-day-row-date">${fmtDayLabel(d.date)}</span>
+          <span class="mp-day-row-count">${d.count}건</span>
+        </button>`,
+    )
+    .join("");
+}
+
+/* 일별 목록에서 하루를 누르면 같은 서랍 안 내용을 그날 대화 원문으로 교체 */
+async function openMessengerDayChat(date) {
+  const listEl = document.getElementById("mp-echange-list-body");
+  document.getElementById("mp-echange-list-title").textContent =
+    fmtDayLabel(date);
+  document.getElementById("mp-echange-list-count").textContent = "";
+  listEl.innerHTML =
+    '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
+
+  try {
+    const res = await fetch("/chatroom-day-messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatroom_id: currentChatroomId, date }),
+    });
+    const messages = res.ok ? (await res.json()).data.messages || [] : [];
+    renderMessengerDayChat(messages);
+  } catch (e) {
+    console.error("chatroom-day-messages 오류:", e);
+    renderMessengerDayChat([]);
+  }
+}
+
+function renderMessengerDayChat(messages) {
+  const listEl = document.getElementById("mp-echange-list-body");
+  const backBtn = `<button class="mp-back-btn" type="button" id="mp-day-back-btn"><i class="bi bi-arrow-left"></i> 날짜 목록</button>`;
+  if (!messages.length) {
+    listEl.innerHTML = `${backBtn}<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">그날 대화를 찾지 못했어요.</p>`;
+    return;
+  }
+  const linesHtml = messages
+    .map((m) =>
+      m.is_system
+        ? `<div class="mp-chatline system">${esc(m.text)}</div>`
+        : `<div class="mp-chatline">
+             <div class="mp-chatline-head"><span class="mp-chatline-sender">${esc(m.sender || "")}</span><span class="mp-chatline-time">${esc(m.time || "")}</span></div>
+             <div class="mp-chatline-text">${esc(m.text)}</div>
+           </div>`,
+    )
+    .join("");
+  listEl.innerHTML = `${backBtn}<div class="mp-chatline-list">${linesHtml}</div>`;
+}
+
+document
+  .getElementById("mp-echange-list-body")
+  .addEventListener("click", (e) => {
+    const dayRow = e.target.closest(".mp-day-row");
+    if (dayRow) {
+      openMessengerDayChat(dayRow.dataset.date);
+      return;
+    }
+    if (e.target.closest("#mp-day-back-btn")) {
+      renderMessengerDayList(currentMessengerDayList);
+    }
+  });
+
 function renderWordCloud(keywords, targetId) {
   const wrap = document.getElementById(targetId || "mp-detail-wc");
   if (!keywords || !keywords.length) {
@@ -1274,6 +2042,8 @@ function switchDetailTab(tab) {
   btnKw.className = "mp-detail-tab-btn" + (tab === "kw" ? " active-kw" : "");
 }
 window.switchDetailTab = switchDetailTab; // HTML의 인라인 onclick에서 호출하므로 전역에 노출
+window.closeEmailDrawer = closeEmailDrawer; // #mp-echange-back의 인라인 onclick용(기존에 누락돼있던 것)
+window.toggleGraphView = toggleGraphView; // "카드 보기" 버튼의 인라인 onclick용(기존에 누락돼있던 것)
 
 async function refreshDetailStats(person) {
   const gmailId = (await userIdPromise) || "";
@@ -1321,6 +2091,24 @@ async function refreshDetailStats(person) {
 async function openDetail(person, rowIndex) {
   const gmailId = (await userIdPromise) || "";
   const detailDisplayName = resolveDisplayName(person);
+
+  currentDetailMode = "mail";
+  currentMessengerPerson = null;
+  document.getElementById("mp-tab-stats").textContent = "이메일 교환";
+  document.getElementById("mp-tab-desc").textContent = "설명";
+  document.getElementById("mp-tab-kw").textContent = "키워드";
+  closeEmailDrawer(); // 이전 사람의 메일 목록 서랍이 열려 있던 상태로 새 상세보기가 뜨지 않도록 초기화
+
+  // 메신저 상세에서 숨겼던 "나 ↔ 상대방" 페어링 UI + 통계 탭 제목/범례 복원, 메신저 전용 설명 숨김
+  document.querySelector(".mp-detail-self-info").style.display = "";
+  document.getElementById("mp-detail-avatar-self").style.display = "";
+  document.querySelector(".mp-detail-relation").style.display = "";
+  document.getElementById("mp-stats-title").style.display = "";
+  document.getElementById("mp-stats-legend").style.display = "";
+  document.getElementById("mp-detail-messenger-desc").classList.remove("show");
+  document
+    .getElementById("mp-detail-namewrap")
+    .classList.remove("mp-detail-namewrap-wide");
 
   // 나 아바타 (페이지 로드 시 미리 생성된 캐시를 바로 사용, 아직 안 왔으면 도착 시 refreshSelfAvatarEl가 채워줌)
   const selfAvatarEl = document.getElementById("mp-detail-avatar-self");
@@ -1380,6 +2168,7 @@ async function openDetail(person, rowIndex) {
   currentDetailPerson = person;
   const panel = document.querySelector(".mp-panel");
   if (panel) panel.scrollTop = 0;
+  document.getElementById("mp-detail").classList.remove("mp-detail-messenger");
   document.getElementById("mp-detail").classList.add("open");
 
   // 설명 탭 프로필
@@ -1391,9 +2180,137 @@ async function openDetail(person, rowIndex) {
   await refreshDetailStats(person);
 }
 
+/* ── 메신저 탭 사람 상세: 메일 탭과 같은 #mp-detail 패널을 재사용하되, 탭 3개의 역할은
+ * 메일과 다르게 분리한다 — 1번은 월별 메시지 그래프, 2번은 이 방 안에서의 관계 방사형
+ * 다이어그램, 3번은 키워드. 이메일/친밀도 링처럼 메신저에 없는 개념은 비워둔다. ── */
+async function openMessengerDetail(person) {
+  closeEmailDrawer();
+
+  currentDetailMode = "messenger";
+  currentDetailPerson = null; // 메일 전용 refreshDetailStats가 슬라이더 조작 시 안 걸리게 분리
+  currentMessengerPerson = person;
+
+  document.getElementById("mp-tab-stats").textContent = "메시지 통계";
+  document.getElementById("mp-tab-desc").textContent = "관계";
+  document.getElementById("mp-tab-kw").textContent = "키워드";
+
+  // 메일 탭의 "나 ↔ 상대방" 페어링 UI(내 아바타/관계선)는 메신저에선 의미가 없어서
+  // 통째로 숨기고, 선택한 참여자 이름/부제 옆에 그 사람 설명을 대신 보여줌
+  document.querySelector(".mp-detail-self-info").style.display = "none";
+  document.getElementById("mp-detail-avatar-self").style.display = "none";
+  document.querySelector(".mp-detail-relation").style.display = "none";
+  // 통계 탭 안의 "이메일 교환" 제목 + "보낸 메일/받은 메일" 범례도 메일 전용 문구라 숨김
+  document.getElementById("mp-stats-title").style.display = "none";
+  document.getElementById("mp-stats-legend").style.display = "none";
+  // 이름/설명 칸이 헤더의 남는 폭을 다 가져가게 해서, 설명을 스크롤 없이 옆으로 넓게 펼침
+  document
+    .getElementById("mp-detail-namewrap")
+    .classList.add("mp-detail-namewrap-wide");
+
+  const avatarEl = document.getElementById("mp-detail-avatar");
+  avatarEl.style.background = "linear-gradient(150deg,#cfe9df,#a9d4c4)";
+  avatarEl.style.color = "#1a6e4a";
+  avatarEl.textContent = initials(person.name);
+
+  const ringFill = document.getElementById("mp-detail-avatar-ring-fill");
+  const ringLabel = document.getElementById("mp-detail-avatar-ring-label");
+  if (ringFill) ringFill.style.strokeDashoffset = String(2 * Math.PI * 46); // 친밀도 개념 없음 → 항상 빈 링
+  if (ringLabel) ringLabel.innerHTML = "";
+
+  document.getElementById("mp-detail-name").textContent =
+    person.name || "(알 수 없음)";
+  document.getElementById("mp-detail-email").textContent =
+    `단톡방 참여자 · 메시지 ${person.message_count || 0}건`;
+
+  const descEl = document.getElementById("mp-detail-messenger-desc");
+  descEl.textContent = person.description || "등록된 설명이 없습니다.";
+  descEl.classList.add("show");
+
+  switchDetailTab("stats");
+  const scrollPanel = document.querySelector(".mp-left");
+  if (scrollPanel) scrollPanel.scrollTop = 0;
+  document
+    .getElementById("mp-detail")
+    .classList.add("open", "mp-detail-messenger");
+
+  // 관계 탭 — 이 방의 /chatroom-relationships(전체 기간)에서 이 사람이 낀 관계만 추려
+  // strength 상위 8개까지 방사형 다이어그램으로
+  document.getElementById("mp-desc-profile-content").innerHTML =
+    '<p class="mp-desc-profile-empty">관계를 불러오는 중...</p>';
+  try {
+    const res = await fetch("/chatroom-relationships", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatroom_id: currentChatroomId,
+        start_date: "1970-01-01",
+        end_date: msToDateStr(Date.now()),
+      }),
+    });
+    const rels = res.ok ? (await res.json()).data.relationships || [] : [];
+    const mine = rels
+      .filter((r) => r.source === person.name || r.target === person.name)
+      .sort((a, b) => (b.strength || 0) - (a.strength || 0))
+      .slice(0, 8);
+    renderRelationDiagram(person.name, mine);
+  } catch (e) {
+    console.error("chatroom-relationships 오류:", e);
+    renderRelationDiagram(person.name, []);
+  }
+
+  await refreshMessengerDetailStats(person);
+}
+
+/* 통계 탭(월별 그래프)+키워드 탭 — 메일의 refreshDetailStats()와 같은 자리: 둘 다
+ * selMin/selMax(타임슬라이더 기간)를 쓰고, openMessengerDetail()이 처음 열 때도,
+ * 슬라이더를 움직였을 때(updateFill())도 이 함수 하나로 같이 새로고침한다. 관계 탭은
+ * 메일의 "설명" 탭처럼 기간과 무관하게 상세보기를 열 때만 한 번 불러온 걸 유지(여기서
+ * 다시 안 부름). */
+async function refreshMessengerDetailStats(person) {
+  document.getElementById("mp-chart").innerHTML =
+    '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
+  document.getElementById("mp-detail-wc").innerHTML =
+    '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
+
+  const dateBody = {
+    chatroom_id: currentChatroomId,
+    participant_id: person.participant_id,
+    start_date: msToDateStr(selMin),
+    end_date: msToDateStr(selMax),
+  };
+  const post = (body) => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const [statsRes, kwRes] = await Promise.allSettled([
+    fetch("/chatroom-person-monthly-stats", post(dateBody)),
+    fetch("/chatroom-keywords-by-person", post(dateBody)),
+  ]);
+
+  let stats = null;
+  if (statsRes.status === "fulfilled" && statsRes.value.ok) {
+    const j = await statsRes.value.json();
+    stats = j.data || null;
+  }
+  renderMessengerBarChart(stats);
+
+  let keywords = [];
+  if (kwRes.status === "fulfilled" && kwRes.value.ok) {
+    const j = await kwRes.value.json();
+    keywords = j.data.keywords || [];
+  }
+  renderWordCloud(keywords.slice(0, 10), "mp-detail-wc");
+}
+
 document.getElementById("mp-detail-close").addEventListener("click", () => {
-  document.getElementById("mp-detail").classList.remove("open");
+  document
+    .getElementById("mp-detail")
+    .classList.remove("open", "mp-detail-messenger");
   currentDetailPerson = null;
+  currentDetailMode = "mail";
+  currentMessengerPerson = null;
 });
 
 document.getElementById("mp-grid").addEventListener("click", (e) => {

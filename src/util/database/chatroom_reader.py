@@ -3,17 +3,23 @@
 # 테이블과 GraphRAG graph_data.json을 읽어 "My People" 통계(기간별 메시지 수, 사람 간 관계,
 # 참여자 상세)를 만든다. 쓰기는 chatroom_db_writer.py가 담당.
 
+import calendar
 import json
 import os
 from config.db import get_db_connection
 from util.database.chatroom_db_writer import get_latest_chatroom
-from util.user_path import list_accounts
+from util.user_path import list_accounts, UserPaths
 
 
-def list_indexed_chatrooms(base_dir: str):
-    """인덱싱된 messenger 계정(msg_xxx = 단톡방 1개)마다 chatroom 테이블에서 방 이름·전체
-    메시지 수, chatroom_people에서 참여자 수를 모아 반환. 메신저 탭의 "단톡방 목록"
-    화면에서 사용 (아직 인덱싱 중/DB에 chatroom 레코드가 없는 계정은 목록에서 제외)."""
+def list_indexed_chatrooms(base_dir: str, start_date: str = None, end_date: str = None):
+    """인덱싱된 messenger 계정(msg_xxx = 단톡방 1개)마다 방 이름·메시지 수·참여자 수·전체
+    참여자 이름(메시지 많은 순, 카드 아바타를 참여자 수만큼 분할한 이니셜로 채우는 용도)을
+    모아 반환. 메신저 탭의 "단톡방 목록" 화면에서 사용 (아직 인덱싱 중/DB에 chatroom
+    레코드가 없는 계정은 목록에서 제외).
+
+    start_date/end_date를 주면(타임슬라이더로 기간이 선택된 경우) 전체 기간 대신 그 기간의
+    message_block/participant 집계로 message_count/participant_count/top_participants를
+    계산하고, 그 기간에 메시지가 하나도 없는 방은 목록에서 아예 제외한다."""
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -29,8 +35,7 @@ def list_indexed_chatrooms(base_dir: str):
 
             cursor.execute(
                 """
-                SELECT chatroom_name, message_count
-                FROM chatroom
+                SELECT chatroom_name FROM chatroom
                 WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
                 """,
                 (chatroom_id, index_date, user_id),
@@ -39,21 +44,75 @@ def list_indexed_chatrooms(base_dir: str):
             if not meta:
                 continue
 
-            cursor.execute(
-                """
-                SELECT COUNT(*) AS participant_count
-                FROM chatroom_people
-                WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
-                """,
-                (chatroom_id, index_date, user_id),
-            )
-            participant_count = cursor.fetchone()["participant_count"]
+            if start_date and end_date:
+                cursor.execute(
+                    """
+                    SELECT SUM(message_count) AS message_count
+                    FROM message_block
+                    WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                      AND block_date BETWEEN %s AND %s
+                    """,
+                    (chatroom_id, index_date, user_id, start_date, end_date),
+                )
+                message_count = int((cursor.fetchone() or {}).get("message_count") or 0)
+                if message_count == 0:
+                    continue
+
+                cursor.execute(
+                    """
+                    SELECT p.participant_name AS name, SUM(p.sent_message) AS cnt
+                    FROM participant p
+                    JOIN message_block b
+                      ON p.block_id = b.block_id AND p.chatroom_id = b.chatroom_id
+                     AND p.index_date = b.index_date AND p.user_id = b.user_id
+                    WHERE p.chatroom_id = %s AND p.index_date = %s AND p.user_id = %s
+                      AND b.block_date BETWEEN %s AND %s
+                    GROUP BY p.participant_name
+                    HAVING SUM(p.sent_message) > 0
+                    ORDER BY cnt DESC
+                    """,
+                    (chatroom_id, index_date, user_id, start_date, end_date),
+                )
+                active_rows = cursor.fetchall()
+                participant_count = len(active_rows)
+                top_participants = [row["name"] for row in active_rows]
+            else:
+                cursor.execute(
+                    """
+                    SELECT message_count FROM chatroom
+                    WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                    """,
+                    (chatroom_id, index_date, user_id),
+                )
+                message_count = int((cursor.fetchone() or {}).get("message_count") or 0)
+
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS participant_count
+                    FROM chatroom_people
+                    WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                    """,
+                    (chatroom_id, index_date, user_id),
+                )
+                participant_count = cursor.fetchone()["participant_count"]
+
+                cursor.execute(
+                    """
+                    SELECT chatroom_people_name AS name
+                    FROM chatroom_people
+                    WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                    ORDER BY message_count DESC
+                    """,
+                    (chatroom_id, index_date, user_id),
+                )
+                top_participants = [row["name"] for row in cursor.fetchall()]
 
             rooms.append({
                 "chatroom_id": chatroom_id,
                 "chatroom_name": meta["chatroom_name"],
-                "message_count": int(meta["message_count"] or 0),
+                "message_count": message_count,
                 "participant_count": int(participant_count or 0),
+                "top_participants": top_participants,
             })
         return rooms
     finally:
@@ -381,6 +440,135 @@ def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date:
         conn.close()
 
     return [{"word": row["word"], "count": int(row["count"] or 0)} for row in rows]
+
+
+def get_chatroom_person_monthly_stats(chatroom_id: str, participant_id: str, start_date: str = None, end_date: str = None):
+    """chatroom_id에서 participant_id가 월별로 보낸 메시지 수를 집계. start_date/end_date를
+    주면(타임슬라이더 기간) 그 기간만, 안 주면 전체 기간. 상세보기 통계 탭의 월별
+    그래프용. chatroom_id가 인덱싱된 적 없으면 None, participant_id가 그 채팅방 명단에
+    없으면 False."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT 1 FROM chatroom_people
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s AND participant_id = %s
+            """,
+            (chatroom_id, index_date, user_id, participant_id),
+        )
+        if cursor.fetchone() is None:
+            return False
+
+        sql = """
+            SELECT DATE_FORMAT(b.block_date, '%Y-%m') AS month, SUM(p.sent_message) AS count
+            FROM participant p
+            JOIN message_block b
+              ON p.block_id = b.block_id AND p.chatroom_id = b.chatroom_id
+             AND p.index_date = b.index_date AND p.user_id = b.user_id
+            WHERE p.chatroom_id = %s AND p.index_date = %s AND p.user_id = %s
+              AND p.participant_name = %s
+        """
+        params = [chatroom_id, index_date, user_id, participant_id]
+        if start_date and end_date:
+            sql += " AND b.block_date BETWEEN %s AND %s"
+            params += [start_date, end_date]
+        sql += " GROUP BY month ORDER BY month"
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    monthly = [{"month": row["month"], "count": int(row["count"] or 0)} for row in rows]
+    total = sum(m["count"] for m in monthly)
+    return {"monthly": monthly, "total": total}
+
+
+def get_chatroom_person_daily_stats(chatroom_id: str, participant_id: str, month: str):
+    """chatroom_id에서 participant_id가 특정 월(month, "YYYY-MM")에 날짜별로 보낸 메시지
+    수를 집계. 상세보기 통계 탭에서 월 막대를 클릭했을 때 "일별 목록" 화면용. chatroom_id가
+    인덱싱된 적 없으면 None, participant_id가 그 채팅방 명단에 없으면 False."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    year, mon = (int(x) for x in month.split("-"))
+    month_start = f"{month}-01"
+    month_end = f"{month}-{calendar.monthrange(year, mon)[1]:02d}"
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT 1 FROM chatroom_people
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s AND participant_id = %s
+            """,
+            (chatroom_id, index_date, user_id, participant_id),
+        )
+        if cursor.fetchone() is None:
+            return False
+
+        cursor.execute(
+            """
+            SELECT b.block_date AS date, SUM(p.sent_message) AS count
+            FROM participant p
+            JOIN message_block b
+              ON p.block_id = b.block_id AND p.chatroom_id = b.chatroom_id
+             AND p.index_date = b.index_date AND p.user_id = b.user_id
+            WHERE p.chatroom_id = %s AND p.index_date = %s AND p.user_id = %s
+              AND p.participant_name = %s
+              AND b.block_date BETWEEN %s AND %s
+            GROUP BY b.block_date
+            ORDER BY b.block_date
+            """,
+            (chatroom_id, index_date, user_id, participant_id, month_start, month_end),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    days = [
+        {
+            "date": row["date"].strftime("%Y-%m-%d") if hasattr(row["date"], "strftime") else str(row["date"]),
+            "count": int(row["count"] or 0),
+        }
+        for row in rows
+    ]
+    return {"days": days}
+
+
+def get_chatroom_day_messages(base_dir: str, chatroom_id: str, date: str):
+    """chatroom_id의 date("YYYY-MM-DD") 하루치 대화 원문을 반환. DB에는 집계만 있고
+    원문은 없어서, text_units.parquet을 그때그때 파싱하는 _parse_message_blocks_from_parquet()
+    (기존에 어조 분석용으로만 쓰이던 함수)를 재사용해 그 날짜에 해당하는 블록들의 메시지를
+    시간순으로 합침(하루가 청크 크기 때문에 여러 블록으로 쪼개진 경우 대비). chatroom_id가
+    인덱싱된 적 없으면 None, 그 날짜에 메시지가 없으면 빈 리스트."""
+    from util.message_statics import _parse_message_blocks_from_parquet
+
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+
+    paths = UserPaths(base_dir, chatroom_id, "messenger")
+    blocks = _parse_message_blocks_from_parquet(paths)
+
+    messages = []
+    for block in blocks:
+        if block.get("block_date") != date:
+            continue
+        messages.extend(block.get("messages") or [])
+
+    messages.sort(key=lambda m: m.get("time") or "")
+    return messages
 
 
 def get_chatroom_summaries(chatroom_id: str, summarize_unit: str):
