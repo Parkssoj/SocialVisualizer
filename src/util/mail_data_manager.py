@@ -139,3 +139,40 @@ def _build_mail_csv(paths, mode="rewrite", new_ids=None) -> str | None:
 
     print(f"[CSV] 생성 완료 → {csv_path} ({len(rows)}개 메일)")
     return csv_path
+
+
+_MAIL_SUBJECT_RE  = re.compile(r"^\[제목\]\s*(.*)$", re.MULTILINE)
+_MAIL_SENDER_RE   = re.compile(r"^\[발신인\]\s*(.*)$", re.MULTILINE)
+_MAIL_RECEIVER_RE = re.compile(r"^\[수신인\]\s*(.*)$", re.MULTILINE)
+_MAIL_BODY_RE = re.compile(r"\[메일 본문\]\s*\n(.*?)(?:\n\[첨부파일 정보\]|\Z)", re.DOTALL)
+
+# 메신저의 _parse_message_blocks_from_parquet(text_units.parquet 파싱)과 같은 역할이지만,
+# text_units.parquet은 GraphRAG 청크 분할로 긴 메일의 본문이 잘릴 수 있어서 그 대신
+# documents.parquet(청크로 쪼개지기 전, latest.csv의 id/text를 그대로 문서 단위로 보관한
+# GraphRAG 산출물)을 읽는다 — id가 mail_id와 정확히 일치하고 본문도 안 잘린다.
+def get_mail_bodies_by_ids(paths, mail_ids: set[str]) -> dict[str, dict]:
+    if not mail_ids:
+        return {}
+    import pandas as pd
+
+    documents_path = os.path.join(paths.PARQUET_DIR, "documents.parquet")
+    if not os.path.exists(documents_path):
+        return {}
+
+    df = pd.read_parquet(documents_path, columns=["id", "text"])
+    df = df[df["id"].isin(mail_ids)]
+
+    result = {}
+    for _, row in df.iterrows():
+        text = str(row["text"])
+        subject_m  = _MAIL_SUBJECT_RE.search(text)
+        sender_m   = _MAIL_SENDER_RE.search(text)
+        receiver_m = _MAIL_RECEIVER_RE.search(text)
+        body_m     = _MAIL_BODY_RE.search(text)
+        result[row["id"]] = {
+            "subject":  subject_m.group(1).strip() if subject_m else "",
+            "sender":   sender_m.group(1).strip() if sender_m else "",
+            "receiver": receiver_m.group(1).strip() if receiver_m else "",
+            "body":     body_m.group(1).strip() if body_m else "",
+        }
+    return result
