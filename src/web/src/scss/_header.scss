@@ -6,12 +6,8 @@
 // 비쳐서 메뉴가 지저분해 보이지 않도록 투명 대신 흰색으로 막음
 .top_nav {
   position: fixed;
-  // 원래는 top:15px + min-height:58px(바닥 기준 73px)라서 화면 맨 위에 15px짜리 빈
-  // 여백이 있고 그만큼 헤더 바가 아래로 밀려있었음. "박스 공간을 아래쪽 대신 위로
-  // 늘려달라"는 요청에 따라 top을 0으로 줄이고 그만큼(15px)을 min-height에 더해서
-  // 헤더 바가 그 빈 여백까지 위로 채우며 커지도록 바꿈 — 바닥 기준(top+min-height)은
-  // 그대로 73px로 유지했기 때문에 .right_col/.gw-orbit-hero/.mypeople의 97px 공식은
-  // 안 건드려도 됨(73+24=97 그대로 유효)
+  // top:0 + min-height로 바닥 기준(top+min-height)을 73px로 유지
+  // (.right_col/.gw-orbit-hero/.mypeople의 97px 공식과 호환)
   top: 0px;
   left: 0;
   right: 0;
@@ -100,7 +96,7 @@
   align-items: center;
   padding: 10px 18px;
   border-radius: 8px;
-  // 영문("My Life" 등)만 Fraunces(세리프)로 먼저 시도되고 한글("홈/검색/데이터 업로드")은
+  // 영문("My Life" 등)만 Fraunces(세리프)로 먼저 시도되고 한글("홈/검색/메일 수집")은
   // 글리프가 없어 바로 다음 폴백으로 넘어가던 상태라 영문/한글 글씨체가 서로 달라 보였음.
   // .gw-brand-logo-text와 동일하게 Pretendard를 맨 앞에 둬서 영문/한글 전부 Pretendard로
   // 통일(더 이상 안 쓰는 Fraunces 전용 opsz/변수축 속성도 같이 제거).
@@ -164,7 +160,7 @@
   background: linear-gradient(150deg, #566a47 0%, #3d4a35 100%) !important;
 }
 
-// 900px는 nav 항목이 홈/검색/데이터 업로드/My Life/지식 그래프 5개였을 때 기준 —
+// 900px는 nav 항목이 홈/검색/메일 수집/My Life/지식 그래프 5개였을 때 기준 —
 // My People2/My People3가 추가돼 항목이 7개가 되면서 1085~1090px 사이부터
 // 오른쪽 로그인/언어 버튼이 밀려 줄바꿈되고(My People3까지는 보이지만 로그인·KO가
 // 다음 줄로 떨어져 화면 밖으로 잘림) 실측으로 확인해서, 다 겹치기 전에 미리 숨기도록

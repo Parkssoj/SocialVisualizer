@@ -8,226 +8,590 @@ footer {
 }
 
 /* ── 페이지 ── */
-.mt-page{width:88vw;max-width:1700px;margin:0 auto;padding:28px clamp(20px,3vw,56px) 32px;box-sizing:border-box}
+.mt-page {
+  width: 88vw;
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: 12px clamp(20px, 3vw, 56px) 32px;
+  box-sizing: border-box;
+}
 
 /* 페이지 상단 헤더: My Time 로고(+메일/메신저 버튼) + 월별/연별 토글 (좌우 컬럼 밖, 전체 폭) */
-.mt-page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
-/* "My Time 옆에 메일과 메신저 버튼" — 제목과 버튼을 한 그룹으로 묶어서 왼쪽에 나란히 둠 */
-.mt-title-group{display:flex;align-items:center;gap:14px}
-.mt-header-controls{display:flex;align-items:center;gap:12px}
-/* mypeople.scss와 같은 이유로 빠뜨렸던 부분 — accountPicker.js가 주입하는
-   .gw-account-picker(기본 0.85rem 고정)를 이 페이지에서도 다른 요소들과 같은
-   0.78rem으로 덮어씀("계정 불러오는 중..."도 이 클래스를 씀) */
-#account-picker-mount .gw-account-picker{font-size:.78rem}
-.mt-title{font-size:2.6rem;font-weight:800;color:#2e1d1b;letter-spacing:-.04em}
-.mt-title span{color:#f97316}
-.mt-mode-toggle{display:flex;gap:3px;background:#efeae9;border-radius:8px;padding:3px}
-.mt-mode-btn{margin:0;padding:10px;min-width:72px;border-radius:6px;border:none;font-size:.78rem;font-weight:600;cursor:pointer;background:transparent;color:#73879C;transition:all .15s;font-family:inherit}
-.mt-mode-btn.active{background:#fff;color:#f97316;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-
-/* My People의 mp-channel-btns/mp-channel-btn과 같은 스타일 — 페이지별로 scss가
-   분리돼 있어서 공용 파일이 없어 그대로 복사해옴(요청: "My Time 옆에 메일과
-   메신저 버튼", My People과 동일한 톤) */
-.mp-channel-btns{display:flex;align-items:center;gap:6px}
-.mp-channel-btn{
-  box-sizing:border-box;appearance:none;-webkit-appearance:none;
-  font-family:inherit;line-height:inherit;margin:0;
-  display:flex;align-items:center;gap:5px;
-  background:rgba(255,255,255,.8);border:1.5px solid rgba(251,146,60,.25);
-  border-radius:20px;padding:4px 12px;cursor:pointer;
-  font-size:.78rem;font-weight:600;color:#3f302a;
-  transition:border-color .15s,background .15s,color .15s;
-  white-space:nowrap;user-select:none;
+.mt-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
-.mp-channel-btn:hover{border-color:#fb923c;background:#fff}
-.mp-channel-btn.active{background:#fb923c;border-color:#fb923c;color:#fff;box-shadow:0 4px 14px rgba(251,146,60,.28)}
-
-/* 좌(아바타 4) : 우(요약 6) 레이아웃 — 상단 헤더 아래, 두 컬럼 위/아래 선이 모두
-   맞도록 stretch. 원래 3fr:7fr였는데 "비율이 4:6 되도록" 요청에 따라 바꿈 */
-.mt-layout{display:grid;grid-template-columns:4fr 6fr;gap:clamp(16px,2.4vw,32px);align-items:stretch}
-.mt-col-main{min-width:0}
-@media (max-width:860px){
-  .mt-layout{grid-template-columns:1fr}
+/* 제목 + 메일/메신저 버튼 그룹 */
+.mt-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
-
-/* ── 좌측: 나 아바타 + "{아이디}'s Time" ── */
-.mt-side{
-  background:#fff;border-radius:16px;border:1px solid #ede6e3;
-  padding:28px 22px 24px;
-  display:flex;flex-direction:column;align-items:center;text-align:center;
+.mt-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.mt-side-title{font-size:1.35rem;font-weight:800;color:#2e1d1b;letter-spacing:-.02em;margin-bottom:20px;word-break:break-word}
-.mt-side-title span{color:#f97316}
-.mt-side-avatar{
-  width:96px;height:96px;border-radius:50%;overflow:hidden;flex-shrink:0;
-  box-shadow:0 4px 16px rgba(249,115,22,.18);
-  outline:3px solid #f0e4df;
-  margin-bottom:22px;
+/* accountPicker.js가 주입하는 .gw-account-picker 기본 폰트(0.85rem)를
+   페이지 공통 크기(0.78rem)로 오버라이드 */
+#account-picker-mount .gw-account-picker {
+  font-size: 0.78rem;
 }
-.mt-side-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-.mt-side-avatar-fallback{
-  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(150deg,#e9d9cf,#d4b9a9);color:#6e351a;
-  font-size:.78rem;font-weight:800;
+/* My People의 .mp-title과 동일한 폰트/크기 */
+.mt-title {
+  font-family:
+    "Pretendard",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #302522;
+  letter-spacing: -0.04em;
 }
-
-.mt-side-stat{
-  width:100%;background:#f8f2f0;border:1px solid #e9d9cf;border-radius:12px;
-  padding:14px 12px;margin-bottom:14px;
+.mt-title span {
+  color: #f97316;
 }
-.mt-side-stat-label{font-size:.78rem;font-weight:700;color:#b5a08f;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
-.mt-side-stat-value{font-size:.78rem;font-weight:800;color:#844014}
-
-.mt-side-range{
-  width:100%;font-size:.78rem;color:#73879C;
-  display:flex;align-items:center;gap:6px;justify-content:center;
-  padding-top:14px;border-top:1px dashed #ede6e3;
+.mt-mode-toggle {
+  display: flex;
+  gap: 3px;
+  background: #fff6ef;
+  border-radius: 8px;
+  padding: 3px;
+}
+.mt-mode-btn {
+  margin: 0;
+  padding: 10px;
+  min-width: 72px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(48, 37, 34, 0.55);
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.mt-mode-btn.active {
+  background: #fffefc;
+  color: #f97316;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* My People의 mp-channel-btns/mp-channel-btn과 동일 스타일 (페이지별 scss 분리로 복사) */
+.mp-channel-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mp-channel-btn {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  line-height: inherit;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1.5px solid rgba(251, 146, 60, 0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #302522;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.mp-channel-btn:hover {
+  border-color: #fb923c;
+  background: #fff;
+}
+.mp-channel-btn.active {
+  background: #fb923c;
+  border-color: #fb923c;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(251, 146, 60, 0.28);
+}
+
+/* 좌(아바타 4) : 우(요약 6) 레이아웃, 두 컬럼 stretch로 높이 정렬 */
+.mt-layout {
+  display: grid;
+  grid-template-columns: 4fr 6fr;
+  gap: clamp(16px, 2.4vw, 32px);
+  align-items: stretch;
+}
+.mt-col-main {
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .mt-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 좌측: 나 아바타 ── */
+.mt-side {
+  background: #fffefc;
+  border-radius: 16px;
+  border: 1.5px solid rgba(48, 37, 34, 0.35); /* My People .mp-panel과 동일한 테두리 색 */
+  box-shadow: 0 6px 22px rgba(48, 37, 34, 0.12); /* My People .mp-panel과 동일한 그림자 */
+  padding: 28px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%; /* .mt-main과 같은 높이로 고정, grid stretch로 오른쪽과 아래 라인 일치 */
+  box-sizing: border-box;
+}
+.mt-side-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.18);
+  outline: 3px solid #f4dce3;
+  margin-bottom: 10px;
+}
+.mt-side-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mt-side-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(150deg, #f4dce3, #d96c8a);
+  color: #302522;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+/* 아바타 밑 "My" 라벨 */
+.mt-side-my-label {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #f97316;
+  letter-spacing: -0.01em;
+  margin-bottom: 22px;
+}
+
+/* 4:3 이미지 슬롯 (placeholder, 나중에 #mtSideImageSlot 안에 img 삽입) */
+/* 바깥 슬롯: 남은 공간만큼 유동적으로 채움 (.mt-side 높이를 넘지 않음) */
+.mt-side-image-slot {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+/* 안쪽 박스: 4:3 비율 고정, 바깥 슬롯 안에서 남는 공간은 여백으로 남음(레터박스) */
+.mt-side-image-box {
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #fff6ef;
+  border: 1.5px dashed rgba(217, 108, 138, 0.5);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(217, 108, 138, 0.7);
+  font-size: 1.6rem;
+  padding: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.mt-side-image-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* 이미지 비율 유지, 남는 부분은 여백 */
+  display: block;
+}
+.mt-side-image-box span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
 
 /* ── 메인 카드 ── */
-.mt-main{
-  background:#fff;border-radius:16px;border:1px solid #ede6e3;
-  padding:36px 52px 32px;margin-bottom:12px;
-  display:flex;flex-direction:column;
-  height:calc(100vh - 360px); /* 네비(56) + 페이지패딩(96) + 헤더(80) + 포인터카드(100) + 여유 */
-  min-height:320px;
-  max-height:600px;
+.mt-main {
+  background: #fffefc;
+  border-radius: 16px;
+  border: 1.5px solid rgba(48, 37, 34, 0.35); /* My People .mp-panel과 동일한 테두리 색 */
+  box-shadow: 0 6px 22px rgba(48, 37, 34, 0.12); /* My People .mp-panel과 동일한 그림자 */
+  padding: 36px 52px 32px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  height: clamp(320px, 58vh, 600px); /* 화면 높이에 따라 반응형으로 조절 */
 }
 
 /* 타임라인 트랙 */
-.mt-track{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  position:relative;
+.mt-track {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
 }
 /* 선 */
-.mt-track::after{
-  content:'';position:absolute;
-  left:0;right:0;
-  top:7px; /* 도트 절반 */
-  height:1.5px;background:#ede6e3;
-  z-index:0;
+.mt-track::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px; /* 도트 절반 */
+  height: 1.5px;
+  background: #f4dce3;
+  z-index: 0;
 }
 
 /* 노드 컬럼 */
-.mt-node-col{
-  display:flex;flex-direction:column;align-items:center;
-  position:relative;z-index:1;
-  cursor:pointer;
-  flex:1;
+.mt-node-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  flex: 1;
 }
 
 /* 도트 */
-.mt-dot{
-  width:14px;height:14px;border-radius:50%;
-  background:#c4b3a8;border:2px solid #fff;
-  box-shadow:0 0 0 1.5px #b5a08f;
-  transition:background .18s,box-shadow .18s,transform .18s;
-  flex-shrink:0;
+.mt-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(217, 108, 138, 0.6);
+  border: 2px solid #fffefc;
+  box-shadow: 0 0 0 1.5px #d96c8a;
+  transition:
+    background 0.18s,
+    box-shadow 0.18s,
+    transform 0.18s;
+  flex-shrink: 0;
 }
 .mt-node-col:hover .mt-dot,
-.mt-node-col.active .mt-dot{
-  background:#f97316;
-  box-shadow:0 0 0 5px rgba(249,115,22,.28);
-  transform:scale(1.3);
+.mt-node-col.active .mt-dot {
+  background: #f97316;
+  box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.28);
+  transform: scale(1.3);
 }
 /* 클릭으로 고정된 노드 */
-.mt-node-col.pinned .mt-dot{
-  background:#844014;
-  box-shadow:0 0 0 6px rgba(20,132,92,.32);
-  transform:scale(1.4);
+.mt-node-col.pinned .mt-dot {
+  background: #302522;
+  box-shadow: 0 0 0 6px rgba(48, 37, 34, 0.22);
+  transform: scale(1.4);
 }
-.mt-node-col.pinned .mt-node-label{color:#844014;font-weight:800}
-.mt-node-col.pinned .mt-node-count{color:#844014}
+.mt-node-col.pinned .mt-node-label {
+  color: #302522;
+  font-weight: 800;
+}
+.mt-node-col.pinned .mt-node-count {
+  color: #302522;
+}
 
 /* 기간 레이블 */
-.mt-node-label{
-  margin-top:10px;
-  font-size:.78rem;font-weight:700;color:#73879C;
-  white-space:nowrap;letter-spacing:.02em;
-  transition:color .15s;
+.mt-node-label {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(48, 37, 34, 0.55);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  transition: color 0.15s;
 }
 .mt-node-col:hover .mt-node-label,
-.mt-node-col.active .mt-node-label{color:#f97316}
+.mt-node-col.active .mt-node-label {
+  color: #f97316;
+}
 
 /* 메일 수 */
-.mt-node-count{
-  margin-top:3px;
-  font-size:.78rem;color:#c4b3a8;font-weight:500;
-  transition:color .15s;
+.mt-node-count {
+  margin-top: 3px;
+  font-size: 0.78rem;
+  color: #d96c8a;
+  font-weight: 500;
+  transition: color 0.15s;
 }
 .mt-node-col:hover .mt-node-count,
-.mt-node-col.active .mt-node-count{color:#f97316}
+.mt-node-col.active .mt-node-count {
+  color: #f97316;
+}
 
 /* ── 인포 패널 (노드 아래, 고정 높이) ── */
-.mt-info-area{
-  margin-top:32px;
-  flex:1;
-  position:relative;
-  min-height:0;
-  overflow:hidden;
+.mt-info-area {
+  margin-top: 32px;
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
 }
-.mt-panel{
-  position:absolute;inset:0;
-  background:#f8f2f0;
-  border:1.5px solid #d9b4a8;
-  border-radius:14px;
-  padding:20px 28px;
-  box-sizing:border-box;
-  opacity:0;
-  transform:translateY(5px);
-  transition:opacity .2s,transform .2s;
-  pointer-events:none;
-  overflow-y:auto;
+.mt-panel {
+  position: absolute;
+  inset: 0;
+  background: #fff6ef;
+  border: 1.5px solid rgba(217, 108, 138, 0.5);
+  border-radius: 14px;
+  padding: 20px 28px;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  pointer-events: none;
+  overflow-y: auto;
 }
-.mt-panel.show{
-  opacity:1;
-  transform:translateY(0);
-  pointer-events:auto;
+.mt-panel.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 /* 고정됐을 때 테두리 강조 */
-.mt-panel.pinned{
-  border-color:#f97316;
-  box-shadow:0 0 0 3px rgba(249,115,22,.1);
+.mt-panel.pinned {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
-.mt-panel-top{display:flex;align-items:baseline;gap:16px;margin-bottom:12px}
-.mt-panel-period{font-size:.78rem;font-weight:800;color:#f97316;letter-spacing:.04em}
-.mt-panel-count{font-size:.78rem;color:#73879C;font-weight:500}
-.mt-panel-count strong{color:#2e1d1b;font-size:.78rem;font-weight:700}
-.mt-panel-summary{font-size:.78rem;color:#2A3F54;line-height:1.75;margin-bottom:14px}
-.mt-panel-contacts-title{font-size:.78rem;font-weight:700;color:#b5a08f;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px}
-.mt-panel-contacts{display:flex;flex-wrap:wrap;gap:6px}
-.mt-panel-contact{font-size:.78rem;color:#63534f;background:#f0e4df;border-radius:20px;padding:3px 11px;font-weight:500}
+.mt-panel-top {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.mt-panel-period {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #f97316;
+  letter-spacing: 0.04em;
+}
+.mt-panel-count {
+  font-size: 0.78rem;
+  color: rgba(48, 37, 34, 0.55);
+  font-weight: 500;
+}
+.mt-panel-count strong {
+  color: #302522;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.mt-panel-summary {
+  font-size: 0.78rem;
+  color: #302522;
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+.mt-panel-contacts-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #d96c8a;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.mt-panel-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mt-panel-contact {
+  font-size: 0.78rem;
+  color: #302522;
+  background: #f4dce3;
+  border-radius: 20px;
+  padding: 3px 11px;
+  font-weight: 500;
+}
 
 /* ── 포인터 라인 ── */
-/* "타임라인이 왼쪽창과 오른쪽창 전체로 펼쳐져있게" 요청에 따라 .mt-layout(좌/우
-   두 컬럼) 밖, 페이지 전체 폭으로 옮겨서 위쪽에 margin-top으로 간격만 줌
-   (원래는 .mt-col-main 안에 있어서 오른쪽 컬럼 폭만큼만 좁게 펼쳐져 있었음) */
-.mt-pointer-wrap{background:#fff;border-radius:12px;border:1px solid #ede6e3;padding:20px 52px 16px;margin-top:16px}
-.mt-pointer-label{font-size:.78rem;font-weight:600;color:#b5a08f;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px}
-.mt-pointer-track{position:relative;height:30px;cursor:pointer;user-select:none}
-.mt-pointer-bg{position:absolute;left:0;right:0;top:50%;height:2px;background:#d4c7c0;transform:translateY(-50%)}
-.mt-pointer-window{position:absolute;top:50%;height:4px;transform:translateY(-50%);background:rgba(249,115,22,.52);border-radius:2px;pointer-events:none;transition:left .2s,width .2s}
+/* .mt-layout 밖, 페이지 전체 폭으로 표시되는 타임라인 포인터 */
+.mt-pointer-wrap {
+  background: #fffefc;
+  border-radius: 12px;
+  border: 1.5px solid rgba(48, 37, 34, 0.35); /* My People .mp-panel과 동일한 테두리 색 */
+  box-shadow: 0 6px 22px rgba(48, 37, 34, 0.12); /* My People .mp-panel과 동일한 그림자 */
+  padding: 20px 52px 16px;
+  margin-top: 16px;
+}
+/* 날짜 표시 행 — My People .mp-tl-dates와 동일한 구조/스타일 */
+.mt-pointer-dates {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+/* My People .mp-tl-date-label과 동일 */
+.mt-pointer-date-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #302522;
+  background: #fff6ef;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+.mt-pointer-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d96c8a;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  flex: 1;
+  text-align: center;
+}
+.mt-pointer-track {
+  position: relative;
+  height: 30px;
+  cursor: pointer;
+  user-select: none;
+}
+.mt-pointer-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: #f4dce3;
+  transform: translateY(-50%);
+}
+.mt-pointer-window {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  transform: translateY(-50%);
+  background: rgba(249, 115, 22, 0.52);
+  border-radius: 2px;
+  pointer-events: none;
+  transition:
+    left 0.2s,
+    width 0.2s;
+}
 /* 타임라인 위를 이동하는 "나" 아바타 커서 */
-.mt-pointer-cursor{
-  position:absolute;top:50%;transform:translate(-50%,-50%);
-  width:30px;height:30px;border-radius:50%;
-  background:#f97316;border:2.5px solid #fff;
-  box-shadow:0 2px 8px rgba(249,115,22,.35),0 0 0 3px rgba(249,115,22,.25);
-  pointer-events:none;z-index:3;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-  transition:left .2s;
+.mt-pointer-cursor {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f97316;
+  border: 2.5px solid #fffefc;
+  box-shadow:
+    0 2px 8px rgba(249, 115, 22, 0.35),
+    0 0 0 3px rgba(249, 115, 22, 0.25);
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.2s;
 }
-.mt-pointer-cursor img{width:100%;height:100%;object-fit:cover;display:block}
-.mt-pointer-cursor .mt-pointer-cursor-fallback{
-  width:100%;height:100%;border-radius:50%;
-  background:linear-gradient(150deg,#e9d9cf,#d4b9a9);
-  color:#6e351a;font-size:.78rem;font-weight:800;
-  display:flex;align-items:center;justify-content:center;
+.mt-pointer-cursor img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
-.mt-pm{position:absolute;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:#b5a08f;z-index:2;cursor:pointer;transition:transform .12s,background .12s}
-.mt-pm:hover{transform:translate(-50%,-50%) scale(1.8);background:#f97316}
-.mt-pointer-axis{position:relative;height:16px;margin-top:4px}
-.mt-pa-lbl{position:absolute;transform:translateX(-50%);font-size:.78rem;color:#b5a08f;font-weight:600}
+.mt-pointer-cursor .mt-pointer-cursor-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #f4dce3, #d96c8a);
+  color: #302522;
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mt-pm {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d96c8a;
+  z-index: 2;
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    background 0.12s;
+}
+.mt-pm:hover {
+  transform: translate(-50%, -50%) scale(1.8);
+  background: #f97316;
+}
+.mt-pointer-axis {
+  position: relative;
+  height: 24px;
+  margin-top: 4px;
+}
+/* 연도 눈금 — My People .mp-tl-tick과 동일한 구조(선 + 라벨) */
+.mt-pa-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.mt-pa-tick-line {
+  width: 1.5px;
+  height: 7px;
+  background: #d96c8a;
+}
+/* My People .mp-tl-tick-lbl과 동일 */
+.mt-pa-lbl {
+  font-size: 0.78rem;
+  color: rgba(48, 37, 34, 0.65);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── 메일/메신저 뷰 전환 ── */
+.mt-view {
+  width: 100%;
+}
+/* My People .mp-panel과 동일한 카드 스타일(배경/테두리/모서리) */
+.mt-card {
+  background: #fffefc;
+  border-radius: 16px;
+  border: 1.5px solid rgba(48, 37, 34, 0.35);
+  box-shadow: 0 6px 22px rgba(48, 37, 34, 0.12); /* My People .mp-panel과 동일한 그림자 */
+}
+.mt-empty {
+  text-align: center;
+  padding: 80px 0;
+  color: rgba(48, 37, 34, 0.5);
+}
+.mt-empty i {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 10px;
+}
+.mt-empty p {
+  font-size: 0.78rem;
+}

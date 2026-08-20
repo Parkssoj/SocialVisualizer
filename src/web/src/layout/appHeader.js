@@ -5,11 +5,9 @@
  * renderHeader(activePage)를 호출해 마운트한다.
  */
 
-// Header.jsx(React, index.html 전용)와 반드시 똑같이 맞춰야 함 — 이 두 파일이
-// 따로 관리되고 있어서(React 버전은 홈에서만, 이 vanilla JS 버전은 나머지 7개
-// 페이지에서 쓰임) 그동안 서로 어긋나 있었고, 그게 "페이지마다 헤더가 다르다"는
-// 문제의 원인이었음. 요청 순서: 홈 → 데이터 업로드 → My People → My Time →
-// 검색 → 지식 그래프(Recap은 삭제 요청에 따라 메뉴에서 제외).
+// Header.jsx(React, index.html 전용)와 동일하게 유지해야 함 — React 버전은
+// 홈에서만, 이 vanilla JS 버전은 나머지 페이지에서 사용됨.
+// 메뉴 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
 const NAV_ITEMS = [
   { page: "home", href: "index.html", label: "홈" },
   { page: "imap-collect", href: "imap-collect.html", label: "데이터 업로드" },
@@ -55,8 +53,7 @@ export function renderHeader(activePage) {
         </div>
         <nav class="nav navbar-nav ms-auto">
           <ul class="navbar-right d-flex align-items-center gap-3 pe-3">
-            <!-- "로그인 버튼이랑 번역 버튼 주석 처리" 요청에 따라 둘 다 주석 처리함
-                 (완전 삭제 대신 나중에 필요하면 바로 되살릴 수 있도록 주석으로 남김).
+            <!-- 로그인/번역 버튼 비활성화
             <li class="nav-item">
               <button type="button" class="gw-login-btn">로그인</button>
             </li>

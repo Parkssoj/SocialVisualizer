@@ -77,15 +77,11 @@ footer {
 .mp-panel {
   width: 100%;
   background: rgba(255, 255, 255, 0.72);
-  /* 원래는 rgba(200, 230, 215, 0.8)(연한 민트/초록빛) — 예전 초록 테마의 흔적이라
-     hex 색상 일괄 변환(주황 계열로) 때는 rgba라서 안 걸러졌었음. "창 겉 테두리를
-     검정이나 어두운 회색으로" 요청에 따라 어두운 회색(진갈색 계열, #302522 기준)
-     으로 바꿈 */
   border: 1.5px solid rgba(48, 37, 34, 0.35);
   border-radius: 20px;
   backdrop-filter: blur(12px);
   box-shadow:
-    0 4px 28px rgba(251, 146, 60, 0.1),
+    0 6px 22px rgba(48, 37, 34, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   flex: 1;
   min-height: 0;
@@ -131,7 +127,16 @@ footer {
   gap: 8px;
 }
 .mp-title {
-  font-size: clamp(1.6rem, 8cqw, 2.6rem);
+  /* mt-title과 동일한 고정 크기/폰트 (컨테이너 상속 대신 명시 지정) */
+  font-family:
+    "Pretendard",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+  font-size: 2.6rem;
   font-weight: 800;
   color: #2e1d1b;
   letter-spacing: -0.04em;
@@ -147,8 +152,7 @@ footer {
   padding: 2px 8px;
   border-radius: 20px;
 }
-/* "13명 옆에 메일과 메신저 버튼" — mp-count 바로 옆에 붙는 채널 선택 버튼.
-   mp-brand-filter-btn과 같은 팔레트/톤으로 맞춤(주황 강조, 흰 배경) */
+/* mp-count 옆 채널 선택 버튼, mp-brand-filter-btn과 같은 팔레트/톤 */
 .mp-channel-btns {
   display: flex;
   align-items: center;
@@ -170,11 +174,7 @@ footer {
   border-radius: 20px;
   padding: 4px 12px;
   cursor: pointer;
-  /* "메일/메신저·계정 토글·광고제거·친밀도·타임슬라이더 날짜 글씨 크기를 통일"
-     요청 — 이 요소들은 서로 다른 컨테이너(.mp-panel vs .mp-timeline)에 있어서
-     기존처럼 cqw(컨테이너 폭 비율) 기반 clamp를 쓰면 컨테이너 폭이 다른 만큼
-     실제 렌더링 크기도 달라짐. 그래서 전부 고정 rem 값(0.78rem)으로 통일함 —
-     같은 값으로 맞춰야 어떤 컨테이너 안에 있든 항상 같은 글자 크기가 보장됨 */
+  /* 서로 다른 컨테이너에 있는 요소들도 항상 동일하게 보이도록 고정 rem 값 사용 */
   font-size: 0.78rem;
   font-weight: 600;
   color: #3f302a;
@@ -1276,8 +1276,7 @@ footer {
   align-items: center;
 }
 .mp-tl-date-label {
-  /* 상단 mp-channel-btn/mp-brand-filter-btn/mp-dropdown-btn과 같은 0.78rem으로
-     통일(요청: "타임슬라이드 날짜 글씨들 글자 크기를 똑같이") */
+  /* 상단 mp-channel-btn/mp-brand-filter-btn/mp-dropdown-btn과 동일한 0.78rem */
   font-size: 0.78rem;
   font-weight: 700;
   color: #7a470f;

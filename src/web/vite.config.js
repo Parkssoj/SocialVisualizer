@@ -66,8 +66,7 @@ export default defineConfig({
         mypeople: "production/mypeople.html",
         // 그래프 시각화
         graph_viz: "production/graph-viz.html",
-        // 메일 통계 요약 — "Recap 관련된 코드 주석처리" 요청에 따라 빌드 대상에서
-        // 빼고 주석 처리함(파일 자체는 남겨둠, 나중에 필요하면 이 줄만 살리면 됨)
+        // 메일 통계 요약 — 빌드 대상에서 제외 (파일은 남겨둠)
         // recap: "production/recap.html",
         // 서치 페이지
         search: "production/search.html",
