@@ -75,12 +75,14 @@ from util.database.db_reader import (
     get_keywords_by_person_date,
     get_mail_date_range,
     get_mail_exchange_stats,
+    get_mail_person_daily_stats,
     calculate_eis,
     get_person_descriptions,
     get_mail_relationships,
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
+from util.mail_data_manager import get_mail_bodies_by_ids
 from util.file_manager import (
     _sanitize_filename
 )
@@ -997,6 +999,16 @@ def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
+@app.route("/mail-summary-image/<user_id>/<filename>")
+def mail_summary_image(user_id, filename):
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    return send_from_directory(paths.MAIL_SUMMARY_IMAGES_DIR, filename)
+
+@app.route("/message-summary-image/<chatroom_id>/<filename>")
+def message_summary_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_SUMMARY_IMAGES_DIR, filename)
+
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
     data = request.json or {}
@@ -1060,6 +1072,27 @@ def send_mail_exchange_stats():
         return jsonify({"error": "start_date and end_date are required"}), 400
 
     return jsonify({"data": get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date)})
+
+@app.route("/mail-person-daily-stats", methods=["POST"])
+def send_mail_person_daily_stats():
+    data = request.json or {}
+    user_id       = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    month          = data.get("month", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "month":          month,
+        "data": get_mail_person_daily_stats(user_id, person_mail_id, month),
+    })
 
 @app.route("/messenger-chatrooms", methods=["POST"])
 def send_messenger_chatrooms():
@@ -1308,6 +1341,24 @@ def send_chatroom_summaries():
     if summaries is None:
         return jsonify({"error": "chatroom not found"}), 404
 
+    # image_url은 DB(message_summarize)가 아니라 message_summaries.json에만 있고
+    # 요약 생성 뒤 이미지 생성이 끝나는 대로 채워지므로, 여기서 summary_period 기준으로
+    # 병합해 내려준다(스키마 변경 없이 파일을 그대로 읽어 붙이는 방식).
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    image_urls = {}
+    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
+        try:
+            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
+                file_summaries = json.load(f)
+            for period, info in file_summaries.get(summarize_unit, {}).items():
+                if info.get("image_url"):
+                    image_urls[period] = info["image_url"]
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    for s in summaries:
+        s["image_url"] = image_urls.get(s["summary_period"])
+
     return jsonify({
         "chatroom_id":    chatroom_id,
         "summarize_unit": summarize_unit,
@@ -1374,6 +1425,40 @@ def send_person_emails_in_range():
     emails.sort(key=lambda e: e["date"])
 
     return jsonify({"data": emails})
+
+@app.route("/mail-day-emails", methods=["POST"])
+def send_mail_day_emails():
+    """chatroom-day-messages(메신저: 하루치 대화 원문)의 메일판. 상세보기에서
+    /mail-person-daily-stats로 받은 일별 목록 중 하루를 클릭했을 때, 그날 이 사람과
+    주고받은 메일 전체(본문 포함)를 반환. 기존 /mail-person-emails의 파일 캐시 방식과
+    달리, documents.parquet(GraphRAG 산출물)에서 직접 본문을 읽는다."""
+    data = request.json or {}
+    user_id        = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    date           = data.get("date", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+
+    mail_refs = get_person_mail_ids_in_range(user_id, person_mail_id, date, date)
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    bodies = get_mail_bodies_by_ids(paths, {ref["id"] for ref in mail_refs})
+    emails = [
+        {**bodies[ref["id"]], "id": ref["id"], "direction": ref["direction"], "date": ref["date"]}
+        for ref in mail_refs if ref["id"] in bodies
+    ]
+    emails.sort(key=lambda e: e["date"])
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "date":           date,
+        "data": {"emails": emails},
+    })
 
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
