@@ -1,5 +1,6 @@
 # 웹앱 DB → 메일에서 추출한 정보 데이터 JSON
 # 현재는 가라 데이터
+import calendar
 import json
 import math
 import re
@@ -351,6 +352,59 @@ def get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date):
             "total": {"sent": total_sent, "received": total_received},
         }
 
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_mail_person_daily_stats(user_id, person_mail_id, month):
+    """user_id가 person_mail_id와 특정 월(month, "YYYY-MM")에 날짜별로 주고받은 메일 수를
+    집계. 상세보기 통계 탭에서 월 막대를 클릭했을 때 "일별 목록" 화면용
+    (get_chatroom_person_daily_stats의 메일판)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT MAX(index_date) AS ud FROM mail_account WHERE user_mail_account_id = %s", (user_id,))
+        update_date = cursor.fetchone()["ud"]
+
+        year, mon = (int(x) for x in month.split("-"))
+        month_start = f"{month}-01"
+        month_end = f"{month}-{calendar.monthrange(year, mon)[1]:02d}"
+
+        like_param = f"%{person_mail_id}%"
+        sql = """
+        SELECT
+            DATE(mail_date) AS date,
+            SUM(CASE WHEN direction = 'sent'     AND receiver LIKE %s THEN 1 ELSE 0 END) AS sent,
+            SUM(CASE WHEN direction = 'received' AND sender   LIKE %s THEN 1 ELSE 0 END) AS received
+        FROM mail
+        WHERE user_mail_account_id = %s
+          AND index_date = %s
+          AND mail_date BETWEEN %s AND %s
+          AND (
+            (direction = 'sent'     AND receiver LIKE %s) OR
+            (direction = 'received' AND sender   LIKE %s)
+          )
+        GROUP BY DATE(mail_date)
+        ORDER BY date ASC
+        """
+        cursor.execute(sql, (
+            like_param, like_param, user_id, update_date, month_start, month_end + ' 23:59:59',
+            like_param, like_param,
+        ))
+        rows = cursor.fetchall()
+
+        days = [
+            {
+                "date": row["date"].strftime("%Y-%m-%d") if hasattr(row["date"], "strftime") else str(row["date"]),
+                "sent": int(row["sent"] or 0),
+                "received": int(row["received"] or 0),
+                "count": int(row["sent"] or 0) + int(row["received"] or 0),
+            }
+            for row in rows
+        ]
+        return {"days": days}
     finally:
         cursor.close()
         conn.close()
