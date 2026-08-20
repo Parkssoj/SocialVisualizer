@@ -12,8 +12,10 @@ from util.user_path import list_accounts
 
 def list_indexed_chatrooms(base_dir: str):
     """인덱싱된 messenger 계정(msg_xxx = 단톡방 1개)마다 chatroom 테이블에서 방 이름·전체
-    메시지 수, chatroom_people에서 참여자 수를 모아 반환. 메신저 탭의 "단톡방 목록"
-    화면에서 사용 (아직 인덱싱 중/DB에 chatroom 레코드가 없는 계정은 목록에서 제외)."""
+    메시지 수, chatroom_people에서 참여자 수와 전체 참여자 이름(메시지 많은 순, 카드
+    아바타를 참여자 수만큼 분할한 이니셜로 채우는 용도)을 모아 반환. 메신저 탭의
+    "단톡방 목록" 화면에서 사용 (아직 인덱싱 중/DB에 chatroom 레코드가 없는 계정은
+    목록에서 제외)."""
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -49,11 +51,23 @@ def list_indexed_chatrooms(base_dir: str):
             )
             participant_count = cursor.fetchone()["participant_count"]
 
+            cursor.execute(
+                """
+                SELECT chatroom_people_name AS name
+                FROM chatroom_people
+                WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+                ORDER BY message_count DESC
+                """,
+                (chatroom_id, index_date, user_id),
+            )
+            top_participants = [row["name"] for row in cursor.fetchall()]
+
             rooms.append({
                 "chatroom_id": chatroom_id,
                 "chatroom_name": meta["chatroom_name"],
                 "message_count": int(meta["message_count"] or 0),
                 "participant_count": int(participant_count or 0),
+                "top_participants": top_participants,
             })
         return rooms
     finally:
@@ -381,6 +395,51 @@ def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date:
         conn.close()
 
     return [{"word": row["word"], "count": int(row["count"] or 0)} for row in rows]
+
+
+def get_chatroom_person_monthly_stats(chatroom_id: str, participant_id: str):
+    """chatroom_id에서 participant_id가 월별로 보낸 메시지 수를 전체 기간에 대해 집계.
+    상세보기 통계 탭의 월별 그래프용. chatroom_id가 인덱싱된 적 없으면 None,
+    participant_id가 그 채팅방 명단에 없으면 False."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT 1 FROM chatroom_people
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s AND participant_id = %s
+            """,
+            (chatroom_id, index_date, user_id, participant_id),
+        )
+        if cursor.fetchone() is None:
+            return False
+
+        cursor.execute(
+            """
+            SELECT DATE_FORMAT(b.block_date, '%Y-%m') AS month, SUM(p.sent_message) AS count
+            FROM participant p
+            JOIN message_block b
+              ON p.block_id = b.block_id AND p.chatroom_id = b.chatroom_id
+             AND p.index_date = b.index_date AND p.user_id = b.user_id
+            WHERE p.chatroom_id = %s AND p.index_date = %s AND p.user_id = %s
+              AND p.participant_name = %s
+            GROUP BY month
+            ORDER BY month
+            """,
+            (chatroom_id, index_date, user_id, participant_id),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    monthly = [{"month": row["month"], "count": int(row["count"] or 0)} for row in rows]
+    total = sum(m["count"] for m in monthly)
+    return {"monthly": monthly, "total": total}
 
 
 def get_chatroom_summaries(chatroom_id: str, summarize_unit: str):

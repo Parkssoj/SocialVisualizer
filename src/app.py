@@ -124,6 +124,7 @@ from util.database.chatroom_reader import (
     get_chatroom_person_detail,
     get_chatroom_mood,
     get_chatroom_keywords_by_person,
+    get_chatroom_person_monthly_stats,
     get_chatroom_summaries,
 )
 from util.extract_statics import start_statics_pipeline_background
@@ -1211,6 +1212,29 @@ def send_chatroom_keywords_by_person():
         "data": {
             "keywords": keywords,
         },
+    })
+
+@app.route("/chatroom-person-monthly-stats", methods=["POST"])
+def send_chatroom_person_monthly_stats():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
+
+    stats = get_chatroom_person_monthly_stats(chatroom_id, participant_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+    if stats is False:
+        return jsonify({"error": "person not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "data": stats,
     })
 
 @app.route("/chatroom-summaries", methods=["POST"])
