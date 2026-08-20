@@ -2039,8 +2039,7 @@ async function openMessengerDetail(person) {
   if (scrollPanel) scrollPanel.scrollTop = 0;
   document.getElementById("mp-detail").classList.add("open", "mp-detail-messenger");
 
-  // 관계 탭 — 이 방의 /chatroom-relationships(전체 기간)에서 이 사람이 낀 관계만 추려
-  // strength 상위 8개까지 방사형 다이어그램으로
+  // 관계 탭 — 이 방의 /chatroom-relationships(전체 기간)에서 이 사람이 낀 관계를 모두 방사형 다이어그램으로
   document.getElementById("mp-desc-profile-content").innerHTML =
     '<p class="mp-desc-profile-empty">관계를 불러오는 중...</p>';
   try {
@@ -2054,10 +2053,7 @@ async function openMessengerDetail(person) {
       }),
     });
     const rels = res.ok ? (await res.json()).data.relationships || [] : [];
-    const mine = rels
-      .filter((r) => r.source === person.name || r.target === person.name)
-      .sort((a, b) => (b.strength || 0) - (a.strength || 0))
-      .slice(0, 8);
+    const mine = rels.filter((r) => r.source === person.name || r.target === person.name);
     renderRelationDiagram(person.name, mine);
   } catch (e) {
     console.error("chatroom-relationships 오류:", e);
