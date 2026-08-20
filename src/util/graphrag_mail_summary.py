@@ -8,6 +8,7 @@ import re
 import json
 import datetime
 import openai
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.database.db_writer import save_mail_summarize_to_db
 
@@ -137,19 +138,20 @@ def generate_mail_summaries(paths):
                 emails.add(m["receiver_email"])
         return sorted(emails)
 
-    monthly_summaries = {}
-    for month, group in monthly_groups.items():
-        print(f"[mail_summary] 월별 요약 중: {month} ({len(group)}건)")
-        monthly_summaries[month] = _summarize_with_llm(
-            _build_text(group), month, _collect_contacts(group)
-        )
+    def _summarize_group(kind, period, group):
+        print(f"[mail_summary] {kind} 요약 중: {period} ({len(group)}건)")
+        return kind, period, _summarize_with_llm(_build_text(group), period, _collect_contacts(group))
 
+    jobs = [("monthly", month, group) for month, group in monthly_groups.items()] + \
+           [("yearly", year, group) for year, group in yearly_groups.items()]
+
+    monthly_summaries = {}
     yearly_summaries = {}
-    for year, group in yearly_groups.items():
-        print(f"[mail_summary] 연별 요약 중: {year} ({len(group)}건)")
-        yearly_summaries[year] = _summarize_with_llm(
-            _build_text(group), year, _collect_contacts(group)
-        )
+    with ThreadPoolExecutor(max_workers=min(len(jobs), 15)) as executor:
+        futures = [executor.submit(_summarize_group, kind, period, group) for kind, period, group in jobs]
+        for future in as_completed(futures):
+            kind, period, summary = future.result()
+            (monthly_summaries if kind == "monthly" else yearly_summaries)[period] = summary
 
     result = {
         "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

@@ -18,6 +18,7 @@ import math
 import json
 import datetime
 import openai
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from config.db import get_db_connection
 from util.message_statics import _parse_message_blocks_from_parquet
@@ -101,7 +102,7 @@ def _judge_mood_with_llm(text, period_label):
                         "분석해 아래 JSON 형식으로만 응답하라.\n"
                         "{\n"
                         '  "private_ratio": 0~100 사이 숫자 (전체 대화 중 사적인 내용의 비율, %),\n'
-                        '  "description": "이 기간 대화 내용을 1~2문장으로 한국어 설명"\n'
+                        '  "description": "이 기간 대화 내용을 1~2문장으로 한국어 설명 (~입니다. 어미로 통일)"\n'
                         "}"
                     ),
                 },
@@ -257,11 +258,21 @@ def generate_message_mood(paths):
 
         cross_room_pool = _fetch_cross_room_message_counts(user_id, unit)
 
-        result = {}
-        for period, group in groups.items():
+        def _judge(period, group):
             print(f"[message_mood] {unit} 분위기 분석 중: {period} ({len(group)}개 블록)")
+            return period, _judge_mood_with_llm(_build_raw_text(group), period)
 
-            private_ratio, content_description = _judge_mood_with_llm(_build_raw_text(group), period)
+        # LLM 호출만 병렬로 먼저 끝내고, 점수 계산(로컬 연산)은 메인 스레드에서 순차 처리
+        judged = {}
+        with ThreadPoolExecutor(max_workers=min(len(groups), 15)) as executor:
+            futures = [executor.submit(_judge, period, group) for period, group in groups.items()]
+            for future in as_completed(futures):
+                period, (private_ratio, content_description) = future.result()
+                judged[period] = (private_ratio, content_description)
+
+        result = {}
+        for period in groups:
+            private_ratio, content_description = judged[period]
 
             stats = raw_stats[period]
             activity_cross_norm = _minmax_score(stats["message_count"], cross_room_pool)
