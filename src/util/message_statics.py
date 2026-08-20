@@ -30,12 +30,12 @@ _MSG_LINE_RE = re.compile(
 def _parse_message_blocks_from_parquet(paths) -> list[dict]:
     import pandas as pd
 
-    text_units_path = paths.RELATIONSHIPS_PATH.replace("relationships.parquet", "text_units.parquet")
-    if not os.path.exists(text_units_path):
-        print(f"[MSG_STATS] text_units.parquet 없음: {text_units_path}")
+    documents_path = os.path.join(paths.PARQUET_DIR, "documents.parquet")
+    if not os.path.exists(documents_path):
+        print(f"[MSG_STATS] documents.parquet 없음: {documents_path}")
         return []
 
-    df = pd.read_parquet(text_units_path)
+    df = pd.read_parquet(documents_path)
 
     blocks = []
     seen_ids = set()
