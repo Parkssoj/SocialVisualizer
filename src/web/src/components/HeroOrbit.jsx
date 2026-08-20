@@ -1,7 +1,26 @@
 import { useEffect } from "react";
-import { GlobeLive } from "./ui/cobe-globe-live.tsx";
 import { Component as HeroGridBackground } from "./ui/background-snippets.tsx";
-import OrbitingSkills from "./ui/orbiting-skills.tsx";
+
+/* 미니 프리뷰 카드 — 실제 페이지(mypeople.html/mytime.html)를 iframe으로 그대로
+   불러온 뒤 CSS transform: scale로 축소해서 보여준다(캡처 이미지 아님, 진짜 화면).
+   iframe 안쪽은 실제 폭(FRAME_W)으로 렌더링되고, 바깥 wrapper는 카드 크기만큼만
+   보이도록 overflow:hidden으로 잘라낸다. pointer-events:none으로 iframe 내부와의
+   상호작용은 막고, 카드 전체를 감싸는 <a>가 클릭/이동을 담당한다. */
+const FRAME_W = 1600;
+const FRAME_H = 1020;
+function PagePreviewFrame({ src }) {
+  return (
+    <div className="gw-preview-frame">
+      <iframe
+        src={src}
+        title={src}
+        tabIndex={-1}
+        scrolling="no"
+        style={{ width: FRAME_W, height: FRAME_H }}
+      />
+    </div>
+  );
+}
 
 export default function HeroOrbit() {
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
@@ -16,23 +35,8 @@ export default function HeroOrbit() {
   return (
     <div className="gw-orbit-hero">
       <HeroGridBackground />
-      <div className="gw-globe-belt" aria-hidden="true">
-        <div className="gw-globe-belt-inner">
-          <GlobeLive />
-        </div>
-      </div>
-
-      <div className="gw-skills-orbit" aria-hidden="true">
-        <OrbitingSkills />
-      </div>
 
       <div className="gw-orbit-left">
-        <p
-          className="gw-hero-eyebrow gw-anim"
-          style={{ transitionDelay: "0s" }}
-        >
-          ✦ Golden Olive
-        </p>
         <h1
           className="gw-hero-headline gw-anim"
           style={{ transitionDelay: "0.05s" }}
@@ -212,6 +216,23 @@ export default function HeroOrbit() {
             시작하기
           </a>
         </div>
+      </div>
+
+      <div className="gw-hero-previews gw-anim" style={{ transitionDelay: "0.28s" }}>
+        <a href="mypeople.html" className="gw-preview-card">
+          <PagePreviewFrame src="mypeople.html" />
+          <div className="gw-preview-overlay">
+            <span>My People 바로가기</span>
+            <i className="bi bi-arrow-right-short"></i>
+          </div>
+        </a>
+        <a href="mytime.html" className="gw-preview-card">
+          <PagePreviewFrame src="mytime.html" />
+          <div className="gw-preview-overlay">
+            <span>My Time 바로가기</span>
+            <i className="bi bi-arrow-right-short"></i>
+          </div>
+        </a>
       </div>
     </div>
   );

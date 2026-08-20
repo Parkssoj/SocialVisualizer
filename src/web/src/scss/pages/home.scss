@@ -336,14 +336,15 @@ html {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 40px;
+  flex-direction: column; // 위: 텍스트(gw-orbit-left), 아래: 미리보기 카드 가로 정렬(gw-hero-previews)
+  align-items: center; // 텍스트/카드 묶음 모두 가로 중앙 정렬
+  justify-content: flex-start; // 아래쪽에 남는 공간을 밀어내지 않고 내용 전체를 위로 붙임
+  gap: 32px;
   height: 100vh;
   // custom.scss의 ".right_col > div:first-child { padding-top: 10px }"가
   // (0,2,1) 명시도로 이 규칙의 (0,1,0)보다 높아서 padding-top만 10px로 눌려있었음
   // (히어로가 .right_col의 첫 번째 자식 div라 이 범용 규칙에 걸림) → !important로 이김
-  padding: 97px 6vw 0 !important;
+  padding: 130px 6vw 60px !important;
   overflow: hidden;
 }
 
@@ -401,6 +402,7 @@ html {
   z-index: 4;
   flex: 0 0 auto;
   max-width: 800px;
+  text-align: center; // 전체 텍스트 블록 가운데 정렬
 }
 .gw-hero-eyebrow {
   margin: 0 0 14px;
@@ -413,7 +415,7 @@ html {
   font-weight: 500;
   color: #6b6b6b;
   letter-spacing: 0.04em;
-  text-align: left;
+  text-align: center;
 }
 .gw-hero-headline {
   // custom.scss의 "body .right_col h1:not([class*=display-])" 전역 규칙이
@@ -427,11 +429,11 @@ html {
     sans-serif;
   font-style: normal;
   font-weight: 700 !important;
-  font-size: clamp(2.9rem, 5.5vw, 5.8rem) !important;
+  font-size: clamp(2.1rem, 4vw, 4rem) !important;
   line-height: 1.28 !important;
   letter-spacing: normal;
   color: #374132;
-  text-align: left;
+  text-align: center;
   white-space: nowrap; // <br>로 준 줄바꿈 외에는 자동 줄바꿈 안 되도록
 }
 .gw-hero-headline-muted {
@@ -447,23 +449,24 @@ html {
   filter: url(#glow-4);
 }
 .gw-hero-desc {
-  margin: 0 0 28px;
+  margin: 0 auto 28px;
   max-width: 640px; // 540px였을 때 <br/> 뒤 문장이 폭이 좁아서 다시 줄바꿈되며 "시각화합니다."만 혼자 떨어져 나갔음 — 코드상 <br/>로 나눈 두 줄 그대로 렌더링되도록 넓힘
   font-family:
     "Geist",
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 17px;
+  font-size: 1rem;
   font-weight: 400;
   line-height: 1.7;
   color: #57726b; // 흰 배경용 — 톤 다운된 올리브 그레이
-  text-align: left;
+  text-align: center;
 }
 
 .gw-hero-cta {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 22px;
 }
 // 이 두 CTA는 <a> 태그라 _green-luxury.scss의 전역
@@ -485,7 +488,7 @@ html {
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 500;
   text-decoration: none !important;
   box-shadow: none;
@@ -501,7 +504,7 @@ html {
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 500;
   color: #b8853a !important; // 흰 배경에서도 대비가 나오도록 톤을 낮춘 Warm Gold
   text-decoration: none !important;
@@ -511,6 +514,89 @@ html {
 .gw-hero-cta-secondary:hover {
   color: #b8853a !important;
   border-color: #b8853a;
+}
+
+/* ── 히어로 오른쪽: My People / My Time 미리보기 카드 ──
+   실제 페이지(mypeople.html/mytime.html)를 iframe으로 그대로 불러와 축소 표시.
+   고정된 화면처럼 보이면 되고(hover 전엔 정적), hover 시에만 오버레이가 떠서
+   각 페이지로 이동. */
+.gw-hero-previews {
+  position: relative;
+  z-index: 4;
+  flex: 1 1 auto; // 남은 세로 공간을 이 줄이 갖도록 해서 아래로 밀려 잘리지 않게 함
+  min-height: 0; // flex 자식이 내용 크기로 오버플로우하지 않도록
+  align-self: stretch; // 부모 폭(가로 전체)만큼 차지해서 카드 줄을 하단에 가로로 정렬
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+// 카드 폭을 한 곳(--pv-w)에서만 정의하고 프레임/아이프레임 배율도 같은 값을 참조 —
+// 실제 페이지 원본 크기(1600×1020, 비율 80:51)를 유지한 채로 화면 폭/높이 중
+// 더 좁은 쪽에 맞춰 축소되므로 어떤 화면에서도 카드가 세로로 잘리지 않음.
+.gw-preview-card {
+  --pv-w: clamp(260px, min(36vw, 70vh), 680px); // 70vh 상한은 카드 비율(0.6375) 적용 시 세로 약 44.6vh — 하단 여백만큼 최대한 채우되 넘치지 않도록 계산한 값
+  display: block;
+  width: var(--pv-w);
+  aspect-ratio: 1600 / 1020; // 실제 페이지 비율 고정
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  text-decoration: none !important;
+  box-shadow: 0 10px 30px rgba(48, 37, 34, 0.18);
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.gw-preview-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(48, 37, 34, 0.26);
+}
+.gw-preview-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fffefc;
+}
+.gw-preview-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1600px;
+  height: 1020px;
+  border: none;
+  transform-origin: top left;
+  // 카드 폭(--pv-w)과 원본 iframe 폭(1600px)의 비율만큼 축소 — 카드 폭이 반응형으로
+  // 바뀌어도 항상 카드에 꽉 차게 맞춰짐 (같은 length 단위끼리 나누면 배율(숫자)이 됨)
+  transform: scale(calc(var(--pv-w) / 1600px));
+  pointer-events: none;
+}
+.gw-preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(48, 37, 34, 0.72);
+  color: #fffefc !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family:
+    "Geist",
+    "Inter",
+    -apple-system,
+    sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.gw-preview-overlay i {
+  font-size: 1.1rem;
+}
+.gw-preview-card:hover .gw-preview-overlay {
+  opacity: 1;
 }
 
 /* ── 하단 "지원 메일 서비스" 영역 ── */
@@ -534,7 +620,7 @@ html {
 }
 .gw-trusted-label {
   margin: 0 0 14px;
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: #57726b; // 흰 배경용
   letter-spacing: 0.06em;
 }
@@ -628,6 +714,10 @@ html {
   }
   .gw-skills-orbit {
     display: none;
+  }
+  .gw-hero-previews {
+    flex-direction: row;
+    justify-content: center;
   }
 }
 
