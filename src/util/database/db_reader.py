@@ -512,10 +512,33 @@ def get_person_descriptions(user_id: str) -> list:
     try:
         # person_account_id로 alias: 프론트/avatar_generator가 기대하는 기존 API 응답 키 유지
         cursor.execute("""
-            SELECT person_mail_account_id AS person_account_id, person_name, description
+            SELECT person_mail_account_id AS person_account_id, person_name, description, relation_label
             FROM person
             WHERE user_mail_account_id = %s AND index_date = %s
               AND description IS NOT NULL AND description != ''
+        """, (latest_account["user_mail_account_id"], latest_account["index_date"]))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_mail_relationships(user_id: str) -> list:
+    """person.relation_label만 추려서 반환 (description 전체 텍스트 없이 가벼운 페이로드).
+    메신저의 get_chatroom_relationships()에 대응하는 메일 버전 — 메일은 person 테이블에
+    이미 relation_label 컬럼이 있어서 그래프 JSON을 매번 스캔할 필요 없이 바로 SELECT한다."""
+    latest_account = get_latest_mail_account(user_id)
+    if not latest_account:
+        return []
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT person_mail_account_id AS person_account_id, person_name, relation_label
+            FROM person
+            WHERE user_mail_account_id = %s AND index_date = %s
+              AND relation_label IS NOT NULL AND relation_label != ''
         """, (latest_account["user_mail_account_id"], latest_account["index_date"]))
         return cursor.fetchall()
     finally:

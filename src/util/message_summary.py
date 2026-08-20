@@ -38,7 +38,7 @@ def _summarize_with_llm(text, period_label, contacts):
                     "content": f"[{period_label}] 참여자 목록: {contacts}\n\n대화 목록:\n\n{text}"
                 }
             ],
-            max_completion_tokens=400  # gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
+            max_completion_tokens=1000  # gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
         )
         result = json.loads(response.choices[0].message.content)
         return {
