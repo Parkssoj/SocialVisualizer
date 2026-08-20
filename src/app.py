@@ -82,6 +82,7 @@ from util.database.db_reader import (
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
+from util.mail_data_manager import get_mail_bodies_by_ids
 from util.file_manager import (
     _sanitize_filename
 )
@@ -1424,6 +1425,40 @@ def send_person_emails_in_range():
     emails.sort(key=lambda e: e["date"])
 
     return jsonify({"data": emails})
+
+@app.route("/mail-day-emails", methods=["POST"])
+def send_mail_day_emails():
+    """chatroom-day-messages(메신저: 하루치 대화 원문)의 메일판. 상세보기에서
+    /mail-person-daily-stats로 받은 일별 목록 중 하루를 클릭했을 때, 그날 이 사람과
+    주고받은 메일 전체(본문 포함)를 반환. 기존 /mail-person-emails의 파일 캐시 방식과
+    달리, documents.parquet(GraphRAG 산출물)에서 직접 본문을 읽는다."""
+    data = request.json or {}
+    user_id        = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    date           = data.get("date", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+
+    mail_refs = get_person_mail_ids_in_range(user_id, person_mail_id, date, date)
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    bodies = get_mail_bodies_by_ids(paths, {ref["id"] for ref in mail_refs})
+    emails = [
+        {**bodies[ref["id"]], "id": ref["id"], "direction": ref["direction"], "date": ref["date"]}
+        for ref in mail_refs if ref["id"] in bodies
+    ]
+    emails.sort(key=lambda e: e["date"])
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "date":           date,
+        "data": {"emails": emails},
+    })
 
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
