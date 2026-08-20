@@ -1340,6 +1340,24 @@ def send_chatroom_summaries():
     if summaries is None:
         return jsonify({"error": "chatroom not found"}), 404
 
+    # image_url은 DB(message_summarize)가 아니라 message_summaries.json에만 있고
+    # 요약 생성 뒤 이미지 생성이 끝나는 대로 채워지므로, 여기서 summary_period 기준으로
+    # 병합해 내려준다(스키마 변경 없이 파일을 그대로 읽어 붙이는 방식).
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    image_urls = {}
+    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
+        try:
+            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
+                file_summaries = json.load(f)
+            for period, info in file_summaries.get(summarize_unit, {}).items():
+                if info.get("image_url"):
+                    image_urls[period] = info["image_url"]
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    for s in summaries:
+        s["image_url"] = image_urls.get(s["summary_period"])
+
     return jsonify({
         "chatroom_id":    chatroom_id,
         "summarize_unit": summarize_unit,
