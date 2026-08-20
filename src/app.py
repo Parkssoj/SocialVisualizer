@@ -75,6 +75,7 @@ from util.database.db_reader import (
     get_keywords_by_person_date,
     get_mail_date_range,
     get_mail_exchange_stats,
+    get_mail_person_daily_stats,
     calculate_eis,
     get_person_descriptions,
     get_mail_relationships,
@@ -1070,6 +1071,27 @@ def send_mail_exchange_stats():
         return jsonify({"error": "start_date and end_date are required"}), 400
 
     return jsonify({"data": get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date)})
+
+@app.route("/mail-person-daily-stats", methods=["POST"])
+def send_mail_person_daily_stats():
+    data = request.json or {}
+    user_id       = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    month          = data.get("month", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "month":          month,
+        "data": get_mail_person_daily_stats(user_id, person_mail_id, month),
+    })
 
 @app.route("/messenger-chatrooms", methods=["POST"])
 def send_messenger_chatrooms():

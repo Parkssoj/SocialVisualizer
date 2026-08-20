@@ -34,6 +34,20 @@ export async function initAccountPicker(container, onChange, options = {}) {
     const data = await res.json();
     const accounts = data.accounts || [];
 
+    // 메신저(카카오 등)는 user_id가 40자리 chatroom_id 해시라 그대로 보여주면
+    // 어느 방인지 알 수 없음 — POST /chatroom-name으로 방마다 실제 이름을 받아와
+    // 드롭다운 라벨에만 쓴다(값/저장은 여전히 chatroom_id 기준, 이름은 표시용).
+    // 이름 조회가 실패(400/404)한 방은 그냥 원래 id를 그대로 보여준다.
+    let nameById = {};
+    if (domain === 'messenger' && accounts.length > 0) {
+      const names = await Promise.all(
+        accounts.map(acc => fetchChatroomName(acc.user_id)),
+      );
+      accounts.forEach((acc, i) => {
+        if (names[i]) nameById[acc.user_id] = names[i];
+      });
+    }
+
     if (select) {
       select.innerHTML = '';
       if (accounts.length === 0) {
@@ -46,7 +60,8 @@ export async function initAccountPicker(container, onChange, options = {}) {
         accounts.forEach(acc => {
           const opt = document.createElement('option');
           opt.value = acc.user_id;
-          opt.textContent = acc.user_id + (acc.indexed ? '' : ' (인덱싱 중)');
+          const label = nameById[acc.user_id] || acc.user_id;
+          opt.textContent = label + (acc.indexed ? '' : ' (인덱싱 중)');
           if (acc.user_id === effective) opt.selected = true;
           select.appendChild(opt);
         });
@@ -71,13 +86,30 @@ export async function initAccountPicker(container, onChange, options = {}) {
   return effective;
 }
 
+/** POST /chatroom-name — chatroom_id로 실제 채팅방 이름을 조회. 400/404 등
+ * 실패 시 null을 반환해서 호출부가 원래 id로 폴백할 수 있게 한다. */
+async function fetchChatroomName(chatroomId) {
+  try {
+    const res = await fetch('/chatroom-name', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatroom_id: chatroomId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.data?.chatroom_name || null;
+  } catch (err) {
+    return null;
+  }
+}
+
 function injectStyle() {
   if (document.getElementById('gw-account-picker-style')) return;
   const style = document.createElement('style');
   style.id = 'gw-account-picker-style';
   style.textContent = `
     .gw-account-picker { padding:7px 12px; border-radius:8px; border:1px solid #dde3ea; font-size:0.85rem; background:#fff; color:#2A3F54; cursor:pointer; }
-    .gw-account-picker:focus { outline:none; border-color:#26B99A; box-shadow:0 0 0 3px rgba(38,185,154,0.12); }
+    .gw-account-picker:focus { outline:none; border-color:#8a8a8a; box-shadow:0 0 0 3px rgba(138, 138, 138,0.12); }
   `;
   document.head.appendChild(style);
 }

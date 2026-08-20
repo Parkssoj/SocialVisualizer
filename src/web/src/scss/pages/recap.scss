@@ -93,8 +93,8 @@
   border-radius: 20px;
   padding: 28px 32px;
   margin-bottom: 22px;
-  box-shadow: 0 4px 24px rgba(67, 20, 7, 0.09);
-  border: 1px solid rgba(254, 215, 170, 0.6);
+  box-shadow: 0 8px 28px rgba(67, 20, 7, 0.2);
+  border: none;
 }
 .rc-card-header {
   display: flex;
@@ -159,13 +159,15 @@
   padding: 16px;
   background: #fff5f5;
   border-radius: 10px;
-  border: 1px solid #fecaca;
+  border: none;
+  box-shadow: 0 4px 14px rgba(231, 76, 60, 0.15);
 }
 
 /* ── 1위 하이라이트 카드 ── */
 .rc-rank1-card {
   background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-  border: 2px solid #fcd34d;
+  border: none;
+  box-shadow: 0 6px 20px rgba(252, 211, 77, 0.35);
   border-radius: 16px;
   padding: 20px 24px;
   display: flex;
@@ -307,7 +309,7 @@
   background: linear-gradient(90deg, #a5b4fc, #818cf8);
 }
 .rc-bar-fill.rank3 {
-  background: linear-gradient(90deg, #86efac, #4ade80);
+  background: linear-gradient(90deg, #C8C8C8, #A7A7A7);
 }
 .rc-bar-count {
   font-size: 0.85rem;
@@ -335,7 +337,8 @@
   padding: 18px 14px 14px;
   border-radius: 14px;
   background: #fafbff;
-  border: 1.5px solid #e8edf5;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
   margin-top: 4px;
   display: flex;
   flex-wrap: wrap;
@@ -517,7 +520,7 @@
   color: #fff;
 }
 .rc-sync-tile--teal {
-  background: linear-gradient(145deg, #0f766e, #14b8a6);
+  background: linear-gradient(145deg, #565656, #858585);
   color: #fff;
 }
 .rc-sync-tile-icon {
@@ -563,7 +566,7 @@
   font-size: 2.8rem;
   font-weight: 900;
   letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #f87171, #fbbf24, #4ade80);
+  background: linear-gradient(135deg, #f87171, #fbbf24, #A7A7A7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

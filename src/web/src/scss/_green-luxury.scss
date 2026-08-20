@@ -233,7 +233,7 @@ body {
   background: linear-gradient(
     135deg,
     rgba(249, 115, 22, 0.25) 0%,
-    rgba(15, 122, 82, 0.18) 100%
+    rgba(85, 85, 85, 0.18) 100%
   ) !important;
   color: #fff !important;
   border: 1px solid rgba(253, 186, 116, 0.2) !important;
@@ -284,7 +284,7 @@ body {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    color: rgba(184, 217, 200, 0.75) !important;
+    color: rgba(205, 205, 205, 0.75) !important;
     font-size: 12.5px !important;
     font-weight: 400 !important;
     padding: 10px 14px 10px 46px !important;
@@ -393,11 +393,9 @@ body {
 }
 
 .dropdown-menu {
-  border: 1px solid var(--gt-border-color) !important;
+  border: none !important;
   border-radius: var(--gt-radius-lg) !important;
-  box-shadow:
-    0 8px 32px rgba(15, 36, 25, 0.12),
-    0 2px 8px rgba(15, 36, 25, 0.06) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
   padding: 6px !important;
   margin-top: 6px !important;
 
@@ -459,13 +457,13 @@ body {
   font-weight: 600 !important;
   font-size: 13px !important;
   letter-spacing: 0.01em !important;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3) !important;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3) !important;
   transition: all var(--gt-transition-fast) !important;
 
   &:hover,
   &:focus {
     background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%) !important;
-    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.45) !important;
+    box-shadow: 0 3px 9px rgba(249, 115, 22, 0.4) !important;
     transform: translateY(-1px);
   }
   &:active {
@@ -475,15 +473,16 @@ body {
 
 .btn-default {
   background: #fff !important;
-  border: 1.5px solid var(--gt-border-color) !important;
+  border: none !important;
   color: var(--gt-text-dark) !important;
   border-radius: var(--gt-radius-md) !important;
   font-weight: 500 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
 
   &:hover {
-    border-color: var(--gt-primary) !important;
     color: var(--gt-primary) !important;
     background: var(--gt-primary-glow) !important;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.25) !important;
   }
 }
 
@@ -563,8 +562,8 @@ select {
 }
 
 .badge.bg-info {
-  background: rgba(14, 165, 160, 0.15) !important;
-  color: #0ea5a0 !important;
+  background: rgba(119, 119, 119, 0.15) !important;
+  color: #777777 !important;
 }
 .badge.bg-warning {
   background: rgba(212, 168, 67, 0.15) !important;
@@ -640,11 +639,12 @@ a {
 
 .gw-search-box button {
   background: var(--gt-gradient-primary) !important;
-  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35) !important;
+  border: none !important;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3) !important;
 
   &:hover {
     background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%) !important;
-    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5) !important;
+    box-shadow: 0 3px 9px rgba(249, 115, 22, 0.42) !important;
   }
 }
 
@@ -660,9 +660,9 @@ a {
 }
 
 .gw-result-card {
-  border: 1px solid var(--gt-border-color) !important;
+  border: none !important;
   border-radius: var(--gt-radius-lg) !important;
-  box-shadow: var(--gt-shadow-card) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14) !important;
 }
 
 // ── 푸터 ─────────────────────────────────────────────────────────────────────
