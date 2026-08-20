@@ -35,9 +35,9 @@ footer {
   gap: 12px;
 }
 /* accountPicker.js가 주입하는 .gw-account-picker 기본 폰트(0.85rem)를
-   페이지 공통 크기(0.78rem)로 오버라이드 */
+   페이지 공통 크기(1rem)로 오버라이드 */
 #account-picker-mount .gw-account-picker {
-  font-size: 0.78rem;
+  font-size: 1rem;
 }
 /* My People의 .mp-title과 동일한 폰트/크기 */
 .mt-title {
@@ -70,7 +70,7 @@ footer {
   min-width: 72px;
   border-radius: 6px;
   border: none;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   background: transparent;
@@ -105,7 +105,7 @@ footer {
   border-radius: 20px;
   padding: 4px 12px;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #302522;
   transition:
@@ -181,7 +181,7 @@ footer {
   justify-content: center;
   background: linear-gradient(150deg, #f4dce3, #d96c8a);
   color: #302522;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 800;
 }
 /* 아바타 밑 "My" 라벨 */
@@ -230,7 +230,7 @@ footer {
   display: block;
 }
 .mt-side-image-box span {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -315,7 +315,7 @@ footer {
 /* 기간 레이블 */
 .mt-node-label {
   margin-top: 10px;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 700;
   color: rgba(48, 37, 34, 0.55);
   white-space: nowrap;
@@ -330,7 +330,7 @@ footer {
 /* 메일 수 */
 .mt-node-count {
   margin-top: 3px;
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: #d96c8a;
   font-weight: 500;
   transition: color 0.15s;
@@ -381,29 +381,29 @@ footer {
   margin-bottom: 12px;
 }
 .mt-panel-period {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 800;
   color: #f97316;
   letter-spacing: 0.04em;
 }
 .mt-panel-count {
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: rgba(48, 37, 34, 0.55);
   font-weight: 500;
 }
 .mt-panel-count strong {
   color: #302522;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 .mt-panel-summary {
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: #302522;
   line-height: 1.75;
   margin-bottom: 14px;
 }
 .mt-panel-contacts-title {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #d96c8a;
   letter-spacing: 1.2px;
@@ -416,7 +416,7 @@ footer {
   gap: 6px;
 }
 .mt-panel-contact {
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: #302522;
   background: #f4dce3;
   border-radius: 20px;
@@ -443,7 +443,7 @@ footer {
 }
 /* My People .mp-tl-date-label과 동일 */
 .mt-pointer-date-label {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #302522;
   background: #fff6ef;
@@ -452,7 +452,7 @@ footer {
   letter-spacing: 0.02em;
 }
 .mt-pointer-label {
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #d96c8a;
   letter-spacing: 1.5px;
@@ -520,7 +520,7 @@ footer {
   border-radius: 50%;
   background: linear-gradient(150deg, #f4dce3, #d96c8a);
   color: #302522;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -565,7 +565,7 @@ footer {
 }
 /* My People .mp-tl-tick-lbl과 동일 */
 .mt-pa-lbl {
-  font-size: 0.78rem;
+  font-size: 1rem;
   color: rgba(48, 37, 34, 0.65);
   font-weight: 600;
   white-space: nowrap;
@@ -593,5 +593,5 @@ footer {
   margin-bottom: 10px;
 }
 .mt-empty p {
-  font-size: 0.78rem;
+  font-size: 1rem;
 }
