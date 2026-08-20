@@ -318,7 +318,8 @@ def generate_person_descriptions(paths) -> dict:
     parquet에서 각 person의 이름·소속·주제·메일 수를 수집하고
     LLM으로 줄글 프로필을 생성해 dict로 반환한다 (DB 저장은 호출자가 담당).
 
-    반환: { person_email: "이름: ...\n관계: ...\n자주 주고 받은 내용: ..." }
+    반환: { person_email: {"description": "이름: ...\n관계: ...\n자주 주고 받은 내용: ...",
+                          "relation_label": "가족|연인|친구|동료|사제|지인|기업" | None} }
     """
     import pandas as pd
 
@@ -396,6 +397,7 @@ def generate_person_descriptions(paths) -> dict:
 
     descriptions: dict[str, str] = {}
     my_email = paths.USER_ID.lower()
+    my_orgs = person_to_orgs.get(my_email, set())
 
     # 프롬프트 데이터 수집
     person_prompts = []
@@ -409,7 +411,9 @@ def generate_person_descriptions(paths) -> dict:
         total_mails = counts['sent'] + counts['received'] + counts['cc']
 
         name = person_name_map.get(person_email, '')
-        orgs = list(person_to_orgs[person_email])
+        person_orgs = person_to_orgs[person_email]
+        orgs = list(person_orgs)
+        same_org = bool(person_orgs & my_orgs)
 
         topic_counter: dict[str, int] = {}
         for eid in person_to_emails[person_email]:
@@ -427,13 +431,31 @@ def generate_person_descriptions(paths) -> dict:
 상대방 이메일: {person_email}
 이름: {name if name else '알 수 없음'}
 소속 조직: {', '.join(orgs) if orgs else '없음'}
+나와 같은 조직 소속 여부: {'예' if same_org else '아니오'}
 주고받은 메일 수: {total_mails}건 (보낸 {counts['sent']}건 / 받은 {counts['received']}건)
 주요 대화 주제:
 {topics_text}
 
 아래 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요.
-관계: <이 사람과 나의 관계를 한 문장으로>
-자주 주고 받은 내용: <주로 어떤 내용으로 메일을 주고받는지 한 문장으로>""".strip()
+"관계:" 줄은 반드시 대괄호 태그 [관계: <카테고리>]로 시작해야 합니다. <카테고리>는 가족, 연인, 친구, 동료, 사제, 지인, 기업 중 하나만 사용하세요. 대괄호를 빼먹거나 다른 단어를 쓰면 안 됩니다.
+
+카테고리 판단 기준(위에서부터 순서대로 확인):
+1. 상대방이 실제 개인이 아니라 기업/서비스/뉴스레터/알림 등 자동발신 계정으로 보이면(예: 이름이 회사·서비스·팀 명의이거나 no-reply류 발신) 무조건 "기업".
+2. "나와 같은 조직 소속 여부"가 "예"이고 다른 뚜렷한 근거가 없으면 "동료".
+3. 메일을 몇 건 주고받지 않았거나 업무/공지성 내용뿐이면 "지인".
+4. 가족, 연인, 사제는 이름/호칭이나 대화 주제에서 그 관계가 명확히 드러날 때만 사용하세요. 근거가 약하면 절대 추측하지 말고 "지인" 또는 "동료"를 쓰세요.
+
+형식:
+관계: [관계: <카테고리>] <이 사람과 나의 관계를 한 문장으로>
+자주 주고 받은 내용: <주로 어떤 내용으로 메일을 주고받는지 한 문장으로>
+
+예시 1 (동료 관계인 사람):
+관계: [관계: 동료] 같은 팀에서 프로젝트 진행 상황을 자주 공유하는 사이
+자주 주고 받은 내용: 주간 업무 보고와 일정 조율
+
+예시 2 (기업/서비스 발신자):
+관계: [관계: 기업] Google 계정 관련 알림을 보내는 서비스
+자주 주고 받은 내용: 보안 알림 및 계정 안내""".strip()
 
         person_prompts.append((person_email, name, prompt))
 
@@ -455,22 +477,35 @@ def generate_person_descriptions(paths) -> dict:
             content_m = re.search(r'자주 주고 받은 내용:\s*(.+)', llm_output)
             relationship = rel_m.group(1).strip()     if rel_m     else ''
             content      = content_m.group(1).strip() if content_m else ''
-            return person_email, (
+
+            # 메신저 relation_label과 동일한 "[관계: 카테고리]" 태그 파싱 (graphrag_parquet2json.py
+            # _RELATION_TAG_RE 참고). person.relation_label 컬럼으로 분리 저장하고, description에
+            # 남는 "관계:" 줄에서는 태그를 떼어내 순수 설명 문장만 남긴다.
+            tag_m = re.match(r'^\[관계:\s*([^\]]+?)\]\s*', relationship)
+            relation_label = tag_m.group(1).strip() if tag_m else None
+            if tag_m:
+                relationship = relationship[tag_m.end():].strip()
+
+            description = (
                 f"이름: {name if name else '알 수 없음'}\n"
                 f"관계: {relationship}\n"
                 f"자주 주고 받은 내용: {content}"
             )
+            return person_email, description, relation_label
         except Exception as e:
             print(f"[PROFILES] LLM 호출 실패 ({person_email}): {e}")
-            return person_email, None
+            return person_email, None, None
 
     with ThreadPoolExecutor(max_workers=min(len(person_prompts), 15)) as executor:
         futures = {executor.submit(_call_llm, email, name, prompt): email
                    for email, name, prompt in person_prompts}
         for future in as_completed(futures):
-            person_email, desc = future.result()
+            person_email, desc, relation_label = future.result()
             if desc:
-                descriptions[person_email] = desc
+                descriptions[person_email] = {
+                    "description": desc,
+                    "relation_label": relation_label,
+                }
                 # print(f"[PROFILES] 완료: {person_email}")
 
     print(f"[PROFILES] 총 {len(descriptions)}명 프로필 생성 완료")

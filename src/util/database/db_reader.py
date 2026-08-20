@@ -512,7 +512,7 @@ def get_person_descriptions(user_id: str) -> list:
     try:
         # person_account_id로 alias: 프론트/avatar_generator가 기대하는 기존 API 응답 키 유지
         cursor.execute("""
-            SELECT person_mail_account_id AS person_account_id, person_name, description
+            SELECT person_mail_account_id AS person_account_id, person_name, description, relation_label
             FROM person
             WHERE user_mail_account_id = %s AND index_date = %s
               AND description IS NOT NULL AND description != ''
