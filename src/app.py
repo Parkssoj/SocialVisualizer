@@ -125,6 +125,8 @@ from util.database.chatroom_reader import (
     get_chatroom_mood,
     get_chatroom_keywords_by_person,
     get_chatroom_person_monthly_stats,
+    get_chatroom_person_daily_stats,
+    get_chatroom_day_messages,
     get_chatroom_summaries,
 )
 from util.extract_statics import start_statics_pipeline_background
@@ -1060,7 +1062,10 @@ def send_mail_exchange_stats():
 
 @app.route("/messenger-chatrooms", methods=["POST"])
 def send_messenger_chatrooms():
-    chatrooms = list_indexed_chatrooms(BASE_DIR)
+    data = request.json or {}
+    start_date = (data.get("start_date") or "").strip() or None
+    end_date   = (data.get("end_date") or "").strip() or None
+    chatrooms = list_indexed_chatrooms(BASE_DIR, start_date, end_date)
     return jsonify({"data": {"chatrooms": chatrooms}})
 
 @app.route("/messenger-date-range", methods=["POST"])
@@ -1219,13 +1224,15 @@ def send_chatroom_person_monthly_stats():
     data = request.json or {}
     chatroom_id    = data.get("chatroom_id", "").strip()
     participant_id = data.get("participant_id", "").strip()
+    start_date     = (data.get("start_date") or "").strip() or None
+    end_date       = (data.get("end_date") or "").strip() or None
 
     if not chatroom_id:
         return jsonify({"error": "chatroom_id is required"}), 400
     if not participant_id:
         return jsonify({"error": "participant_id is required"}), 400
 
-    stats = get_chatroom_person_monthly_stats(chatroom_id, participant_id)
+    stats = get_chatroom_person_monthly_stats(chatroom_id, participant_id, start_date, end_date)
     if stats is None:
         return jsonify({"error": "chatroom not found"}), 404
     if stats is False:
@@ -1235,6 +1242,54 @@ def send_chatroom_person_monthly_stats():
         "chatroom_id":    chatroom_id,
         "participant_id": participant_id,
         "data": stats,
+    })
+
+@app.route("/chatroom-person-daily-stats", methods=["POST"])
+def send_chatroom_person_daily_stats():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip()
+    month          = data.get("month", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    stats = get_chatroom_person_daily_stats(chatroom_id, participant_id, month)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+    if stats is False:
+        return jsonify({"error": "person not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "month":          month,
+        "data": stats,
+    })
+
+@app.route("/chatroom-day-messages", methods=["POST"])
+def send_chatroom_day_messages():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    date        = data.get("date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+
+    messages = get_chatroom_day_messages(BASE_DIR, chatroom_id, date)
+    if messages is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "date":        date,
+        "data": {"messages": messages},
     })
 
 @app.route("/chatroom-summaries", methods=["POST"])

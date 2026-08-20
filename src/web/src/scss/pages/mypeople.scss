@@ -350,19 +350,32 @@ footer {
   align-items: start;
 }
 
-/* 단톡방 카드 아바타 = 참여자 이니셜 원을 인원수만큼 분할해 채움. 실제 grid-template-*
-   /font-size는 인원수에 따라 mypeople.js(buildRoomAvatarHtml)가 인라인으로 계산해서 넣음. */
+/* 단톡방 카드 아바타 = 참여자 이니셜 원을 인원수만큼 분할해 채움. 실제 행 구성/font-size는
+   인원수에 따라 mypeople.js(buildRoomAvatarHtml)가 계산해서 넣음. CSS grid 대신 "줄(row)마다
+   독립된 flex 컨테이너"로 만들어서, 홀수 인원이라 마지막 줄 칸 수가 안 맞아도(예: 5명 = 3+2)
+   빈 칸 없이 원을 꽉 채움. */
 .mp-room-avatar {
   overflow: hidden;
+  /* .mp-avatar의 clamp는 이 패널 전체 너비(cqw) 기준이라 방 카드가 커져도 그대로였음 —
+     방 카드는 사람 카드보다 훨씬 넓으니 아바타 원 자체도 그만큼 크게 별도 지정 */
+  max-width: clamp(180px, 20cqw, 280px);
+  min-width: clamp(100px, 11cqw, 150px);
 }
 .mp-room-avatar-grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   gap: 1px;
 }
+.mp-room-avatar-row {
+  display: flex;
+  flex: 1;
+  gap: 1px;
+}
 .mp-room-avatar-cell {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
   color: #fff;
@@ -371,18 +384,20 @@ footer {
 }
 
 /* 단톡방 카드는 사람 카드보다 눈에 띄게 커야 해서, 같은 .mp-grid를 쓰되 열 수를
-   절반 정도로 줄여 카드 한 장의 면적이 약 4배가 되도록 함 */
+   줄여 카드를 키움. 아바타 원 자체는 .mp-room-avatar의 clamp 상한(280px)에 이미 걸려
+   더는 안 커지므로, 카드를 그보다 훨씬 크게 키워봐야 원 주변 여백만 늘어남 — 그래서
+   원래보다 열을 하나씩 더 넣어 카드를 조금 줄임(그래도 사람 카드보다는 확실히 큼) */
 .mp-room-grid {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
 }
 @media (max-width: 1280px) {
   .mp-room-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 @media (max-width: 960px) {
   .mp-room-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -476,6 +491,19 @@ footer {
 }
 .mp-card.ca-fade:hover {
   box-shadow: 0 12px 24px var(--ca-shadow-hover);
+}
+
+/* 메신저 탭 카드(단톡방/참여자)는 친밀도 같은 개념이 없어서 .ca-fade 대신 고정된
+   옅은 민트 배경을 씀 — 메일 카드가 기본적으로 가지는 "칸 배경"과 같은 톤이라 카드
+   경계가 배경과 안 섞이고 잘 보임 */
+.mp-room-card,
+.mp-person-card {
+  background: linear-gradient(150deg, #fafcfb, #eef3f0);
+  box-shadow: 0 3px 14px rgba(114, 203, 181, 0.14);
+}
+.mp-room-card:hover,
+.mp-person-card:hover {
+  box-shadow: 0 10px 22px rgba(114, 203, 181, 0.22);
 }
 
 .mp-avatar {
@@ -888,6 +916,29 @@ footer {
   margin: 0;
   letter-spacing: 0.01em;
 }
+/* 메신저 상세: 헤더에서 "나" 아바타/관계선을 숨기는 대신 그 자리에 이 사람의 설명을 보여줌
+   (openMessengerDetail이 .show를 붙이고, openDetail(메일)은 뗌) */
+.mp-detail-messenger-desc {
+  display: none;
+  font-size: clamp(0.7rem, 0.8cqw, 0.84rem);
+  color: #5a6a62;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+.mp-detail-messenger-desc.show {
+  display: block;
+}
+/* 메신저 상세에서만 이름/부제/설명 칸이 헤더의 남는 폭을 다 가져가게 늘림(스크롤 대신
+   설명이 옆으로 넓게 펼쳐지도록) — openMessengerDetail이 이 클래스를 붙이고, openDetail
+   (메일)은 뗌. 메일 쪽은 이 클래스가 안 붙으니 기존 가운데 정렬 그대로 유지됨 */
+.mp-detail-namewrap-wide {
+  flex: 1;
+  min-width: 0;
+  /* 헤더 오른쪽 아래에 절대배치되는 탭 버튼(.mp-detail-tab-group)과 겹치지 않도록,
+     그 자리만큼 오른쪽 여백을 비워둠 */
+  padding-right: clamp(220px, 26cqw, 320px);
+  box-sizing: border-box;
+}
 
 /* 탭 미니 버튼 그룹 (헤더 하단 경계선 바로 위 오른쪽) */
 .mp-detail-tab-group {
@@ -1258,6 +1309,84 @@ footer {
   color: #a39a8d;
 }
 
+/* ── 메신저 상세: 월 클릭 → 일별 목록 → 하루 클릭 → 그날 대화 (메일 드로어 재사용) ── */
+.mp-day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.mp-day-row:hover {
+  border-color: #26b99a;
+  background: rgba(38, 185, 154, 0.06);
+}
+.mp-day-row-date {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+.mp-day-row-count {
+  font-size: 0.82rem;
+  color: #8a8073;
+  background: rgba(28, 28, 30, 0.06);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+.mp-chatline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+.mp-chatline {
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.mp-chatline.system {
+  background: transparent;
+  border: none;
+  text-align: center;
+  color: #a39a8d;
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 4px 0;
+}
+.mp-chatline-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mp-chatline-sender {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a6e4a;
+}
+.mp-chatline-time {
+  font-size: 0.74rem;
+  color: #a39a8d;
+}
+.mp-chatline-text {
+  font-size: 0.9rem;
+  color: #2c2c2e;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* 워드 클라우드 */
 .mp-wc-wrap {
   flex: 1;
@@ -1507,5 +1636,30 @@ footer {
   .mp-timeline {
     left: 28px;
     right: 28px;
+  }
+}
+
+/* 메신저 상세보기 전용 글자 크기 통일 — 사진 옆 이름(#mp-detail-name)과 키워드 탭
+   내용(#mp-detail-wc)만 빼고 전부 1rem. openMessengerDetail()이 #mp-detail에
+   .mp-detail-messenger를 붙이고 openDetail()(메일)은 떼서, 메일 쪽엔 영향 없음. */
+#mp-detail.mp-detail-messenger {
+  #mp-detail-email,
+  .mp-detail-messenger-desc,
+  #mp-detail-relation-label,
+  .mp-detail-tab-btn,
+  #mp-stats-total,
+  .mp-vchart-month,
+  .mp-vchart-y span,
+  #mp-echange-list-title,
+  #mp-echange-list-count,
+  .mp-day-row-date,
+  .mp-day-row-count,
+  .mp-chatline-sender,
+  .mp-chatline-time,
+  .mp-chatline-text,
+  .mp-chatline.system,
+  .mp-back-btn,
+  .mp-empty p {
+    font-size: 1rem !important;
   }
 }
