@@ -17,7 +17,7 @@ load_dotenv("src/parquet/.env")
 
 client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
-AVATAR_MODEL = "gpt-image-1"
+AVATAR_MODEL = os.getenv("IMAGE_GENERATION_MODEL")
 AVATAR_SIZE = "1024x1024"
 AVATAR_QUALITY = "low"
 
