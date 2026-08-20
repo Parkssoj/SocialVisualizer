@@ -212,7 +212,7 @@ export default function HeroOrbit() {
           className="gw-hero-cta gw-anim"
           style={{ transitionDelay: "0.22s" }}
         >
-          <a href="search.html" className="gw-hero-cta-primary">
+          <a href="imap-collect.html" className="gw-hero-cta-primary">
             시작하기
           </a>
         </div>

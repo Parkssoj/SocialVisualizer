@@ -500,12 +500,15 @@ html {
   font-size: clamp(0.82rem, 0.6vw + 0.68rem, 0.94rem);
   font-weight: 500;
   text-decoration: none !important;
-  box-shadow: none;
-  transition: transform 0.2s;
+  box-shadow: 0 6px 18px rgba(251, 146, 60, 0.35);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .gw-hero-cta-primary:hover {
   color: #ffffff !important;
   transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(251, 146, 60, 0.45);
 }
 .gw-hero-cta-secondary {
   font-family:

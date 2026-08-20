@@ -437,18 +437,30 @@ footer {
 /* 단톡방 카드는 사람 카드보다 눈에 띄게 커야 해서, 같은 .mp-grid를 쓰되 열 수를
    줄여 카드를 키움. 아바타 원 자체는 .mp-room-avatar의 clamp 상한(280px)에 이미 걸려
    더는 안 커지므로, 카드를 그보다 훨씬 크게 키워봐야 원 주변 여백만 늘어남 — 그래서
-   원래보다 열을 하나씩 더 넣어 카드를 조금 줄임(그래도 사람 카드보다는 확실히 큼) */
-.mp-room-grid {
+   원래보다 열을 하나씩 더 넣어 카드를 조금 줄임(그래도 사람 카드보다는 확실히 큼)
+   ※ 아래 미디어쿼리들은 뒤쪽(파일 하단)의 공용 ".mp-grid, .mp-band-cards" 반응형
+   규칙과 셀렉터 우선순위가 같아서(둘 다 클래스 1개), 소스 순서상 나중에 나오는
+   공용 규칙에 열 수가 덮어써지는 문제가 있었음 — ".mp-grid.mp-room-grid"로 묶어
+   우선순위를 확실히 더 높여서 항상 이 값이 이기도록 함 */
+.mp-grid.mp-room-grid {
   grid-template-columns: repeat(5, 1fr);
 }
 @media (max-width: 1280px) {
-  .mp-room-grid {
+  .mp-grid.mp-room-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 @media (max-width: 960px) {
-  .mp-room-grid {
+  .mp-grid.mp-room-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+/* 사람 카드(.mp-grid)는 640px 이하에서도 한 단계 더 줄어드는데(4열) 단톡방
+   카드는 그 단계가 없어 좁은 화면에서 카드가 사람 카드보다 과하게 작아졌음 —
+   같은 지점에서 한 단계 더 줄여서 메일 쪽과 같은 반응형 흐름을 갖게 함 */
+@media (max-width: 640px) {
+  .mp-grid.mp-room-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -576,6 +588,17 @@ footer {
   text-align: center;
   line-height: 1.25;
   word-break: keep-all;
+  /* 단톡방 이름처럼 긴 텍스트가 카드 밖으로 삐져나오거나(overflow:hidden 때문에
+     중간에 뚝 잘려) 어색해 보이지 않도록, 사람 카드와 동일하게 최대 2줄까지만
+     보여주고 그 이상은 자연스럽게 …으로 줄임 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 .mp-period-badge {
   position: absolute;
@@ -726,7 +749,7 @@ footer {
   animation: detailIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 10;
   box-shadow:
-    0 12px 36px rgba(13, 13, 13, 0.32),
+    0 8px 22px rgba(13, 13, 13, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   /* 뷰포트(vw)가 아니라 이 패널 자신의 실제 너비를 기준으로 내부 요소들이
            반응형으로 커지고 작아지도록 컨테이너 쿼리 컨텍스트로 지정 */
@@ -831,6 +854,21 @@ footer {
   justify-content: center;
   width: calc(clamp(56px, calc(100cqh - 42px), 140px) + 26px);
   height: calc(clamp(56px, calc(100cqh - 42px), 140px) + 26px);
+}
+/* 메신저 상세보기: 나 ↔ 상대방 친밀도 개념이 없어 이 핑크 게이지 링이 항상 빈 채로만
+   보이던 장식 요소였음 — 링을 완전히 숨기고, 비워진 여백만큼 아바타 원 자체를
+   더 키운다(mypeople.js의 openMessengerDetail/openDetail이 이 클래스를 토글) */
+.mp-detail-avatar-ring.mp-ring-off {
+  width: clamp(64px, calc(100cqh - 22px), 168px);
+  height: clamp(64px, calc(100cqh - 22px), 168px);
+}
+.mp-detail-avatar-ring.mp-ring-off .mp-detail-avatar-ring-svg,
+.mp-detail-avatar-ring.mp-ring-off .mp-detail-avatar-ring-label {
+  display: none;
+}
+.mp-detail-avatar-ring.mp-ring-off .mp-detail-avatar {
+  width: 100%;
+  height: 100%;
 }
 .mp-detail-avatar-ring-svg {
   position: absolute;
@@ -1028,7 +1066,7 @@ footer {
   background: #5a94e8;
 }
 #mp-tab-stats {
-  background: #ce9e67;
+  background: #6fbf98;
 }
 #mp-tab-desc {
   background: #8cb4ef;
@@ -1037,8 +1075,8 @@ footer {
   opacity: 0.82;
 }
 .mp-detail-tab-btn.active-stats {
-  background: #ce9e67;
-  box-shadow: 0 2px 7px rgba(173, 173, 173, 0.5);
+  background: #6fbf98;
+  box-shadow: 0 2px 7px rgba(111, 191, 152, 0.5);
 }
 .mp-detail-tab-btn.active-desc {
   background: #8cb4ef;
@@ -1063,7 +1101,13 @@ footer {
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr;
-  background: linear-gradient(180deg, #FAFAFA 0%, #faf2f0 100%);
+  /* "이메일 교환" 탭 버튼(#6fbf98)과 같은 초록을 옅게 깔아서 버튼-배경이 같은
+     색 계열로 이어지게 함 */
+  background: linear-gradient(
+    180deg,
+    rgba(111, 191, 152, 0.08) 0%,
+    rgba(111, 191, 152, 0.16) 100%
+  );
 }
 
 /* 키워드 탭 패널 */
@@ -1153,10 +1197,13 @@ footer {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* 이 회색 그라데이션이 .mp-detail-body 바로 위에 덮여서, 아래 깔린 초록 배경이
+     안 보이고 이 회색만 보이는 원인이었음 — "이메일 교환" 버튼/배경과 같은
+     초록 계열로 맞춤 */
   background: linear-gradient(
     160deg,
-    rgba(222, 222, 222, 0.22) 0%,
-    rgba(239, 239, 239, 0.14) 100%
+    rgba(111, 191, 152, 0.1) 0%,
+    rgba(111, 191, 152, 0.18) 100%
   );
 }
 
@@ -1271,10 +1318,10 @@ footer {
     opacity 0.15s;
 }
 .mp-vchart-bar.sent {
-  background: linear-gradient(0deg, #9a3412, #fb923c);
+  background: linear-gradient(0deg, #4a9a72, #8ed3ab);
 }
 .mp-vchart-bar.recv {
-  background: linear-gradient(0deg, #3a72d4, #6a9ef0);
+  background: linear-gradient(0deg, #5b8fe6, #a8c8f7);
 }
 .mp-vchart-label {
   display: flex;

@@ -98,15 +98,24 @@
   font-weight: 600;
 }
 
-/* ── 카드 1(메일 계정 로그인)+2(수집 옵션)를 가로 1줄로 배치 ── */
+/* ── 카드 1(메일 계정 로그인)+2(옵션)를 가로 1줄로 배치 ──
+   flex(1 1 0%)는 이론상 두 칸이 같은 폭으로 나뉘어야 하지만, "폴더 불러오기"로
+   폴더 칩이 많이 쌓이면 그 카드의 min-content 폭이 밀고 올라와 옆 카드보다 넓어지는
+   문제가 있었음. grid는 트랙 폭(1fr 1fr)이 내용과 무관하게 고정되므로 이 문제가 없음. */
 .gw-collect-cards-row {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
   gap: 20px;
   margin-bottom: 20px;
 }
+/* 좁은 화면에서는 두 카드가 나란히 눌리는 대신 세로로 쌓이도록 */
+@media (max-width: 900px) {
+  .gw-collect-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
 .gw-collect-cards-row .gw-card {
-  flex: 1;
   min-width: 0;
   margin-bottom: 0;
 }
@@ -242,16 +251,32 @@
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
-/* ── 폴더 체크박스 ── */
+/* ── 폴더 체크박스 ──
+   폴더가 많아지면 칩이 카드 폭을 밀어 넓히는 대신, 세로로만 늘어나되 일정 높이부터는
+   내부 스크롤로 처리 — 카드 폭은 항상 옵션 카드와 동일하게 유지됨 */
 .gw-folder-list {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #e4e4e4 transparent;
+}
+.gw-folder-list::-webkit-scrollbar {
+  width: 4px;
+}
+.gw-folder-list::-webkit-scrollbar-thumb {
+  background: #e4e4e4;
+  border-radius: 4px;
 }
 .gw-folder-item {
   display: flex;
   align-items: center;
   gap: 7px;
+  max-width: 100%;
   padding: 7px 14px;
   border: none;
   border-radius: 8px;
@@ -284,6 +309,10 @@
 .gw-folder-label {
   font-size: 1rem;
   color: #2a3f54;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .gw-folder-empty {
   color: #aaa;

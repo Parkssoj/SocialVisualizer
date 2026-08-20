@@ -234,7 +234,6 @@ function resolveDisplayName(p) {
          채도·명도를 진하게 만들어 "친밀도가 낮으면 흐린 민트, 높으면 짙은 에메랄드"로
          자연스럽게 이어지는 그라데이션을 만든다(구간별 다른 색이 아니라 연속값). */
 const AFFINITY_HUE = 158; // 친밀도: 초록 계열 (카드 색상용, 현재 CSS에서 비활성화됨)
-const AFFINITY_BAND_HUE = 28; // 친밀도 밴드 배경: 은은한 주황 계열 (너무 찐한 색 방지를 위해 채도를 낮게 유지)
 
 /* 지정한 색조(hue)에 채도/명도 값을 직접 넣어 카드 그라데이션·그림자·글자색을 만드는 공용 함수.
          밝은 쪽/어두운 쪽에 색조를 살짝 다르게 줘서(단색 명암 대비가 아니라) 더 입체적이고
@@ -575,12 +574,15 @@ function renderCards() {
 const AFFINITY_BAND_COUNT = 5;
 // 밴드 배경(hsl) — 카드 자체 색(AFFINITY_TIERS)보다 훨씬 옅게 깔아서 카드 색이 묻히지 않게 함.
 // 실제 밴드 수가 5보다 적으면(값 종류가 적을 때) 앞에서부터만 사용됨.
+// 예전엔 색조(hue) 고정 + 채도만 낮추는 방식이라 아래로 갈수록 그냥 "탁하게 바래는" 느낌이었음.
+// 지금은 상위(코랄 오렌지) → 하위(따뜻한 크림)로 색조 자체도 같이 이동시켜서, 채도/명도가
+// 낮아지는 밴드에서도 칙칙해 보이지 않고 자연스러운 무드의 그라데이션으로 이어지게 함.
 const AFFINITY_BAND_BG = [
-  { sat: 46, light: 90 }, // 상위 밴드
-  { sat: 34, light: 92.5 },
-  { sat: 24, light: 94.5 },
-  { sat: 15, light: 96.5 },
-  { sat: 6, light: 98.5 }, // 하위 밴드
+  { hue: 18, sat: 78, light: 91 }, // 상위 밴드 — 생동감 있는 코랄 오렌지
+  { hue: 24, sat: 60, light: 93 },
+  { hue: 30, sat: 42, light: 94.5 },
+  { hue: 36, sat: 26, light: 96.5 },
+  { hue: 42, sat: 12, light: 98.5 }, // 하위 밴드 — 은은한 크림
 ];
 
 /* 1차원 k-means(Lloyd's algorithm) — values 안에서 자연스러운 k개의 중심을 찾는다.
@@ -667,7 +669,7 @@ function renderAffinityBands(list, cardHtml) {
 
     const bg =
       AFFINITY_BAND_BG[b] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
-    const bandBg = `hsl(${AFFINITY_BAND_HUE} ${bg.sat}% ${bg.light}%)`;
+    const bandBg = `hsl(${bg.hue} ${bg.sat}% ${bg.light}%)`;
 
     const cardsHtml = bandPeople.map((p) => cardHtml(p, globalIdx++)).join("");
 
@@ -1569,7 +1571,7 @@ function renderBarChart(data) {
     const mid = Math.round(maxVal / 2);
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
-  const YEAR_COLORS = ["#626262", "#5a94e8"];
+  const YEAR_COLORS = ["#12886e", "#5a94e8"];
   const years = [...new Set(data.monthly.map((m) => m.month.split("-")[0]))];
   const yearColorMap = {};
   years.forEach((y, i) => {
@@ -1591,6 +1593,9 @@ function renderBarChart(data) {
   // 막대 높이는 JS로 픽셀을 계산하지 않고 %로 넘겨서 CSS 레이아웃이 실제 렌더링
   // 시점의 진짜 높이를 기준으로 그리게 한다 — clientHeight를 읽는 타이밍에 따라
   // 계산이 어긋나 막대가 컨테이너보다 커져버리는 문제를 원천적으로 없앤다.
+  // 연/월 몇 개 안 되는 경우가 많아서 내용 크기대로 두고 가운데 정렬하면 좌우에 빈
+  // 여백만 커 보이므로, 메신저 차트와 동일하게 연도 블록과 월 막대 모두 flex:1로
+  // 늘려 항상 패널 전체 너비를 채우게 한다.
   const html = yearGroups
     .map((g) => {
       const yColor = yearColorMap[g.year];
@@ -1599,24 +1604,24 @@ function renderBarChart(data) {
           const sentPct = Math.max(2, Math.round((m.sent / maxVal) * 100));
           const recvPct = Math.max(2, Math.round((m.received / maxVal) * 100));
           const mon = m.month.split("-")[1];
-          return `<div class="mp-vchart-group">
+          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${sentPct}%" title="보낸: ${m.sent}"></div>
                 <div class="mp-vchart-bar recv" style="height:${recvPct}%" title="받은: ${m.received}"></div>
               </div>
-              <div class="mp-vchart-label"><span class="mp-vchart-month">${mon}</span></div>
+              <div class="mp-vchart-label"><span class="mp-vchart-month">${mon}월</span></div>
             </div>`;
         })
         .join("");
-      return `<div style="display:flex;flex-direction:column;align-items:stretch;height:100%;background:${yColor}14;border-radius:8px;padding:0 6px;flex-shrink:0;">
+      return `<div style="display:flex;flex-direction:column;align-items:stretch;height:100%;background:${yColor}14;border-radius:8px;padding:0 6px;flex:1;min-width:0;">
             <div style="text-align:center;padding:0 0 6px;flex-shrink:0;">
-              <span style="display:inline-block;font-size:1rem;font-weight:800;color:#fff;background:${yColor};padding:2px 11px;border-radius:8px;letter-spacing:0.02em;">${g.year}</span>
+              <span style="display:inline-block;font-size:0.74rem;font-weight:800;color:#fff;background:${yColor};padding:2px 11px;border-radius:8px;letter-spacing:0.02em;">${g.year}</span>
             </div>
             <div style="display:flex;align-items:flex-end;gap:5px;flex:1;min-height:0;">${monthsHtml}</div>
           </div>`;
     })
     .join("");
-  chartArea.innerHTML = `<div style="display:inline-flex;align-items:stretch;gap:10px;min-width:100%;height:100%;justify-content:center;padding:0 8px;box-sizing:border-box;">${html}</div>`;
+  chartArea.innerHTML = `<div style="display:flex;align-items:stretch;gap:10px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;">${html}</div>`;
 }
 
 /* ── 메신저 참여자 상세: 월별 메시지 수 그래프 (보낸/받은 구분이 없는 단일 계열이라
@@ -1665,7 +1670,7 @@ function renderMessengerBarChart(data) {
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${pct}%" title="${m.count}건"></div>
               </div>
-              <div class="mp-vchart-label"><span class="mp-vchart-month">${mon}</span></div>
+              <div class="mp-vchart-label"><span class="mp-vchart-month">${mon}월</span></div>
             </div>`;
         })
         .join("");
@@ -2099,11 +2104,11 @@ async function openDetail(person, rowIndex) {
   document.getElementById("mp-tab-kw").textContent = "키워드";
   closeEmailDrawer(); // 이전 사람의 메일 목록 서랍이 열려 있던 상태로 새 상세보기가 뜨지 않도록 초기화
 
-  // 메신저 상세에서 숨겼던 "나 ↔ 상대방" 페어링 UI + 통계 탭 제목/범례 복원, 메신저 전용 설명 숨김
+  // 메신저 상세에서 숨겼던 "나 ↔ 상대방" 페어링 UI + 통계 탭 제목/범례 + 친밀도 링 복원, 메신저 전용 설명 숨김
   document.querySelector(".mp-detail-self-info").style.display = "";
   document.getElementById("mp-detail-avatar-self").style.display = "";
   document.querySelector(".mp-detail-relation").style.display = "";
-  document.getElementById("mp-stats-title").style.display = "";
+  document.querySelector(".mp-detail-avatar-ring")?.classList.remove("mp-ring-off");
   document.getElementById("mp-stats-legend").style.display = "";
   document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
   document
@@ -2199,8 +2204,10 @@ async function openMessengerDetail(person) {
   document.querySelector(".mp-detail-self-info").style.display = "none";
   document.getElementById("mp-detail-avatar-self").style.display = "none";
   document.querySelector(".mp-detail-relation").style.display = "none";
-  // 통계 탭 안의 "이메일 교환" 제목 + "보낸 메일/받은 메일" 범례도 메일 전용 문구라 숨김
-  document.getElementById("mp-stats-title").style.display = "none";
+  // 친밀도 개념이 없는 메신저에서는 늘 빈 채로만 보이던 핑크 게이지 링을 아예 숨기고,
+  // 그만큼 아바타 원 자체를 더 키움 (mp-ring-off, CSS 참고)
+  document.querySelector(".mp-detail-avatar-ring")?.classList.add("mp-ring-off");
+  // 통계 탭 안의 "보낸 메일/받은 메일" 범례는 메일 전용 문구라 숨김
   document.getElementById("mp-stats-legend").style.display = "none";
   // 이름/설명 칸이 헤더의 남는 폭을 다 가져가게 해서, 설명을 스크롤 없이 옆으로 넓게 펼침
   document

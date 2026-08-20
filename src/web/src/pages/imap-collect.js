@@ -282,18 +282,6 @@ function createJobPanel(user, kind = 'mail') {
       <div class="gw-progress-bar-fill job-progress-bar" style="width:5%;"></div>
     </div>
     <div class="gw-log-body job-log-body"></div>
-    <div class="gw-result-row job-result-row" style="display:none;">
-      <div class="gw-result-chip">
-        <i class="bi bi-envelope-check"></i>
-        <strong class="job-result-added">0</strong>
-        <span>개 수집</span>
-      </div>
-      <div class="gw-result-chip">
-        <i class="bi bi-skip-forward"></i>
-        <strong class="job-result-skipped">0</strong>
-        <span>개 중복 스킵</span>
-      </div>
-    </div>
   `;
   jobsList.prepend(panelEl);
   return panelEl;
@@ -368,10 +356,6 @@ function handleJobEvent(data) {
   jobSetStatus(panelEl, 'done', '완료');
   jobAddLog(panelEl, kind === 'message' ? `✅ 업로드 완료` : `✅ 수집 완료`, 'success');
   jobAddLog(panelEl, `${kind === 'message' ? '저장' : '수집'}: ${result.added_count}개 / 중복 스킵: ${result.skipped_count}개`, 'success');
-
-  panelEl.querySelector('.job-result-added').textContent = result.added_count ?? 0;
-  panelEl.querySelector('.job-result-skipped').textContent = result.skipped_count ?? 0;
-  panelEl.querySelector('.job-result-row').style.display = 'flex';
 
   if (result.job_id) {
     jobAddLog(panelEl, `인덱싱 job_id: ${result.job_id} — 인덱싱이 백그라운드에서 실행됩니다.`, 'info');
