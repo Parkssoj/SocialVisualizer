@@ -44,7 +44,7 @@ def _summarize_with_llm(text, period_label, contacts):
                     "content": f"[{period_label}] 이메일 목록: {contacts}\n\n메일 목록:\n\n{text}"
                 }
             ],
-            max_completion_tokens=400  # SUB_TASK_CHAT_MODEL이 gpt-5 계열이면 max_tokens 대신 이 파라미터를 받는다
+            max_completion_tokens=1000  # SUB_TASK_CHAT_MODEL이 gpt-5 계열이면 max_tokens 대신 이 파라미터를 받는다
         )
         result = json.loads(response.choices[0].message.content)
         return {

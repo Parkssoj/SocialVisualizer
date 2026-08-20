@@ -24,6 +24,7 @@ from util.message_statics import _extract_message_statics_pipeline, _parse_messa
 from util.database.chatroom_db_writer import (
     create_chatroom, update_chatroom_indexing_stats, save_chatroom_graph_stats_to_db,
     save_message_block_to_db, save_chatroom_people_to_db, save_message_keyword_to_db,
+    save_chatroom_relationships_to_db,
 )
 from util.message_summary import generate_message_summaries
 from util.message_mood import recompute_all_message_moods
@@ -456,6 +457,10 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
                 (generate_message_summaries, (paths,)),
             ])
 
+            # chatroom_relationship.person_a/person_b가 chatroom_people을 FK로 참조하므로,
+            # 위 병렬 블록에서 save_chatroom_people_to_db가 끝난 뒤에 순차로 실행해야 한다.
+            save_chatroom_relationships_to_db(paths, target_update_date)
+
             # Activity(다른 방과 비교)가 message_block 테이블을 조회하므로
             # save_message_block_to_db가 끝난 뒤(위) 실행돼야 함.
             # 이 방만 계산하지 않고 같은 계정의 모든 방을 다시 계산해서, 새 방이 추가될
@@ -530,6 +535,10 @@ def run_graph_update_pipeline(job_id, paths, env):
                 (save_chatroom_people_to_db, (paths,)),
                 (save_message_keyword_to_db, (paths,)),
             ])
+
+            # chatroom_relationship.person_a/person_b가 chatroom_people을 FK로 참조하므로,
+            # 위 병렬 블록에서 save_chatroom_people_to_db가 끝난 뒤에 순차로 실행해야 한다.
+            save_chatroom_relationships_to_db(paths)
         else:
             _extract_statics_pipeline(paths, mode='append')
             indexing_stats = collect_indexing_stats(paths)

@@ -77,6 +77,7 @@ from util.database.db_reader import (
     get_mail_exchange_stats,
     calculate_eis,
     get_person_descriptions,
+    get_mail_relationships,
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
@@ -1450,6 +1451,14 @@ def send_person_descriptions():
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_person_descriptions(user_id)})
+
+@app.route("/mail-relationships", methods=["POST"])
+def send_mail_relationships():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    return jsonify({"user_id": user_id, "data": get_mail_relationships(user_id)})
 
 @app.route("/mail-summaries", methods=["POST"])
 def send_mail_summaries():
