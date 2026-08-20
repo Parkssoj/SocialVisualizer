@@ -448,9 +448,13 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
             # message_keyword는 participant에 대한 FK이므로, message_block(참여자 집계 포함)이
             # 먼저 저장되어야 함 — mail 쪽에서 mail_folder → mail 순서를 지키는 것과 같은 이유.
             save_message_block_to_db(paths, target_update_date)
-            save_chatroom_people_to_db(paths, target_update_date)
-            save_message_keyword_to_db(paths, target_update_date)
-            generate_message_summaries(paths)
+
+            # 나머지 셋은 서로 독립적(participant 조회는 위에서 이미 끝남)이라 mail 쪽과 같이 병렬화
+            _run_and_join([
+                (save_chatroom_people_to_db, (paths, target_update_date)),
+                (save_message_keyword_to_db, (paths, target_update_date)),
+                (generate_message_summaries, (paths,)),
+            ])
 
             # Activity(다른 방과 비교)가 message_block 테이블을 조회하므로
             # save_message_block_to_db가 끝난 뒤(위) 실행돼야 함.
@@ -521,8 +525,11 @@ def run_graph_update_pipeline(job_id, paths, env):
             save_chatroom_graph_stats_to_db(paths)
 
             save_message_block_to_db(paths)
-            save_chatroom_people_to_db(paths)
-            save_message_keyword_to_db(paths)
+
+            _run_and_join([
+                (save_chatroom_people_to_db, (paths,)),
+                (save_message_keyword_to_db, (paths,)),
+            ])
         else:
             _extract_statics_pipeline(paths, mode='append')
             indexing_stats = collect_indexing_stats(paths)

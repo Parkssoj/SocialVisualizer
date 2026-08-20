@@ -477,10 +477,27 @@ def generate_person_descriptions(paths) -> dict:
     return descriptions
 
 
+def _run_and_join(jobs):
+    errors = []
+    def _wrap(fn, args):
+        try:
+            fn(*args)
+        except Exception as e:
+            errors.append(e)
+    threads = [threading.Thread(target=_wrap, args=(fn, args)) for fn, args in jobs]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    if errors:
+        raise errors[0]
+
+
 def _extract_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
-    _save_mail_keyword_stats(paths, mode)
-    _save_mail_contact_stats(paths, mode)
+    # 서로 다른 출력 파일(keywords/contacts)에 쓰고 순서 의존성이 없어 병렬 실행
+    _run_and_join([
+        (_save_mail_keyword_stats, (paths, mode)),
+        (_save_mail_contact_stats, (paths, mode)),
+    ])
 
 def run_statics_pipeline(job_id, paths, mode: str = "rewrite"):
     print(f"[JOB][statics] START job_id={job_id}")
