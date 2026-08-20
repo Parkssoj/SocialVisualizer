@@ -2105,7 +2105,7 @@ async function openDetail(person, rowIndex) {
   document.querySelector(".mp-detail-relation").style.display = "";
   document.getElementById("mp-stats-title").style.display = "";
   document.getElementById("mp-stats-legend").style.display = "";
-  document.getElementById("mp-detail-messenger-desc").classList.remove("show");
+  document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
   document
     .getElementById("mp-detail-namewrap")
     .classList.remove("mp-detail-namewrap-wide");
@@ -2223,8 +2223,10 @@ async function openMessengerDetail(person) {
     `단톡방 참여자 · 메시지 ${person.message_count || 0}건`;
 
   const descEl = document.getElementById("mp-detail-messenger-desc");
-  descEl.textContent = person.description || "등록된 설명이 없습니다.";
-  descEl.classList.add("show");
+  if (descEl) {
+    descEl.textContent = person.description || "등록된 설명이 없습니다.";
+    descEl.classList.add("show");
+  }
 
   switchDetailTab("stats");
   const scrollPanel = document.querySelector(".mp-left");
@@ -2520,6 +2522,88 @@ async function toggleGraphView() {
   }
 }
 
-loadPeople().then(() => fetchPeriodStats());
+/* ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+   TEMP_DEMO_FAKE_PEOPLE — 홈 화면 미리보기(iframe)용 임시 가라데이터.
+   public/images/avatar/ 안 사진들로 익명 사람 카드를 채워 넣는다. 실제 데이터가
+   아니므로 나중에 이 블록 전체(아래 END 표시까지)와, 맨 아래
+   ".then(installTempDemoPeople)" 부분만 지우면 원래 상태로 완전히 되돌아간다.
+   ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ */
+const TEMP_DEMO_AVATAR_FILES = [
+  "KakaoTalk_20260818_194325435.png",
+  "KakaoTalk_20260818_194331288.png",
+  "KakaoTalk_20260818_194334623.png",
+  "KakaoTalk_20260818_195956948.png",
+  "KakaoTalk_20260818_200011207.png",
+  "KakaoTalk_20260818_200014611.png",
+  "KakaoTalk_20260818_200018953.png",
+  "KakaoTalk_20260818_200920318.png",
+  "KakaoTalk_20260818_200923187.png",
+  "KakaoTalk_20260818_200925777.png",
+  "KakaoTalk_20260818_200948506.png",
+  "KakaoTalk_20260818_200950994.png",
+  "KakaoTalk_20260818_201101433.png",
+  "KakaoTalk_20260818_201109547.png",
+  "KakaoTalk_20260818_201116324.png",
+  "KakaoTalk_20260818_201122581.png",
+  "KakaoTalk_20260818_201134301.png",
+  "KakaoTalk_20260818_201200278.png",
+  "KakaoTalk_20260818_201213179.png",
+  "KakaoTalk_20260818_201236327.png",
+  "KakaoTalk_20260818_201243637.png",
+  "KakaoTalk_20260818_201311699.png",
+  "KakaoTalk_20260818_201326313.png",
+  "KakaoTalk_20260818_201350614.png",
+  "KakaoTalk_20260818_201410885.png",
+  "KakaoTalk_20260818_201448134.png",
+  "KakaoTalk_20260818_201459069.png",
+  "KakaoTalk_20260818_201713891.png",
+  "KakaoTalk_20260818_201717668.png",
+  "KakaoTalk_20260818_201802278.png",
+  "KakaoTalk_20260818_201827944.png",
+  "KakaoTalk_20260818_201853339.png",
+  "KakaoTalk_20260818_201908143.png",
+  "KakaoTalk_20260818_201926634.png",
+  "KakaoTalk_20260818_201953499.png",
+  "KakaoTalk_20260818_202011909.png",
+  "KakaoTalk_20260818_202033673.png",
+  "KakaoTalk_20260818_202057056.png",
+  "KakaoTalk_20260818_202115913.png",
+  "KakaoTalk_20260818_202151276.png",
+  // my.png, KakaoTalk_20260818_201742945.png, KakaoTalk_20260818_200007923.png 는 제외
+];
+const TEMP_DEMO_NAMES = [
+  "김민준", "이서연", "박도윤", "최지우", "정하은",
+  "강시우", "조수아", "윤예준", "장서윤", "임하준",
+  "한지호", "오유나", "서준혁", "신아린", "권태윤",
+  "황서진", "안유준", "송하윤", "전민서", "홍지안",
+  "유승우", "고은서", "문재윤", "양시연", "손민재",
+  "배지호", "백서아", "허준서", "남예은", "심도현",
+  "노하율", "하은우", "곽지민", "성유진", "차현우",
+  "주다인", "우재현", "구나은", "민수현", "신예린",
+];
+function installTempDemoPeople() {
+  const fakePeople = TEMP_DEMO_AVATAR_FILES.map((file, i) => {
+    const name = TEMP_DEMO_NAMES[i % TEMP_DEMO_NAMES.length];
+    const email = `temp.demo.${i + 1}@example.com`;
+    return { email, name, affinity: Math.random() };
+  });
+  allPeople.push(...fakePeople);
+  fakePeople.forEach((p, i) => {
+    const em = p.email.toLowerCase();
+    contactPhotos[em] = `/images/avatar/${TEMP_DEMO_AVATAR_FILES[i]}`;
+    // periodStats는 fetchPeriodStats()가 통째로 덮어쓰므로, renderCards()의
+    // "기간 내 발신/수신 없으면 숨김" 필터에 안 걸리도록 여기서 직접 채워준다.
+    periodStats[em] = { sent: 1 + (i % 5), received: 1 + (i % 3) };
+  });
+  periodStatsLoaded = true;
+  renderCards();
+}
+/* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+   TEMP_DEMO_FAKE_PEOPLE 끝
+   ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
+
+loadPeople()
+  .then(() => fetchPeriodStats())
+  .then(installTempDemoPeople); // TEMP_DEMO_FAKE_PEOPLE 호출부 — 위 블록 삭제 시 이 줄도 ".then(() => fetchPeriodStats());"로 되돌리세요
 
 setTimeout(_initMiniGraph, 2500);

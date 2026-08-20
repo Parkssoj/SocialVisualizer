@@ -207,10 +207,24 @@ footer {
   align-self: flex-end; // 제목(더 큰 폰트)과 같은 줄에서 버튼들을 줄 맨 아래로 붙여서 바로 아래 패널과 가깝게
 }
 /* accountPicker.js가 자체 <style>로 주입하는 .gw-account-picker(font-size:
-   0.85rem 고정)를 이 페이지에서만 다른 버튼들과 같은 크기로 덮어씀 — 공용
-   파일(다른 페이지에서도 씀)을 직접 고치는 대신 페이지 스코프로 오버라이드 */
+   0.85rem 고정, border 1px solid)를 이 페이지에서만 다른 버튼들과 같은 크기/톤으로
+   덮어씀 — 공용 파일(다른 페이지에서도 씀)을 직접 고치는 대신 페이지 스코프로 오버라이드 */
 #account-picker-mount .gw-account-picker {
   font-size: 1rem;
+}
+/* 메신저 탭의 "단톡방 계정" 선택 드롭다운 — 옆의 .mp-dropdown-btn/.mp-brand-filter-btn과
+   높이·모서리·테두리가 달라서 정렬이 어긋나 보였음. 같은 규격(테두리 없음, 그림자만,
+   1rem, border-radius 10px)으로 맞춤 */
+#chatroom-picker-mount .gw-account-picker {
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.15s;
+}
+#chatroom-picker-mount .gw-account-picker:focus {
+  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .mp-brand-filter-btn {
   box-sizing: border-box;
@@ -535,18 +549,8 @@ footer {
 }
 */
 
-/* 메신저 탭 카드(단톡방/참여자)는 친밀도 같은 개념이 없어서 .ca-fade 대신 고정된
-   옅은 민트 배경을 씀 — 메일 카드가 기본적으로 가지는 "칸 배경"과 같은 톤이라 카드
-   경계가 배경과 안 섞이고 잘 보임 */
-.mp-room-card,
-.mp-person-card {
-  background: linear-gradient(150deg, #fafcfb, #eef3f0);
-  box-shadow: 0 3px 14px rgba(114, 203, 181, 0.14);
-}
-.mp-room-card:hover,
-.mp-person-card:hover {
-  box-shadow: 0 10px 22px rgba(114, 203, 181, 0.22);
-}
+/* 메신저 탭 카드(단톡방/참여자)도 메일 사람카드와 같은 색(.mp-card 기본 흰 배경)을
+   쓰도록, 예전에 있던 민트색 전용 배경/그림자 오버라이드는 제거함 */
 
 .mp-avatar {
   width: 76%;
@@ -594,6 +598,11 @@ footer {
 .mp-period-badge.recv {
   color: #1d4ed8;
   background: rgba(90, 148, 232, 0.18);
+}
+/* 메신저 탭 사람카드(참여자)·단톡방 카드 — 이름(.mp-name)만 빼고 배지 글자 1rem으로 통일 */
+.mp-room-card .mp-period-badge,
+.mp-person-card .mp-period-badge {
+  font-size: 1rem;
 }
 .mp-empty {
   grid-column: 1 / -1;
@@ -668,8 +677,8 @@ footer {
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  border-bottom: 1.5px solid #ecded4;
-  background: #f5faf8;
+  border-bottom: 1.5px solid #e5e5e5;
+  background: #f5f5f5;
   flex-shrink: 0;
 }
 .mp-back-btn {
@@ -677,22 +686,26 @@ footer {
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border: 1.5px solid #dfd1c4;
+  border: none;
   background: #fff;
   color: #5a3a1a;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
-  transition: background 0.12s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
 }
 .mp-back-btn:hover {
   background: #f3ece4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 .mp-messenger-room-name {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #1a6e4a;
+  color: #4a4a4a;
 }
 
 /* ════════════════════════════════════
