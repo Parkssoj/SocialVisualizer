@@ -22,6 +22,21 @@ const userIdPromise = initAccountPicker(
   document.getElementById("account-picker-mount"),
 );
 
+/* 메신저 뷰용 채팅방 선택 토글 — My Time과 동일하게 accountPicker.js를
+   domain:"messenger"로 재사용. 선택값은 storageKey("gw_chatroom_id")로
+   localStorage에 저장됨. */
+let selectedChatroomId = "";
+const chatroomIdPromise = initAccountPicker(
+  document.getElementById("chatroom-picker-mount"),
+  (chatroomId) => {
+    selectedChatroomId = chatroomId;
+  },
+  { domain: "messenger", storageKey: "gw_chatroom_id" },
+);
+chatroomIdPromise.then((id) => {
+  selectedChatroomId = id || "";
+});
+
 /* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ── */
 function groupByEntityName(list) {
   const seen = new Map();
@@ -218,7 +233,8 @@ function resolveDisplayName(p) {
 /* ── 친밀도 기반 카드 색상 ── 하나의 초록 색조(hue)를 고정하고, 친밀도가 높을수록
          채도·명도를 진하게 만들어 "친밀도가 낮으면 흐린 민트, 높으면 짙은 에메랄드"로
          자연스럽게 이어지는 그라데이션을 만든다(구간별 다른 색이 아니라 연속값). */
-const AFFINITY_HUE = 158; // 친밀도: 초록 계열
+const AFFINITY_HUE = 158; // 친밀도: 초록 계열 (카드 색상용, 현재 CSS에서 비활성화됨)
+const AFFINITY_BAND_HUE = 28; // 친밀도 밴드 배경: 은은한 주황 계열 (너무 찐한 색 방지를 위해 채도를 낮게 유지)
 
 /* 지정한 색조(hue)에 채도/명도 값을 직접 넣어 카드 그라데이션·그림자·글자색을 만드는 공용 함수.
          밝은 쪽/어두운 쪽에 색조를 살짝 다르게 줘서(단색 명암 대비가 아니라) 더 입체적이고
@@ -495,60 +511,186 @@ function renderCards() {
     grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
     return;
   }
-  const COLS = 7;
-  const COLORS = ["c0", "c1", "c2", "c3", "c4", "c5", "c6"];
-  const AVATAR_COLORS = [
-    "#0f7a62",
-    "#1d55c4",
-    "#5b21b6",
-    "#b45309",
-    "#9d174d",
-    "#0f766e",
-    "#c2410c",
-  ];
-  grid.innerHTML = list
-    .map((p, i) => {
-      const affinity = p.affinity;
-      const ac = affinityColor(affinity);
-      const cardVars = `--ca-light:${ac.light};--ca-dark:${ac.dark};--ca-shadow:${ac.shadow};--ca-shadow-hover:${ac.shadowHover};`;
-      const displayName = resolveDisplayName(p);
-      const ps = periodStats[(p.email || "").toLowerCase()] || {};
-      const em = (p.email || "").toLowerCase();
-      const total = (ps.sent || 0) + (ps.received || 0);
-      const photo = generatedAvatars[em] || contactPhotos[em];
-      const brandCls = isBrandSender(p) ? " mp-brand-logo" : "";
-      const avatarInner = photo
-        ? `<img src="${photo}" alt="${displayName}" class="${brandCls.trim()}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(displayName)}'">`
-        : initials(displayName);
-      let badge = "";
-      if (sortMode === "affinity") {
-        if (affinity != null)
-          badge = `<div class="mp-period-badge">${Math.round(affinity * 100)}%</div>`;
-      } else if (sortMode === "name") {
-        badge = "";
-      } else if (sortMode === "sent") {
-        const cnt = sentStatsMap[em] || 0;
-        if (cnt > 0)
-          badge = `<div class="mp-period-badge sent">보낸 ${cnt}건</div>`;
-      } else if (sortMode === "received") {
-        const cnt = receivedStatsMap[em] || 0;
-        if (cnt > 0)
-          badge = `<div class="mp-period-badge recv">받은 ${cnt}건</div>`;
-      } else if (sortMode === "total") {
-        const totalCnt =
-          (sentStatsMap[em] || 0) + (receivedStatsMap[em] || 0) || total;
-        if (totalCnt > 0)
-          badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
-      }
-      return `
+  function cardHtml(p, i) {
+    const affinity = p.affinity;
+    const ac = affinityColor(affinity);
+    const cardVars = `--ca-light:${ac.light};--ca-dark:${ac.dark};--ca-shadow:${ac.shadow};--ca-shadow-hover:${ac.shadowHover};`;
+    const displayName = resolveDisplayName(p);
+    const ps = periodStats[(p.email || "").toLowerCase()] || {};
+    const em = (p.email || "").toLowerCase();
+    const total = (ps.sent || 0) + (ps.received || 0);
+    const photo = generatedAvatars[em] || contactPhotos[em];
+    const brandCls = isBrandSender(p) ? " mp-brand-logo" : "";
+    const avatarInner = photo
+      ? `<img src="${photo}" alt="${displayName}" class="${brandCls.trim()}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(displayName)}'">`
+      : initials(displayName);
+    let badge = "";
+    if (sortMode === "affinity") {
+      if (affinity != null)
+        badge = `<div class="mp-period-badge">${Math.round(affinity * 100)}%</div>`;
+    } else if (sortMode === "name") {
+      badge = "";
+    } else if (sortMode === "sent") {
+      const cnt = sentStatsMap[em] || 0;
+      if (cnt > 0)
+        badge = `<div class="mp-period-badge sent">보낸 ${cnt}건</div>`;
+    } else if (sortMode === "received") {
+      const cnt = receivedStatsMap[em] || 0;
+      if (cnt > 0)
+        badge = `<div class="mp-period-badge recv">받은 ${cnt}건</div>`;
+    } else if (sortMode === "total") {
+      const totalCnt =
+        (sentStatsMap[em] || 0) + (receivedStatsMap[em] || 0) || total;
+      if (totalCnt > 0)
+        badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
+    }
+    return `
             <div class="mp-card ca-fade" style="${cardVars}" data-idx="${i}" data-name="${p.name || ""}" data-email="${p.email || ""}" title="${p.email || ""}">
               <div class="mp-avatar" style="color:${ac.text}">${avatarInner}</div>
               <div class="mp-name" style="font-size:${nameFontSize(displayName)}">${displayName}</div>
               ${badge}
             </div>`;
-    })
-    .join("");
+  }
+
+  if (sortMode === "affinity") {
+    grid.innerHTML = renderAffinityBands(list, cardHtml);
+  } else {
+    grid.innerHTML = list.map((p, i) => cardHtml(p, i)).join("");
+  }
   grid.querySelectorAll(".mp-avatar img.mp-brand-logo").forEach(setupBrandLogo);
+}
+
+/* ── 친밀도 정렬 전용: 분포 기반 밴드 렌더링 ──
+ * 고정된 임계값(90/70/40/15%)이나 고정된 퍼센타일(20/40/60/80%)로 나누면 실제
+ * 값들이 좁은 범위에 몰려있을 때(예: 1~5% 사람들만 있는 경우) 아무 의미 없는
+ * 경계가 그어진다. 그래서 실제 친밀도 값들에 1차원 k-means(Lloyd's algorithm)를
+ * 돌려서 "이 데이터 안에서 자연스럽게 갈라지는 지점"을 스스로 찾는다 — 값이
+ * 1~5% 다섯 개뿐이면 각자 자기 줄을 갖게 되고, 값이 한쪽에 몰려있으면 몰린
+ * 덩어리는 한 줄로 묶이고 떨어진 값만 별도 줄로 갈라진다. 1차원 데이터에서는
+ * k-means로 찾은 군집이 항상 정렬 순서상 연속 구간이 되므로(값이 겹치지 않는 한
+ * 군집이 섞이지 않음), 정렬된 리스트를 그 경계에서 자르기만 하면 된다.
+ * 구분선에는 각 줄의 실제 친밀도 값 범위(예: "4%" 또는 "61~79%")를 표시하고,
+ * 밴드 배경은 상위(진함)→하위(연함) 그라데이션으로 깔아서 어느 줄이 더 친밀한
+ * 그룹인지 한눈에 보이게 한다. */
+const AFFINITY_BAND_COUNT = 5;
+// 밴드 배경(hsl) — 카드 자체 색(AFFINITY_TIERS)보다 훨씬 옅게 깔아서 카드 색이 묻히지 않게 함.
+// 실제 밴드 수가 5보다 적으면(값 종류가 적을 때) 앞에서부터만 사용됨.
+const AFFINITY_BAND_BG = [
+  { sat: 46, light: 90 }, // 상위 밴드
+  { sat: 34, light: 92.5 },
+  { sat: 24, light: 94.5 },
+  { sat: 15, light: 96.5 },
+  { sat: 6, light: 98.5 }, // 하위 밴드
+];
+
+/* 1차원 k-means(Lloyd's algorithm) — values 안에서 자연스러운 k개의 중심을 찾는다.
+ * 유니크 값 개수가 k보다 적으면(예: 값이 3종류뿐인데 k=5) 실제로 만들 수 있는
+ * 만큼만 반환한다. 중심이 수렴하다가 겹치면(예: 촘촘한 구간) 하나로 합쳐서
+ * 실제로 구분되는 군집 수만큼만 최종 반환 — 억지로 5개를 채우지 않는다. */
+function kmeans1D(values, k) {
+  const unique = [...new Set(values)].sort((a, b) => a - b);
+  const actualK = Math.max(1, Math.min(k, unique.length));
+  if (actualK === 1) return [unique[0]];
+
+  // 초기 중심: 유니크 값 범위에서 균등 간격으로 뽑음
+  let centroids = Array.from(
+    { length: actualK },
+    (_, i) => unique[Math.round((i * (unique.length - 1)) / (actualK - 1))],
+  );
+
+  for (let iter = 0; iter < 100; iter++) {
+    const sums = new Array(actualK).fill(0);
+    const counts = new Array(actualK).fill(0);
+    for (const v of values) {
+      let best = 0,
+        bestDist = Infinity;
+      for (let c = 0; c < actualK; c++) {
+        const d = Math.abs(v - centroids[c]);
+        if (d < bestDist) {
+          bestDist = d;
+          best = c;
+        }
+      }
+      sums[best] += v;
+      counts[best]++;
+    }
+    let moved = false;
+    for (let c = 0; c < actualK; c++) {
+      if (counts[c] === 0) continue; // 이번 라운드에 아무도 안 배정된 중심은 그대로 둠
+      const next = sums[c] / counts[c];
+      if (Math.abs(next - centroids[c]) > 1e-9) moved = true;
+      centroids[c] = next;
+    }
+    if (!moved) break;
+  }
+
+  // 중심끼리 너무 가까우면(사실상 같은 군집) 하나로 합쳐서 실제 군집 수만 반환
+  const sortedDesc = [
+    ...new Set(centroids.map((c) => Math.round(c * 1000) / 1000)),
+  ].sort((a, b) => b - a);
+  return sortedDesc;
+}
+
+function renderAffinityBands(list, cardHtml) {
+  // list는 이미 affinity 내림차순 정렬된 상태(renderCards에서 정렬).
+  // 카드 배지에는 반올림한 정수 퍼센트(예: 2%)만 보이는데, 군집을 원본 소수
+  // 친밀도 값으로 만들면 배지에는 똑같이 "2%"로 보이는 두 사람이 실제로는
+  // 1.6%/2.4%처럼 서로 다른 값이라 다른 줄로 갈라지는 문제가 있었다.
+  // 그래서 반올림한 정수 퍼센트 자체를 군집 대상으로 쓴다 — 화면에 같은 숫자로
+  // 보이는 사람은 항상 같은 줄에 묶이도록 보장.
+  const pctOf = (p) => Math.round((p.affinity || 0) * 100);
+  const values = list.map(pctOf);
+  const centroids = kmeans1D(values, AFFINITY_BAND_COUNT); // 내림차순, 정수 퍼센트 기준
+
+  // 중심과 중심 사이의 중간값을 경계로 사용 — 1D에서는 이 경계로 자르면
+  // 각 값이 가장 가까운 중심에 배정된 것과 동일한 결과가 된다.
+  const boundaries = [];
+  for (let i = 0; i < centroids.length - 1; i++) {
+    boundaries.push((centroids[i] + centroids[i + 1]) / 2);
+  }
+
+  let globalIdx = 0;
+  let cursor = 0; // list는 내림차순 정렬돼 있으므로 앞에서부터 밴드별로 잘라내면 됨
+  const bandsHtml = [];
+  let prevBandFloor = null; // 바로 위 밴드(방금 끝난 밴드)의 최솟값(하한선) — 구분선 라벨에 사용
+
+  for (let b = 0; b < centroids.length; b++) {
+    const isLastBand = b === centroids.length - 1;
+    const threshold = isLastBand ? -Infinity : boundaries[b];
+    let end = cursor;
+    while (end < list.length && pctOf(list[end]) >= threshold) {
+      end++;
+    }
+    const bandPeople = list.slice(cursor, end);
+    cursor = end;
+    if (!bandPeople.length) continue;
+
+    const bg =
+      AFFINITY_BAND_BG[b] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
+    const bandBg = `hsl(${AFFINITY_BAND_HUE} ${bg.sat}% ${bg.light}%)`;
+
+    const cardsHtml = bandPeople.map((p) => cardHtml(p, globalIdx++)).join("");
+
+    const bandMax = pctOf(bandPeople[0]);
+    const bandMin = pctOf(bandPeople[bandPeople.length - 1]);
+    // 구분선은 "바로 위 줄(방금 끝난 밴드)"의 기준을 보여준다 — 그 줄에 있던 사람들의
+    // 친밀도가 전부 이 값 이상이라는 뜻으로 "-N% 이상"이라고 표시.
+    const divider =
+      prevBandFloor == null
+        ? ""
+        : `<div class="mp-band-divider"><span>친밀도 ${prevBandFloor}%이상</span></div>`;
+
+    bandsHtml.push(`
+      <div class="mp-band">
+        ${divider}
+        <div class="mp-band-cards" style="--band-bg:${bandBg}">
+          ${cardsHtml}
+        </div>
+      </div>
+    `);
+    prevBandFloor = bandMin; // 다음 구분선에는 방금 끝난 밴드의 최솟값(=하한선)을 "N% 이상"으로 표시
+  }
+  return bandsHtml.join("");
 }
 
 /* ── 타임라인 초기화 ──
@@ -683,8 +825,39 @@ function buildTicks(firstMs, lastMs) {
     (t) => t >= firstMs && t <= lastMs,
   );
 
-  uniq.forEach((t) => {
-    const pct = ((t - firstMs) / (lastMs - firstMs)) * 100;
+  /* 라벨 겹침 방지: 두 라벨 사이 실제 픽셀 간격이 최소 간격(MIN_GAP_PX)보다
+     좁으면 뒤쪽 라벨을 건너뛴다. 컨테이너 실측 폭(offsetWidth) 기준으로
+     % 좌표를 픽셀로 환산해서 비교하므로 화면 폭이 좁아져도 항상 절대 간격이
+     보장된다. 마지막 포인트(lastMs)는 항상 남기고, 그 앞의 라벨이 마지막
+     라벨과 너무 가까우면 그 앞 라벨을 대신 빼서 끝 지점 라벨이 밀리지 않게 한다. */
+  const MIN_GAP_PX = 64;
+  const containerWidth =
+    ticks.offsetWidth || ticks.getBoundingClientRect().width || 0;
+  const withPct = uniq.map((t) => ({
+    t,
+    pct: ((t - firstMs) / (lastMs - firstMs)) * 100,
+  }));
+
+  let filtered = [withPct[0]];
+  for (let i = 1; i < withPct.length; i++) {
+    const prev = filtered[filtered.length - 1];
+    const gapPx = ((withPct[i].pct - prev.pct) / 100) * containerWidth;
+    if (gapPx >= MIN_GAP_PX || i === withPct.length - 1) {
+      filtered.push(withPct[i]);
+    }
+  }
+  // 마지막 라벨이 바로 앞 라벨과 여전히 너무 가까우면(위 루프가 강제로 끝점을
+  // 넣었을 수 있음) 앞 라벨을 제거해서 끝점만 남긴다.
+  if (filtered.length >= 2) {
+    const last = filtered[filtered.length - 1];
+    const beforeLast = filtered[filtered.length - 2];
+    const gapPx = ((last.pct - beforeLast.pct) / 100) * containerWidth;
+    if (gapPx < MIN_GAP_PX) {
+      filtered.splice(filtered.length - 2, 1);
+    }
+  }
+
+  filtered.forEach(({ t, pct }) => {
     const div = document.createElement("div");
     div.className = "mp-tl-tick";
     div.style.position = "absolute";
@@ -855,6 +1028,9 @@ const mailBtn = document.getElementById("mp-mail-btn");
 const messengerBtn = document.getElementById("mp-messenger-btn");
 const mailView = document.getElementById("mp-mail-view");
 const messengerView = document.getElementById("mp-messenger-view");
+const accountPickerMount = document.getElementById("account-picker-mount");
+const chatroomPickerMount = document.getElementById("chatroom-picker-mount");
+let messengerLoaded = false;
 
 /* ── 정렬 드롭다운: 메일/단톡방 목록/참여자 목록 3개 화면이 서로 다른 정렬 기준을 쓴다.
  * #mp-dropdown-menu의 내용을 화면 전환마다 통째로 갈아끼우는 방식으로 공용 드롭다운
@@ -886,15 +1062,21 @@ function sortMenuHtml(options, currentMode) {
 }
 function refreshSortMenuForMail() {
   ddMenu.innerHTML = sortMenuHtml(MAIL_SORT_OPTIONS, sortMode);
-  ddLabel.textContent = MAIL_SORT_OPTIONS.find((o) => o.value === sortMode).label;
+  ddLabel.textContent = MAIL_SORT_OPTIONS.find(
+    (o) => o.value === sortMode,
+  ).label;
 }
 function refreshSortMenuForRooms() {
   ddMenu.innerHTML = sortMenuHtml(ROOM_SORT_OPTIONS, roomSortMode);
-  ddLabel.textContent = ROOM_SORT_OPTIONS.find((o) => o.value === roomSortMode).label;
+  ddLabel.textContent = ROOM_SORT_OPTIONS.find(
+    (o) => o.value === roomSortMode,
+  ).label;
 }
 function refreshSortMenuForPeople() {
   ddMenu.innerHTML = sortMenuHtml(PEOPLE_SORT_OPTIONS, peopleSortMode);
-  ddLabel.textContent = PEOPLE_SORT_OPTIONS.find((o) => o.value === peopleSortMode).label;
+  ddLabel.textContent = PEOPLE_SORT_OPTIONS.find(
+    (o) => o.value === peopleSortMode,
+  ).label;
 }
 
 /* 방의 "분위기"는 /chatroom-mood(이미 있는 라우터)가 주는 월별 mood_score(0~100)를
@@ -919,9 +1101,11 @@ async function fetchRoomMoodScore(chatroomId) {
     if (res.ok) {
       const j = await res.json();
       const d = j.data || {};
-      const entries = d.monthly && d.monthly.length ? d.monthly : d.yearly || [];
+      const entries =
+        d.monthly && d.monthly.length ? d.monthly : d.yearly || [];
       const scores = entries.map((e) => e.mood_score).filter((v) => v != null);
-      if (scores.length) score = scores.reduce((a, b) => a + b, 0) / scores.length;
+      if (scores.length)
+        score = scores.reduce((a, b) => a + b, 0) / scores.length;
     }
   } catch (e) {
     console.error("chatroom-mood 오류:", e);
@@ -963,6 +1147,11 @@ function setChannel(channel) {
   messengerBtn.classList.toggle("active", !isMail);
   mailView.style.display = isMail ? "" : "none";
   messengerView.style.display = isMail ? "none" : "";
+
+  // 계정 토글 ↔ 채팅방 토글도 뷰에 맞춰 같이 전환
+  accountPickerMount.style.display = isMail ? "" : "none";
+  chatroomPickerMount.style.display = isMail ? "none" : "";
+
   document.getElementById("account-picker-mount").style.display = isMail
     ? ""
     : "none";
@@ -1186,8 +1375,7 @@ messengerView.addEventListener("click", (e) => {
   }
   const personCard = e.target.closest(".mp-person-card");
   if (personCard) {
-    const person =
-      currentChatroomPeople[parseInt(personCard.dataset.idx, 10)];
+    const person = currentChatroomPeople[parseInt(personCard.dataset.idx, 10)];
     if (person) openMessengerDetail(person);
     return;
   }
@@ -1247,7 +1435,10 @@ ddMenu.addEventListener("click", async (e) => {
   } else {
     peopleSortMode = chosen;
     refreshSortMenuForPeople();
-    renderChatroomPeople(currentChatroomName, sortPeopleList(currentChatroomPeople));
+    renderChatroomPeople(
+      currentChatroomName,
+      sortPeopleList(currentChatroomPeople),
+    );
   }
 });
 
@@ -1258,25 +1449,25 @@ document.addEventListener("click", () => {
 
 /* ── 디테일 패널 ── */
 const AVATAR_COLORS_DETAIL = [
-  "#0f7a62",
+  "#575757",
   "#1d55c4",
   "#5b21b6",
   "#b45309",
   "#9d174d",
-  "#0f766e",
+  "#565656",
   "#c2410c",
 ];
 const CARD_BG = [
-  "linear-gradient(150deg,#a8e8d8,#72cbb5)",
+  "linear-gradient(150deg,#d3d3d3,#aeaeae)",
   "linear-gradient(150deg,#b8d4f8,#8ab6f4)",
   "linear-gradient(150deg,#d0c0f8,#b8a4f4)",
   "linear-gradient(150deg,#fde4a8,#fbd080)",
   "linear-gradient(150deg,#fcc0d8,#f8a4c4)",
-  "linear-gradient(150deg,#a4e8e4,#78d4d0)",
+  "linear-gradient(150deg,#d3d3d3,#b8b8b8)",
   "linear-gradient(150deg,#fed4a8,#fcbc80)",
 ];
 const WC_COLORS = [
-  "#0f7a62",
+  "#575757",
   "#1d55c4",
   "#9333ea",
   "#b45309",
@@ -1363,7 +1554,7 @@ function renderBarChart(data) {
   const yEl = document.getElementById("mp-vchart-y");
   if (!data || !data.monthly || !data.monthly.length) {
     chartArea.innerHTML =
-      '<span style="color:#a0b8b0;font-size:0.82rem;font-style:italic;">해당 기간 데이터 없음</span>';
+      '<span style="color:#b0b0b0;font-size:1rem;font-style:italic;">해당 기간 데이터 없음</span>';
     if (totalEl) totalEl.textContent = "";
     if (yEl) yEl.innerHTML = "<span></span><span></span><span>0</span>";
     return;
@@ -1378,9 +1569,7 @@ function renderBarChart(data) {
     const mid = Math.round(maxVal / 2);
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
-  currentBarChartData = data;
-
-  const YEAR_COLORS = ["#12886e", "#5a94e8"];
+  const YEAR_COLORS = ["#626262", "#5a94e8"];
   const years = [...new Set(data.monthly.map((m) => m.month.split("-")[0]))];
   const yearColorMap = {};
   years.forEach((y, i) => {
@@ -1410,7 +1599,7 @@ function renderBarChart(data) {
           const sentPct = Math.max(2, Math.round((m.sent / maxVal) * 100));
           const recvPct = Math.max(2, Math.round((m.received / maxVal) * 100));
           const mon = m.month.split("-")[1];
-          return `<div class="mp-vchart-group" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="클릭하면 이 달의 메일 목록을 볼 수 있어요">
+          return `<div class="mp-vchart-group">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${sentPct}%" title="보낸: ${m.sent}"></div>
                 <div class="mp-vchart-bar recv" style="height:${recvPct}%" title="받은: ${m.received}"></div>
@@ -1421,7 +1610,7 @@ function renderBarChart(data) {
         .join("");
       return `<div style="display:flex;flex-direction:column;align-items:stretch;height:100%;background:${yColor}14;border-radius:8px;padding:0 6px;flex-shrink:0;">
             <div style="text-align:center;padding:0 0 6px;flex-shrink:0;">
-              <span style="display:inline-block;font-size:0.74rem;font-weight:800;color:#fff;background:${yColor};padding:2px 11px;border-radius:8px;letter-spacing:0.02em;">${g.year}</span>
+              <span style="display:inline-block;font-size:1rem;font-weight:800;color:#fff;background:${yColor};padding:2px 11px;border-radius:8px;letter-spacing:0.02em;">${g.year}</span>
             </div>
             <div style="display:flex;align-items:flex-end;gap:5px;flex:1;min-height:0;">${monthsHtml}</div>
           </div>`;
@@ -1496,7 +1685,8 @@ function renderMessengerBarChart(data) {
 function renderRelationDiagram(personName, relationships) {
   const el = document.getElementById("mp-desc-profile-content");
   if (!relationships.length) {
-    el.innerHTML = '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
+    el.innerHTML =
+      '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
     return;
   }
   const size = 380,
@@ -1512,8 +1702,8 @@ function renderRelationDiagram(personName, relationships) {
       const angle = (2 * Math.PI * i) / n - Math.PI / 2;
       const x = center + radius * Math.cos(angle);
       const y = center + radius * Math.sin(angle);
-      const midX = center + (radius * 0.55) * Math.cos(angle);
-      const midY = center + (radius * 0.55) * Math.sin(angle);
+      const midX = center + radius * 0.55 * Math.cos(angle);
+      const midY = center + radius * 0.55 * Math.sin(angle);
       const color = WC_COLORS[i % WC_COLORS.length];
       return `
         <line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-opacity="0.4"/>
@@ -1802,7 +1992,7 @@ function renderWordCloud(keywords, targetId) {
   const wrap = document.getElementById(targetId || "mp-detail-wc");
   if (!keywords || !keywords.length) {
     wrap.innerHTML =
-      '<span style="color:#b0c8be;font-size:0.82rem;font-style:italic;">키워드 없음</span>';
+      '<span style="color:#c0c0c0;font-size:1rem;font-style:italic;">키워드 없음</span>';
     return;
   }
   const sorted = [...keywords].sort((a, b) => b.count - a.count).slice(0, 20);
@@ -1859,9 +2049,9 @@ async function refreshDetailStats(person) {
   const gmailId = (await userIdPromise) || "";
 
   document.getElementById("mp-chart").innerHTML =
-    '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
+    '<span style="color:#b0b0b0;font-size:1rem;">로딩 중...</span>';
   document.getElementById("mp-detail-wc").innerHTML =
-    '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
+    '<span style="color:#b0b0b0;font-size:1rem;">로딩 중...</span>';
 
   const dateBody = {
     user_id: gmailId,
@@ -1915,7 +2105,7 @@ async function openDetail(person, rowIndex) {
   document.querySelector(".mp-detail-relation").style.display = "";
   document.getElementById("mp-stats-title").style.display = "";
   document.getElementById("mp-stats-legend").style.display = "";
-  document.getElementById("mp-detail-messenger-desc").classList.remove("show");
+  document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
   document
     .getElementById("mp-detail-namewrap")
     .classList.remove("mp-detail-namewrap-wide");
@@ -1927,8 +2117,8 @@ async function openDetail(person, rowIndex) {
   } else {
     selfAvatarEl.innerHTML = "";
     selfAvatarEl.textContent = "나";
-    selfAvatarEl.style.background = "linear-gradient(150deg,#cfe9df,#a9d4c4)";
-    selfAvatarEl.style.color = "#1a6e4a";
+    selfAvatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+    selfAvatarEl.style.color = "#515151";
   }
   // 관계 라벨: 실제 관계 추론 로직은 아직 없어서 임시로 고정값 표시 (추후 교체 예정)
   document.getElementById("mp-detail-relation-label").innerHTML =
@@ -2013,7 +2203,9 @@ async function openMessengerDetail(person) {
   document.getElementById("mp-stats-title").style.display = "none";
   document.getElementById("mp-stats-legend").style.display = "none";
   // 이름/설명 칸이 헤더의 남는 폭을 다 가져가게 해서, 설명을 스크롤 없이 옆으로 넓게 펼침
-  document.getElementById("mp-detail-namewrap").classList.add("mp-detail-namewrap-wide");
+  document
+    .getElementById("mp-detail-namewrap")
+    .classList.add("mp-detail-namewrap-wide");
 
   const avatarEl = document.getElementById("mp-detail-avatar");
   avatarEl.style.background = "linear-gradient(150deg,#cfe9df,#a9d4c4)";
@@ -2031,15 +2223,20 @@ async function openMessengerDetail(person) {
     `단톡방 참여자 · 메시지 ${person.message_count || 0}건`;
 
   const descEl = document.getElementById("mp-detail-messenger-desc");
-  descEl.textContent = person.description || "등록된 설명이 없습니다.";
-  descEl.classList.add("show");
+  if (descEl) {
+    descEl.textContent = person.description || "등록된 설명이 없습니다.";
+    descEl.classList.add("show");
+  }
 
   switchDetailTab("stats");
   const scrollPanel = document.querySelector(".mp-left");
   if (scrollPanel) scrollPanel.scrollTop = 0;
-  document.getElementById("mp-detail").classList.add("open", "mp-detail-messenger");
+  document
+    .getElementById("mp-detail")
+    .classList.add("open", "mp-detail-messenger");
 
-  // 관계 탭 — 이 방의 /chatroom-relationships(전체 기간)에서 이 사람이 낀 관계를 모두 방사형 다이어그램으로
+  // 관계 탭 — 이 방의 /chatroom-relationships(전체 기간)에서 이 사람이 낀 관계만 추려
+  // strength 상위 8개까지 방사형 다이어그램으로
   document.getElementById("mp-desc-profile-content").innerHTML =
     '<p class="mp-desc-profile-empty">관계를 불러오는 중...</p>';
   try {
@@ -2053,7 +2250,10 @@ async function openMessengerDetail(person) {
       }),
     });
     const rels = res.ok ? (await res.json()).data.relationships || [] : [];
-    const mine = rels.filter((r) => r.source === person.name || r.target === person.name);
+    const mine = rels
+      .filter((r) => r.source === person.name || r.target === person.name)
+      .sort((a, b) => (b.strength || 0) - (a.strength || 0))
+      .slice(0, 8);
     renderRelationDiagram(person.name, mine);
   } catch (e) {
     console.error("chatroom-relationships 오류:", e);
@@ -2170,8 +2370,8 @@ function _renderMiniGraph(svgEl, data) {
   const C = {
     EMAIL: "#f87171",
     PERSON: "#ffa255",
-    TOPIC: "#eef616",
-    ORGANIZATION: "#34d399",
+    TOPIC: "#dadada",
+    ORGANIZATION: "#9d9d9d",
     LABEL: "#60a5fa",
     EVENT: "#a78bfa",
   };
@@ -2201,7 +2401,7 @@ function _renderMiniGraph(svgEl, data) {
     .selectAll("line")
     .data(links)
     .join("line")
-    .attr("stroke", "rgba(38,130,100,0.3)")
+    .attr("stroke", "rgba(99, 99, 99,0.3)")
     .attr("stroke-width", 0.8);
 
   // 노드 (드래그 가능)

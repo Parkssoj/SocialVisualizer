@@ -66,6 +66,7 @@
                 </div>
                 <div class="mp-header-controls">
                   <div id="account-picker-mount"></div>
+                  <div id="chatroom-picker-mount" style="display: none"></div>
                   <button
                     class="mp-brand-filter-btn"
                     id="mp-brand-filter-btn"
@@ -165,7 +166,6 @@
                       <p>데이터를 불러오는 중...</p>
                     </div>
                   </div>
-
                 </div>
 
                 <!-- 메신저 뷰: 첫 클릭 시 mypeople.js가 비동기로 내용 채움, 기본은 숨김 -->
@@ -175,6 +175,7 @@
                     <p>메신저 기능을 불러오는 중...</p>
                   </div>
                 </div>
+
                 <!-- 사람 디테일 패널 -->
                 <div class="mp-detail" id="mp-detail">
                   <button class="mp-detail-close" id="mp-detail-close">
@@ -333,7 +334,7 @@
                   <!-- 키워드 탭 패널 -->
                   <div class="mp-detail-kw" id="mp-detail-kw">
                     <div class="mp-wc-wrap" id="mp-detail-wc">
-                      <span style="color: #a0b8b0; font-size: 0.82rem"
+                      <span style="color: #a0b8b0; font-size: 1rem"
                         >로딩 중...</span
                       >
                     </div>
@@ -382,8 +383,8 @@
                               "
                             >
                               <div
-                                class="mp-detail-section-title"
                                 id="mp-stats-title"
+                                class="mp-detail-section-title"
                                 style="
                                   background: none;
                                   border: none;
@@ -391,7 +392,7 @@
                                   border-radius: 0;
                                   box-shadow: none;
                                   padding: 0 0 5px;
-                                  font-size: 1.28rem;
+                                  font-size: 1rem;
                                   letter-spacing: -0.01em;
                                   text-transform: none;
                                   color: #1c1c1e;
@@ -402,7 +403,7 @@
                               <span
                                 id="mp-stats-total"
                                 style="
-                                  font-size: 0.86rem;
+                                  font-size: 1rem;
                                   font-weight: 700;
                                   color: #6b6459;
                                   background: rgba(28, 28, 30, 0.06);
@@ -426,7 +427,7 @@
                                   display: flex;
                                   align-items: center;
                                   gap: 10px;
-                                  font-size: 0.92rem;
+                                  font-size: 1rem;
                                   font-weight: 600;
                                   color: #4a4640;
                                   white-space: nowrap;
@@ -449,7 +450,7 @@
                                   display: flex;
                                   align-items: center;
                                   gap: 10px;
-                                  font-size: 0.92rem;
+                                  font-size: 1rem;
                                   font-weight: 600;
                                   color: #4a4640;
                                   white-space: nowrap;
@@ -474,29 +475,32 @@
                               <span>—</span><span>—</span><span>0</span>
                             </div>
                             <div class="mp-vchart-area" id="mp-chart">
-                              <span style="color: #a0b8b0; font-size: 0.82rem"
+                              <span style="color: #a0b8b0; font-size: 1rem"
                                 >로딩 중...</span
                               >
                             </div>
                           </div>
                         </div>
+                        <!-- 서랍: 이메일/메신저 월별 막대 클릭 시 열리는 상세 목록 (기본은 접혀있음, flex 0) -->
                         <div
                           id="mp-echange-listview"
                           style="
                             display: flex;
                             flex-direction: column;
-                            gap: 10px;
+                            gap: inherit;
                             flex: 0 0 0%;
                             width: 0;
-                            min-width: 0;
                             min-height: 0;
                             opacity: 0;
-                            overflow: hidden;
                             pointer-events: none;
+                            padding-left: 0;
+                            border-left: none;
+                            overflow: hidden;
                             transition:
                               flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1),
                               opacity 0.2s,
-                              padding-left 0.32s;
+                              padding-left 0.32s,
+                              border-left 0.32s;
                           "
                         >
                           <div
@@ -505,6 +509,7 @@
                               align-items: center;
                               gap: 10px;
                               flex-shrink: 0;
+                              padding-bottom: 14px;
                             "
                           >
                             <button
@@ -529,29 +534,20 @@
                             </button>
                             <div style="min-width: 0">
                               <div
-                                class="mp-detail-section-title"
                                 id="mp-echange-list-title"
                                 style="
-                                  background: none;
-                                  border: none;
-                                  border-radius: 0;
-                                  box-shadow: none;
-                                  padding: 0;
-                                  font-size: 0.95rem;
-                                  letter-spacing: 0;
-                                  text-transform: none;
+                                  font-size: 1rem;
+                                  font-weight: 700;
                                   color: #1c1c1e;
+                                  white-space: nowrap;
                                 "
-                              >
-                                이메일 목록
-                              </div>
+                              ></div>
                               <div
-                                class="mp-detail-section-sub"
                                 id="mp-echange-list-count"
                                 style="
-                                  background: none;
-                                  color: #8a8073;
-                                  padding: 0;
+                                  font-size: 0.82rem;
+                                  color: #8a8378;
+                                  white-space: nowrap;
                                 "
                               ></div>
                             </div>

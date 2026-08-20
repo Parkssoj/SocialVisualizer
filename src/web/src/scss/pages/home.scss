@@ -47,7 +47,7 @@
   display: inline-block;
 }
 .fab-dot.running {
-  background: #6effc5;
+  background: #CDCDCD;
   animation: dot-pulse 1.2s ease-in-out infinite;
 }
 @keyframes dot-pulse {
@@ -84,12 +84,12 @@
   top: calc(100% + 10px);
   right: 0;
   width: 480px;
-  border: 1px solid #d8ebe3;
+  border: none;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
   z-index: 9999;
-  box-shadow: 0 8px 32px rgba(249, 115, 22, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
   max-height: 0;
   opacity: 0;
   pointer-events: none;
@@ -109,8 +109,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #f0f7f3;
-  border-bottom: 1px solid #d8ebe3;
+  background: #F4F4F4;
+  border-bottom: 1px solid #E4E4E4;
 }
 .panel-title {
   display: flex;
@@ -118,7 +118,7 @@
   gap: 7px;
   font-size: 13px;
   font-weight: 500;
-  color: #1b2e22;
+  color: #272727;
 }
 .panel-status {
   font-size: 11px;
@@ -136,8 +136,8 @@
   color: #888;
 }
 .panel-status.done {
-  background: #eaf3de;
-  color: #3b6d11;
+  background: #EEEEEE;
+  color: #545454;
 }
 .panel-status.failed {
   background: #fcebeb;
@@ -159,22 +159,26 @@
   gap: 6px;
 }
 .panel-btn {
-  background: none;
-  border: 1px solid #d8ebe3;
+  background: #fff;
+  border: none;
   color: #f97316;
   border-radius: 6px;
   padding: 3px 9px;
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
 }
 .panel-btn:hover {
   background: rgba(249, 115, 22, 0.08);
+  box-shadow: 0 2px 5px rgba(249, 115, 22, 0.22);
 }
 
 .progress-bar-wrap {
   height: 3px;
-  background: #d8ebe3;
+  background: #E4E4E4;
 }
 .progress-bar-fill {
   height: 100%;
@@ -191,13 +195,13 @@
   font-size: 12px;
   line-height: 1.7;
   scrollbar-width: thin;
-  scrollbar-color: #d8ebe3 transparent;
+  scrollbar-color: #E4E4E4 transparent;
 }
 .log-body::-webkit-scrollbar {
   width: 4px;
 }
 .log-body::-webkit-scrollbar-thumb {
-  background: #d8ebe3;
+  background: #E4E4E4;
   border-radius: 4px;
 }
 
@@ -223,7 +227,7 @@
   }
 }
 .log-ts {
-  color: #b0c4bc;
+  color: #BDBDBD;
   flex-shrink: 0;
   font-size: 11px;
   padding-top: 1px;
@@ -243,12 +247,12 @@
   height: auto;
 }
 .log-tag.running {
-  background: #e1f5ee;
-  color: #0f6e56;
+  background: #EEEEEE;
+  color: #4F4F4F;
 }
 .log-tag.done {
-  background: #eaf3de;
-  color: #3b6d11;
+  background: #EEEEEE;
+  color: #545454;
 }
 .log-tag.failed {
   background: #fcebeb;
@@ -283,7 +287,7 @@
 
 .panel-footer {
   padding: 8px 14px;
-  border-top: 1px solid #d8ebe3;
+  border-top: 1px solid #E4E4E4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -339,12 +343,14 @@ html {
   flex-direction: column; // 위: 텍스트(gw-orbit-left), 아래: 미리보기 카드 가로 정렬(gw-hero-previews)
   align-items: center; // 텍스트/카드 묶음 모두 가로 중앙 정렬
   justify-content: flex-start; // 아래쪽에 남는 공간을 밀어내지 않고 내용 전체를 위로 붙임
-  gap: 32px;
+  gap: clamp(28px, 5vh, 48px); // 텍스트↔카드 간격도 화면 높이에 비례 — 짧은 화면에서도 최소 28px는 보장
   height: 100vh;
   // custom.scss의 ".right_col > div:first-child { padding-top: 10px }"가
   // (0,2,1) 명시도로 이 규칙의 (0,1,0)보다 높아서 padding-top만 10px로 눌려있었음
   // (히어로가 .right_col의 첫 번째 자식 div라 이 범용 규칙에 걸림) → !important로 이김
-  padding: 130px 6vw 60px !important;
+  // 상단 여백을 고정 130px에서 화면 높이 비례(clamp)로 바꿔서 텍스트 블록 전체를 위로
+  // 당기고, 그만큼 아래 카드와의 간격(gap)도 벌어지게 함 — 반응형으로 항상 붙지 않게
+  padding: clamp(40px, 10vh, 90px) 6vw 60px !important;
   overflow: hidden;
 }
 
@@ -432,12 +438,12 @@ html {
   font-size: clamp(2.1rem, 4vw, 4rem) !important;
   line-height: 1.28 !important;
   letter-spacing: normal;
-  color: #374132;
+  color: #3C3C3C;
   text-align: center;
   white-space: nowrap; // <br>로 준 줄바꿈 외에는 자동 줄바꿈 안 되도록
 }
 .gw-hero-headline-muted {
-  color: #57726b; // 위 두 줄(#374132)이랑 폰트/굵기는 동일, 색만 더 옅은 올리브 톤
+  color: #696969; // 위 두 줄(#3C3C3C)이랑 폰트/굵기는 동일, 색만 더 옅은 올리브 톤
 }
 // shadcnspace "illuminated-hero" 데모의 SVG 글로우 필터(#glow-4, HeroOrbit.jsx에 정의)를
 // 헤드라인 텍스트에 적용. 필터 자체가 이미 따뜻한 골드/앰버 톤이라 사이트 색감이랑 잘 맞음 —
@@ -459,7 +465,7 @@ html {
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.7;
-  color: #57726b; // 흰 배경용 — 톤 다운된 올리브 그레이
+  color: #696969; // 흰 배경용 — 톤 다운된 올리브 그레이
   text-align: center;
 }
 
@@ -468,6 +474,7 @@ html {
   align-items: center;
   justify-content: center;
   gap: 22px;
+  margin-bottom: 8px; // 아래 미리보기 카드 줄과 최소한의 여유를 둠(붙지 않도록)
 }
 // 이 두 CTA는 <a> 태그라 _green-luxury.scss의 전역
 // "a { color: var(--gt-link-color) !important; text-decoration: none !important; }"
@@ -479,16 +486,18 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 26px;
+  // 화면 크기에 비례해서 커지고/작아지되(clamp) 최소~최대 폭을 둬서 너무
+  // 커지거나 작아지지 않게 함 — 기존보다 살짝 작게 상한을 낮춤
+  padding: clamp(10px, 0.9vw, 13px) clamp(20px, 1.8vw, 24px);
   border-radius: 999px;
-  background: #f97316; // 오렌지
+  background: #fb923c; // 데이터 업로드 페이지 아이콘과 동일한 오렌지
   color: #ffffff !important;
   font-family:
     "Geist",
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 1rem;
+  font-size: clamp(0.82rem, 0.6vw + 0.68rem, 0.94rem);
   font-weight: 500;
   text-decoration: none !important;
   box-shadow: none;
@@ -621,7 +630,7 @@ html {
 .gw-trusted-label {
   margin: 0 0 14px;
   font-size: 1rem;
-  color: #57726b; // 흰 배경용
+  color: #696969; // 흰 배경용
   letter-spacing: 0.06em;
 }
 .gw-trusted-logos {
@@ -633,7 +642,7 @@ html {
 .gw-trusted-logo {
   font-size: 1rem;
   font-weight: 700;
-  color: #374132; // 흰 배경용
+  color: #3C3C3C; // 흰 배경용
   letter-spacing: 0.02em;
   opacity: 0.55;
 }

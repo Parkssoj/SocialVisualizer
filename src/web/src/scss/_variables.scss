@@ -20,7 +20,7 @@
   // Semantic Colors
   // =========================================================================
   --gt-success: #f97316;
-  --gt-info: #0ea5a0;              // 틸 블루
+  --gt-info: #777777;              // 틸 블루
   --gt-warning: #d4a843;
   --gt-danger: #e05252;
   --gt-purple: #7c6fcd;
@@ -107,7 +107,7 @@
   // Alerts
   // =========================================================================
   --gt-alert-success-bg: #fde3cf;
-  --gt-alert-info-bg: #d0f0ee;
+  --gt-alert-info-bg: #E6E6E6;
   --gt-alert-warning-bg: #fdf3dc;
   --gt-alert-danger-bg: #fde8e8;
 
@@ -190,7 +190,7 @@ $gt-accent: #fdba74;
 $gt-accent-gold: #d4a843;
 
 $gt-success: #f97316;
-$gt-info: #0ea5a0;
+$gt-info: #777777;
 $gt-warning: #d4a843;
 $gt-danger: #e05252;
 $gt-purple: #7c6fcd;
@@ -209,8 +209,8 @@ $gt-border-color: #ecdfd0;
 
 $color-classes: (
   'green': $gt-primary,
-  'aero': #6bb8a0,
-  'blue': #0ea5a0,
+  'aero': #9E9E9E,
+  'blue': #777777,
   'red': $gt-danger,
   'purple': $gt-purple,
   'dark': $gt-dark

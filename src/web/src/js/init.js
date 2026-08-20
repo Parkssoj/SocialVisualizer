@@ -460,7 +460,7 @@ function showLoadingStatus() {
     position: fixed;
     top: 10px;
     right: 10px;
-    background: #26B99A;
+    background: #8a8a8a;
     color: white;
     padding: 8px 12px;
     border-radius: 4px;

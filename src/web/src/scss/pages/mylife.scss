@@ -41,7 +41,7 @@ body {
 .ml-title {
   font-size: clamp(1.5rem, 3cqw, 2.8rem);
   font-weight: 800;
-  color: #1b2e22;
+  color: #272727;
   letter-spacing: -0.04em;
   line-height: 1.1;
 }
@@ -73,7 +73,8 @@ body {
 
 .ml-card {
   background: #fff;
-  border: 1.5px solid #e3ede8;
+  border: none;
+  box-shadow: 0 6px 20px rgba(48, 37, 34, 0.12);
   border-radius: clamp(14px, 1.6cqw, 24px);
   padding: clamp(16px, 2.1cqw, 32px) clamp(14px, 1.9cqw, 28px) clamp(14px, 1.7cqw, 26px);
   text-decoration: none;
@@ -86,7 +87,6 @@ body {
   margin-inline: auto;
   width: 100%;
   transition:
-    border-color 0.2s,
     box-shadow 0.2s,
     transform 0.2s;
   cursor: pointer;
@@ -101,8 +101,7 @@ body {
     pointer-events: none;
   }
   &:hover {
-    border-color: #f97316;
-    box-shadow: 0 8px 32px rgba(249, 115, 22, 0.12);
+    box-shadow: 0 10px 32px rgba(249, 115, 22, 0.28);
     transform: translateY(-3px);
     text-decoration: none;
     color: inherit;
@@ -112,7 +111,7 @@ body {
 .ml-card-icon {
   width: clamp(36px, 4cqw, 60px);
   height: clamp(36px, 4cqw, 60px);
-  background: #e8f7f1;
+  background: #F2F2F2;
   border-radius: clamp(10px, 1.1cqw, 16px);
   display: flex;
   align-items: center;
@@ -123,7 +122,7 @@ body {
 .ml-card-title {
   font-size: clamp(1.05rem, 1.65cqw, 1.55rem);
   font-weight: 800;
-  color: #1b2e22;
+  color: #272727;
   letter-spacing: -0.03em;
 }
 .ml-card-title span {
@@ -138,7 +137,7 @@ body {
 }
 .ml-card-arrow {
   font-size: clamp(0.7rem, 0.95cqw, 0.85rem);
-  color: #b0c4bc;
+  color: #BDBDBD;
   font-weight: 600;
   letter-spacing: 0.04em;
   display: flex;
