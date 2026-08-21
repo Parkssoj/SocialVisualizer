@@ -66,8 +66,8 @@ export default defineConfig({
         mypeople: "production/mypeople.html",
         // 그래프 시각화
         graph_viz: "production/graph-viz.html",
-        // 메일 통계 요약
-        recap: "production/recap.html",
+        // 메일 통계 요약 — 빌드 대상에서 제외 (파일은 남겨둠)
+        // recap: "production/recap.html",
         // 서치 페이지
         search: "production/search.html",
         // IMAP 메일 수집
@@ -124,7 +124,6 @@ export default defineConfig({
       "/person-descriptions": "http://127.0.0.1:80",
       "/contact-photos": "http://127.0.0.1:80",
       "/person-avatars": "http://127.0.0.1:80",
-      "/generate-person-avatars": "http://127.0.0.1:80",
       "/self-avatar": "http://127.0.0.1:80",
       "/generate-self-avatar": "http://127.0.0.1:80",
       "/indexing-history": "http://127.0.0.1:80",

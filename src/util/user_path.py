@@ -1,7 +1,7 @@
 import re,os
 import json
 import shutil
-from config.settings import GRAPHRAG_SETTINGS_DIR, GRAPHRAG_PROMPTS_DIR
+from config.settings import GRAPHRAG_SETTINGS_DIR, GRAPHRAG_PROMPTS_DIR, RAG_ENGINE
 
 ACCOUNT_META_FILENAME = "account.json"
 
@@ -53,10 +53,19 @@ class UserPaths:
 
         # LightRAG 저장소(rag_storage에 해당) 전용 루트. LightRAG()의 working_dir로 그대로 쓴다
         # (job_run_lightrag.py의 _lightrag_ainsert, lightrag_engine.py의 get_lightrag_instance 참고).
-        # GraphRAG의 input(mail_latest.txt)/통계 JSON은 계속 GRAPHRAG_ROOT 밑에 두고 두 엔진이
-        # 공유한다 — 그건 "RAG 엔진의 결과물"이 아니라 엔진과 무관한 원본/통계 데이터라서다.
         # domain은 이미 USER_ROOT에 반영돼 있으므로 여기서 다시 붙이지 않는다.
         self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag")
+
+        # GraphRAG 결과 폴더(cache/input/logs/output)와 구조를 맞추기 위한 하위 폴더.
+        # LightRAG 라이브러리는 working_dir 하나에 그래프/벡터DB/캐시를 전부 섞어서 저장하고
+        # cache/input/output을 따로 나누는 옵션이 없다(라이브러리 코드를 안 건드리는 게 원칙이라
+        # 패치 안 함) — 그래서 LightRAG가 실제로 쓰는 파일(그래프, 벡터DB, 캐시 전부 포함)은
+        # output/ 하나에 모아 넣고, 그걸 working_dir로 쓴다. input/은 인덱싱 원본(latest.txt 등,
+        # 아래 MAIL_DIR 참고)이 실제로 저장되는 곳이고, logs/는 job 로그 파일을 남기는 용도로
+        # 우리가 직접 채운다(job_run_lightrag.py 참고).
+        self.LIGHTRAG_OUTPUT_DIR = os.path.join(self.LIGHTRAG_ROOT, "output")
+        self.LIGHTRAG_INPUT_DIR = os.path.join(self.LIGHTRAG_ROOT, "input")
+        self.LIGHTRAG_LOGS_DIR = os.path.join(self.LIGHTRAG_ROOT, "logs")
 
         # LightRAG용 그래프 시각화 json. GraphRAG의 GRAPH_JSON_PATH(DOMAIN_ROOT/json/...)와
         # 똑같은 스키마({nodes, edges})를 쓰지만, 결과물이 섞이지 않도록 LIGHTRAG_ROOT 밑에
@@ -71,25 +80,54 @@ class UserPaths:
         self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graph_data.json")
         self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "graphrag_parquet2json.py")
 
-        self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
+        # 원본 메일/첨부파일(latest.txt, latest.csv, attachments/)이 저장되는 위치.
+        # GraphRAG는 GraphRAG CLI(settings.yaml)가 input/을 GRAPHRAG_ROOT 바로 밑에서 찾도록
+        # 고정돼 있어서 GRAPHRAG_ROOT를 그대로 쓴다. LightRAG는 그런 제약이 없어서(paths.MAIL_DIR만
+        # 일관되게 참조하면 됨) LIGHTRAG_ROOT/input(=LIGHTRAG_INPUT_DIR) 밑으로 완전히 분리했다 —
+        # 예전엔 RAG_ENGINE에 상관없이 항상 GRAPHRAG_ROOT/input을 같이 썼는데, 그래서 LightRAG로만
+        # 인덱싱해도 graphrag/parquet/input 밑에 latest.txt가 같이 생기는 문제가 있었다.
+        if RAG_ENGINE == "lightrag":
+            self.MAIL_DIR = self.LIGHTRAG_INPUT_DIR
+        else:
+            self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
         # domain이 메일/카카오 둘 다 지원하게 되면서 "mail_" 접두사가 항상 맞진 않아서
         # "latest.txt"로 이름을 바꿨다. 다른 파일들은 전부 이 값을 paths.MAIL_LATEST_PATH로만
         # 참조하고 파일명을 직접 하드코딩하지 않으므로, 여기 한 곳만 바꾸면 전체에 반영된다.
         self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "latest.txt")
         self.ATTACHMENT_DIR = os.path.join(self.MAIL_DIR, "attachments")
 
-        self.PARQUET_DIR = os.path.join(self.DOMAIN_ROOT, "parquet", "output") # output 폴더: parquet들 저장
+        self.PARQUET_DIR = os.path.join(self.DOMAIN_ROOT, "parquet", "output") # output 폴더: parquet들 저장 (GraphRAG 전용)
         self.ENTITIES_PATH = os.path.join(self.PARQUET_DIR, "entities.parquet") # 노드 데이터: 엔티티 목록
         self.RELATIONSHIPS_PATH = os.path.join(self.PARQUET_DIR, "relationships.parquet") # 엣지 데이터: 엔티티 간 관계
         self.COMMUNITIES_PATH = os.path.join(self.PARQUET_DIR, "communities.parquet") # 커뮤니티 데이터: 군집화한 노드 그룹 정보
-        self.MAIL_STATICS_PATH = os.path.join(self.PARQUET_DIR, "statics")
+
+        # 연락처/키워드 통계, 요약, 아바타 등은 MAIL_DIR과 같은 이유로 엔진별로 분리한다.
+        # PARQUET_DIR(entities/relationships/communities.parquet, GraphRAG 전용 산출물) 밑에
+        # 고정해두면, LightRAG만 쓰는 계정은 graphrag/ 폴더 자체가 안 생겨서
+        # (lightrag_extract_statics.py 등이 os.makedirs(paths.MAIL_STATICS_PATH)로 알아서
+        # 만들어주긴 하지만) 통계 폴더가 GraphRAG 전용 폴더 밑에 딸려 들어가는 게 어색하고,
+        # 실제로 mail_contact_stats.json을 못 찾는 FileNotFoundError가 났다.
+        if RAG_ENGINE == "lightrag":
+            self.MAIL_STATICS_PATH = os.path.join(self.LIGHTRAG_ROOT, "statics")
+        else:
+            self.MAIL_STATICS_PATH = os.path.join(self.PARQUET_DIR, "statics")
         self.MAIL_CONTACTS_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_contact_stats.json")
         self.MAIL_KEYWORDS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "mail_keyword_stats.json")
         self.MAIL_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_summaries.json")
+        self.MAIL_SUMMARY_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "mail_summary_images")
         self.MAIL_PHOTOS_PATH    = os.path.join(self.MAIL_STATICS_PATH, "contact_photos.json")
         self.MAIL_AVATARS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "person_avatars.json")
         self.AVATAR_IMAGES_DIR  = os.path.join(self.MAIL_STATICS_PATH, "avatars")
         self.MAIL_MESSAGE_CACHE_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_message_cache.json")
+        # 메신저(messenger) 도메인 전용 중간 통계 JSON — mail_*과 같은 디렉터리를 쓰지만
+        # (이미 domain별로 폴더가 나뉘어 있어 파일명 겹칠 일 없음) 별도 이름으로 구분.
+        self.CHATROOM_PEOPLE_MESSAGES_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_messages.json")
+        self.MESSAGE_KEYWORDS_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_keyword_stats.json")
+        self.MESSAGE_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_summaries.json")
+        self.MESSAGE_SUMMARY_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "message_summary_images")
+        self.MESSAGE_MOOD_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_mood.json")
+        self.MESSAGE_AVATARS_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_avatars.json")
+        self.MESSAGE_AVATAR_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "chatroom_avatars")
         self.UPDATE_DIR = os.path.join(self.GRAPHRAG_ROOT, "update_output")
         self.MAX_MAILS = _MAX_MAILS_CONFIG.get(user_id, None)
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
@@ -117,7 +155,7 @@ def _account_indexed(paths) -> bool:
     from config.settings import RAG_ENGINE
     if RAG_ENGINE == "lightrag":
         from util.lightrag_backend.lightrag_engine import is_index_ready
-        return is_index_ready(paths.LIGHTRAG_ROOT)
+        return is_index_ready(paths.LIGHTRAG_OUTPUT_DIR)
     elif RAG_ENGINE == "graphrag":
         from util.graphrag import _is_index_ready
         return _is_index_ready(paths)

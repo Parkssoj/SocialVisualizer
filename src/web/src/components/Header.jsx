@@ -6,20 +6,14 @@ import { changeLanguage } from "../utils/i18n.js";
  * 예전 appHeader.js의 NAV_ITEMS와 동일한 데이터. 이 배열만 고치면
  * 메뉴 항목이 늘거나 줄어도 화면이 자동으로 갱신됩니다.
  */
+// 메뉴 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
+// Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
 const NAV_ITEMS = [
   { page: "home", href: "index.html", label: "홈" },
+  { page: "imap-collect", href: "imap-collect.html", label: "데이터 업로드" },
+  { page: "mypeople", href: "mypeople.html", label: "My People" },
+  { page: "mytime", href: "mytime.html", label: "My Time" },
   { page: "search", href: "search.html", label: "검색" },
-  { page: "imap-collect", href: "imap-collect.html", label: "메일 수집" },
-  {
-    page: "mylife",
-    href: "mylife.html",
-    label: "My Life",
-    children: [
-      { page: "mypeople", href: "mypeople.html", label: "My People" },
-      { page: "mytime", href: "mytime.html", label: "My Time" },
-      { page: "recap", href: "recap.html", label: "Recap" },
-    ],
-  },
   { page: "graph-viz", href: "graph-viz.html", label: "지식 그래프" },
 ];
 
@@ -100,15 +94,13 @@ export default function Header({ activePage }) {
         </div>
         <nav className="nav navbar-nav ms-auto">
           <ul className="navbar-right d-flex align-items-center gap-3 pe-3">
+            {/* 로그인/번역 버튼 비활성화
             <li className="nav-item">
               <button type="button" className="gw-login-btn">
                 로그인
               </button>
             </li>
             <li className="nav-item dropdown">
-              {/* Bootstrap의 data-bs-toggle 방식 대신 Radix UI 프리미티브 사용:
-                  열림/닫힘, 키보드 방향키 탐색, 바깥 클릭 감지, 포커스 관리를
-                  전부 라이브러리가 알아서 처리해줌 (직접 구현 X) */}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <a
@@ -152,6 +144,7 @@ export default function Header({ activePage }) {
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
             </li>
+            */}
           </ul>
         </nav>
       </div>

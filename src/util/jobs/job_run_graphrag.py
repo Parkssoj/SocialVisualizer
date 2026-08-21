@@ -20,6 +20,16 @@ from util.extract_statics import start_timer,end_timer,format_elapsed_time, _ext
 from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, save_mail_folder_to_db, save_mail_to_db, collect_indexing_stats, update_mail_account_indexing_stats, save_graph_stats_to_db
 from util.graphrag_mail_summary import generate_mail_summaries
 
+from util.message_statics import _extract_message_statics_pipeline, _parse_message_blocks_from_parquet, count_total_messages
+from util.database.chatroom_db_writer import (
+    create_chatroom, update_chatroom_indexing_stats, save_chatroom_graph_stats_to_db,
+    save_message_block_to_db, save_chatroom_people_to_db, save_message_keyword_to_db,
+    save_chatroom_relationships_to_db,
+)
+from util.message_summary import generate_message_summaries
+from util.message_mood import recompute_all_message_moods
+from util.avatar_generator import generate_chatroom_people_avatars_batch, generate_all_person_avatars
+
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
 
@@ -597,7 +607,8 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
     if max_mails is not None:
         _trim_mail_latest(paths, max_mails, job_id)
 
-    #user_graphrag_init(paths)
+    render_all_prompts()
+    user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
     cmd = [
@@ -687,7 +698,9 @@ def build_graphrag_update(job_id,paths, env):
     append_job_log(job_id, f"[INFO] sys.executable={sys.executable}")
     append_job_log(job_id, f"[INFO] GRAPHRAG_ROOT={paths.GRAPHRAG_ROOT}")
     append_job_log(job_id, f"[INFO] root_exists={os.path.exists(paths.GRAPHRAG_ROOT)}")
-    
+
+    render_all_prompts()
+    user_graphrag_init(paths)
 
     # GraphRAG CLI 실행 명령어 구성
     cmd = [
@@ -801,33 +814,92 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
 
         formatted_time = format_elapsed_time(time_result["elapsed_sec"])
 
-        _extract_statics_pipeline(paths, mode='rewrite')
         target_update_date = time_result["ended_at"]
 
-        create_mail_account(
-                user_mail_account_id=paths.USER_ID,
+        if paths.DOMAIN == "messenger":
+            _extract_message_statics_pipeline(paths, mode='rewrite')
+
+            blocks = _parse_message_blocks_from_parquet(paths)
+            chatroom_name = blocks[0]["chatroom_name"] if blocks else paths.USER_ID
+
+            create_chatroom(
+                chatroom_id=paths.USER_ID,
+                chatroom_name=chatroom_name,
                 ended_at=target_update_date,
                 index_time=formatted_time,
-                mail_count=added_count,
-                mail_platform=mail_platform,
+                # added_count는 새로 추가된 블록(하루) 수라서 message_count로 쓰면 메시지 개수가
+                # 아니라 날짜 수가 들어간다 — chatroom_people_messages.json(참여자별 실제 메시지
+                # 리스트)을 합산해 진짜 메시지 개수를 쓴다.
+                message_count=count_total_messages(paths),
+                message_platform=mail_platform,
             )
-        indexing_stats = collect_indexing_stats(paths)
-        update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
-        save_graph_stats_to_db(paths, target_update_date)
+            indexing_stats = collect_indexing_stats(paths)
+            update_chatroom_indexing_stats(paths.USER_ID, target_update_date, indexing_stats)
+            save_chatroom_graph_stats_to_db(paths, target_update_date)
 
-        # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
-        # mail_folder row가 먼저 존재해야 함 (동시 스레드로 돌리면 FK 위반 위험)
-        save_mail_folder_to_db(paths, target_update_date)
+            # message_keyword는 participant에 대한 FK이므로, message_block(참여자 집계 포함)이
+            # 먼저 저장되어야 함 — mail 쪽에서 mail_folder → mail 순서를 지키는 것과 같은 이유.
+            save_message_block_to_db(paths, target_update_date)
 
-        # mail_keyword는 person에 대한 FK이므로, person 저장이 끝난 뒤에 키워드를 넣어야
-        # valid_persons 조회가 비어서 키워드가 통째로 스킵되는 문제(FK 대상 없음)가 안 생김
-        save_person_stats_to_db(paths, target_update_date)
+            # 나머지 셋은 서로 독립적(participant 조회는 위에서 이미 끝남)이라 mail 쪽과 같이 병렬화
+            _run_and_join([
+                (save_chatroom_people_to_db, (paths, target_update_date)),
+                (save_message_keyword_to_db, (paths, target_update_date)),
+                (generate_message_summaries, (paths,)),
+            ])
 
-        _run_and_join([
-            (save_mail_to_db, (paths, target_update_date)),
-            (save_keyword_stats_to_db, (paths, target_update_date)),
-            (generate_mail_summaries, (paths,)),
-        ])
+            # chatroom_relationship.person_a/person_b가 chatroom_people을 FK로 참조하므로,
+            # 위 병렬 블록에서 save_chatroom_people_to_db가 끝난 뒤에 순차로 실행해야 한다.
+            save_chatroom_relationships_to_db(paths, target_update_date)
+
+            # Activity(다른 방과 비교)가 message_block 테이블을 조회하므로
+            # save_message_block_to_db가 끝난 뒤(위) 실행돼야 함.
+            # 이 방만 계산하지 않고 같은 계정의 모든 방을 다시 계산해서, 새 방이 추가될
+            # 때마다 Activity의 비교 기준(pool)이 항상 최신 상태를 반영하도록 한다.
+            recompute_all_message_moods(paths)
+
+            # 참여자 아바타 생성은 chatroom_people.description이 DB에 커밋된 뒤(위
+            # save_chatroom_people_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            # 실패해도 인덱싱 자체는 이미 끝났으므로 예외를 흡수하고 계속 진행한다.
+            try:
+                generate_chatroom_people_avatars_batch(paths)
+            except Exception as e:
+                print(f"[JOB] 참여자 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
+        else:
+            _extract_statics_pipeline(paths, mode='rewrite')
+
+            create_mail_account(
+                    user_mail_account_id=paths.USER_ID,
+                    ended_at=target_update_date,
+                    index_time=formatted_time,
+                    mail_count=added_count,
+                    mail_platform=mail_platform,
+                )
+            indexing_stats = collect_indexing_stats(paths)
+            update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
+            save_graph_stats_to_db(paths, target_update_date)
+
+            # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
+            # mail_folder row가 먼저 존재해야 함 (동시 스레드로 돌리면 FK 위반 위험)
+            save_mail_folder_to_db(paths, target_update_date)
+
+            # mail_keyword는 person에 대한 FK이므로, person 저장이 끝난 뒤에 키워드를 넣어야
+            # valid_persons 조회가 비어서 키워드가 통째로 스킵되는 문제(FK 대상 없음)가 안 생김
+            save_person_stats_to_db(paths, target_update_date)
+
+            _run_and_join([
+                (save_mail_to_db, (paths, target_update_date)),
+                (save_keyword_stats_to_db, (paths, target_update_date)),
+                (generate_mail_summaries, (paths,)),
+            ])
+
+            # 연락처 아바타 생성은 person.description이 DB에 커밋된 뒤(위
+            # save_person_stats_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            # 실패해도 인덱싱 자체는 이미 끝났으므로 예외를 흡수하고 계속 진행한다.
+            try:
+                generate_all_person_avatars(paths)
+            except Exception as e:
+                print(f"[JOB] 연락처 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
 
 
         update_job(job_id, progress=100, status="done", message="인덱싱 완료")
@@ -860,22 +932,53 @@ def run_graph_update_pipeline(job_id, paths, env):
         # 2단계: json 생성 
         build_graph_json(job_id,paths, env)
 
-        _extract_statics_pipeline(paths, mode='append')
-        indexing_stats = collect_indexing_stats(paths)
-        update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
-        save_graph_stats_to_db(paths)
+        if paths.DOMAIN == "messenger":
+            _extract_message_statics_pipeline(paths, mode='append')
+            indexing_stats = collect_indexing_stats(paths)
+            update_chatroom_indexing_stats(paths.USER_ID, None, indexing_stats)
+            save_chatroom_graph_stats_to_db(paths)
 
-        # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
-        # 새로 추가된 폴더가 먼저 존재해야 함
-        save_mail_folder_to_db(paths)
+            save_message_block_to_db(paths)
 
-        # mail_keyword는 person에 대한 FK이므로, person 저장이 끝난 뒤에 키워드를 넣어야 함
-        save_person_stats_to_db(paths)
+            _run_and_join([
+                (save_chatroom_people_to_db, (paths,)),
+                (save_message_keyword_to_db, (paths,)),
+            ])
 
-        _run_and_join([
-            (save_mail_to_db, (paths,)),
-            (save_keyword_stats_to_db, (paths,)),
-        ])
+            # chatroom_relationship.person_a/person_b가 chatroom_people을 FK로 참조하므로,
+            # 위 병렬 블록에서 save_chatroom_people_to_db가 끝난 뒤에 순차로 실행해야 한다.
+            save_chatroom_relationships_to_db(paths)
+
+            # 참여자 아바타 생성은 chatroom_people.description이 DB에 커밋된 뒤(위
+            # save_chatroom_people_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            try:
+                generate_chatroom_people_avatars_batch(paths)
+            except Exception as e:
+                print(f"[JOB] 참여자 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
+        else:
+            _extract_statics_pipeline(paths, mode='append')
+            indexing_stats = collect_indexing_stats(paths)
+            update_mail_account_indexing_stats(paths.USER_ID, None, indexing_stats)
+            save_graph_stats_to_db(paths)
+
+            # mail.mail_folder_name은 mail_folder에 대한 FK이므로, mail INSERT 전에
+            # 새로 추가된 폴더가 먼저 존재해야 함
+            save_mail_folder_to_db(paths)
+
+            # mail_keyword는 person에 대한 FK이므로, person 저장이 끝난 뒤에 키워드를 넣어야 함
+            save_person_stats_to_db(paths)
+
+            _run_and_join([
+                (save_mail_to_db, (paths,)),
+                (save_keyword_stats_to_db, (paths,)),
+            ])
+
+            # 연락처 아바타 생성은 person.description이 DB에 커밋된 뒤(위
+            # save_person_stats_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            try:
+                generate_all_person_avatars(paths)
+            except Exception as e:
+                print(f"[JOB] 연락처 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
 
         update_job(job_id, progress=100, status="done", message="업데이트 완료")
         broadcast({"type": "done", "job_id": job_id, "message": "업데이트 완료"})

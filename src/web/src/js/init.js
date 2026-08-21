@@ -399,6 +399,34 @@ function initializeKeyboardShortcuts() {
 }
 
 /**
+ * 헤더 스크롤 그림자 — 페이지 맨 위에서는 그림자가 안 보이다가 스크롤하면 자연스럽게
+ * 나타나도록 함 (_header.scss의 .top_nav.gw-header-scrolled 참고). 홈(React Header.jsx)/
+ * 다른 페이지(appHeader.js) 둘 다 마운트 후에는 결국 같은 .top_nav 요소를 쓰므로,
+ * scroll 이벤트마다 lazy하게 querySelector로 찾아서 여기 한 곳에서만 처리하면 됨.
+ *
+ * 페이지마다 실제로 스크롤되는 대상이 다름 — 홈 화면은 window 자체가 스크롤되지만,
+ * recap 등 .right_col에 overflow-y:auto가 붙은 페이지는 document.body가 스크롤됨
+ * (실측: window.scrollY는 0으로 고정, document.body.scrollTop만 변함). scroll 이벤트는
+ * 기본적으로 버블링되지 않으므로, window/document에 { capture: true }로 등록해서
+ * body 등 하위 요소에서 발생한 scroll 이벤트도 캡처 단계에서 잡아냄. 그리고 어느 쪽이
+ * 실제로 스크롤됐는지 몰라도 되도록 window/documentElement/body 스크롤 값을 순서대로
+ * fallback 하는 getScrollTop()으로 항상 "현재 스크롤 위치"를 정확히 읽어옴.
+ */
+function initializeHeaderScrollShadow() {
+  const SCROLL_THRESHOLD = 4;
+  const getScrollTop = () =>
+    window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  const onScroll = () => {
+    const header = document.querySelector('.top_nav');
+    if (!header) return;
+    header.classList.toggle('gw-header-scrolled', getScrollTop() > SCROLL_THRESHOLD);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+  document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+  onScroll(); // 새로고침 시 이미 스크롤된 채로 들어오는 경우 대비, 최초 1회 즉시 실행
+}
+
+/**
  * Main Initialization - MODERNIZED FROM JQUERY
  * Coordinates all modern initialization functions
  */
@@ -414,6 +442,7 @@ async function initializeModernComponents() {
     initializeDragAndDrop();
     initializeSearchAndFilter();
     initializeKeyboardShortcuts();
+    initializeHeaderScrollShadow();
 
     // DataTables now handled by modern tables module (jQuery-free)
   } catch (error) {
@@ -431,7 +460,7 @@ function showLoadingStatus() {
     position: fixed;
     top: 10px;
     right: 10px;
-    background: #26B99A;
+    background: #8a8a8a;
     color: white;
     padding: 8px 12px;
     border-radius: 4px;

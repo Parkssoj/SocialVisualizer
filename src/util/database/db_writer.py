@@ -125,19 +125,22 @@ def save_person_stats_to_db(paths, update_date=None):
                 receive_mails,
                 send_mails,
                 friendly_mails,
-                description
+                description,
+                relation_label
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 person_name    = VALUES(person_name),
                 receive_mails  = VALUES(receive_mails),
                 send_mails     = VALUES(send_mails),
                 friendly_mails = VALUES(friendly_mails),
-                description    = COALESCE(VALUES(description), description)
+                description    = COALESCE(VALUES(description), description),
+                relation_label = COALESCE(VALUES(relation_label), relation_label)
         """
 
         inserted_count = 0
         for email, info in stats.items():
+            profile = descriptions.get(email) or {}
             cursor.execute(
                 insert_sql,
                 (
@@ -148,7 +151,8 @@ def save_person_stats_to_db(paths, update_date=None):
                     int(info.get("received", 0)),
                     int(info.get("sent", 0)),
                     int(info.get("friendly_mail", 0)),
-                    descriptions.get(email),
+                    profile.get("description"),
+                    profile.get("relation_label"),
                 )
             )
             inserted_count += 1
