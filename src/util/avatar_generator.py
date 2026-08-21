@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image, ImageChops
-from util.database.db_reader import get_person_descriptions
+from util.database.db_reader import get_person_descriptions, get_all_persons
 from util.database.chatroom_reader import get_chatroom_people
 
 load_dotenv("src/parquet/.env")
@@ -577,6 +577,19 @@ def generate_person_avatars_batch(paths, people: list) -> dict:
                 future.result()
 
     return {email: avatar_map[email] for email in seen if email in avatar_map}
+
+
+def generate_all_person_avatars(paths) -> dict:
+    """인덱싱 완료 직후 이 계정의 연락처 전체를 조회해 일괄 아바타 생성한다(프론트엔드
+    지연 생성 대신 서버 사이드 트리거용 진입점). 이미 캐시된 사람은 generate_person_avatars_batch
+    내부의 skip 로직이 그대로 걸러준다."""
+    persons = get_all_persons(paths.USER_ID)
+    people = [
+        {"email": p["person_mail_account_id"], "name": p.get("person_name") or ""}
+        for p in persons
+        if p.get("person_mail_account_id")
+    ]
+    return generate_person_avatars_batch(paths, people)
 
 
 def get_cached_chatroom_people_avatars(paths) -> dict:

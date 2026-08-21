@@ -28,7 +28,7 @@ from util.database.chatroom_db_writer import (
 )
 from util.message_summary import generate_message_summaries
 from util.message_mood import recompute_all_message_moods
-from util.avatar_generator import generate_chatroom_people_avatars_batch
+from util.avatar_generator import generate_chatroom_people_avatars_batch, generate_all_person_avatars
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
@@ -503,6 +503,14 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
                 (generate_mail_summaries, (paths,)),
             ])
 
+            # 연락처 아바타 생성은 person.description이 DB에 커밋된 뒤(위
+            # save_person_stats_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            # 실패해도 인덱싱 자체는 이미 끝났으므로 예외를 흡수하고 계속 진행한다.
+            try:
+                generate_all_person_avatars(paths)
+            except Exception as e:
+                print(f"[JOB] 연락처 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
+
 
         update_job(job_id, progress=100, status="done", message="인덱싱 완료")
         broadcast({"type": "done", "job_id": job_id, "message": "인덱싱 완료"})
@@ -572,6 +580,13 @@ def run_graph_update_pipeline(job_id, paths, env):
                 (save_mail_to_db, (paths,)),
                 (save_keyword_stats_to_db, (paths,)),
             ])
+
+            # 연락처 아바타 생성은 person.description이 DB에 커밋된 뒤(위
+            # save_person_stats_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            try:
+                generate_all_person_avatars(paths)
+            except Exception as e:
+                print(f"[JOB] 연락처 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
 
         update_job(job_id, progress=100, status="done", message="업데이트 완료")
         broadcast({"type": "done", "job_id": job_id, "message": "업데이트 완료"})

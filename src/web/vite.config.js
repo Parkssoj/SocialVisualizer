@@ -124,7 +124,6 @@ export default defineConfig({
       "/person-descriptions": "http://127.0.0.1:80",
       "/contact-photos": "http://127.0.0.1:80",
       "/person-avatars": "http://127.0.0.1:80",
-      "/generate-person-avatars": "http://127.0.0.1:80",
       "/self-avatar": "http://127.0.0.1:80",
       "/generate-self-avatar": "http://127.0.0.1:80",
       "/indexing-history": "http://127.0.0.1:80",

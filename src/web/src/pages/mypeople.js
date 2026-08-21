@@ -315,7 +315,6 @@ let periodStatsLoaded = false;
 let statsDebounceTimer = null;
 let contactPhotos = {}; // email → photo URL
 let generatedAvatars = {}; // email → GPT 생성 아바타 이미지 URL
-let avatarGenStarted = false;
 let sortMode = "affinity";
 let hideBrandAccounts = false; // true면 기업/광고성 발신자 카드를 목록에서 숨김
 let sentStatsMap = {}; // email → 보낸 메일수
@@ -914,7 +913,6 @@ async function loadPeople() {
   }
 
   renderCards();
-  startAvatarGeneration();
   initMyAvatar();
 
   if (dateRange) {
@@ -930,42 +928,6 @@ async function loadPeople() {
     };
   }
   initTimeline(mailDateRange.first, mailDateRange.last);
-}
-
-/* ── 모든 사람/발신자에 대해 아바타 생성 (이미 생성된 사람은 서버에서 캐시로 건너뜀)
-         실제 기업/브랜드 발신자인지는 서버에서 LLM으로 판별해 로고 이미지를, 그 외에는
-         GPT 이미지 API로 일러스트 아바타를 생성한다. ── */
-async function startAvatarGeneration() {
-  if (avatarGenStarted) return;
-  avatarGenStarted = true;
-
-  const gmailId = (await userIdPromise) || "";
-  if (!gmailId) return;
-
-  const candidates = groupByEntityName(allPeople)
-    .filter((p) => p.email && !generatedAvatars[(p.email || "").toLowerCase()])
-    .map((p) => ({ email: p.email, name: resolveDisplayName(p) }));
-
-  if (!candidates.length) return;
-
-  const BATCH_SIZE = 6;
-  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
-    const batch = candidates.slice(i, i + BATCH_SIZE);
-    try {
-      const res = await fetch("/generate-person-avatars", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: gmailId, people: batch }),
-      });
-      if (res.ok) {
-        const j = await res.json();
-        Object.assign(generatedAvatars, j.data || {});
-        renderCards();
-      }
-    } catch (e) {
-      console.error("아바타 생성 오류:", e);
-    }
-  }
 }
 
 /* ── 로그인한 사용자 본인 아바타: 페이지 로드 시 1회 생성/캐시해두고,
