@@ -6,7 +6,8 @@
 #
 # MoodScore = ContentJudge(35%) + Tone(35%) + Activity(15%) + ResponseSpeed(15%)
 #   - ContentJudge: 원본 대화 텍스트를 LLM이 읽고 "사적 대화 비율(%)"을 직접 산출
-#   - Tone: 이모지/특수기호/ㅋㅋㅎㅎ 빈도 + 문장 끝 말투(반말·애교체는 가점, 격식체는 감점) (통계, LLM 호출 없음)
+#   - Tone: 느낌표/텍스트 이모티콘(^^,ㅠㅠ 등)/유니코드 이모지/카카오톡 이모티콘 전송/
+#     ㅋㅋㅎㅎ 반복 강도 + 문장 끝 말투(반말·애교체는 가점, 격식체는 감점) (통계, LLM 호출 없음)
 #   - Activity: 대화량(같은 계정의 다른 채팅방들과 비교) × 참여 균형(엔트로피)
 #     새 채팅방이 인덱싱될 때마다 recompute_all_message_moods()가 그 계정의 모든 채팅방을
 #     다시 계산해서, 비교 기준(pool)이 항상 최신 상태를 반영하도록 한다.
@@ -32,10 +33,12 @@ WEIGHT_TONE           = 0.35
 WEIGHT_ACTIVITY       = 0.15
 WEIGHT_RESPONSE_SPEED = 0.15
 
-_TONE_MARKER_RE = re.compile(
-    r'!|[ㅋㅎ]{2,}|'
+_EMOJI_RE = re.compile(
     r'[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF]'
 )
+_TEXT_EMOTICON_RE = re.compile(r'\^\^|ㅠ{2,}|ㅜ{2,}|-_-|;;')
+_LAUGH_RE = re.compile(r'[ㅋㅎ]{2,}')
+_LAUGH_SCORE_CAP = 5  # ㅋㅋㅋㅋㅋ 이상은 더 이상 가점 안 늘림
 
 # 문장 끝 어미 기반 말투 휴리스틱 (완벽한 문법 분석은 아니고, 자주 쓰이는 어미 패턴 매칭)
 # 반말/애교체 어미 → 가점(친밀한 말투), 격식체 어미 → 감점(사무적인 말투)
@@ -44,8 +47,17 @@ _FORMAL_ENDING_RE = re.compile(r'(습니다|합니다|입니다|십니다|세요
 
 
 def _tone_marker_score(text: str) -> float:
-    # 이모지/특수기호/ㅋㅋㅎㅎ 빈도 + 문장 끝 말투 점수를 합산한 원값 (한 메시지 기준)
-    score = float(len(_TONE_MARKER_RE.findall(text)))
+    # 느낌표/텍스트 이모티콘/유니코드 이모지/카카오톡 이모티콘 전송/ㅋㅋㅎㅎ 반복 강도 +
+    # 문장 끝 말투 점수를 합산한 원값 (한 메시지 기준)
+    score = 0.0
+    score += len(re.findall(r'!', text))
+    score += len(_TEXT_EMOTICON_RE.findall(text))
+    score += len(_EMOJI_RE.findall(text))
+    for match in _LAUGH_RE.finditer(text):
+        score += min(len(match.group()), _LAUGH_SCORE_CAP)
+    if text.strip() == "이모티콘":
+        score += 1.0
+
     tail = text.strip()[-10:]
     if _FORMAL_ENDING_RE.search(tail):
         score -= 1.0
@@ -172,7 +184,8 @@ def _minmax_score(value, pool_values):
     lo, hi = min(pool_values), max(pool_values)
     if hi == lo:
         return 50.0
-    return (value - lo) / (hi - lo) * 100
+    # pool_values는 DB 스냅샷 기준이라 방금 파싱한 value가 그 범위를 벗어날 수 있음 -> 0~100으로 clamp
+    return max(0.0, min(100.0, (value - lo) / (hi - lo) * 100))
 
 
 def _fetch_cross_room_message_counts(user_id, unit):
