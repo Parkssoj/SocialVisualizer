@@ -639,6 +639,28 @@ def get_person_descriptions(user_id: str) -> list:
         conn.close()
 
 
+def get_all_persons(user_id: str) -> list:
+    """설명 유무와 무관하게 최신 인덱싱 기준 이 계정의 연락처 전체(이메일+이름)를 반환한다.
+    인덱싱 직후 서버가 아바타를 일괄 생성할 때, EIS 계산이 들어간 get_high_affinity_person_stats
+    대신 가볍게 조회하기 위한 용도."""
+    latest_account = get_latest_mail_account(user_id)
+    if not latest_account:
+        return []
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT person_mail_account_id, person_name
+            FROM person
+            WHERE user_mail_account_id = %s AND index_date = %s
+        """, (latest_account["user_mail_account_id"], latest_account["index_date"]))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def get_mail_relationships(user_id: str) -> list:
     """person.relation_label만 추려서 반환 (description 전체 텍스트 없이 가벼운 페이로드).
     메신저의 get_chatroom_relationships()에 대응하는 메일 버전 — 메일은 person 테이블에

@@ -50,17 +50,17 @@ Summary of the period (extract concrete activities/objects/settings from this an
 
 def generate_summary_image_bytes(summary_text: str, period_label: str) -> bytes:
     # TEMP: GPT 이미지 생성 임시 비활성화
-    # raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
-    result = client.images.generate(
-        model=SUMMARY_IMAGE_MODEL,
-        prompt=_build_summary_image_prompt(summary_text, period_label),
-        size=SUMMARY_IMAGE_SIZE,
-        quality=SUMMARY_IMAGE_QUALITY,
-        output_format="png",
-        n=1,
-    )
-    b64 = result.data[0].b64_json
-    return base64.b64decode(b64)
+    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
+    # result = client.images.generate(
+    #     model=SUMMARY_IMAGE_MODEL,
+    #     prompt=_build_summary_image_prompt(summary_text, period_label),
+    #     size=SUMMARY_IMAGE_SIZE,
+    #     quality=SUMMARY_IMAGE_QUALITY,
+    #     output_format="png",
+    #     n=1,
+    # )
+    # b64 = result.data[0].b64_json
+    # return base64.b64decode(b64)
 
 
 def _generate_images_for_summaries(summaries_path: str, images_dir: str, url_prefix: str, log_tag: str):
