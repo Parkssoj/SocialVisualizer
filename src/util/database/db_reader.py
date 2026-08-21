@@ -288,6 +288,106 @@ def get_keywords_by_person_date(user_id: str, person_user_id: str, start_date: s
         conn.close()
 
 
+def get_mail_keyword_monthly_stats(user_id: str, start_date: str = None, end_date: str = None) -> dict:
+    """user_id 전체(모든 상대방 합산)의 월별 키워드 목록+언급 수를 반환.
+    start_date/end_date를 주면 그 기간만, 안 주면 전체 기간."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        sql = """
+            SELECT DATE_FORMAT(mail_date, '%Y-%m') AS month, keyword_name AS word, SUM(daily_count) AS count
+            FROM mail_keyword
+            WHERE user_mail_account_id = %s
+        """
+        params = [user_id]
+        if start_date and end_date:
+            sql += " AND mail_date BETWEEN %s AND %s"
+            params += [start_date, end_date + ' 23:59:59']
+        sql += " GROUP BY month, keyword_name ORDER BY month, count DESC"
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    monthly = {}
+    for row in rows:
+        monthly.setdefault(row["month"], []).append({"word": row["word"], "count": int(row["count"] or 0)})
+    return monthly
+
+
+def get_mail_keyword_daily_stats(user_id: str, month: str) -> dict:
+    """user_id 전체(모든 상대방 합산)가 특정 월(month, "YYYY-MM")에 날짜별로 언급한
+    키워드 목록+횟수를 반환. 월별 그래프에서 달을 클릭했을 때 "일별 목록" 화면용."""
+    year, mon = (int(x) for x in month.split("-"))
+    month_start = f"{month}-01"
+    month_end = f"{month}-{calendar.monthrange(year, mon)[1]:02d}"
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT DATE(mail_date) AS date, keyword_name AS word, SUM(daily_count) AS count
+            FROM mail_keyword
+            WHERE user_mail_account_id = %s
+              AND mail_date BETWEEN %s AND %s
+            GROUP BY date, keyword_name
+            ORDER BY date, count DESC
+            """,
+            (user_id, month_start, month_end + ' 23:59:59'),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    daily = {}
+    for row in rows:
+        date_str = row["date"].strftime("%Y-%m-%d") if hasattr(row["date"], "strftime") else str(row["date"])
+        daily.setdefault(date_str, []).append({"word": row["word"], "count": int(row["count"] or 0)})
+    return daily
+
+
+def get_mail_keyword_mentioners(user_id: str, date: str, keyword: str) -> list:
+    """user_id 전체에서 특정 날짜(date, "YYYY-MM-DD")에 특정 키워드(keyword)를 언급한
+    상대방별 횟수를 반환. 인원 수 제한 없음, count 내림차순. avatar_url은 여기서 채우지
+    않고 app.py에서 person_avatars 캐시를 붙인다(기존 /chatroom-people 패턴과 동일)."""
+    latest = get_latest_mail_account(user_id)
+    if not latest:
+        return []
+    update_date = latest["index_date"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT k.person_mail_account_id AS person_id,
+                   p.person_name AS name,
+                   SUM(k.daily_count) AS count
+            FROM mail_keyword k
+            LEFT JOIN person p
+              ON p.person_mail_account_id = k.person_mail_account_id
+             AND p.user_mail_account_id = k.user_mail_account_id
+             AND p.index_date = %s
+            WHERE k.user_mail_account_id = %s
+              AND k.keyword_name = %s
+              AND DATE(k.mail_date) = %s
+            GROUP BY k.person_mail_account_id, p.person_name
+            ORDER BY count DESC
+            """,
+            (update_date, user_id, keyword, date),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [{"person_id": r["person_id"], "name": r["name"], "count": int(r["count"] or 0)} for r in rows]
+
+
 def get_user_rating_stats(): # 모든 유저의 Olive 만족도
     return {"total_rating" : 99}
 

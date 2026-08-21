@@ -69,6 +69,9 @@ from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
+    get_mail_keyword_monthly_stats,
+    get_mail_keyword_daily_stats,
+    get_mail_keyword_mentioners,
     get_mail_sync_stats,
     get_user_rating_stats,
     get_high_affinity_person_stats,
@@ -127,6 +130,9 @@ from util.database.chatroom_reader import (
     get_chatroom_person_detail,
     get_chatroom_mood,
     get_chatroom_keywords_by_person,
+    get_chatroom_keyword_monthly_stats,
+    get_chatroom_keyword_daily_stats,
+    get_chatroom_keyword_mentioners,
     get_chatroom_person_monthly_stats,
     get_chatroom_person_daily_stats,
     get_chatroom_day_messages,
@@ -929,6 +935,66 @@ def keyword_by_person_date():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/mail-keyword-monthly-stats", methods=["POST"]) # 전체 상대방 합산, 월별 키워드 목록+언급 수
+def send_mail_keyword_monthly_stats():
+    data = request.json or {}
+    user_id    = data.get("user_id", "").strip()
+    start_date = (data.get("start_date") or "").strip() or None
+    end_date   = (data.get("end_date") or "").strip() or None
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    return jsonify({
+        "user_id": user_id,
+        "data": get_mail_keyword_monthly_stats(user_id, start_date, end_date),
+    })
+
+@app.route("/mail-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+def send_mail_keyword_daily_stats():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    month   = data.get("month", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    return jsonify({
+        "user_id": user_id,
+        "month":   month,
+        "data": get_mail_keyword_daily_stats(user_id, month),
+    })
+
+@app.route("/mail-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 사람 목록(이름+횟수+아바타)
+def send_mail_keyword_mentioners():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    date    = data.get("date", "").strip()
+    keyword = data.get("keyword", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+    if not keyword:
+        return jsonify({"error": "keyword is required"}), 400
+
+    mentioners = get_mail_keyword_mentioners(user_id, date, keyword)
+
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    avatar_map = get_cached_person_avatars(paths)
+    for m in mentioners:
+        m["avatar_url"] = avatar_map.get((m["person_id"] or "").strip().lower())
+
+    return jsonify({
+        "user_id": user_id,
+        "date":    date,
+        "keyword": keyword,
+        "data": mentioners,
+    })
+
 @app.route("/rebuild-keyword-mail", methods=["POST"])
 def rebuild_keyword_mail_route():
     data = request.json or {}
@@ -1255,6 +1321,76 @@ def send_chatroom_keywords_by_person():
         "data": {
             "keywords": keywords,
         },
+    })
+
+@app.route("/chatroom-keyword-monthly-stats", methods=["POST"]) # 전체 참여자 합산, 월별 키워드 목록+언급 수
+def send_chatroom_keyword_monthly_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    start_date  = (data.get("start_date") or "").strip() or None
+    end_date    = (data.get("end_date") or "").strip() or None
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_keyword_monthly_stats(chatroom_id, start_date, end_date)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
+    })
+
+@app.route("/chatroom-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+def send_chatroom_keyword_daily_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    month       = data.get("month", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    stats = get_chatroom_keyword_daily_stats(chatroom_id, month)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "month":       month,
+        "data": stats,
+    })
+
+@app.route("/chatroom-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 참여자 목록(이름+횟수+아바타)
+def send_chatroom_keyword_mentioners():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    date        = data.get("date", "").strip()
+    keyword     = data.get("keyword", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+    if not keyword:
+        return jsonify({"error": "keyword is required"}), 400
+
+    mentioners = get_chatroom_keyword_mentioners(chatroom_id, date, keyword)
+    if mentioners is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for m in mentioners:
+        m["avatar_url"] = avatar_map.get(m["participant_id"])
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "date":        date,
+        "keyword":     keyword,
+        "data": mentioners,
     })
 
 @app.route("/chatroom-person-monthly-stats", methods=["POST"])
