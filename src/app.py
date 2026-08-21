@@ -94,9 +94,9 @@ from util.attachment_manager import (
     _extract_text_from_csv,
 )
 if RAG_ENGINE == "lightrag":
-    from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments, render_all_domains
+    from util.jobs.job_run_lightrag import _summarize_attachment_text, _merge_summarized_attachments, render_all_prompts
 elif RAG_ENGINE == "graphrag":
-    from util.jobs.job_run_graphrag import _summarize_attachment_text, _merge_summarized_attachments, render_all_domains
+    from util.jobs.job_run_graphrag import _summarize_attachment_text, _merge_summarized_attachments, render_all_prompts
 from util.database.db_writer import (
     save_query_to_db,
     init_processed_attachments_table,
@@ -410,7 +410,7 @@ def _extract_and_merge_attachments(paths, attachments, user_id):
     if not unprocessed:
         return
 
-    render_all_domains()   # 첨부파일 요약 프롬프트가 아직 렌더링 안 됐을 수 있으니 여기서 먼저 보장
+    render_all_prompts()   # 첨부파일 요약 프롬프트가 아직 렌더링 안 됐을 수 있으니 여기서 먼저 보장
 
     attachment_texts_by_mail: dict[str, list[dict]] = {}
     for file_info in unprocessed:

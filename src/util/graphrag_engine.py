@@ -24,10 +24,10 @@ from graphrag.query.structured_search.global_search.search import GlobalSearch #
 from graphrag_llm.tokenizer import create_tokenizer # v3: Tokenizer 객체 생성 팩토리
 from graphrag_llm.config import TokenizerConfig
 
-# OpenAI API를 직접 호출하도록 만든 커스텀 클래스
+# OpenAI API를 직접 호출하도록 만든 커스텀 클래스 (api_base 지정 시 로컬 vLLM으로 라우팅)
 class DirectOpenAIChatModel:
-    def __init__(self, api_key: str, model: str):
-        self._client = openai.AsyncOpenAI(api_key=api_key) # 비동기 OpenAI 클라이언트
+    def __init__(self, api_key: str, model: str, api_base: str | None = None):
+        self._client = openai.AsyncOpenAI(api_key=api_key, base_url=api_base) if api_base else openai.AsyncOpenAI(api_key=api_key) # 비동기 OpenAI(호환) 클라이언트
         self._model = model # 사용할 모델명
         self._input_tokens = 0
         self._output_tokens = 0
@@ -79,10 +79,10 @@ class DirectOpenAIChatModel:
             if chunk.choices:
                 yield chunk
 
-# OpenAI 임베딩 API를 직접 호출하도록 만든 커스텀 클래스
+# OpenAI 호환 임베딩 API를 직접 호출하도록 만든 커스텀 클래스 (api_base 지정 시 로컬 vLLM으로 라우팅)
 class DirectOpenAIEmbedder:
-    def __init__(self, api_key: str, model: str):
-        self._client = openai.OpenAI(api_key=api_key) # 동기 OpenAI 클라이언트
+    def __init__(self, api_key: str, model: str, api_base: str | None = None):
+        self._client = openai.OpenAI(api_key=api_key, base_url=api_base) if api_base else openai.OpenAI(api_key=api_key) # 동기 OpenAI(호환) 클라이언트
         self._model = model # 사용할 임베딩 모델명
 
     # v3: LocalSearchMixedContext가 text_embedder.embedding(input=[...]).first_embedding 형태로 호출함
@@ -123,19 +123,22 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
     config = load_config(Path(graphrag_root))
 
     # v3: models → completion_models/embedding_models로 분리됨
-    llm_config = config.completion_models["default_chat_model"]
-    emb_config = config.embedding_models["default_embedding_model"]
     # settings.yaml의 local_search
     ls_config = config.local_search
+    llm_config = config.completion_models["default_chat_model"]
+    # 임베딩은 인덱싱 때 벡터DB에 실제로 저장한 모델과 반드시 같아야 차원이 맞음 (local_search.embedding_model_id 스위치 따라감)
+    emb_config = config.embedding_models[ls_config.embedding_model_id]
 
     # LLM: 최종 답변 생성용
     model = DirectOpenAIChatModel(
         api_key=os.environ["LLM_API_KEY"],
-        model=llm_config.model  # gpt-4o-mini
+        model=llm_config.model,  # gpt-4o-mini
+        api_base=getattr(llm_config, "api_base", None),
     )
     text_embedder = DirectOpenAIEmbedder(
-        api_key=os.environ["LLM_API_KEY"],
-        model=emb_config.model
+        api_key=emb_config.api_key,
+        model=emb_config.model,
+        api_base=getattr(emb_config, "api_base", None),
     )
 
     # v3: token_encoder(raw tiktoken 객체) 대신 tokenizer(Tokenizer 객체)를 사용
@@ -196,7 +199,10 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
             "include_entity_rank": True,
             "include_relationship_weight": True,
         },
-        response_type="multiple paragraphs",
+        # "multiple paragraphs"(SFT 학습 시 재구성한 프롬프트에도 쓰인 값)에서
+        # 개조식(마크다운 불릿)을 명시적으로 요구하는 쪽으로 조정 — output_instructions의
+        # "실제 줄바꿈 있는 리스트로 써라" 규칙과 모순되지 않도록 맞춘 것.
+        response_type="a concise breakdown organized as short markdown bullet points, one distinct point per line — avoid long flowing paragraphs",
     )
     return engine, model
 
@@ -209,7 +215,8 @@ def _build_global_engine(output_dir: str, graphrag_root: str) -> tuple[GlobalSea
 
     model = DirectOpenAIChatModel(
         api_key=os.environ["LLM_API_KEY"],
-        model=llm_config.model
+        model=llm_config.model,
+        api_base=getattr(llm_config, "api_base", None),
     )
     tokenizer = create_tokenizer(TokenizerConfig(type="tiktoken", encoding_name=config.chunking.encoding_model))
 

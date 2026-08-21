@@ -62,7 +62,7 @@ from util.lightrag_backend.lightrag_db_writer import save_mail_folder_to_db_ligh
 from util.lightrag_backend.lightrag_mail_summary import generate_mail_summaries_lightrag
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains
+from renderer import render_all_prompts
 
 # threading.Thread로 병렬 실행하되, 스레드 내부에서 발생한 예외를 join 이후
 # 메인 스레드에서 다시 raise한다 (기본 Thread는 예외를 조용히 삼켜 job이 "done"으로 남는 문제 방지)
@@ -400,7 +400,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
 
@@ -480,7 +480,7 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
-    render_all_domains()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
+    render_all_prompts()  # 첨부파일 요약 프롬프트(summarize_attachment.txt) 렌더링을 위해 여전히 필요
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
 

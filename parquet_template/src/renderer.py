@@ -81,7 +81,7 @@ class PromptTemplate:
         self._render_settings(config)
 
 # configs/ 밑의 모든 도메인 config를 스캔해서, settings.yaml이 없거나 config·.j2 템플릿보다 오래된(즉 수정 후 아직 반영 안 된) 도메인만 렌더링
-def render_all_domains():
+def render_all_prompts():
     configs_dir = Path(__file__).parent/"configs"
     templates_dir = Path(__file__).parent/"prompts"
     rendered_dir = Path(__file__).parent.parent/"rendered"
@@ -101,4 +101,4 @@ def render_all_domains():
 
 
 if __name__ == "__main__":
-    render_all_domains()
+    render_all_prompts()
