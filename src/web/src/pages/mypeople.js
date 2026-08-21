@@ -1347,14 +1347,17 @@ function renderChatroomPeople(chatroomName, people) {
   currentChatroomPeople = people;
   const cardsHtml = people.length
     ? people
-        .map(
-          (p, i) => `
+        .map((p, i) => {
+          const avatarInner = p.avatar_url
+            ? `<img src="${p.avatar_url}" alt="${esc(p.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(p.name)}'">`
+            : initials(p.name);
+          return `
         <div class="mp-card mp-person-card" data-idx="${i}" title="${esc(p.name)}">
-          <div class="mp-avatar" style="background:${CARD_BG[i % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[i % AVATAR_COLORS_DETAIL.length]};">${initials(p.name)}</div>
+          <div class="mp-avatar" style="background:${CARD_BG[i % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[i % AVATAR_COLORS_DETAIL.length]};">${avatarInner}</div>
           <div class="mp-name" style="font-size:${nameFontSize(p.name)}">${esc(p.name)}</div>
           <div class="mp-period-badge">${p.message_count}건</div>
-        </div>`,
-        )
+        </div>`;
+        })
         .join("")
     : `<div class="mp-empty"><i class="bi bi-people"></i><p>이 기간엔 메시지를 보낸 참여자가 없습니다.</p></div>`;
 
@@ -2210,7 +2213,12 @@ async function openMessengerDetail(person) {
   const avatarEl = document.getElementById("mp-detail-avatar");
   avatarEl.style.background = "linear-gradient(150deg,#cfe9df,#a9d4c4)";
   avatarEl.style.color = "#1a6e4a";
-  avatarEl.textContent = initials(person.name);
+  if (person.avatar_url) {
+    avatarEl.innerHTML = `<img src="${person.avatar_url}" alt="${esc(person.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(person.name)}'">`;
+  } else {
+    avatarEl.innerHTML = "";
+    avatarEl.textContent = initials(person.name);
+  }
 
   const ringFill = document.getElementById("mp-detail-avatar-ring-fill");
   const ringLabel = document.getElementById("mp-detail-avatar-ring-label");

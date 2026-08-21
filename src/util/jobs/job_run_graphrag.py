@@ -28,6 +28,7 @@ from util.database.chatroom_db_writer import (
 )
 from util.message_summary import generate_message_summaries
 from util.message_mood import recompute_all_message_moods
+from util.avatar_generator import generate_chatroom_people_avatars_batch
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
 from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
@@ -466,6 +467,14 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
             # 이 방만 계산하지 않고 같은 계정의 모든 방을 다시 계산해서, 새 방이 추가될
             # 때마다 Activity의 비교 기준(pool)이 항상 최신 상태를 반영하도록 한다.
             recompute_all_message_moods(paths)
+
+            # 참여자 아바타 생성은 chatroom_people.description이 DB에 커밋된 뒤(위
+            # save_chatroom_people_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            # 실패해도 인덱싱 자체는 이미 끝났으므로 예외를 흡수하고 계속 진행한다.
+            try:
+                generate_chatroom_people_avatars_batch(paths)
+            except Exception as e:
+                print(f"[JOB] 참여자 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
         else:
             _extract_statics_pipeline(paths, mode='rewrite')
 
@@ -539,6 +548,13 @@ def run_graph_update_pipeline(job_id, paths, env):
             # chatroom_relationship.person_a/person_b가 chatroom_people을 FK로 참조하므로,
             # 위 병렬 블록에서 save_chatroom_people_to_db가 끝난 뒤에 순차로 실행해야 한다.
             save_chatroom_relationships_to_db(paths)
+
+            # 참여자 아바타 생성은 chatroom_people.description이 DB에 커밋된 뒤(위
+            # save_chatroom_people_to_db 완료 후)에만 조회 가능하므로 여기서 실행한다.
+            try:
+                generate_chatroom_people_avatars_batch(paths)
+            except Exception as e:
+                print(f"[JOB] 참여자 아바타 생성 실패 (인덱싱은 계속 진행): {e}")
         else:
             _extract_statics_pipeline(paths, mode='append')
             indexing_stats = collect_indexing_stats(paths)

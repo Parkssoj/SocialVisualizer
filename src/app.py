@@ -138,6 +138,7 @@ from util.avatar_generator import (
     generate_person_avatars_batch,
     get_cached_self_avatar,
     generate_self_avatar,
+    get_cached_chatroom_people_avatars,
 )
 from util.sse_broadcaster import (
     subscribe,
@@ -999,6 +1000,11 @@ def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
+@app.route("/chatroom-person-avatar-image/<chatroom_id>/<filename>")
+def chatroom_person_avatar_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_AVATAR_IMAGES_DIR, filename)
+
 @app.route("/mail-summary-image/<user_id>/<filename>")
 def mail_summary_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
@@ -1134,6 +1140,11 @@ def send_chatroom_people():
     if people is None:
         return jsonify({"error": "chatroom not found"}), 404
 
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for p in people:
+        p["avatar_url"] = avatar_map.get(p["participant_id"])
+
     return jsonify({
         "chatroom_id": chatroom_id,
         "data": {"people": people},
@@ -1188,6 +1199,11 @@ def send_chatroom_person_detail():
         if participant_id:
             return jsonify({"error": "person not found"}), 404
         return jsonify({"error": "chatroom not found"}), 404
+
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for p in people:
+        p["avatar_url"] = avatar_map.get(p["participant_id"])
 
     return jsonify({
         "chatroom_id":    chatroom_id,
