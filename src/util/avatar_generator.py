@@ -15,21 +15,38 @@ from util.database.db_reader import get_person_descriptions
 
 load_dotenv("src/parquet/.env")
 
-# text_client: 성별/기업 판별 등 텍스트 판단(SUB_TASK_CHAT_MODEL, 로컬 Qwen으로 라우팅 가능)
-# image_client: gpt-image-1 이미지 생성 전용 — 로컬 모델이 없으므로 base_url 없이 항상 실제 OpenAI로 고정.
-#   두 클라이언트를 절대 합치지 말 것 — 합치면 이미지 생성 요청이 SUB_TASK_API_BASE(로컬 서버)로 새서 깨짐.
+# text_client: 성별/기업 판별, 관계 힌트 번역 등 텍스트 판단(SUB_TASK_CHAT_MODEL, 로컬 Qwen)
 text_client = OpenAI(
     api_key=os.getenv("LLM_API_KEY"),
     base_url=os.getenv("SUB_TASK_API_BASE") or None,
 )
-image_client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 client = text_client  # 하위 호환용 별칭(아래 텍스트 판별 호출부에서 계속 사용)
 
-AVATAR_MODEL = "gpt-image-1"
-AVATAR_SIZE = "1024x1024"
-AVATAR_QUALITY = "low"
+# 아바타 이미지 생성 — GPU 서버에 직접 띄운 FLUX.1-schnell 서버(flux_server.py) 호출.
+# vLLM과 달리 OpenAI 호환 API가 아니라 우리가 만든 규격(POST /generate)이라
+# OpenAI 클라이언트가 아닌 requests로 직접 호출한다.
+IMAGE_API_BASE = os.getenv("IMAGE_API_BASE", "http://localhost:8005")
+AVATAR_SIZE = 512
+AVATAR_STEPS = 4
+AVATAR_GUIDANCE_SCALE = 0.0
 
 _map_lock = threading.Lock()
+
+# AI 일러스트 아바타는 FLUX 호출+후처리로 십수 초가 걸리는데, 그 사이 사용자가 페이지를
+# 새로고침하면 이전 요청이 아직 person_avatars.json에 저장을 못 끝낸 상태라 "아직 캐시
+# 없음"으로 보여서 같은 이메일에 대해 또 새 생성 요청이 들어온다(생성이 끝날 때까지
+# 계속 반복). (email, user_id) 단위로 "지금 생성 중"임을 표시해서, 이미 진행 중인 요청이
+# 있으면 새 요청은 그 결과를 기다리지 않고 그냥 건너뛴다 — 곧 끝날 이전 요청이 캐시를
+# 채워줄 것이므로 다음 새로고침(또는 다음 배치)에서 정상적으로 캐시 히트된다. 로고
+# 이미지(브랜드)는 순식간에 끝나서 이 문제가 사실상 발생하지 않는다.
+_in_progress_lock = threading.Lock()
+_in_progress = set()  # {(user_id, email)}
+
+# 본인 아바타(generate_self_avatar)는 호출자가 URL을 바로 반환받아야 하므로, 위의
+# "그냥 건너뛰기"가 아니라 이미 진행 중인 요청이 끝날 때까지 기다렸다가 그 결과를
+# 같이 반환한다 — 그래야 새로고침이 겹쳐도 매번 별도로 FLUX를 호출하지 않는다.
+_self_avatar_events = {}  # (user_id, key) -> threading.Event
+_self_avatar_events_lock = threading.Lock()
 
 
 def _avatar_filename(email: str) -> str:
@@ -41,6 +58,19 @@ def _load_avatar_map(paths) -> dict:
         return {}
     with open(paths.MAIL_AVATARS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _avatar_url_file_exists(paths, url: str) -> bool:
+    """person_avatars.json엔 캐시 항목이 남아있는데 실제 png 파일은 없는 경우(수동으로
+    avatars 폴더만 지웠거나, 파일이 유실된 경우)를 걸러낸다. 이걸 안 하면 프론트는 죽은
+    URL로 <img>를 그려서 계속 404가 나고, 서버는 "이미 캐시됨"으로 착각해 영원히
+    재생성하지 않는다."""
+    if not url:
+        return False
+    filename = url.rstrip("/").rsplit("/", 1)[-1]
+    if not filename:
+        return False
+    return os.path.exists(os.path.join(paths.AVATAR_IMAGES_DIR, filename))
 
 
 def _save_avatar_map(paths, avatar_map: dict):
@@ -345,13 +375,38 @@ def _fetch_company_logo(domain: str) -> bytes | None:
     return None
 
 
+def _translate_hint_to_english(hint: str) -> str:
+    """FLUX의 CLIP/T5 텍스트 인코더는 영어 위주로 학습돼 한국어 vocab이 빈약해서,
+    한국어 relationship_hint를 그대로 넣으면 토큰이 <unk>로 깨진다. 프롬프트에 넣기 전에
+    짧은 영어 한 문장으로 번역해 넣는다. 실패 시 빈 문자열을 반환해 힌트를 생략한다."""
+    try:
+        result = text_client.chat.completions.create(
+            model=os.getenv("SUB_TASK_CHAT_MODEL"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": "다음 한 줄짜리 관계 설명을 이미지 생성 프롬프트에 넣을 수 있도록 "
+                                "간결한 영어 한 문장으로 번역하세요. 번역 결과 외의 다른 말은 절대 하지 마세요.",
+                },
+                {"role": "user", "content": hint},
+            ],
+            temperature=0,
+        )
+        return (result.choices[0].message.content or "").strip()
+    except Exception as e:
+        print(f"[AVATAR] 관계 힌트 번역 실패: {e}")
+        return ""
+
+
 def _build_avatar_prompt(name: str, relationship_hint: str = "", seed_key: str = "") -> str:
     context_block = ""
     if relationship_hint:
-        context_block = f"""
+        translated_hint = _translate_hint_to_english(relationship_hint[:200])
+        if translated_hint:
+            context_block = f"""
 
 [Persona context — style inspiration only, never literal]
-A short note about this person's relationship to the user: "{relationship_hint[:200]}"
+A short note about this person's relationship to the user: "{translated_hint}"
 Use this ONLY as soft inspiration for clothing style and mood (e.g. business-casual for a colleague, relaxed casual for a friend/family member). Never depict any text, objects, logos, or literal scenes from this note."""
 
     attrs = _pick_style_attributes(seed_key or name)
@@ -364,6 +419,9 @@ Use this ONLY as soft inspiration for clothing style and mood (e.g. business-cas
 
     return f"""You are the illustration engine for a unified corporate contact-avatar system, in the visual language of products like Slack, Notion, or Linear's default member avatars. Every avatar you generate must look like it belongs to the exact same icon set — consistent style, consistent rules, every time. Each person in this set must look like a clearly distinct individual, not a reused default template.
 
+[Hard rule — read first, applies to the whole image]
+The ENTIRE image outside the person's head/hair/shoulders must be a single pure flat solid color ({attrs['bg_name']}, hex {attrs['bg_hex']}) — perfectly flat, uniform, edge-to-edge, corner-to-corner, with zero variation. Do NOT draw a picture frame, border, mat/matting, vignette, spotlight, or a circular/oval disc of any other color or shade behind the person. Nothing decorative behind or around the subject, ever — just the one flat color.
+
 [Subject]
 A single friendly portrait of one person whose given name is "{name}". {gender_line}{context_block}
 
@@ -371,91 +429,126 @@ A single friendly portrait of one person whose given name is "{name}". {gender_l
 - Hair: {attrs['hair_color']}, styled {attrs['hair_style']}.
 - Accessory: {attrs['accessory']}.
 - Clothing: a flat, solid {attrs['clothing_color']} top.
-- Background: this image is generated with a fully transparent background — render ONLY the person, with no background art, no vignette, no glow, no shape, no color fill of any kind behind them. A flat solid color will be composited behind the cutout programmatically afterward.
+- Background: pure flat {attrs['bg_name']} (hex {attrs['bg_hex']}) filling the entire canvas edge-to-edge behind the person. Completely uniform, no gradient, no vignette, no texture, no shape, no glow, no spotlight. Absolutely NO circular disc, badge, frame, or any shape of a different shade behind the person — the background must be one single flat rectangle of this color, corner to corner.
 
 [Art direction]
 - Flat vector illustration, modern corporate-avatar style: clean geometric shapes, confident outlines of uniform stroke width. No gradients, no soft shading, no drop shadows, no textures, no glossy highlights anywhere in the image.
 - The face must read clearly even at very small sizes (this renders as a ~40px circular icon): simple but expressive eyes, nose, and a warm closed-mouth smile. Never leave the face blank or featureless.
 
 [Framing & composition]
-- Centered, symmetrical, shoulders-up portrait with generous headroom at the top and on both sides.
-- The entire head, the full hairstyle silhouette, and both ears must be completely visible with clear empty space above the hair and on both sides — do not crop or tightly fill the frame with the face. The head should occupy roughly the middle 50-60% of the image height.
+- The face must look directly at the viewer: a straight-on, frontal head-on pose with both eyes looking straight ahead into the camera. Do NOT draw a 3/4 turned angle, side profile, or head tilted/turned away — the nose must point straight forward at the center of the image, perfectly symmetrical left-to-right.
+- Close-up, centered, symmetrical portrait, zoomed in so the face is the clear focal point — tighter than a standard shoulders-up photo, more like a close-up headshot. Still keep a small margin of empty space above the hair and on both sides so the hairstyle silhouette isn't cropped.
+- The entire head, the full hairstyle silhouette, and both ears must be completely visible. The head should occupy roughly 70-80% of the image height — the face should read as large and prominent, not small within a wide shot.
 - The shoulders and clothing should extend all the way down and bleed off the bottom edge of the canvas, with NO background visible below the body — only the head/hair area needs top and side margin, the torso should fill edge-to-edge at the bottom like a standard cropped profile-picture avatar.
 
 [Technical constraints]
 - Square canvas, 1:1 aspect ratio.
-- No text, no logos, no watermarks, no signatures, no UI chrome, no photorealism, no 3D rendering, no anime style.""".strip()
+- No text, no logos, no watermarks, no signatures, no UI chrome, no photorealism, no 3D rendering, no anime style.
+- No border, no frame, no outline, no card edge of any kind around the outer edge of the canvas — the background color must reach all four edges directly.""".strip()
 
 
-def _ensure_margins(subject: Image.Image, min_top: float = 0.06, min_side: float = 0.04) -> Image.Image:
+
+
+_rembg_session = None
+_rembg_session_lock = threading.Lock()
+
+
+def _get_rembg_session():
+    """인물 세그멘테이션 모델을 프로세스당 한 번만 로드해 재사용한다. 최초 호출 시
+    모델 파일(~176MB)을 내려받으므로 인터넷 연결이 필요하고 첫 실행이 다소 느릴 수 있다."""
+    global _rembg_session
+    if _rembg_session is None:
+        with _rembg_session_lock:
+            if _rembg_session is None:
+                from rembg import new_session
+                _rembg_session = new_session("u2net")
+    return _rembg_session
+
+
+def _normalize_composition(image_bytes: bytes, bg_rgb: tuple, min_top: float = 0.02, min_side: float = 0.03) -> bytes:
     """
-    모든 아바타가 같은 구도를 갖도록 항상 동일한 규칙으로 재배치한다:
-    머리 위쪽과 좌우는 여백을 보장하고(귀/머리카락이 잘리지 않게), 어깨·옷은
-    의도적으로 캔버스 맨 아래까지 여백 없이 꽉 채운다(표준 프로필 아이콘 스타일).
-    모델이 매번 다른 구도로 그려도 결과 레이아웃은 모든 사람에게 동일하게 보장된다.
+    크로마키(색상 거리 기반) 방식은 사람 윤곽선 가장자리에 배경색(마젠타)이 살짝 섞여
+    들어간 픽셀까지 사람 쪽으로 살아남는 경우가 있어(색 스필), 합성 후 머리카락 등
+    가장자리에 옅은 배경색 얼룩이 남는 문제가 있었다. 그래서 색상 거리 대신 사람
+    세그멘테이션 모델(rembg)로 "이 픽셀이 사람인가"를 직접 판단한다 — 배경이 무슨
+    색이든(프롬프트가 요청한 색을 모델이 못 지켜서 은은한 원형 그라데이션 등이 섞여
+    나와도) 상관없이 사람 영역만 추출해서 완전히 새 단색 배경 위에 얹기 때문에,
+    배경 자체는 100% 순수한 단색이 보장된다. 잘라낸 인물은 얼굴이 크게 보이도록
+    여백을 작게 잡아 확대 배치한다.
     """
-    w, h = subject.size
-    alpha = subject.split()[-1]
-    # 안티에일리어싱으로 생긴 흐릿한 알파 언저리는 실제로 눈에 보이지 않으므로
-    # bbox 기준에서 제외한다 — 그 언저리까지 "내용물"로 잡으면 실제 옷/몸이
-    # 바닥까지 채워지지 못하고 그 아래로 배경색 여백이 보이게 된다.
-    solid_alpha = alpha.point(lambda a: 255 if a >= 128 else 0)
-    bbox = solid_alpha.getbbox()
+    from rembg import remove
+
+    subject = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    orig_w, orig_h = subject.size
+
+    session = _get_rembg_session()
+    cutout_bytes = remove(image_bytes, session=session)
+    alpha = Image.open(io.BytesIO(cutout_bytes)).convert("RGBA").split()[-1]
+
+    # 사진이 아니라 윤곽선이 뚜렷한 평면 일러스트라서 부드러운 반투명 경계가 필요 없다 —
+    # 오히려 옷/어깨 같은 큰 단색 영역이 애매한 알파로 남으면 배경색과 섞여 흐릿한
+    # "유령" 자국이 생긴다. 그래서 이진화해서 사람 영역은 완전 불투명, 나머지는 완전
+    # 투명으로 딱 잘라낸다 — 가장자리에 원본 배경색이 섞인 반투명 픽셀도 이 과정에서
+    # 함께 제거되므로 색 스필(색 번짐) 문제가 생기지 않는다.
+    alpha = alpha.point(lambda p: 255 if p > 80 else 0)
+
+    r, g, b = subject.split()
+    cutout = Image.merge("RGBA", (r, g, b, alpha))
+
+    bbox = alpha.getbbox()
+    canvas = Image.new("RGBA", (orig_w, orig_h), bg_rgb + (255,))
+
     if not bbox:
-        return subject
+        # 세그멘테이션이 완전히 실패하면(알파가 전부 비어있음) 원본을 그대로 반환한다
+        # (사람 영역을 못 찾았으므로 억지로 자르지 않는다).
+        return image_bytes
+
     left, top, right, bottom = bbox
     content_w, content_h = right - left, bottom - top
     if content_w <= 0 or content_h <= 0:
-        return subject
+        return image_bytes
 
-    scale = (h * (1 - min_top)) / content_h
-    max_w = w * (1 - 2 * min_side)
+    cropped = cutout.crop(bbox)
+
+    scale = (orig_h * (1 - min_top)) / content_h
+    max_w = orig_w * (1 - 2 * min_side)
     if content_w * scale > max_w:
         scale = max_w / content_w
 
-    cropped = subject.crop(bbox)
     new_w, new_h = max(1, round(content_w * scale)), max(1, round(content_h * scale))
-    cropped = cropped.resize((new_w, new_h), Image.LANCZOS)
+    resized = cropped.resize((new_w, new_h), Image.LANCZOS)
 
-    canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    canvas.paste(cropped, ((w - new_w) // 2, h - new_h), cropped)
-    return canvas
-
-
-def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
-    """
-    gpt-image-1을 background="transparent"로 호출해 받은, 인물만 있고 배경은 진짜
-    알파 채널로 투명한 PNG를 우리가 정한 단색 배경 위에 합성한다. 색 차이로 배경을
-    "추측"하지 않고 API가 제공하는 진짜 투명도를 쓰기 때문에, 머리카락이 배경과
-    비슷한 색이어도(예: 검은 머리 + 어두운 배경) 안전하게 분리된다.
-    """
-    subject = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    subject = _ensure_margins(subject)
-    solid_bg = Image.new("RGBA", subject.size, bg_rgb + (255,))
-    result = Image.alpha_composite(solid_bg, subject).convert("RGB")
+    canvas.alpha_composite(resized, ((orig_w - new_w) // 2, orig_h - new_h))
 
     out = io.BytesIO()
-    result.save(out, format="PNG")
+    canvas.convert("RGB").save(out, format="PNG")
     return out.getvalue()
 
 
-
 def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
-    # TEMP: GPT 이미지 생성 임시 비활성화
-    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
-    # attrs = _pick_style_attributes(seed_key or name)
-    # result = image_client.images.generate(
-    #     model=AVATAR_MODEL,
-    #     prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
-    #     size=AVATAR_SIZE,
-    #     quality=AVATAR_QUALITY,
-    #     background="transparent",
-    #     output_format="png",
-    #     n=1,
-    # )
-    # b64 = result.data[0].b64_json
-    # raw_bytes = base64.b64decode(b64)
-    # return _composite_on_color(raw_bytes, attrs["bg_rgb"])
+    """GPU 서버의 FLUX.1-schnell 서버(flux_server.py)를 호출해 아바타를 생성한다.
+    배경색은 프롬프트에도 직접 지정해두지만(_build_avatar_prompt), 모델이 그 지시를
+    완벽히 안 지킬 때가 있어(은은한 원형 그라데이션 등) _normalize_composition()으로
+    사람 영역만 rembg 세그멘테이션으로 뽑아 완전히 새 단색 배경 위에 다시 앉힌다.
+    (색상 거리 기반 크로마키는 가장자리에 배경색이 번지는 문제가 있어 rembg로 대체.)"""
+    attrs = _pick_style_attributes(seed_key or name)
+    prompt = _build_avatar_prompt(name, relationship_hint, seed_key)
+    response = requests.post(
+        f"{IMAGE_API_BASE}/generate",
+        json={
+            "prompt": prompt,
+            "steps": AVATAR_STEPS,
+            "guidance_scale": AVATAR_GUIDANCE_SCALE,
+            "height": AVATAR_SIZE,
+            "width": AVATAR_SIZE,
+        },
+        timeout=240,  # GPU 서버가 동시 요청을 사실상 순차 처리해서, 여러 명을 한꺼번에
+        # 생성할 때 뒤에 밀린 요청은 120초를 넘기기 쉬웠다 — 여유를 더 줌
+    )
+    response.raise_for_status()
+    b64 = response.json()["image_base64"]
+    raw_bytes = base64.b64decode(b64)
+    return _normalize_composition(raw_bytes, attrs["bg_rgb"])
 
 
 def _load_relationship_hints(user_id: str) -> dict:
@@ -473,15 +566,24 @@ def _load_relationship_hints(user_id: str) -> dict:
 
 
 def get_cached_person_avatars(paths) -> dict:
-    return _load_avatar_map(paths)
+    """캐시된 아바타 맵을 돌려주되, 실제 png 파일이 없는(수동 삭제 등으로 유실된) 항목은
+    걸러낸다 — 안 그러면 프론트가 죽은 이미지 URL을 그려 계속 404가 나고, 그 사람은
+    "이미 캐시됨"으로 취급돼 영원히 재생성되지 않는다."""
+    avatar_map = _load_avatar_map(paths)
+    valid = {k: v for k, v in avatar_map.items() if _avatar_url_file_exists(paths, v)}
+    if len(valid) != len(avatar_map):
+        with _map_lock:
+            _save_avatar_map(paths, valid)  # 유실된 항목은 캐시에서도 지워서 재생성 대상이 되게 함
+    return valid
 
 
 _SELF_AVATAR_KEY = "__self__"
 
 
 def get_cached_self_avatar(paths):
-    """로그인한 사용자 본인의 아바타 캐시를 조회한다. 없으면 None."""
-    return _load_avatar_map(paths).get(_SELF_AVATAR_KEY)
+    """로그인한 사용자 본인의 아바타 캐시를 조회한다. 없거나 파일이 유실됐으면 None."""
+    url = _load_avatar_map(paths).get(_SELF_AVATAR_KEY)
+    return url if _avatar_url_file_exists(paths, url) else None
 
 
 def generate_self_avatar(paths, name: str) -> str:
@@ -490,20 +592,39 @@ def generate_self_avatar(paths, name: str) -> str:
     고정 키(__self__)로 캐시해서 실제 연락처 이메일과 절대 충돌하지 않게 한다."""
     avatar_map = _load_avatar_map(paths)
     cached = avatar_map.get(_SELF_AVATAR_KEY)
-    if cached:
+    if cached and _avatar_url_file_exists(paths, cached):
         return cached
 
-    os.makedirs(paths.AVATAR_IMAGES_DIR, exist_ok=True)
-    image_bytes = generate_avatar_image_bytes(name or "나", "", paths.USER_ID + ":self")
-    filename = _avatar_filename(_SELF_AVATAR_KEY + ":" + paths.USER_ID)
-    filepath = os.path.join(paths.AVATAR_IMAGES_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(image_bytes)
-    url = f"/person-avatar-image/{paths.USER_ID}/{filename}"
-    with _map_lock:
-        avatar_map[_SELF_AVATAR_KEY] = url
-        _save_avatar_map(paths, avatar_map)
-    return url
+    lock_key = (paths.USER_ID, _SELF_AVATAR_KEY)
+    with _self_avatar_events_lock:
+        event = _self_avatar_events.get(lock_key)
+        is_owner = event is None
+        if is_owner:
+            event = threading.Event()
+            _self_avatar_events[lock_key] = event
+
+    if not is_owner:
+        # 다른 요청이 이미 생성 중 — 새로 FLUX를 호출하지 않고 그 결과가 끝나길 기다린다.
+        event.wait(timeout=240)
+        return _load_avatar_map(paths).get(_SELF_AVATAR_KEY) or cached
+
+    try:
+        os.makedirs(paths.AVATAR_IMAGES_DIR, exist_ok=True)
+        image_bytes = generate_avatar_image_bytes(name or "나", "", paths.USER_ID + ":self")
+        filename = _avatar_filename(_SELF_AVATAR_KEY + ":" + paths.USER_ID)
+        filepath = os.path.join(paths.AVATAR_IMAGES_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+        url = f"/person-avatar-image/{paths.USER_ID}/{filename}"
+        with _map_lock:
+            latest = _load_avatar_map(paths)
+            latest[_SELF_AVATAR_KEY] = url
+            _save_avatar_map(paths, latest)
+        return url
+    finally:
+        with _self_avatar_events_lock:
+            _self_avatar_events.pop(lock_key, None)
+        event.set()
 
 
 def generate_person_avatars_batch(paths, people: list) -> dict:
@@ -525,7 +646,14 @@ def generate_person_avatars_batch(paths, people: list) -> dict:
         if not email or not name or email in seen:
             continue
         seen.add(email)
-        if email not in avatar_map:
+        if not _avatar_url_file_exists(paths, avatar_map.get(email)):
+            key = (paths.USER_ID, email)
+            with _in_progress_lock:
+                if key in _in_progress:
+                    # 다른 요청이 이 이메일을 이미 생성 중 — 중복으로 또 시작하지 않는다.
+                    # (그 요청이 끝나면 캐시가 채워지므로 다음 새로고침/배치에서 히트된다.)
+                    continue
+                _in_progress.add(key)
             domain = email.split("@", 1)[1] if "@" in email else ""
             targets.append((email, name, domain))
 
@@ -545,16 +673,29 @@ def generate_person_avatars_batch(paths, people: list) -> dict:
                 f.write(image_bytes)
             url = f"/person-avatar-image/{paths.USER_ID}/{filename}"
             with _map_lock:
+                # 저장 직전에 파일을 다시 읽어 병합한다. 요청 시작 시점 스냅샷(avatar_map)을
+                # 그대로 덮어쓰면, 동시에 들어온 다른 /generate-person-avatars 요청이 그 사이
+                # 새로 추가한 항목을 지워버려 "생성 완료" 로그는 찍히는데 person_avatars.json엔
+                # 안 남는(→ 화면에 안 뜨고 다음 로드 때 또 재생성되는) 문제가 생긴다.
+                latest = _load_avatar_map(paths)
+                latest[email] = url
+                _save_avatar_map(paths, latest)
                 avatar_map[email] = url
-                _save_avatar_map(paths, avatar_map)
             print(f"[AVATAR] 생성 완료: {email} ({name}){' [기업 로고]' if is_logo else ''}")
             return email, url
         except Exception as e:
             print(f"[AVATAR] 생성 실패 ({email}): {e}")
             return email, None
+        finally:
+            with _in_progress_lock:
+                _in_progress.discard((paths.USER_ID, email))
 
     if targets:
-        with ThreadPoolExecutor(max_workers=min(len(targets), 3)) as executor:
+        # GPU 서버가 하나라 동시 요청을 어차피 순차 처리한다 — 여러 개를 동시에 던지면
+        # 뒤에 밀린 요청만 대기 시간이 늘어나 타임아웃 위험만 커지고 실제로는 더 빨라지지
+        # 않는다. 게다가 자기 자신(/generate-self-avatar)도 같은 GPU 서버를 같이 쓰므로
+        # 부담을 더 줄이려 동시 실행 수를 1로 낮춘다.
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = [executor.submit(_generate_one, email, name, domain) for email, name, domain in targets]
             for future in as_completed(futures):
                 future.result()

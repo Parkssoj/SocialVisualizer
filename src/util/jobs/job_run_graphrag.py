@@ -21,7 +21,7 @@ from util.database.db_writer import create_mail_account,save_person_stats_to_db,
 from util.graphrag_mail_summary import generate_mail_summaries
 
 sys.path.insert(0, os.path.join(BASE_DIR, "parquet_template", "src"))
-from renderer import render_all_domains     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
+from renderer import render_all_prompts     # reportMissingImports 발생한다면 무시: sys.path.insert가 런타임에만 반영되는 동적 경로라 정적 분석기가 renderer 모듈을 못 찾아서 뜨는 오탐. 실행 시엔 정상 동작함
 
 load_dotenv("src/parquet/.env")
 
@@ -253,6 +253,301 @@ _FEWSHOT_LEAKAGE_BLOCKLIST = {
 _NULL_VALUE_LITERALS = {"NONE", "NULL", "없음", "-"}
 
 
+_CHATROOM_HEADER_RE_TMPL = r"채팅방\s*:\s*{name}"
+
+
+def _strip_chatroom_decorations(title: str) -> str:
+    t = str(title).strip()
+    if t.startswith("채팅방:"):
+        t = t[len("채팅방:"):].strip()
+    if t.endswith("(채팅방)"):
+        t = t[: -len("(채팅방)")].strip()
+    return t
+
+
+def _filter_invalid_chatrooms(paths):
+    """ChatRoom 엔티티가 실제로 자기 근거 청크(text_unit)에 '채팅방: <이름>' 형태로
+    등장하는지 직접 대조 검증해서, 근거를 못 찾는 (청크 파편이든, 학습데이터 누출이든
+    원인 무관하게) ChatRoom을 제거한다. 연결된 relationship도 함께 정리한다."""
+    if getattr(paths, "DOMAIN", None) != "messenger":
+        return
+
+    import pandas as pd
+
+    output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
+    entities_path = os.path.join(output_dir, "entities.parquet")
+    relationships_path = os.path.join(output_dir, "relationships.parquet")
+    text_units_path = os.path.join(output_dir, "text_units.parquet")
+
+    if not (os.path.exists(entities_path) and os.path.exists(text_units_path)):
+        return
+
+    entities = pd.read_parquet(entities_path)
+    if "text_unit_ids" not in entities.columns:
+        print("[FILTER][WARN] entities.parquet에 text_unit_ids 컬럼이 없어 ChatRoom 검증 스킵")
+        return
+
+    text_units = pd.read_parquet(text_units_path)
+    text_lookup = dict(zip(text_units["id"], text_units["text"]))
+
+    is_chatroom = entities["type"].astype(str).str.upper() == "CHATROOM"
+    chatroom_idx = entities.index[is_chatroom]
+
+    if len(chatroom_idx) <= 1:
+        return  # 방 0~1개는 정상 범위, 검증할 필요 없음
+
+    drop_idx = []
+    invalid_titles = []
+    for idx in chatroom_idx:
+        row = entities.loc[idx]
+        core_name = _strip_chatroom_decorations(row["title"])
+        grounded = False
+        if core_name:
+            pattern = re.compile(_CHATROOM_HEADER_RE_TMPL.format(name=re.escape(core_name)))
+            tu_ids = row.get("text_unit_ids")
+            tu_ids = list(tu_ids) if tu_ids is not None else []
+            grounded = any(pattern.search(text_lookup.get(tid, "") or "") for tid in tu_ids)
+        if not grounded:
+            drop_idx.append(idx)
+            invalid_titles.append(row["title"])
+
+    if not drop_idx:
+        print("[FILTER] ChatRoom 전부 근거 확인됨 (제거 없음)")
+        return
+
+    invalid_set = set(invalid_titles)
+    entities.drop(index=drop_idx).to_parquet(entities_path, index=False)
+
+    removed_rels = 0
+    if os.path.exists(relationships_path):
+        rel = pd.read_parquet(relationships_path)
+        mask = rel["source"].isin(invalid_set) | rel["target"].isin(invalid_set)
+        removed_rels = int(mask.sum())
+        if removed_rels:
+            rel[~mask].to_parquet(relationships_path, index=False)
+
+    print(f"[FILTER] 근거 없는 ChatRoom 엔티티 제거: {len(drop_idx)}개 -> {sorted(invalid_set)}")
+    if removed_rels:
+        print(f"[FILTER] 연결된 relationship {removed_rels}개도 함께 제거")
+
+
+_DATE_HEADER_RE_TMPL = r"\ub0a0\uc9dc\s*:\s*{date}"
+
+
+def _filter_invalid_dates(paths):
+    """Date \uc5d4\ud2f0\ud2f0\uac00 \uc2e4\uc81c\ub85c \uc790\uae30 \uadfc\uac70 \uccad\ud06c(text_unit)\uc5d0 '\ub0a0\uc9dc: <YYYY-MM-DD>' \ud615\ud0dc\ub85c
+    \ub4f1\uc7a5\ud558\ub294\uc9c0 \uc9c1\uc811 \ub300\uc870 \uac80\uc99d\ud574\uc11c, \uadfc\uac70\ub97c \ubabb \ucc3e\ub294 (\ud5e4\ub354 \uc5c6\ub294 \uc774\uc5b4\uc9c0\ub294 \uccad\ud06c\uc5d0\uc11c
+    \ubaa8\ub378\uc774 \ub0a0\uc9dc\ub97c \uc9c0\uc5b4\ub0b4\uac70\ub098 \uc7ac\uc0ac\uc6a9\ud55c) Date\ub97c \uc81c\uac70\ud55c\ub2e4. \uc5f0\uacb0\ub41c relationship\ub3c4 \ud568\uaed8 \uc815\ub9ac\ud55c\ub2e4."""
+    if getattr(paths, "DOMAIN", None) != "messenger":
+        return
+
+    import pandas as pd
+
+    output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
+    entities_path = os.path.join(output_dir, "entities.parquet")
+    relationships_path = os.path.join(output_dir, "relationships.parquet")
+    text_units_path = os.path.join(output_dir, "text_units.parquet")
+
+    if not (os.path.exists(entities_path) and os.path.exists(text_units_path)):
+        return
+
+    entities = pd.read_parquet(entities_path)
+    if "text_unit_ids" not in entities.columns:
+        print("[FILTER][WARN] entities.parquet\uc5d0 text_unit_ids \ucef4\ub7fc\uc774 \uc5c6\uc5b4 Date \uac80\uc99d \uc2a4\ud0b5")
+        return
+
+    text_units = pd.read_parquet(text_units_path)
+    text_lookup = dict(zip(text_units["id"], text_units["text"]))
+
+    is_date = entities["type"].astype(str).str.upper() == "DATE"
+    date_idx = entities.index[is_date]
+    if len(date_idx) == 0:
+        return
+
+    drop_idx = []
+    invalid_titles = []
+    for idx in date_idx:
+        row = entities.loc[idx]
+        title = str(row["title"]).strip()
+        grounded = False
+        if title:
+            pattern = re.compile(_DATE_HEADER_RE_TMPL.format(date=re.escape(title)))
+            tu_ids = row.get("text_unit_ids")
+            tu_ids = list(tu_ids) if tu_ids is not None else []
+            grounded = any(pattern.search(text_lookup.get(tid, "") or "") for tid in tu_ids)
+        if not grounded:
+            drop_idx.append(idx)
+            invalid_titles.append(row["title"])
+
+    if not drop_idx:
+        print("[FILTER] Date \uc804\ubd80 \uadfc\uac70 \ud655\uc778\ub428 (\uc81c\uac70 \uc5c6\uc74c)")
+        return
+
+    invalid_set = set(invalid_titles)
+    entities.drop(index=drop_idx).to_parquet(entities_path, index=False)
+
+    removed_rels = 0
+    if os.path.exists(relationships_path):
+        rel = pd.read_parquet(relationships_path)
+        mask = rel["source"].isin(invalid_set) | rel["target"].isin(invalid_set)
+        removed_rels = int(mask.sum())
+        if removed_rels:
+            rel[~mask].to_parquet(relationships_path, index=False)
+
+    preview = sorted(invalid_set)[:20]
+    suffix = "..." if len(invalid_set) > 20 else ""
+    print(f"[FILTER] \uadfc\uac70 \uc5c6\ub294 Date \uc5d4\ud2f0\ud2f0 \uc81c\uac70: {len(drop_idx)}\uac1c -> {preview}{suffix}")
+    if removed_rels:
+        print(f"[FILTER] \uc5f0\uacb0\ub41c relationship {removed_rels}\uac1c\ub3c4 \ud568\uaed8 \uc81c\uac70")
+
+
+_SENDER_LINE_RE_MESSENGER = re.compile(r"^\d{2}:\d{2}\s+(.+?):\s", re.MULTILINE)
+_SENDER_LINE_RE_MAIL = re.compile(r"\[\ubc1c\uc2e0\uc778\][^\n]*?<([^<>\s]+@[^<>\s]+)>")
+_RECONNECT_ELIGIBLE_TYPES = {
+    "messenger": {"KEYWORD", "NAMEDENTITY", "EVENT", "ATTACHMENT"},
+    "mail": {"TOPIC", "ATTACHMENT", "EVENT", "ORGANIZATION"},
+}
+
+
+def _match_person_title(cand, person_titles):
+    if cand in person_titles:
+        return cand
+    low = cand.lower()
+    for pt in person_titles:
+        if str(pt).lower() == low:
+            return pt
+    return None
+
+
+def _find_sender_messenger(text_lookup, tu_ids, person_titles):
+    for tid in tu_ids:
+        text = text_lookup.get(tid, "") or ""
+        for m in _SENDER_LINE_RE_MESSENGER.finditer(text):
+            cand = m.group(1).strip()
+            hit = _match_person_title(cand, person_titles)
+            if hit:
+                return hit
+    return None
+
+
+def _find_sender_mail(text_units, tu_ids, person_titles, tu_index, tu_doc):
+    for tid in tu_ids:
+        if tid not in tu_index:
+            continue
+        own_idx = tu_index[tid]
+        doc_id = tu_doc.get(tid)
+        same_doc = text_units[text_units["document_id"] == doc_id]
+        same_doc = same_doc[same_doc.index <= own_idx].sort_index(ascending=False)
+        for _, row in same_doc.iterrows():
+            m = _SENDER_LINE_RE_MAIL.search(row["text"] or "")
+            if m:
+                hit = _match_person_title(m.group(1).strip(), person_titles)
+                if hit:
+                    return hit
+    return None
+
+
+def _reconnect_isolated_via_person(paths):
+    """Date/ChatRoom \uadfc\uac70 \uac80\uc99d \ud544\ud130\uac00 \uac00\uc9dc \uc5f0\uacb0\uc744 \uc9c0\uc6b0\uba74\uc11c \uace0\ub9bd\ub41c
+    \uc5d4\ud2f0\ud2f0\ub97c, \uadfc\uac70 \uccad\ud06c\uc5d0\uc11c \uc2e4\uc81c\ub85c \ud655\uc778\ub418\ub294 Person(\ubc1c\uc2e0\uc790)\uc5d0\uac8c
+    \uc790\ub3d9 \uc7ac\uc5f0\uacb0\ud55c\ub2e4. \uba54\uc2e0\uc800/\uba54\uc77c \ub458 \ub2e4 \uc9c0\uc6d0\ud55c\ub2e4."""
+    domain = getattr(paths, "DOMAIN", None)
+    if domain not in ("messenger", "mail"):
+        return
+
+    import pandas as pd
+
+    output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
+    entities_path = os.path.join(output_dir, "entities.parquet")
+    relationships_path = os.path.join(output_dir, "relationships.parquet")
+    text_units_path = os.path.join(output_dir, "text_units.parquet")
+
+    if not (os.path.exists(entities_path) and os.path.exists(relationships_path) and os.path.exists(text_units_path)):
+        return
+
+    entities = pd.read_parquet(entities_path)
+    relationships = pd.read_parquet(relationships_path)
+    text_units = pd.read_parquet(text_units_path)
+
+    if "text_unit_ids" not in entities.columns:
+        print("[FILTER][WARN] entities.parquet\uc5d0 text_unit_ids \ucef4\ub7fc\uc774 \uc5c6\uc5b4 \uc7ac\uc5f0\uacb0 \uc2a4\ud0b5")
+        return
+
+    text_lookup = dict(zip(text_units["id"], text_units["text"]))
+    connected = set(relationships["source"]) | set(relationships["target"])
+    person_titles = set(entities.loc[entities["type"].astype(str).str.upper() == "PERSON", "title"])
+
+    eligible_types = _RECONNECT_ELIGIBLE_TYPES.get(domain, set())
+    is_eligible = entities["type"].astype(str).str.upper().isin(eligible_types)
+    isolated = entities[is_eligible & ~entities["title"].isin(connected)]
+
+    if len(isolated) == 0:
+        print("[FILTER] \uc7ac\uc5f0\uacb0\ud560 \uace0\ub9bd \ub178\ub4dc \uc5c6\uc74c")
+        return
+
+    tu_index = {}
+    tu_doc = {}
+    if domain == "mail":
+        if "document_id" not in text_units.columns:
+            print("[FILTER][WARN] text_units.parquet\uc5d0 document_id \ucef4\ub7fc\uc774 \uc5c6\uc5b4 \uba54\uc77c \uc7ac\uc5f0\uacb0 \uc2a4\ud0b5")
+            return
+        tu_index = {tid: idx for idx, tid in text_units["id"].items()}
+        tu_doc = dict(zip(text_units["id"], text_units["document_id"]))
+
+    new_rows = []
+    for _, row in isolated.iterrows():
+        title = row["title"]
+        tu_ids = row.get("text_unit_ids")
+        tu_ids = list(tu_ids) if tu_ids is not None else []
+
+        if domain == "messenger":
+            sender = _find_sender_messenger(text_lookup, tu_ids, person_titles)
+            desc = f"{title} \uc5b8\uae09/\uacf5\uc720\ub41c \ub300\ud654\uc758 \ucc38\uc5ec\uc790\uc640 \uc790\ub3d9 \uc7ac\uc5f0\uacb0 (\ud5e4\ub354 \uc720\uc2e4 \uccad\ud06c)."
+        else:
+            sender = _find_sender_mail(text_units, tu_ids, person_titles, tu_index, tu_doc)
+            desc = f"{title} \uc5b8\uae09/\uacf5\uc720\ub41c \uba54\uc77c\uc758 \ubc1c\uc2e0\uc790\uc640 \uc790\ub3d9 \uc7ac\uc5f0\uacb0 (\ud5e4\ub354 \uc720\uc2e4 \uccad\ud06c)."
+
+        if sender and sender != title:
+            new_rows.append({
+                "source": sender,
+                "target": title,
+                "description": desc,
+                "weight": 3.0,
+                "text_unit_ids": tu_ids,
+            })
+
+    if not new_rows:
+        print("[FILTER] \uace0\ub9bd \ub178\ub4dc \uc911 \ubc1c\uc2e0\uc790\ub97c \ucc3e\uc740 \ud56d\ubaa9 \uc5c6\uc74c")
+        return
+
+    new_rel_df = pd.DataFrame(new_rows)
+
+    if "human_readable_id" in relationships.columns:
+        start_id = int(pd.to_numeric(relationships["human_readable_id"], errors="coerce").max() or 0) + 1
+        new_rel_df["human_readable_id"] = range(start_id, start_id + len(new_rel_df))
+    if "id" in relationships.columns:
+        import hashlib
+        new_rel_df["id"] = [
+            hashlib.sha256(f"{r.source}|{r.target}|reconnect".encode("utf-8")).hexdigest()
+            for r in new_rel_df.itertuples()
+        ]
+    if "combined_degree" in relationships.columns:
+        deg = pd.concat([relationships["source"], relationships["target"]]).value_counts()
+        new_rel_df["combined_degree"] = [
+            int(deg.get(r.source, 0) + deg.get(r.target, 0) + 1) for r in new_rel_df.itertuples()
+        ]
+
+    for col in relationships.columns:
+        if col not in new_rel_df.columns:
+            new_rel_df[col] = None
+    new_rel_df = new_rel_df[relationships.columns]
+
+    combined = pd.concat([relationships, new_rel_df], ignore_index=True)
+    combined.to_parquet(relationships_path, index=False)
+
+    print(f"[FILTER] \uace0\ub9bd \ub178\ub4dc {len(new_rows)}\uac1c\ub97c \ubc1c\uc2e0\uc790\uc5d0\uac8c \uc7ac\uc5f0\uacb0 (domain={domain})")
+
+
 def _filter_fewshot_leakage(paths):
     import pandas as pd
 
@@ -316,6 +611,8 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
 
     env = env.copy()
     env["PYTHONUNBUFFERED"] = "1"
+    _patches_dir = os.path.join(BASE_DIR, "parquet_template", "src", "graphrag_patches")
+    env["PYTHONPATH"] = _patches_dir + os.pathsep + env.get("PYTHONPATH", "")
 
     print(f"[JOB][graphrag] CMD={cmd}")
     append_job_log(job_id, f"[CMD] {cmd}")
@@ -349,6 +646,21 @@ def build_graphrag_index(job_id, paths, env, max_mails=None):
             _filter_fewshot_leakage(paths)
         except Exception as e:
             print(f"[FILTER][WARN] few-shot 누출 필터링 실패 (무시): {e}")
+
+        try:
+            _filter_invalid_chatrooms(paths)
+        except Exception as e:
+            print(f"[FILTER][WARN] ChatRoom 근거 검증 필터링 실패 (무시): {e}")
+
+        try:
+            _filter_invalid_dates(paths)
+        except Exception as e:
+            print(f"[FILTER][WARN] Date 근거 검증 필터링 실패 (무시): {e}")
+
+        try:
+            _reconnect_isolated_via_person(paths)
+        except Exception as e:
+            print(f"[FILTER][WARN] 고립 노드 재연결 실패 (무시): {e}")
 
     except Exception as e:
         print(f"[JOB][graphrag][ERROR] job_id={job_id} error={e}")
@@ -389,6 +701,8 @@ def build_graphrag_update(job_id,paths, env):
 
     env = env.copy()
     env["PYTHONUNBUFFERED"] = "1"
+    _patches_dir = os.path.join(BASE_DIR, "parquet_template", "src", "graphrag_patches")
+    env["PYTHONPATH"] = _patches_dir + os.pathsep + env.get("PYTHONPATH", "")
 
     print(f"[JOB][graphrag] CMD={cmd}")
     append_job_log(job_id, f"[CMD] {cmd}")
@@ -454,7 +768,7 @@ def run_graph_pipeline(job_id, paths, env, attachment_texts_by_mail=None, added_
     print(f"[JOB][pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_pipeline")
 
-    render_all_domains()
+    render_all_prompts()
     user_graphrag_init(paths)
     try:
         update_job(job_id, progress=0, status="running", message="작업 시작")
@@ -535,7 +849,7 @@ def run_graph_update_pipeline(job_id, paths, env):
     print(f"[JOB][update-pipeline] START job_id={job_id}")
     append_job_log(job_id, "[START] run_graph_update_pipeline")
 
-    render_all_domains()
+    render_all_prompts()
     user_graphrag_init(paths)
     try:
         update_job(job_id, progress=0, status="running", message="업데이트 작업 시작")
