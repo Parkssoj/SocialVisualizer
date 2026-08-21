@@ -511,6 +511,42 @@ def get_chatroom_keyword_daily_stats(chatroom_id: str, month: str):
     return daily
 
 
+def get_chatroom_keyword_mentioners(chatroom_id: str, date: str, keyword: str):
+    """chatroom_id에서 특정 날짜(date, "YYYY-MM-DD")에 특정 키워드(keyword)를 언급한
+    참여자별 횟수를 반환. 인원 수 제한 없음, count 내림차순. chatroom_id가 인덱싱된 적
+    없으면 None. avatar_url은 여기서 채우지 않고 app.py에서 chatroom avatar 캐시를
+    붙인다(기존 /chatroom-people 패턴과 동일)."""
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT k.participant_name AS participant_id, SUM(k.mention_count) AS count
+            FROM message_keyword k
+            JOIN message_block b
+              ON k.block_id = b.block_id AND k.chatroom_id = b.chatroom_id
+             AND k.index_date = b.index_date AND k.user_id = b.user_id
+            WHERE k.chatroom_id = %s AND k.index_date = %s AND k.user_id = %s
+              AND k.keyword_name = %s
+              AND b.block_date = %s
+            GROUP BY k.participant_name
+            ORDER BY count DESC
+            """,
+            (chatroom_id, index_date, user_id, keyword, date),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [{"participant_id": r["participant_id"], "name": r["participant_id"], "count": int(r["count"] or 0)} for r in rows]
+
+
 def get_chatroom_person_monthly_stats(chatroom_id: str, participant_id: str, start_date: str = None, end_date: str = None):
     """chatroom_id에서 participant_id가 월별로 보낸 메시지 수를 집계. start_date/end_date를
     주면(타임슬라이더 기간) 그 기간만, 안 주면 전체 기간. 상세보기 통계 탭의 월별

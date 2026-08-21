@@ -350,6 +350,44 @@ def get_mail_keyword_daily_stats(user_id: str, month: str) -> dict:
     return daily
 
 
+def get_mail_keyword_mentioners(user_id: str, date: str, keyword: str) -> list:
+    """user_id 전체에서 특정 날짜(date, "YYYY-MM-DD")에 특정 키워드(keyword)를 언급한
+    상대방별 횟수를 반환. 인원 수 제한 없음, count 내림차순. avatar_url은 여기서 채우지
+    않고 app.py에서 person_avatars 캐시를 붙인다(기존 /chatroom-people 패턴과 동일)."""
+    latest = get_latest_mail_account(user_id)
+    if not latest:
+        return []
+    update_date = latest["index_date"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT k.person_mail_account_id AS person_id,
+                   p.person_name AS name,
+                   SUM(k.daily_count) AS count
+            FROM mail_keyword k
+            LEFT JOIN person p
+              ON p.person_mail_account_id = k.person_mail_account_id
+             AND p.user_mail_account_id = k.user_mail_account_id
+             AND p.index_date = %s
+            WHERE k.user_mail_account_id = %s
+              AND k.keyword_name = %s
+              AND DATE(k.mail_date) = %s
+            GROUP BY k.person_mail_account_id, p.person_name
+            ORDER BY count DESC
+            """,
+            (update_date, user_id, keyword, date),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [{"person_id": r["person_id"], "name": r["name"], "count": int(r["count"] or 0)} for r in rows]
+
+
 def get_user_rating_stats(): # 모든 유저의 Olive 만족도
     return {"total_rating" : 99}
 
