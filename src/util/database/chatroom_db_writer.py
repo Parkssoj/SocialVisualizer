@@ -1,5 +1,5 @@
 # src/util/database/chatroom_db_writer.py
-# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/message_keyword/message_summarize 테이블에 데이터 저장
+# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/message_keyword/message_summarize/chatroom_relationship 테이블에 데이터 저장
 # get_db_connection/get_or_create_user_id/collect_indexing_stats는 도메인 독립적이라 db_writer.py 것을 그대로 재사용
 
 import os
@@ -15,7 +15,8 @@ def _normalize_datetime(value):
     return value
 
 def init_chatroom_tables():
-    """서버 시작 시 chatroom 관련 6개 테이블이 없으면 자동 생성 (sql/message_schema.sql과 동일한 구조)"""
+    """서버 시작 시 chatroom 관련 7개 테이블이 없으면 자동 생성 (chatroom_relationship 포함 — 원래
+    sql/message_schema.sql에 있었으나 이 저장소에는 해당 파일이 없어 여기 직접 추가함)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -119,6 +120,23 @@ def init_chatroom_tables():
                 PRIMARY KEY (summarize_unit, summary_period, chatroom_id, index_date, user_id),
                 FOREIGN KEY (chatroom_id, index_date, user_id)
                     REFERENCES chatroom(chatroom_id, index_date, user_id)
+            ) ENGINE=InnoDB
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chatroom_relationship (
+                chatroom_id CHAR(40) NOT NULL,
+                index_date DATETIME NOT NULL,
+                user_id CHAR(36) NOT NULL,
+                person_a VARCHAR(255) NOT NULL,
+                person_b VARCHAR(255) NOT NULL,
+                relation_label VARCHAR(100),
+                description TEXT,
+                PRIMARY KEY (chatroom_id, index_date, user_id, person_a, person_b),
+                FOREIGN KEY (person_a, chatroom_id, index_date, user_id)
+                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id),
+                FOREIGN KEY (person_b, chatroom_id, index_date, user_id)
+                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id)
             ) ENGINE=InnoDB
         """)
 

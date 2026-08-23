@@ -17,7 +17,10 @@ load_dotenv("src/parquet/.env")
 
 
 def _summarize_with_llm(text, period_label, contacts):
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
     try:
         response = client.chat.completions.create(
             model=os.getenv("SUB_TASK_CHAT_MODEL"),
