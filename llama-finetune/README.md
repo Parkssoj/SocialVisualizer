@@ -84,6 +84,27 @@ LoRA 어댑터(`adapter_model.safetensors` + `adapter_config.json` 등)만 공�
 
 ## 재현 순서 (요약)
 
+### 0단계: 사전 준비물 — 이 폴더 밖에서 먼저 만들어져 있어야 하는 것
+
+이 폴더는 "SFT 데이터 구축 → 파인튜닝 → 서빙"만 담당합니다. 그 앞 단계는 이 폴더에
+포함되어 있지 않고, MailGrapher 앱 본체(레포 루트의 `parquet_template/`,
+`src/util/graphrag_engine.py` 등)가 담당하는 별도 파이프라인입니다.
+
+1. **합성(가상) 메일/메신저 원문 생성** — 실제 개인 데이터가 아닌 가상의 인물·메일함·
+   채팅방 텍스트를 만드는 단계. 이 레포에는 원문 자체를 포함하지 않았습니다
+   (`LIMITATIONS.md` 참고).
+2. **그 원문에 대한 GraphRAG 인덱싱 실행** — 위 원문을 MailGrapher 앱 본체의 GraphRAG
+   파이프라인에 태워 `entities.parquet` / `relationships.parquet` / `communities.parquet` /
+   `community_reports.parquet`를 생성하는 단계. `sft_data_construction/indexing/`,
+   `sft_data_construction/query/`의 스크립트들은 전부 이 parquet 산출물이 **이미
+   존재한다는 전제**로 `--raw-data-dir` 인자를 받는 구조입니다.
+3. **(query 어댑터만 해당) bge-m3 임베딩 서버 기동** — `sft_data_construction/query/`의
+   컨텍스트 재구성 스크립트가 실시간으로 호출합니다.
+
+위 세 가지가 준비된 다음부터 아래 1~5단계가 시작됩니다.
+
+### 1~5단계
+
 1. `sft_data_construction/indexing/`의 스크립트로 community_reports SFT 페어 생성
    (`convert_to_sharegpt.py`로 ShareGPT 포맷 jsonl 산출)
 2. `training_configs/index_lora.yaml`로 LoRA 학습 (`llamafactory-cli train`)
