@@ -1,11 +1,27 @@
-// imap-collect.html 전용 스타일 (기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외)
+// imap-collect.html 전용 스타일 (메신저 드롭존 원복 및 대화방/모드 가로 1줄 배치 버전)
+
+/* ── 페이지 전체를 위로 강하게 끌어올림 ── */
+.page-imap-collect {
+  .right_col {
+    margin-top: 90px !important;
+    padding-top: 0 !important;
+  }
+
+  .gw-collect-wrap {
+    padding-top: 0 !important;
+  }
+}
 
 /* ── 레이아웃 ── */
 .gw-collect-wrap {
-  padding: 28px 32px;
+  padding: 8px 32px 32px 32px !important;
   width: 100%;
 }
 
+/* 상단 공백 최소화 */
+.gw-page-header-row {
+  margin-bottom: 8px !important;
+}
 .gw-page-title {
   font-size: 1.4rem;
   font-weight: 700;
@@ -21,103 +37,95 @@
 .gw-page-subtitle {
   font-size: 1rem;
   color: #73879c;
-  margin-bottom: 28px;
+  margin-bottom: 0;
 }
 
 /* ── 탭 전환 ── */
 .gw-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 24px;
-  border-bottom: 1.5px solid #e8ecef;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-bottom: 0 !important;
+  border-bottom: none !important;
 }
 .gw-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 20px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+  padding: 5px 12px !important;
   border: none;
   background: transparent;
-  color: #73879C;
-  font-size: 1rem;
+  color: #73879c;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 2.5px solid transparent;
-  margin-bottom: -1.5px;
-  transition: color 0.15s, border-color 0.15s;
+  border-radius: 6px;
+  line-height: 1.2 !important;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
-.gw-tab-btn:hover { color: #2A3F54; }
+.gw-tab-btn:hover {
+  color: #2a3f54;
+  background: #f1f3f5;
+}
 .gw-tab-btn.active {
-  color: #f97316;
-  border-bottom-color: #fb923c;
+  color: #fff !important;
+  background: #fb923c !important;
 }
 
-.gw-tab-panel { display: none; }
-.gw-tab-panel.active { display: block; }
+/* 탭 패널 활성화 상태를 CSS Grid 콘텐츠로 통과시킴 */
+.gw-tab-panel {
+  display: none;
+}
+.gw-tab-panel.active {
+  display: contents;
+}
 
-/* ── 파일 드롭존 (카카오톡 업로드) ── */
+/* ── 💡 메신저 파일 드롭존 디자인 원본 완벽 복원 ── */
 .gw-dropzone {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 36px 20px;
-  border: 2px dashed #dde3ea;
+  gap: 10px;
+  padding: 40px 20px;
+  border: 2px dashed #cbd5e1;
   border-radius: 12px;
-  background: #fafbfc;
+  background: #f8fafc;
   cursor: pointer;
   text-align: center;
-  transition: border-color 0.15s, background 0.15s;
+  transition: all 0.2s ease;
 }
 .gw-dropzone:hover,
 .gw-dropzone.dragover {
   border-color: #fb923c;
-  background: #F7F7F7;
+  background: #fffaf5;
 }
 .gw-dropzone i {
-  font-size: 1.8rem;
+  font-size: 2.2rem;
   color: #fb923c;
+  margin-bottom: 4px;
 }
 .gw-dropzone-text {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  color: #2A3F54;
+  color: #2a3f54;
 }
 .gw-dropzone-sub {
-  font-size: 1rem;
-  color: #73879C;
+  font-size: 0.9rem;
+  color: #64748b;
 }
 .gw-dropzone-file {
-  margin-top: 6px;
-  padding: 5px 14px;
+  margin-top: 8px;
+  padding: 6px 16px;
   border-radius: 999px;
-  background: #EEEEEE;
-  color: #545454;
-  font-size: 1rem;
+  background: #fff3eb;
+  color: #f97316;
+  font-size: 0.95rem;
   font-weight: 600;
-}
-
-/* ── 카드 1(메일 계정 로그인)+2(옵션)를 가로 1줄로 배치 ──
-   flex(1 1 0%)는 이론상 두 칸이 같은 폭으로 나뉘어야 하지만, "폴더 불러오기"로
-   폴더 칩이 많이 쌓이면 그 카드의 min-content 폭이 밀고 올라와 옆 카드보다 넓어지는
-   문제가 있었음. grid는 트랙 폭(1fr 1fr)이 내용과 무관하게 고정되므로 이 문제가 없음. */
-.gw-collect-cards-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: stretch;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-/* 좁은 화면에서는 두 카드가 나란히 눌리는 대신 세로로 쌓이도록 */
-@media (max-width: 900px) {
-  .gw-collect-cards-row {
-    grid-template-columns: 1fr;
-  }
-}
-.gw-collect-cards-row .gw-card {
-  min-width: 0;
-  margin-bottom: 0;
+  border: 1px solid #fed7aa;
 }
 
 /* ── 카드 ── */
@@ -126,7 +134,7 @@
   border: none;
   border-radius: 12px;
   padding: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 0 !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
 }
 .gw-card-title {
@@ -144,43 +152,39 @@
   color: #fb923c;
 }
 
-/* ── 폼 요소 ── */
-.gw-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+/* ── 폼 요소 (기본은 세로 정렬) ── */
+.gw-form-grid,
+.gw-uniform-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px;
 }
-.gw-form-grid.cols-3 {
-  grid-template-columns: 2fr 1fr 1fr;
+
+/* 💡 메신저 탭 안의 '대화방 이름'과 '모드'만 가로 1줄(2열)로 배치 */
+#tab-panel-message .gw-form-grid {
+  grid-template-columns: 1fr 1fr !important;
 }
+
 .gw-form-group {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-
-/* 메일 계정 로그인 / 옵션 카드의 그리드 패널 — 두 카드가 동일한 레이아웃 규칙을 쓰도록
-   공통 클래스로 묶고, 카드 폭에 따라 자동으로 1~2열로 바뀌는 반응형 그리드로 구성 */
-.gw-uniform-grid {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-
-/* IMAP 호스트/포트/SSL — UI에서 숨김 (값은 유지) */
 .gw-hidden-fields {
   display: none;
 }
 
 .gw-label {
-  font-size: 1rem;
+  font-size: 1rem !important;
   font-weight: 600;
   color: #73879c;
-  letter-spacing: 0.03em;
 }
-.gw-input {
-  padding: 9px 13px;
+.gw-input,
+.gw-select {
+  font-size: 1.02rem !important;
+  padding: 10px 14px;
   border: 1.5px solid #dde3ea;
   border-radius: 8px;
-  font-size: 1rem;
   color: #2a3f54;
   background: #fafbfc;
   outline: none;
@@ -188,7 +192,8 @@
     border-color 0.2s,
     box-shadow 0.2s;
 }
-.gw-input:focus {
+.gw-input:focus,
+.gw-select:focus {
   border-color: #fb923c;
   box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
   background: #fff;
@@ -196,64 +201,50 @@
 .gw-input::placeholder {
   color: #b0bec5;
 }
-
 .gw-select {
-  padding: 9px 13px;
-  border: 1.5px solid #dde3ea;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #2a3f54;
-  background: #fafbfc;
-  outline: none;
-  cursor: pointer;
-  transition: border-color 0.2s;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2373879C' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
-}
-.gw-select:focus {
-  border-color: #fb923c;
-  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
+  cursor: pointer;
 }
 
 /* ── 프리셋 칩 ── */
 .gw-presets {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 18px;
 }
 .gw-preset-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 6px 14px;
-  border-radius: 999px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: none;
   background: #fafbfc;
   color: #73879c;
-  font-size: 1rem;
+  font-size: 0.95rem !important;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.15s;
 }
 .gw-preset-chip:hover {
   color: #fb923c;
-  background: #F7F7F7;
+  background: #f7f7f7;
   box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .gw-preset-chip.active {
-  background: #fb923c;
-  color: #fff;
+  background: #fb923c !important;
+  color: #fff !important;
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
-/* ── 폴더 체크박스 ──
-   폴더가 많아지면 칩이 카드 폭을 밀어 넓히는 대신, 세로로만 늘어나되 일정 높이부터는
-   내부 스크롤로 처리 — 카드 폭은 항상 옵션 카드와 동일하게 유지됨 */
+/* ── 폴더 체크박스 ── */
 .gw-folder-list {
   display: flex;
   flex-wrap: wrap;
@@ -287,11 +278,11 @@
   user-select: none;
 }
 .gw-folder-item:hover {
-  background: #F7F7F7;
+  background: #f7f7f7;
   box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .gw-folder-item.checked {
-  background: #F7F7F7;
+  background: #f7f7f7;
   color: #f97316;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(251, 146, 60, 0.3);
@@ -307,7 +298,7 @@
   color: #fb923c;
 }
 .gw-folder-label {
-  font-size: 1rem;
+  font-size: 1rem !important;
   color: #2a3f54;
   max-width: 220px;
   overflow: hidden;
@@ -319,7 +310,7 @@
   font-size: 1rem;
 }
 
-/* ── 전체 선택 버튼 (폴더 칩과는 다른 모양) ── */
+/* ── 전체 선택 버튼 ── */
 .gw-select-all-btn {
   padding: 5px 13px;
   border-radius: 6px;
@@ -334,7 +325,7 @@
 }
 .gw-select-all-btn:hover {
   color: #f97316;
-  background: #F7F7F7;
+  background: #f7f7f7;
   box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 
@@ -348,7 +339,7 @@
   color: #fff;
   border: none;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 1rem !important;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -370,26 +361,26 @@
   box-shadow: none;
 }
 
-/* ── 진행상황 패널 ── */
+/* ── 진행상황 패널 (로그 디자인 원본 완벽 복원) ── */
 .gw-log-panel {
   display: none;
-  margin-top: 20px;
-  border-radius: 10px;
+  margin-top: 0 !important;
+  background: #fff;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
 }
 .gw-log-panel.visible {
   display: block;
 }
-
 .gw-log-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: #F4F4F4;
-  border: none;
-  border-radius: 10px 10px 0 0;
+  padding: 14px 18px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 12px 12px 0 0;
 }
 .gw-log-header-left {
   display: flex;
@@ -400,8 +391,8 @@
   color: #2a3f54;
 }
 .gw-status-badge {
-  font-size: 1rem;
-  padding: 2px 10px;
+  font-size: 0.9rem;
+  padding: 3px 10px;
   border-radius: 999px;
   font-weight: 600;
   display: flex;
@@ -413,7 +404,7 @@
   color: #f97316;
 }
 .gw-status-badge.done {
-  background: #EEEEEE;
+  background: #eeeeee;
   color: #545454;
 }
 .gw-status-badge.failed {
@@ -448,7 +439,7 @@
 
 .gw-progress-bar-wrap {
   height: 3px;
-  background: #E4E4E4;
+  background: #e4e4e4;
 }
 .gw-progress-bar-fill {
   height: 100%;
@@ -460,21 +451,21 @@
 
 .gw-log-body {
   border: none;
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 12px 12px;
   height: 220px;
   overflow-y: auto;
-  padding: 12px 16px;
-  font-size: 1rem;
-  line-height: 1.8;
+  padding: 16px;
+  font-size: 0.95rem;
+  line-height: 1.6;
   scrollbar-width: thin;
-  scrollbar-color: #E4E4E4 transparent;
+  scrollbar-color: #e4e4e4 transparent;
   background: #fff;
 }
 .gw-log-body::-webkit-scrollbar {
   width: 4px;
 }
 .gw-log-body::-webkit-scrollbar-thumb {
-  background: #E4E4E4;
+  background: #e4e4e4;
   border-radius: 4px;
 }
 
@@ -482,7 +473,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  padding: 1px 0;
+  padding: 2px 0;
   animation: line-in 0.18s ease;
 }
 @keyframes line-in {
@@ -496,8 +487,8 @@
   }
 }
 .gw-log-ts {
-  color: #BDBDBD;
-  font-size: 1rem;
+  color: #bdbdbd;
+  font-size: 0.85rem;
   flex-shrink: 0;
   padding-top: 2px;
 }
@@ -526,9 +517,9 @@
   gap: 6px;
 }
 
-/* ── job 패널 목록 (계정별로 하나씩 쌓임) ── */
+/* ── job 패널 목록 ── */
 .gw-jobs-list {
-  margin-top: 20px;
+  margin-top: 0 !important;
 }
 .gw-jobs-list .gw-log-empty {
   height: auto;
@@ -550,7 +541,7 @@
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
-  background: #F7F7F7;
+  background: #f7f7f7;
   border: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   color: #f97316;
@@ -577,6 +568,139 @@
 .gw-spinner.visible {
   display: inline-block;
 }
+
+/* ═══════════════════════════════════════════════
+   6:4 분할 레이아웃 및 완벽한 상하/좌우 대칭 정렬
+   ═══════════════════════════════════════════════ */
+.gw-split-grid-wrapper {
+  display: grid !important;
+  grid-template-columns: 6fr 4fr !important;
+  gap: 48px !important;
+  align-items: start !important;
+  position: relative !important;
+  margin-top: 6px !important;
+}
+
+.gw-split-grid-wrapper::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: calc(60% - 24px) !important;
+  width: 1px !important;
+  background: #e2e8f0 !important;
+}
+
+@media (max-width: 992px) {
+  .gw-split-grid-wrapper {
+    grid-template-columns: 1fr !important;
+  }
+  .gw-split-grid-wrapper::after {
+    display: none !important;
+  }
+}
+
+.gw-split-header-left {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 14px !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 12px !important;
+  grid-column: 1 !important;
+  height: 32px !important;
+}
+
+.gw-split-header-right {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+  margin-top: 15px !important; /* 분석 데이터 만들기 하향 조절 유지 */
+  margin-bottom: 12px !important;
+  grid-column: 2 !important;
+  height: 32px !important;
+}
+
+@media (max-width: 992px) {
+  .gw-split-header-left {
+    grid-column: 1;
+    order: 1;
+    height: auto !important;
+  }
+  .gw-split-left-content {
+    grid-column: 1;
+    order: 2;
+    margin-bottom: 30px;
+  }
+  .gw-split-header-right {
+    grid-column: 1;
+    order: 3;
+    height: auto !important;
+    margin-top: 0 !important;
+  }
+  .gw-split-right-content {
+    grid-column: 1;
+    order: 4;
+  }
+}
+
+.gw-split-title {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  color: #2a3f54 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  border-bottom: none !important;
+  line-height: normal !important;
+}
+
+.gw-step-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: #fb923c !important;
+  color: #fff !important;
+  border-radius: 50% !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+}
+
+.gw-split-left-content,
+.gw-split-right-content {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.gw-split-right-content .gw-jobs-list {
+  margin-top: 0 !important;
+  flex: 1 !important;
+}
+
+.gw-collect-cards-column {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+}
+
+@media (max-width: 1200px) {
+  .gw-collect-cards-column {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.gw-collect-cards-column .gw-card {
+  margin-bottom: 0 !important;
+  height: 100% !important;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

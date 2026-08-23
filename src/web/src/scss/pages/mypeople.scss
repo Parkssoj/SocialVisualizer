@@ -40,7 +40,11 @@ footer {
   left: 0 !important;
   right: 0 !important;
   bottom: 100px !important;
-  padding: 0 90px 0 90px !important; // 상단 패딩 제거 — 창 위치는 이 값 유지
+  // position:fixed라서 부모(.right_col)의 margin-left는 이 요소에 영향을 못 줌 —
+  // 그래서 좌측 패딩에 직접 --gw-sidebar-w를 더해서 사이드바 폭만큼 콘텐츠를 밀어냄.
+  // (사이드바 없는 페이지에선 변수 기본값이 0px라 기존 90px 그대로 유지됨)
+  padding: 0 90px 0 calc(90px + var(--gw-sidebar-w, 0px)) !important;
+  transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
@@ -1105,8 +1109,8 @@ footer {
      색 계열로 이어지게 함 */
   background: linear-gradient(
     180deg,
-    rgba(111, 191, 152, 0.08) 0%,
-    rgba(111, 191, 152, 0.16) 100%
+    rgba(111, 191, 152, 0.04) 0%,
+    rgba(111, 191, 152, 0.09) 100%
   );
 }
 
@@ -1130,14 +1134,21 @@ footer {
   display: flex;
 }
 
-/* 설명 탭 패널 */
+/* 설명 탭 패널(메일: "설명" / 메신저: "관계") — mp-detail-body(이메일 교환 탭)를
+   그 탭 버튼(#4caf7d, 그린)과 같은 계열로 맞췄던 것처럼, 이 탭도 자기 탭 버튼
+   (#mp-tab-desc, #8cb4ef 블루)과 같은 색 계열로 옅게 깔아 통일감을 줌. 메일/메신저가
+   같은 요소를 공유하므로 자동으로 둘 다 동일하게 적용됨. */
 .mp-detail-desc {
   display: none;
   flex: 3;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(160deg, #f4f8ff 0%, #faf5f0 100%);
+  background: linear-gradient(
+    160deg,
+    rgba(140, 180, 239, 0.06) 0%,
+    rgba(140, 180, 239, 0.13) 100%
+  );
   padding: clamp(20px, 2.5cqw, 36px) clamp(20px, 3cqw, 48px);
   flex-direction: column;
 }
@@ -1202,8 +1213,8 @@ footer {
      초록 계열로 맞춤 */
   background: linear-gradient(
     160deg,
-    rgba(111, 191, 152, 0.1) 0%,
-    rgba(111, 191, 152, 0.18) 100%
+    rgba(111, 191, 152, 0.05) 0%,
+    rgba(111, 191, 152, 0.1) 100%
   );
 }
 
@@ -1353,7 +1364,6 @@ footer {
   flex-shrink: 0;
   text-decoration: none;
   color: inherit;
-  cursor: pointer;
 }
 .mp-email-card.sent {
   border-left-color: #9a3412;
@@ -1406,6 +1416,51 @@ footer {
 .mp-email-from {
   font-size: 0.82rem;
   color: #a39a8d;
+}
+/* 하루 상세(openMailDayChat)에서 보여주는 메일 원문 본문 — 메신저의 .mp-chatline-text와
+   같은 방식으로 줄바꿈을 그대로 살려서 실제 메일처럼 읽히게 함 */
+.mp-email-body {
+  font-size: 0.92rem;
+  color: #2c2c2e;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-top: 2px;
+  border-top: 1px solid rgba(28, 28, 30, 0.06);
+  margin-top: 2px;
+}
+/* 그날 메일 목록(제목만)에서 하나를 누르면 본문 상세로 넘어가는 클릭 가능한 행 —
+   .mp-email-card와 같은 생김새를 쓰되 <button>이라 커서/호버로 클릭 가능함을 표시 */
+.mp-email-row {
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-left-width: 3px;
+  border-radius: 4px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.mp-email-row.sent {
+  border-left-color: #9a3412;
+}
+.mp-email-row.received {
+  border-left-color: #5a94e8;
+}
+.mp-email-row:hover {
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: 0 4px 16px rgba(28, 28, 30, 0.06);
+  background: #fffaf5;
 }
 
 /* ── 메신저 상세: 월 클릭 → 일별 목록 → 하루 클릭 → 그날 대화 (메일 드로어 재사용) ── */
@@ -1557,7 +1612,10 @@ footer {
 .mp-timeline {
   position: fixed;
   bottom: 12px;
-  left: 40px;
+  // .mp-page와 마찬가지로 position:fixed라서 부모의 margin/padding이 안 먹는다 —
+  // 사이드바가 열리고 닫힐 때 이 슬라이더도 같이 줄었다 늘었다 하도록 왼쪽에
+  // --gw-sidebar-w를 더함(사이드바 없는 페이지/닫힘 상태는 변수가 0이라 기존과 동일).
+  left: calc(40px + var(--gw-sidebar-w, 0px));
   right: 40px;
   height: 88px;
   background: none;
@@ -1569,6 +1627,7 @@ footer {
   flex-direction: column;
   gap: 6px;
   container-type: inline-size;
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 날짜 텍스트 행 */
@@ -1706,7 +1765,7 @@ footer {
     grid-template-columns: repeat(7, 1fr);
   }
   .mp-page {
-    padding: 16px 72px 0 72px !important;
+    padding: 16px 72px 0 calc(72px + var(--gw-sidebar-w, 0px)) !important;
     gap: 8px !important;
   }
   .mp-content {
@@ -1715,7 +1774,7 @@ footer {
 }
 @media (max-width: 960px) {
   .mp-page {
-    padding: 14px 32px 0 32px !important;
+    padding: 14px 32px 0 calc(32px + var(--gw-sidebar-w, 0px)) !important;
   }
   .mp-content {
     flex-direction: column;
@@ -1725,7 +1784,7 @@ footer {
     grid-template-columns: repeat(5, 1fr);
   }
   .mp-timeline {
-    left: 40px;
+    left: calc(40px + var(--gw-sidebar-w, 0px));
     right: 40px;
   }
 }
@@ -1735,10 +1794,10 @@ footer {
     grid-template-columns: repeat(4, 1fr);
   }
   .mp-page {
-    padding: 12px 24px 0 24px !important;
+    padding: 12px 24px 0 calc(24px + var(--gw-sidebar-w, 0px)) !important;
   }
   .mp-timeline {
-    left: 28px;
+    left: calc(28px + var(--gw-sidebar-w, 0px));
     right: 28px;
   }
 }

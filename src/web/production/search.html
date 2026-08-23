@@ -26,7 +26,7 @@
     />
     <link rel="manifest" href="site.webmanifest" />
     <meta name="theme-color" content="rgb(42, 63, 84)" />
-    <title>Search | MailGrapher</title>
+    <title>Natural language search | MailGrapher</title>
     <script type="module" src="/src/pages/search.js"></script>
     <!-- 헤더 폰트를 홈 화면(index.html)과 완전히 동일하게: Fraunces뿐 아니라
          Geist도 같이 불러와서 헤더/본문 폰트 로딩이 페이지마다 다르지 않게 통일 -->
@@ -50,15 +50,31 @@
         <div id="app-header"></div>
 
         <!-- Page Content -->
-        <main class="right_col" role="main" aria-label="Main content" style="padding: 0;">
-
+        <main
+          class="right_col"
+          role="main"
+          aria-label="Main content"
+          style="padding: 0"
+        >
           <!-- ── 탭 전환 ── -->
           <div class="gw-tabs" role="tablist">
-            <button type="button" class="gw-tab-btn active" id="tab-btn-mail" role="tab" aria-selected="true">
+            <button
+              type="button"
+              class="gw-tab-btn active"
+              id="tab-btn-mail"
+              role="tab"
+              aria-selected="true"
+            >
               <i class="bi bi-envelope"></i> 메일
             </button>
-            <button type="button" class="gw-tab-btn" id="tab-btn-message" role="tab" aria-selected="false">
-              <i class="bi bi-chat-dots"></i> 메시지
+            <button
+              type="button"
+              class="gw-tab-btn"
+              id="tab-btn-message"
+              role="tab"
+              aria-selected="false"
+            >
+              <i class="bi bi-chat-dots"></i> 메신저
             </button>
           </div>
 
@@ -102,15 +118,28 @@
           <div id="panel-message" class="gw-tab-panel">
             <div class="gw-search-top">
               <div class="gw-search-box">
-                <input type="text" id="message-search-input" placeholder="카카오톡 대화에 대해 궁금한 것을 검색하세요..." autocomplete="off">
+                <input
+                  type="text"
+                  id="message-search-input"
+                  placeholder="카카오톡 대화에 대해 궁금한 것을 검색하세요..."
+                  autocomplete="off"
+                />
                 <button id="message-search-btn" type="button">
                   <i class="fas fa-search"></i>
                 </button>
               </div>
-              <div class="gw-recent-searches" id="message-recent-searches-bar" style="display:none;">
-                <span class="gw-recent-label"><i class="fas fa-history me-1"></i>최근 검색:</span>
+              <div
+                class="gw-recent-searches"
+                id="message-recent-searches-bar"
+                style="display: none"
+              >
+                <span class="gw-recent-label"
+                  ><i class="fas fa-history me-1"></i>최근 검색:</span
+                >
                 <div id="message-recent-tags"></div>
-                <span class="gw-recent-clear" id="message-clear-recent">전체 삭제</span>
+                <span class="gw-recent-clear" id="message-clear-recent"
+                  >전체 삭제</span
+                >
               </div>
             </div>
             <div class="gw-result-wrapper">

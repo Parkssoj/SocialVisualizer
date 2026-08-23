@@ -45,7 +45,7 @@
 #account-picker-mount {
   margin-top: 15px;
 }
-/* 히어로 오른쪽: 지식그래프 보기 버튼 */
+/* 히어로 오른쪽: View knowledge graph 버튼 */
 .rc-hero-graph-link {
   position: absolute;
   right: 40px;
@@ -309,7 +309,7 @@
   background: linear-gradient(90deg, #a5b4fc, #818cf8);
 }
 .rc-bar-fill.rank3 {
-  background: linear-gradient(90deg, #C8C8C8, #A7A7A7);
+  background: linear-gradient(90deg, #c8c8c8, #a7a7a7);
 }
 .rc-bar-count {
   font-size: 0.85rem;
@@ -566,7 +566,7 @@
   font-size: 2.8rem;
   font-weight: 900;
   letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #f87171, #fbbf24, #A7A7A7);
+  background: linear-gradient(135deg, #f87171, #fbbf24, #a7a7a7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

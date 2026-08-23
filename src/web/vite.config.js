@@ -56,7 +56,7 @@ export default defineConfig({
         entryFileNames: "js/[name]-[hash].js",
       },
       input: {
-        // 홈 (지식그래프 랜딩)
+        // 홈
         home: "production/index.html",
         // My Life 랜딩
         mylife: "production/mylife.html",
@@ -66,12 +66,13 @@ export default defineConfig({
         mypeople: "production/mypeople.html",
         // 그래프 시각화
         graph_viz: "production/graph-viz.html",
-        // 메일 통계 요약 — 빌드 대상에서 제외 (파일은 남겨둠)
-        // recap: "production/recap.html",
+        // 메일 통계 요약
+        recap: "production/recap.html",
         // 서치 페이지
         search: "production/search.html",
-        // IMAP 메일 수집
+        // IMAP Data analysis
         imap_collect: "production/imap-collect.html",
+        analysis_hub: "production/analysis-hub.html",
         // 로그인 (디자인만, OAuth 연동은 후속 작업)
         login: "production/login.html",
       },
@@ -129,6 +130,13 @@ export default defineConfig({
       "/generate-self-avatar": "http://127.0.0.1:80",
       "/indexing-history": "http://127.0.0.1:80",
       "/indexing-stream": "http://127.0.0.1:80",
+      // Social Distance 기능에서 쓰는 /intimacy와, /person-avatars 등이 돌려주는
+      // 아바타 이미지 URL(/person-avatar-image/<user_id>/<filename>)이 이 프록시
+      // 목록에 빠져있어서 개발 서버에서 404가 났었음 — "사람 동그라미 이미지가
+      // 이상하다"는 게 이게 원인이었을 가능성이 큼(백엔드 라우트를 새로 추가할
+      // 때마다 여기에도 같이 등록해야 함)
+      "/intimacy": "http://127.0.0.1:80",
+      "/person-avatar-image": "http://127.0.0.1:80",
     },
     watch: {
       usePolling: false,

@@ -8,6 +8,13 @@ import { Component as HeroGridBackground } from "./ui/background-snippets.tsx";
    상호작용은 막고, 카드 전체를 감싸는 <a>가 클릭/이동을 담당한다. */
 const FRAME_W = 1600;
 const FRAME_H = 1020;
+
+/* 히어로 미리보기 카드를 "실제 페이지 iframe 축소판" 대신 미리 찍어둔 정적 이미지로
+   보여줄지 여부. true면 아래 My People/My Time 카드에 public/images/hero/의
+   MyPeople.png, My Time.png를 그대로 띄운다. 원래대로(iframe 라이브 미리보기)
+   되돌리려면 이 값을 false로만 바꾸면 된다 — 원본 iframe 코드는 그대로 남아있음. */
+const USE_STATIC_HERO_PREVIEWS = true;
+
 function PagePreviewFrame({ src }) {
   return (
     <div className="gw-preview-frame">
@@ -203,10 +210,9 @@ export default function HeroOrbit() {
           className="gw-hero-desc gw-anim"
           style={{ transitionDelay: "0.15s" }}
         >
-          흩어진 소셜 데이터를 하나로.
+          Social Visualizer는 메일, 메신저를 연결하여
           <br></br>
-          Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의
-          흐름을 시각화합니다.
+          당신의 인간관계와 삶의 흐름을 시각화합니다.
         </p>
         <div
           className="gw-hero-cta gw-anim"
@@ -218,16 +224,41 @@ export default function HeroOrbit() {
         </div>
       </div>
 
-      <div className="gw-hero-previews gw-anim" style={{ transitionDelay: "0.28s" }}>
-        <a href="mypeople.html" className="gw-preview-card">
-          <PagePreviewFrame src="mypeople.html" />
+      <div
+        className="gw-hero-previews gw-anim"
+        style={{ transitionDelay: "0.28s" }}
+      >
+        <a
+          href="mypeople.html"
+          className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
+        >
+          {USE_STATIC_HERO_PREVIEWS ? (
+            <img
+              src="/images/hero/MyPeople.png"
+              alt="My People"
+              className="gw-preview-static-img"
+            />
+          ) : (
+            <PagePreviewFrame src="mypeople.html" />
+          )}
           <div className="gw-preview-overlay">
             <span>My People 바로가기</span>
             <i className="bi bi-arrow-right-short"></i>
           </div>
         </a>
-        <a href="mytime.html" className="gw-preview-card">
-          <PagePreviewFrame src="mytime.html" />
+        <a
+          href="mytime.html"
+          className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
+        >
+          {USE_STATIC_HERO_PREVIEWS ? (
+            <img
+              src="/images/hero/My%20Time.png"
+              alt="My Time"
+              className="gw-preview-static-img"
+            />
+          ) : (
+            <PagePreviewFrame src="mytime.html" />
+          )}
           <div className="gw-preview-overlay">
             <span>My Time 바로가기</span>
             <i className="bi bi-arrow-right-short"></i>
