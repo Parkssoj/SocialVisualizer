@@ -3,8 +3,7 @@
 이 폴더의 스크립트는 GraphRAG의 `extract_graph`(엔티티/관계 추출)와 `community_reports`
 (커뮤니티 요약) 두 태스크의 gold 라벨을 만드는 파이프라인입니다. 합성 이메일·메신저
 텍스트를 실제 GraphRAG 인덱싱 파이프라인에 태워 gpt-5.4-mini가 만든 응답을 distillation
-라벨로 재사용하는 방식입니다 (오프라인 학습 데이터 생성 단계는 대회 규정상 도구 제한
-없음).
+라벨로 재사용하는 방식입니다.
 
 - `build_context.py`, `survey.py`, `build_pairs.py`, `compose_oversized.py`,
   `finalize_pairs.py`, `convert_to_sharegpt.py`, `global_build_context.py` —
