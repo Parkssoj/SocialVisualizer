@@ -114,7 +114,6 @@ class UserPaths:
         self.MAIL_CONTACTS_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_contact_stats.json")
         self.MAIL_KEYWORDS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "mail_keyword_stats.json")
         self.MAIL_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_summaries.json")
-        self.MAIL_SUMMARY_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "mail_summary_images")
         self.MAIL_PHOTOS_PATH    = os.path.join(self.MAIL_STATICS_PATH, "contact_photos.json")
         self.MAIL_AVATARS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "person_avatars.json")
         self.AVATAR_IMAGES_DIR  = os.path.join(self.MAIL_STATICS_PATH, "avatars")
@@ -124,7 +123,6 @@ class UserPaths:
         self.CHATROOM_PEOPLE_MESSAGES_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_messages.json")
         self.MESSAGE_KEYWORDS_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_keyword_stats.json")
         self.MESSAGE_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_summaries.json")
-        self.MESSAGE_SUMMARY_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "message_summary_images")
         self.MESSAGE_MOOD_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_mood.json")
         self.UPDATE_DIR = os.path.join(self.GRAPHRAG_ROOT, "update_output")
         self.MAX_MAILS = _MAX_MAILS_CONFIG.get(user_id, None)
@@ -159,6 +157,39 @@ def _account_indexed(paths) -> bool:
         return _is_index_ready(paths)
     return False
 
+# path 아래 파일들 중 가장 최근 수정 시각(mtime)을 재귀적으로 찾는다. 인덱싱이
+# 끝날 때마다 이 디렉터리 밑 파일들이 새로 쓰이므로, "마지막으로 인덱싱된 시각"의
+# 근사치로 쓴다. 디렉터리가 아예 없으면(=아직 한 번도 인덱싱 안 됨) 0.
+def _dir_max_mtime(path: str) -> float:
+    if not os.path.isdir(path):
+        return 0.0
+    latest = 0.0
+    try:
+        for root, _dirs, files in os.walk(path):
+            for fname in files:
+                try:
+                    mtime = os.path.getmtime(os.path.join(root, fname))
+                    if mtime > latest:
+                        latest = mtime
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return latest
+
+# 계정 하나의 "가장 최근 인덱싱 시각" 근사치를 구한다. 인덱싱 완료 시각을 별도
+# 필드로 기록해두는 곳이 없어서, 인덱싱 산출물이 쌓이는 디렉터리(LightRAG output /
+# GraphRAG root) 안 파일들의 최신 mtime을 대신 쓴다 — 인덱싱이 돌 때마다 이 폴더
+# 밑 파일들이 새로 쓰이기 때문에 근사치로는 충분하다. (사이드바 "최근 인덱싱된
+# 계정 기본 선택" 기능에서 사용 — list_accounts()가 이 값으로 정렬한다.)
+def _account_indexed_at(paths) -> float:
+    from config.settings import RAG_ENGINE
+    if RAG_ENGINE == "lightrag":
+        return _dir_max_mtime(paths.LIGHTRAG_OUTPUT_DIR)
+    elif RAG_ENGINE == "graphrag":
+        return _dir_max_mtime(paths.GRAPHRAG_ROOT)
+    return 0.0
+
 # user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환.
 # domain 파라미터는 카카오 등 다른 도메인 지원을 위한 것 — 아래에서 _account_indexed()를
 # 통해 RAG_ENGINE에 맞는 방식으로 인덱싱 여부를 판단한다(엔진별 분기는 여기 없음, 위 함수에 모여있음).
@@ -191,7 +222,15 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
             accounts.append({
                 "user_id": user_id,
                 "indexed": _account_indexed(paths),
+                "indexed_at": _account_indexed_at(paths),
             })
+
+    # 가장 최근에 인덱싱된 계정이 맨 앞에 오도록 정렬 — 사이드바 기본 선택값이
+    # "가장 최근 인덱싱된 계정"이 되도록 하기 위함(프런트는 이 배열의 첫 번째
+    # 항목을 기본값으로 쓴다: appSidebar.js의 refreshSidebarList()). 아직 인덱싱
+    # 안 된 계정(indexed_at == 0)은 뒤로 밀리되, 그 안에서는 원래의 알파벳 순서를
+    # 그대로 유지한다(Python 정렬은 stable이라 동점이면 기존 순서 보존).
+    accounts.sort(key=lambda a: a["indexed_at"], reverse=True)
 
     return accounts
 
