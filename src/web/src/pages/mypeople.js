@@ -1645,6 +1645,22 @@ function renderDescription(person, descriptions) {
     .join("");
 }
 
+// data.monthly(YYYY-MM 오름차순 배열)를 연도 단위로 묶어서
+// [{year:"2026", months:[...]}, ...] 형태로 반환.
+function groupMonthsByYear(monthly) {
+  const groups = [];
+  (monthly || []).forEach((m) => {
+    const y = m.month.split("-")[0];
+    let g = groups[groups.length - 1];
+    if (!g || g.year !== y) {
+      g = { year: y, months: [] };
+      groups.push(g);
+    }
+    g.months.push(m);
+  });
+  return groups;
+}
+
 function renderBarChart(data) {
   const chartArea = document.getElementById("mp-chart");
   const totalEl = document.getElementById("mp-stats-total");
@@ -1666,30 +1682,36 @@ function renderBarChart(data) {
     const mid = Math.round(maxVal / 2);
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
-  // 요청 — "2020년 11월"처럼 매번 연도를 붙이니 자리를 너무 많이 차지해서
-  // 원래처럼 "11월"만 표시. 연도가 아예 안 보이면 알기 어려우니, 연도가
-  // 바뀌는 첫 달(과 맨 처음 달)에만 작게 연도를 같이 표기.
-  let lastYear = null;
-  const monthsHtml = data.monthly
-    .map((m) => {
-      const sentPct = Math.max(2, Math.round((m.sent / maxVal) * 100));
-      const recvPct = Math.max(2, Math.round((m.received / maxVal) * 100));
-      const [y, mon] = m.month.split("-");
-      const showYear = y !== lastYear;
-      lastYear = y;
-      const yearHtml = showYear
-        ? `<span class="mp-vchart-year">${y}</span>`
-        : "";
-      return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
+  // 요청 — 막대 위에 작게 떠있던 연도 뱃지가 잘 안 보인다는 피드백 — 이번엔
+  // 아예 연도별로 달들을 그리드 박스(테두리)로 감싸서 묶어 보여주고, 라벨도
+  // "2026"이 아니라 "2026년"으로 명확히 표기.
+  const yearGroups = groupMonthsByYear(data.monthly);
+  const groupsHtml = yearGroups
+    .map((g) => {
+      const monthsHtml = g.months
+        .map((m) => {
+          const sentPct = Math.max(2, Math.round((m.sent / maxVal) * 100));
+          const recvPct = Math.max(
+            2,
+            Math.round((m.received / maxVal) * 100),
+          );
+          const mon = m.month.split("-")[1];
+          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${sentPct}%" title="보낸: ${m.sent}"></div>
                 <div class="mp-vchart-bar recv" style="height:${recvPct}%" title="받은: ${m.received}"></div>
               </div>
-              <div class="mp-vchart-label">${yearHtml}<span class="mp-vchart-month">${parseInt(mon, 10)}월</span></div>
+              <div class="mp-vchart-label"><span class="mp-vchart-month">${parseInt(mon, 10)}월</span></div>
+            </div>`;
+        })
+        .join("");
+      return `<div class="mp-vchart-year-group" style="flex:${g.months.length} 1 0;">
+              <div class="mp-vchart-year-label">${g.year}년</div>
+              <div class="mp-vchart-year-months">${monthsHtml}</div>
             </div>`;
     })
     .join("");
-  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:5px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${monthsHtml}</div>`;
+  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:14px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${groupsHtml}</div>`;
 
   // 오른쪽 원본 확인 창이 막대를 눌러야만 열리던 걸, 처음부터 가장 최근 달로
   // 기본으로 열려있도록(요청) — 막대 그래프를 다 그린 다음 마지막(최신) 달을
@@ -1722,28 +1744,30 @@ function renderMessengerBarChart(data) {
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
 
-  // 요청 — "2020년 11월"처럼 매번 연도를 붙이니 자리를 너무 많이 차지해서
-  // 원래처럼 "11월"만 표시. 연도가 아예 안 보이면 알기 어려우니, 연도가
-  // 바뀌는 첫 달(과 맨 처음 달)에만 작게 연도를 같이 표기.
-  let lastYear = null;
-  const monthsHtml = data.monthly
-    .map((m) => {
-      const pct = Math.max(2, Math.round((m.count / maxVal) * 100));
-      const [y, mon] = m.month.split("-");
-      const showYear = y !== lastYear;
-      lastYear = y;
-      const yearHtml = showYear
-        ? `<span class="mp-vchart-year">${y}</span>`
-        : "";
-      return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" title="${m.month}: ${m.count}건 (눌러서 일별로 보기)">
+  // 메일 통계와 동일하게 연도별로 달들을 그리드 박스(테두리)로 묶어서
+  // 보여주고, 라벨도 "2026년"으로 명확히 표기(요청).
+  const yearGroups = groupMonthsByYear(data.monthly);
+  const groupsHtml = yearGroups
+    .map((g) => {
+      const monthsHtml = g.months
+        .map((m) => {
+          const pct = Math.max(2, Math.round((m.count / maxVal) * 100));
+          const mon = m.month.split("-")[1];
+          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" title="${m.month}: ${m.count}건 (눌러서 일별로 보기)">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${pct}%" title="${m.count}건"></div>
               </div>
-              <div class="mp-vchart-label">${yearHtml}<span class="mp-vchart-month">${parseInt(mon, 10)}월</span></div>
+              <div class="mp-vchart-label"><span class="mp-vchart-month">${parseInt(mon, 10)}월</span></div>
+            </div>`;
+        })
+        .join("");
+      return `<div class="mp-vchart-year-group" style="flex:${g.months.length} 1 0;">
+              <div class="mp-vchart-year-label">${g.year}년</div>
+              <div class="mp-vchart-year-months">${monthsHtml}</div>
             </div>`;
     })
     .join("");
-  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:5px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${monthsHtml}</div>`;
+  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:14px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${groupsHtml}</div>`;
 
   // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청)
   const latest = data.monthly[data.monthly.length - 1];
@@ -2108,11 +2132,17 @@ function renderMessengerDayChat(messages) {
     listEl.innerHTML = `${backBtn}<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">그날 대화를 찾지 못했어요.</p>`;
     return;
   }
+  // 요청 — 지금 상세보기로 열어본 그 사람(currentMessengerPerson)의 발언을
+  // 대화 목록에서 한눈에 찾을 수 있도록, 그 사람 이름과 발신자가 일치하는
+  // 줄만 연한 빨간 배경으로 표시.
+  const targetName = currentMessengerPerson
+    ? currentMessengerPerson.name
+    : null;
   const linesHtml = messages
     .map((m) =>
       m.is_system
         ? `<div class="mp-chatline system">${esc(m.text)}</div>`
-        : `<div class="mp-chatline">
+        : `<div class="mp-chatline${targetName && m.sender === targetName ? " mp-chatline-target" : ""}">
              <div class="mp-chatline-head"><span class="mp-chatline-sender">${esc(m.sender || "")}</span><span class="mp-chatline-time">${esc(m.time || "")}</span></div>
              <div class="mp-chatline-text">${esc(m.text)}</div>
            </div>`,

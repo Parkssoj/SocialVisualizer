@@ -698,7 +698,7 @@ footer {
   justify-content: space-between;
   padding: 8px 14px;
   border-bottom: 1.5px solid #ecded4;
-  background: #F8F8F8;
+  background: #f8f8f8;
   flex-shrink: 0;
 }
 .mp-graph-panel-title {
@@ -800,7 +800,7 @@ footer {
   display: none;
   position: absolute;
   inset: 0;
-  background: #FAFAFA;
+  background: #fafafa;
   border-radius: 18px;
   overflow: hidden;
   flex-direction: column;
@@ -1481,13 +1481,37 @@ footer {
   white-space: nowrap;
   font-weight: 700;
 }
-// 요청 — 매번 "2020년 11월"처럼 표시하니 자리를 많이 차지해서 "11월"만
-// 남기되, 연도가 바뀌는 첫 달에는 이 작은 연도 표시를 위에 같이 달아줌.
-.mp-vchart-year {
-  font-size: 0.68rem;
-  color: #b0a89c;
-  font-weight: 700;
+// 요청 — 막대 위에 작게 떠있던 연도 뱃지가 잘 안 보였음 — 대신 연도별로
+// 달들을 그리드 박스(테두리)로 감싸서 묶어 보여주고, 라벨도 "2026년"으로
+// 명확히 표기. 박스 위쪽에 연도 라벨을 두고, 그 아래 달들을 가로로 나열.
+.mp-vchart-year-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
+  padding: 4px 10px 6px;
+  border: 1.5px solid rgba(28, 28, 30, 0.12);
+  border-radius: 10px;
+  background: rgba(168, 159, 146, 0.05);
+}
+.mp-vchart-year-label {
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #a89f92;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+}
+.mp-vchart-year-months {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 /* 이메일 목록 카드 (막대 클릭 시 오른쪽에 열리는 서랍) */
@@ -1660,6 +1684,12 @@ footer {
   font-style: italic;
   padding: 4px 0;
 }
+// 요청 — 지금 상세보기를 열어본 사람의 발언을 대화 목록에서 바로바로 찾을
+// 수 있도록 연한 빨간 배경으로 강조.
+.mp-chatline.mp-chatline-target {
+  background: #fdeeee;
+  border-color: #f3b9b9;
+}
 .mp-chatline-head {
   display: flex;
   align-items: baseline;
@@ -1708,7 +1738,7 @@ footer {
   width: 4px;
 }
 .mp-wc-wrap::-webkit-scrollbar-thumb {
-  background: rgba(160, 140, 220, 0.35);
+  background: rgba(243, 239, 255, 0.35);
   border-radius: 4px;
 }
 .mp-wc-wrap::-webkit-scrollbar-track {

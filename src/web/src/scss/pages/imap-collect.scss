@@ -1,19 +1,20 @@
 // imap-collect.html 전용 스타일 (메신저 드롭존 원복 및 대화방/모드 가로 1줄 배치 버전)
 
-/* ── 페이지 콘텐츠가 항상 화면 맨 위에 붙어있어서(요청 3번째) 화면이 큰 경우
-   아래쪽에 빈 공간이 크게 남던 문제 — 고정 위쪽 여백(margin-top)으로 밀어
-   붙이는 대신, 헤더 밑 남은 세로 공간(100vh - 헤더 여백) 안에서 콘텐츠가
-   반응형으로 세로 중앙에 오도록 함. 콘텐츠가 화면보다 크면 자연스럽게
-   위에서부터 채워지고 스크롤된다(창/패널 크기 자체는 그대로 유지). */
+/* ── 페이지 콘텐츠 세로 위치 ──
+   예전엔 justify-content:center로 "진짜 중앙 정렬"을 했는데, 이러면 폴더
+   목록처럼 안쪽 요소가 늘어날 때마다 콘텐츠 전체 높이가 바뀌면서 중앙 계산이
+   다시 되어 요소 윗부분이 위로 갔다가 아래로 갔다가 하는 게 눈에 띄게
+   보였다(요청). 그래서 "콘텐츠 높이에 따라 움직이는 중앙 정렬" 대신,
+   화면 높이(vh) 기준의 고정된 위쪽 여백만 주는 방식으로 바꿈 — 중앙보다
+   살짝 위(조금만)에 오도록 하되, 이 여백은 안쪽 콘텐츠 높이와 전혀
+   무관하므로 폴더 목록이 늘어나도 항상 아래쪽으로만 늘어나고 윗부분은
+   절대 안 움직인다. */
 .page-imap-collect {
   .right_col {
     margin-top: 0 !important;
-    padding-top: 90px !important;
+    padding-top: calc(90px + 2.5vh) !important;
     box-sizing: border-box;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
   }
 
   .gw-collect-wrap {
@@ -206,8 +207,17 @@
 }
 .gw-input,
 .gw-select {
-  font-size: 1.02rem !important;
-  padding: 10px 14px;
+  // 요청 — "메일 주소/앱 비밀번호"(카드1) 입력칸이 "수집 개수/모드"(카드2)
+  // 드롭다운보다 작아 보였음. 두 요소가 원래 같은 규칙(font-size/padding)을
+  // 쓰고 있었지만, <input>과 <select>는 브라우저마다 기본 줄 높이 계산이
+  // 미묘하게 달라서 같은 padding이어도 select 쪽이 더 커 보일 수 있다 —
+  // box-sizing/line-height/height를 명시적으로 맞춰서 두 종류가 항상
+  // 정확히 같은 크기로 렌더링되도록 하고, 글씨 크기도 같이 키움.
+  box-sizing: border-box;
+  height: 48px;
+  line-height: 1.3;
+  font-size: 1.12rem !important;
+  padding: 10px 16px;
   border: 1.5px solid #dde3ea;
   border-radius: 8px;
   color: #2a3f54;
@@ -241,6 +251,14 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 18px;
+  // 요청 — 카드1(메일 계정 로그인)의 이 영역과 카드2(옵션)의 "불러온 폴더"
+  // 목록이 subgrid로 같은 행(row2)을 공유하는데(.gw-collect-cards-column
+  // 참고), 폴더를 많이 불러와서 그 행이 길어지면 기본값(align-self:stretch)
+  // 때문에 이 grid가 늘어난 행 높이를 그대로 채우려 하면서 안의 Gmail/
+  // NAVER 버튼(.gw-preset-chip)까지 세로로 커져 보였다. align-self:start로
+  // 이 영역 자체는 원래 크기 그대로 위쪽에 붙어있게 하고, 늘어난 만큼의
+  // 여백은 이 영역 아래(카드1의 남는 공간)로만 생기게 한다.
+  align-self: start;
 }
 .gw-preset-chip {
   display: inline-flex;
@@ -280,12 +298,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  max-height: 180px;
-  // 옵션 카드의 "수집 개수/모드" 줄이 메일 계정 로그인 카드의 "메일 주소/앱
-  // 비밀번호" 줄과 같은 높이에서 시작하도록(요청) — 폴더를 아직 안 불러온
-  // 빈 상태에서는 안내문구 한 줄뿐이라 그 위 프리셋(Gmail/NAVER 등) 칩
-  // 영역보다 훨씬 짧았던 것을 최소 높이로 보정.
-  min-height: 64px;
+  // 요청 — 이 영역(카드2)이 subgrid로 카드1의 "메일 주소/앱 비밀번호" 줄과
+  // 같은 행을 공유하는데, 예전엔 min/max-height(64~180px) 사이에서 폴더
+  // 개수에 따라 키가 계속 바뀌어서 폴더를 불러올 때마다 카드1의 필드들까지
+  // 정렬 맞춰 같이 밀려 내려갔다. min/max 대신 고정 height로 바꿔서 폴더가
+  // 몇 개든 이 영역 자체의 높이는 항상 같게 하고(그래서 카드1도 더는 안
+  // 움직임), 그 안에서만 스크롤되도록 함. 처음엔 140px로 뒀더니 아직
+  // 아무것도 안 불러온 빈 상태(안내 문구 한 줄뿐)에서 왼쪽 카드1의 프리셋
+  // 칩 영역(~90px)보다 훨씬 커서 두 카드 사이에 큰 빈 여백이 보였다(요청) —
+  // 카드1의 프리셋 칩 영역과 비슷한 높이로 줄여서 빈 상태에서도 자연스럽게
+  // 맞도록 함.
+  height: 88px;
   align-content: flex-start;
   overflow-y: auto;
   overflow-x: hidden;
@@ -510,8 +533,15 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
+  // 요청 — 로그가 쌓일수록 줄 사이 위아래 간격이 너무 좁아서 답답해 보였음.
+  // padding만으론 배경/hover 히트영역까지 늘어나 부자연스러워서, 줄 사이
+  // 간격은 margin-bottom으로 벌리고 padding은 그대로 유지.
   padding: 2px 0;
+  margin-bottom: 6px;
   animation: line-in 0.18s ease;
+}
+.gw-log-line:last-child {
+  margin-bottom: 0;
 }
 @keyframes line-in {
   from {
@@ -557,6 +587,13 @@
 /* ── job 패널 목록 ── */
 .gw-jobs-list {
   margin-top: 0 !important;
+  // 요청 — job 패널(계정별 로그 카드)이 여러 개 쌓일 때 카드끼리 위아래로
+  // 완전히 붙어있었음(.gw-log-panel의 margin-top:0 !important 때문에 카드
+  // 사이 간격이 아예 없었다). margin 대신 flex gap으로 카드 사이 간격을 줌 —
+  // margin-top:0은 그대로 둬도 gap이 별도로 적용되므로 서로 간섭하지 않는다.
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .gw-jobs-list .gw-log-empty {
   height: auto;

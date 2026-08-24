@@ -49,7 +49,6 @@ export default function HeroOrbit() {
           style={{ transitionDelay: "0.05s" }}
         >
           Social Visualizer
-          <br />
         </h1>
         {/* shadcnspace "illuminated-hero" 데모의 글로우 필터를 그대로 가져옴 —
             .gw-hero-headline-glow가 filter: url(#glow-4)로 참조함 (텍스트 디자인만 차용, 나머지 레이아웃/애니메이션은 안 씀) */}
