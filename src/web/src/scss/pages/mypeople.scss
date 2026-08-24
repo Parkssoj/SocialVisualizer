@@ -356,11 +356,14 @@ footer {
   width: 0.75rem;
 }
 
+/* 카드 패널을 더 작게(반응형): 8열 → 10열로 늘려서 카드 자체를 줄임.
+   .mp-avatar/.mp-name/.mp-period-badge의 cqw 기반 clamp 값들과 JS의
+   nameFontSize()도 이 비율(8/10 = 0.8배)에 맞춰 같이 줄여놨다(아래 참고). */
 .mp-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(10, 1fr);
   grid-auto-rows: auto;
-  gap: 8px;
+  gap: 7px;
   align-items: start;
 }
 
@@ -373,36 +376,50 @@ footer {
 }
 .mp-band-divider {
   grid-column: 1 / -1;
+  // 등급 설명 라벨은 이제 .mp-band-cards 배경 윗선에 직접 붙으므로, 구분선
+  // 자체는 요청대로 원래 모습(가로선) 그대로 유지 — 가운데 텍스트만 뺌.
   display: flex;
   align-items: center;
-  gap: 10px;
   margin: 4px 0;
-  color: #909090;
-  &::before,
-  &::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: rgba(48, 37, 34, 0.14);
-  }
-  span {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #6A6A6A;
-    background: rgba(106, 106, 106, 0.1);
-    padding: 2px 10px;
-    border-radius: 20px;
-    white-space: nowrap;
-  }
+  height: 1px;
+  background: rgba(48, 37, 34, 0.14);
 }
 .mp-band-cards {
+  position: relative; // 등급 라벨(.mp-band-label)을 이 배경의 윗선 가운데에 딱 붙이기 위한 기준점
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 7px;
   align-items: start;
   background: var(--band-bg, transparent);
   border-radius: 16px;
-  padding: 10px;
+  // 라벨 배지가 윗선에 절반 걸쳐 앉는 만큼 카드 내용과 안 겹치도록 위쪽만 여유를 둠
+  padding: 24px 10px 10px;
+  // 데이터가 어느 한쪽으로 몰려있어도 5개 등급이 전부 자기 배경색을 가진
+  // 빈 밴드로라도 보이도록(요청) — 사람이 0명이면 이 안내문 한 줄만 넣음.
+  min-height: 52px;
+}
+// 등급 설명 요소 — 줄(구분선) 대신 각 등급 배경(.mp-band-cards)의 윗선 가운데에
+// 딱 붙어 걸쳐 있도록 절반은 배경 밖(위), 절반은 배경 안(아래)에 걸치게 배치.
+.mp-band-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #6a6a6a;
+  background: rgba(106, 106, 106, 0.1);
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  z-index: 1;
+}
+.mp-band-empty {
+  grid-column: 1 / -1;
+  padding: 12px 6px;
+  font-size: 0.92rem;
+  color: rgba(48, 37, 34, 0.4);
+  text-align: center;
 }
 
 /* 단톡방 카드 아바타 = 참여자 이니셜 원을 인원수만큼 분할해 채움. 실제 행 구성/font-size는
@@ -572,21 +589,26 @@ footer {
   width: 76%;
   height: auto;
   aspect-ratio: 1/1;
-  max-width: clamp(100px, 11cqw, 148px);
-  min-width: clamp(56px, 6cqw, 78px);
+  /* 카드 열이 8→10으로 늘어난 비율(0.8배)만큼 아바타 크기도 같이 줄임 —
+     cqw는 카드가 아니라 .mp-panel 전체 폭 기준이라 열 수를 바꿔도 저절로
+     따라오지 않으므로 여기서 직접 맞춰준다. */
+  max-width: clamp(80px, 8.8cqw, 118px);
+  min-width: clamp(45px, 4.8cqw, 62px);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1.3rem, 4cqw, 2rem);
+  font-size: clamp(1.04rem, 3.2cqw, 1.6rem);
   font-weight: 800;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
   overflow: hidden;
 }
 .mp-name {
-  font-size: clamp(1.1rem, 3cqw, 2.15rem);
+  /* 위 아바타와 같은 0.8배 비율 — JS 쪽 nameFontSize()도 동일 비율로
+     같이 줄여놨다(메일/메신저 사람 카드 공용 함수). */
+  font-size: clamp(0.88rem, 2.4cqw, 1.72rem);
   font-weight: 700;
   color: rgba(43, 43, 43, 0.82);
   text-align: center;
@@ -606,14 +628,14 @@ footer {
 }
 .mp-period-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: clamp(0.62rem, 1.2cqw, 0.8rem);
+  top: 5px;
+  right: 5px;
+  font-size: clamp(0.5rem, 0.96cqw, 0.64rem);
   font-weight: 700;
   color: rgba(40, 40, 40, 0.75);
   background: rgba(255, 255, 255, 0.82);
-  border-radius: 9px;
-  padding: 3px 9px;
+  border-radius: 8px;
+  padding: 2px 7px;
   letter-spacing: 0.01em;
   line-height: 1.6;
   pointer-events: none;
@@ -626,10 +648,11 @@ footer {
   color: #1d4ed8;
   background: rgba(90, 148, 232, 0.18);
 }
-/* 메신저 탭 사람카드(참여자)·단톡방 카드 — 이름(.mp-name)만 빼고 배지 글자 1rem으로 통일 */
-.mp-room-card .mp-period-badge,
-.mp-person-card .mp-period-badge {
-  font-size: 1rem;
+/* 단톡방 카드(방 목록, .mp-room-grid — 사람 카드보다 훨씬 큰 카드)는 배지도
+   그만큼 크게 유지. 메신저 참여자 카드(.mp-person-card)는 메일 사람 카드와
+   완전히 같은 크기로 통일해야 하므로 위 공용 .mp-period-badge 크기를 그대로 쓴다. */
+.mp-room-card .mp-period-badge {
+  font-size: 0.9rem;
 }
 .mp-empty {
   grid-column: 1 / -1;
@@ -734,6 +757,25 @@ footer {
   font-weight: 700;
   color: #4a4a4a;
 }
+/* 방을 열었을 때(=데이터 선택 시) 방 분위기를 퍼센트가 아니라 말로 풀어서
+   헤더에 바로 박아 보여준다 (mood_score → moodLabel()). */
+.mp-room-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7a5a3a;
+  background: rgba(251, 191, 120, 0.22);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+.mp-room-mood-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
 
 /* ════════════════════════════════════
          사람 디테일 패널
@@ -800,8 +842,8 @@ footer {
 }
 .mp-detail-close:hover {
   background: #fff;
-  color: #3d220f;
-  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
+  color: #1c1c1e;
+  box-shadow: 0 2px 8px rgba(28, 28, 30, 0.2);
   transform: scale(1.08);
 }
 
@@ -820,8 +862,9 @@ footer {
   min-height: 0;
   overflow: hidden;
   container-type: size;
-  background: linear-gradient(135deg, #ffffff 0%, #fbf5f2 55%, #edf4ff 100%);
-  border-bottom: 1.5px solid rgba(251, 146, 60, 0.12);
+  // 색감 통일 요청 — 헤더 배경의 살구/블루 그라데이션을 빼고 순백으로
+  background: #ffffff;
+  border-bottom: 1.5px solid rgba(28, 28, 30, 0.08);
   position: relative;
 }
 .mp-detail-avatar {
@@ -907,12 +950,15 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 1rem;
+  /* 라벨이 "72%" 같은 숫자에서 "아주 친밀한 사람" 같은 문구로 바뀌면서
+     길어졌으니, nowrap 유지한 채 살짝 작게 줄여 원 밖으로 과하게
+     삐져나오지 않게 함 */
+  font-size: 0.82rem;
   font-weight: 800;
   color: #fff;
   background: linear-gradient(150deg, #f472b6, #db2777);
   border: 1.5px solid rgba(255, 255, 255, 0.6);
-  padding: 3px 11px 3px 9px;
+  padding: 3px 10px 3px 8px;
   border-radius: 999px;
   box-shadow:
     0 5px 14px rgba(219, 39, 119, 0.4),
@@ -974,47 +1020,80 @@ footer {
   height: 2px;
   transform: translateY(-50%);
   border-radius: 2px;
+  // 색감 통일 요청 — 주황 그라데이션 대신 무채색 라인
   background: linear-gradient(
     90deg,
-    rgba(251, 146, 60, 0.05),
-    rgba(251, 146, 60, 0.5),
-    rgba(251, 146, 60, 0.05)
+    rgba(28, 28, 30, 0.03),
+    rgba(28, 28, 30, 0.16),
+    rgba(28, 28, 30, 0.03)
   );
 }
-.mp-detail-relation-label {
+// 관계 라벨(친구/가족 등)과 친밀도 등급 라벨을 세로로 쌓아 보여주는 래퍼 —
+// 링(핑크 게이지)이 없어진 자리에 등급 표현을 효율적으로 배치하기 위함
+.mp-detail-relation-labels {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.mp-detail-relation-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 1rem;
   font-weight: 700;
-  color: #6e3e0f;
+  color: #1c1c1e;
   background: #fff;
-  border: 1.5px solid rgba(251, 146, 60, 0.4);
+  border: 1.5px solid rgba(28, 28, 30, 0.14);
   padding: clamp(4px, calc((100cqh - 42px) * 0.06), 7px)
     clamp(8px, calc((100cqh - 42px) * 0.14), 16px);
   border-radius: 999px;
-  box-shadow: 0 6px 16px rgba(251, 146, 60, 0.18);
+  box-shadow: 0 4px 12px rgba(28, 28, 30, 0.08);
   white-space: nowrap;
 }
+.mp-detail-relation-label:empty {
+  display: none;
+}
 .mp-detail-relation-label i {
-  color: #fb923c;
+  color: #8a8378;
+  font-size: 0.85em;
+}
+// 링(핑크 원형 게이지)을 없앤 대신, 친밀도 등급(아주 친밀한 관계 등)을
+// 관계 라벨 바로 밑에 작은 배지로 효율적으로 표시 — 조잡해 보이지 않도록
+// 관계 라벨과 같은 파일(흰 배경 + 얇은 테두리) 톤으로 통일하되 살짝 더 작게.
+.mp-detail-affinity-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #6e6e73;
+  background: #f4f4f5;
+  border: 1px solid rgba(28, 28, 30, 0.1);
+  padding: 3px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.mp-detail-affinity-label:empty {
+  display: none;
+}
+.mp-detail-affinity-label i {
+  color: #b0392f;
   font-size: 0.85em;
 }
 .mp-detail-name {
   font-size: clamp(0.85rem, calc((100cqh - 42px) * 0.24), 2.1rem);
   font-weight: 800;
-  background: linear-gradient(130deg, #3d1f0a 0%, #f97316 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  // 색감 통일 요청 — 주황 그라데이션 텍스트 대신 무채색 진한 텍스트
+  color: #1c1c1e;
   margin: 0 0 clamp(2px, calc((100cqh - 42px) * 0.05), 8px);
   line-height: 1.2;
 }
 .mp-detail-email {
   font-size: 1rem;
-  color: #aa908a;
+  color: #8a8378;
   margin: 0;
   letter-spacing: 0.01em;
 }
@@ -1051,50 +1130,37 @@ footer {
   display: flex;
   gap: clamp(3px, 0.6cqw, 5px);
 }
+// 색감 통일 요청 — 탭마다 다르던 초록/블루/보라를 없애고 흰색/무채색 톤 하나로 통일.
+// 활성 탭은 진한 회색-블랙 배경 + 흰 글씨, 비활성 탭은 옅은 회색 배경 + 회색 글씨로만 구분.
 .mp-detail-tab-btn {
   box-sizing: border-box;
   padding: clamp(5px, 0.5cqw, 7px) clamp(12px, 1.4cqw, 18px);
   border-radius: 20px;
-  border: none;
+  border: 1px solid rgba(28, 28, 30, 0.12);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
-  color: #fff;
+  color: #6e6e73;
   letter-spacing: 0.03em;
   text-align: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
   transition:
-    opacity 0.15s,
+    background 0.15s,
+    color 0.15s,
     box-shadow 0.15s;
   white-space: nowrap;
-  background: #5a94e8;
-}
-#mp-tab-stats {
-  background: #6fbf98;
-}
-#mp-tab-desc {
-  background: #8cb4ef;
+  background: #f4f4f5;
 }
 .mp-detail-tab-btn:hover {
-  opacity: 0.82;
+  background: #ececee;
 }
-.mp-detail-tab-btn.active-stats {
-  background: #6fbf98;
-  box-shadow: 0 2px 7px rgba(111, 191, 152, 0.5);
-}
-.mp-detail-tab-btn.active-desc {
-  background: #8cb4ef;
-  box-shadow: 0 2px 7px rgba(140, 180, 239, 0.5);
-}
+.mp-detail-tab-btn.active-stats,
+.mp-detail-tab-btn.active-desc,
 .mp-detail-tab-btn.active-kw {
-  background: #b99ee9;
-  box-shadow: 0 2px 7px rgba(185, 158, 233, 0.5);
-}
-#mp-tab-kw {
-  background: #b99ee9;
-}
-.mp-detail-tab-btn:not(.active-stats):not(.active-desc):not(.active-kw) {
-  opacity: 0.45;
+  background: #1c1c1e;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(28, 28, 30, 0.25);
 }
 
 /* 본문: 이메일 교환 하나만 남아 전체 폭을 사용. 헤더(아바타 영역)와 1:3 비율,
@@ -1105,13 +1171,8 @@ footer {
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr;
-  /* "이메일 교환" 탭 버튼(#6fbf98)과 같은 초록을 옅게 깔아서 버튼-배경이 같은
-     색 계열로 이어지게 함 */
-  background: linear-gradient(
-    180deg,
-    rgba(111, 191, 152, 0.04) 0%,
-    rgba(111, 191, 152, 0.09) 100%
-  );
+  // 색감 통일 요청 — 탭별 색조 배경 대신 흰 배경
+  background: #ffffff;
 }
 
 /* 키워드 탭 패널 */
@@ -1121,11 +1182,7 @@ footer {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(
-    160deg,
-    rgba(232, 220, 255, 0.35) 0%,
-    rgba(248, 244, 255, 0.2) 100%
-  );
+  background: #ffffff;
   padding: 14px clamp(20px, 3cqw, 48px) clamp(20px, 2.5cqw, 36px);
   flex-direction: column;
   gap: clamp(10px, 1.2cqw, 16px);
@@ -1144,11 +1201,7 @@ footer {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(
-    160deg,
-    rgba(140, 180, 239, 0.06) 0%,
-    rgba(140, 180, 239, 0.13) 100%
-  );
+  background: #ffffff;
   padding: clamp(20px, 2.5cqw, 36px) clamp(20px, 3cqw, 48px);
   flex-direction: column;
 }
@@ -1166,7 +1219,7 @@ footer {
   gap: 16px;
   align-items: flex-start;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(180, 200, 240, 0.3);
+  border-bottom: 1px solid rgba(28, 28, 30, 0.08);
 }
 .mp-desc-profile-row:last-child {
   border-bottom: none;
@@ -1176,28 +1229,88 @@ footer {
   min-width: 120px;
   font-size: 1rem;
   font-weight: 700;
-  color: #3a5bcc;
-  background: linear-gradient(135deg, #eef1ff, #e6ecff);
+  color: #4a4640;
+  background: #f4f4f5;
   border-radius: 20px;
   padding: 4px 14px;
   letter-spacing: 0.03em;
   text-align: center;
-  box-shadow: 0 1px 4px rgba(90, 120, 220, 0.1);
+  box-shadow: none;
 }
 .mp-desc-profile-val {
   font-size: 1rem;
-  color: #1e2e42;
+  color: #1c1c1e;
   line-height: 1.65;
   word-break: keep-all;
   padding-top: 3px;
 }
 .mp-desc-profile-empty {
-  color: #b0c4d8;
+  color: #b0b0b0;
   font-size: 1rem;
   font-style: italic;
   text-align: center;
   padding: 40px 0;
   width: 100%;
+}
+
+/* 메신저 상세보기 "관계" 탭 — 방사형 다이어그램 대신 프로필 카드 그리드.
+   열 수를 2/3으로 고정하지 않고 auto-fill로 패널 폭에 맞춰 자연스럽게
+   2~3열을 오가도록 반응형 처리(카드 최소폭 150px). */
+.mp-relation-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+.mp-relation-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.1);
+  border-radius: 16px;
+}
+.mp-relation-card-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #6e6e73;
+  background: linear-gradient(150deg, #e0e0e0, #c5c5c5);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mp-relation-card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1c1c1e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.mp-relation-card-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #6e6e73;
+  background: #f4f4f5;
+  border-radius: 999px;
+  padding: 3px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.mp-relation-card-label-empty {
+  color: #b0b0b0;
+  font-style: italic;
 }
 
 .mp-detail-col {
@@ -1208,14 +1321,8 @@ footer {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  /* 이 회색 그라데이션이 .mp-detail-body 바로 위에 덮여서, 아래 깔린 초록 배경이
-     안 보이고 이 회색만 보이는 원인이었음 — "이메일 교환" 버튼/배경과 같은
-     초록 계열로 맞춤 */
-  background: linear-gradient(
-    160deg,
-    rgba(111, 191, 152, 0.05) 0%,
-    rgba(111, 191, 152, 0.1) 100%
-  );
+  // 색감 통일 요청 — 흰 배경으로
+  background: #ffffff;
 }
 
 /* 섹션 타이틀 — 필 태그 (글씨 길이만큼만) */
@@ -1223,22 +1330,22 @@ footer {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  background: rgba(251, 146, 60, 0.13);
-  border: 1.5px solid rgba(251, 146, 60, 0.3);
+  background: #f4f4f5;
+  border: 1.5px solid rgba(28, 28, 30, 0.1);
   border-radius: 20px;
   padding: clamp(4px, 0.5cqw, 6px) clamp(10px, 1.2cqw, 16px);
   font-size: 1rem;
   font-weight: 700;
-  color: #7a4214;
+  color: #1c1c1e;
   letter-spacing: 0.05em;
   box-sizing: border-box;
-  box-shadow: 0 1px 4px rgba(251, 146, 60, 0.1);
+  box-shadow: none;
 }
 .mp-detail-section-sub {
   font-size: 1rem;
   font-weight: 700;
-  color: #fb923c;
-  background: rgba(251, 146, 60, 0.1);
+  color: #4a4640;
+  background: rgba(28, 28, 30, 0.06);
   padding: 2px 8px;
   border-radius: 20px;
   letter-spacing: 0;
@@ -1762,7 +1869,7 @@ footer {
 @media (max-width: 1280px) {
   .mp-grid,
   .mp-band-cards {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(9, 1fr);
   }
   .mp-page {
     padding: 16px 72px 0 calc(72px + var(--gw-sidebar-w, 0px)) !important;
@@ -1781,7 +1888,7 @@ footer {
   }
   .mp-grid,
   .mp-band-cards {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
   }
   .mp-timeline {
     left: calc(40px + var(--gw-sidebar-w, 0px));
@@ -1791,7 +1898,7 @@ footer {
 @media (max-width: 640px) {
   .mp-grid,
   .mp-band-cards {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
   .mp-page {
     padding: 12px 24px 0 calc(24px + var(--gw-sidebar-w, 0px)) !important;

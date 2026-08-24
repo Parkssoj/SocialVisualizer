@@ -224,7 +224,7 @@ async function listFolders() {
     return;
   }
   if (!user) {
-    alert("이메일 주소를 입력하세요.");
+    alert("메일 주소를 입력하세요.");
     return;
   }
   if (!pass) {
@@ -501,7 +501,7 @@ async function startCollect() {
     return;
   }
   if (!user) {
-    alert("이메일 주소를 입력하세요.");
+    alert("메일 주소를 입력하세요.");
     return;
   }
   if (!pass) {
@@ -593,7 +593,7 @@ async function startCollect() {
   jobSetProgress(panelEl, 20);
   jobAddLog(
     panelEl,
-    "메일 수집이 백그라운드에서 시작됐습니다. 진행 상황을 확인하는 중...",
+    "메일 수집이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...",
   );
 
   addStoredImapJob(started.jobId, user);
@@ -815,7 +815,7 @@ async function startMessageUpload() {
   jobSetProgress(panelEl, 20);
   jobAddLog(
     panelEl,
-    "대화 파싱/저장이 백그라운드에서 시작됐습니다. 진행 상황을 확인하는 중...",
+    "대화 파싱/저장이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...",
   );
 
   const finalName = started.room_name || displayName;

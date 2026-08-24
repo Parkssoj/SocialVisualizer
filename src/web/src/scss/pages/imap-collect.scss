@@ -53,14 +53,15 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 6px;
-  padding: 5px 12px !important;
+  // "1 데이터 수집" 제목이 커진 만큼 메일/메신저 선택 버튼도 같이 키움(요청)
+  padding: 8px 16px !important;
   border: none;
   background: transparent;
   color: #73879c;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   line-height: 1.2 !important;
   transition:
     color 0.15s,
@@ -242,6 +243,12 @@
   background: #fb923c !important;
   color: #fff !important;
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
+}
+/* NAVER 칩 — 부트스트랩 아이콘엔 네이버 로고가 없어서 인라인 SVG로 실제
+   초록 사각형 "N" 로고를 넣음(Gmail/iCloud처럼 아이콘 없이 텍스트만 있던 것). */
+.gw-brand-icon {
+  flex-shrink: 0;
+  border-radius: 3px;
 }
 
 /* ── 폴더 체크박스 ── */
@@ -578,15 +585,24 @@
   gap: 48px !important;
   align-items: start !important;
   position: relative !important;
-  margin-top: 6px !important;
+  // 위쪽 페이지 헤더에서 좀 더 떨어지도록(요청) — 아래 카드 쪽 여백은 반대로
+  // .gw-split-header-left/right의 margin-bottom을 줄여서 붙였다.
+  margin-top: 26px !important;
 }
 
+/* 구분선 위치 계산: grid-template-columns가 6fr 4fr에 gap 48px이면 실제 트랙
+   너비는 100%가 아니라 (100% - 48px) 기준으로 6:4 비율이 적용된다. 그래서
+   1번 트랙의 오른쪽 끝은 0.6*(100% - 48px) = 60% - 28.8px 지점이고, 거기서
+   gap(48px)의 정중앙까지 24px를 더하면 60% - 4.8px가 진짜 gap 중앙이다.
+   기존엔 이 gap 폭 보정을 빼먹고 "60% - 24px"로 둬서 구분선이 중앙보다
+   19.2px 왼쪽에 치우쳐 있었고, 그만큼 왼쪽 요소는 구분선에서 멀고 오른쪽
+   요소는 구분선에 더 가까워 보였다. */
 .gw-split-grid-wrapper::after {
   content: "" !important;
   position: absolute !important;
   top: 0 !important;
   bottom: 0 !important;
-  left: calc(60% - 24px) !important;
+  left: calc(60% - 4.8px) !important;
   width: 1px !important;
   background: #e2e8f0 !important;
 }
@@ -607,9 +623,10 @@
   gap: 14px !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
-  margin-bottom: 12px !important;
+  // 아래 카드들과 더 달라붙도록 줄임(예전 12px)
+  margin-bottom: 6px !important;
   grid-column: 1 !important;
-  height: 32px !important;
+  height: 40px !important;
 }
 
 .gw-split-header-right {
@@ -619,9 +636,9 @@
   border-bottom: none !important;
   padding-bottom: 0 !important;
   margin-top: 15px !important; /* 분석 데이터 만들기 하향 조절 유지 */
-  margin-bottom: 12px !important;
+  margin-bottom: 6px !important;
   grid-column: 2 !important;
-  height: 32px !important;
+  height: 40px !important;
 }
 
 @media (max-width: 992px) {
@@ -648,7 +665,9 @@
 }
 
 .gw-split-title {
-  font-size: 1.1rem !important;
+  // "1 데이터 수집" / "2 분석 데이터 만들기" 제목 글씨를 키움(요청) — 아래
+  // .gw-step-badge/.gw-tab-btn도 같이 키워서 이 줄 전체가 비례 있게 커지도록 함.
+  font-size: 1.35rem !important;
   font-weight: 700 !important;
   color: #2a3f54 !important;
   display: flex !important;
@@ -663,12 +682,12 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 25px !important;
+  height: 25px !important;
   background: #fb923c !important;
   color: #fff !important;
   border-radius: 50% !important;
-  font-size: 0.7rem !important;
+  font-size: 0.85rem !important;
   font-weight: 700 !important;
 }
 

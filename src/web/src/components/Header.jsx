@@ -9,7 +9,7 @@ import { changeLanguage } from "../utils/i18n.js";
 // 메뉴 순서: data analysis → My People → My Time → 검색 → View knowledge graph.
 // 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외. Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
 const NAV_ITEMS = [
-  { page: "imap-collect", href: "imap-collect.html", label: "data analysis" },
+  { page: "imap-collect", href: "imap-collect.html", label: "Data analysis" },
   {
     page: "analysis-hub",
     href: "analysis-hub.html",

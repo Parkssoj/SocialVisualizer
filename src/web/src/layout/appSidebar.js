@@ -20,14 +20,13 @@ export function renderAppSidebar(containerId = "app-sidebar") {
   container.innerHTML = `
     <aside id="sidebar" class="gws-rail ${isCollapsed ? "is-collapsed" : ""}">
       <div class="gws-rail-inner">
+        <!-- "데이터 선택" 제목을 접기 버튼과 같은 줄(맨 위)에 둠 -->
         <div class="gws-rail-top">
+          <div class="gws-panel-title">데이터 선택</div>
           <button type="button" id="sidebar-toggle-btn" class="gws-collapse-btn" title="사이드바 접기/펼치기">
             <i class="bi bi-chevron-left"></i>
           </button>
         </div>
-
-        <!-- "메일 계정 선택" 위에 붙는 전체 섹션 제목 -->
-        <div class="gws-panel-title">데이터 선택</div>
 
         <nav class="gws-group">
           <div class="gws-group-label"><i class="bi bi-envelope"></i><span>메일 계정 선택</span></div>

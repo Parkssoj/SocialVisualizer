@@ -116,7 +116,20 @@
                           data-port="993"
                           data-domain="naver.com"
                         >
-                          <i class="bi bi-envelope"></i> 네이버
+                          <svg
+                            class="gw-brand-icon"
+                            viewBox="0 0 20 20"
+                            width="14"
+                            height="14"
+                            aria-hidden="true"
+                          >
+                            <rect width="20" height="20" rx="5" fill="#03C75A" />
+                            <path
+                              d="M12.6 11.14 7.28 3.6H3.6v12.8h4.12V9.2l5.32 7.2H16.4V3.6h-3.8z"
+                              fill="#fff"
+                            />
+                          </svg>
+                          NAVER
                         </div>
                         <div
                           class="gw-preset-chip"
@@ -141,7 +154,7 @@
                         id="imap-server-grid"
                       >
                         <div class="gw-form-group">
-                          <label class="gw-label">이메일 주소</label>
+                          <label class="gw-label">메일 주소</label>
                           <input
                             id="imap-user"
                             class="gw-input"
@@ -273,7 +286,9 @@
                         <div class="gw-form-group">
                           <label class="gw-label">모드</label>
                           <select id="sync-mode" class="gw-select">
-                            <option value="append">업데이트 안된 메일만</option>
+                            <option value="append">
+                              업데이트 안 된 메일만
+                            </option>
                             <option value="rewrite" selected>
                               전체 업데이트
                             </option>
@@ -367,7 +382,7 @@
                       <div class="gw-form-group">
                         <label class="gw-label">모드</label>
                         <select id="message-sync-mode" class="gw-select">
-                          <option value="append">업데이트 안된 메일만</option>
+                          <option value="append">업데이트 안 된 메일만</option>
                           <option value="rewrite" selected>
                             전체 업데이트
                           </option>

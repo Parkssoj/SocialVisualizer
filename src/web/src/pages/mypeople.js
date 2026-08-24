@@ -51,6 +51,11 @@ const userIdPromise = initAccountPicker(
 );
 
 // 2. 채팅방 피커 초기화 및 스토어 데이터 동기화
+// chatroom-picker-mount는 html에서 없앴다(단톡방 선택은 이제 사이드바가
+// 전담) — document.getElementById가 null을 돌려줘도 initAccountPicker는
+// container 없이 "헤드리스"로 동작해서, /accounts?domain=messenger를 불러
+// 초기 채팅방 id만 조용히 resolve하고 localStorage(gw_chatroom_id)에
+// 반영한다. My Time의 account-picker-mount와 동일한 패턴.
 let selectedChatroomId = "";
 const chatroomIdPromise = initAccountPicker(
   document.getElementById("chatroom-picker-mount"),
@@ -89,12 +94,16 @@ document.addEventListener("DOMContentLoaded", () => {
       periodStats = {};
       currentDetailPerson = null;
       document.getElementById("mp-detail")?.classList.remove("open");
+      setChannel("mail");
       loadPeople().then(() => fetchPeriodStats());
     } else if (filterState.room) {
       selectedChatroomId = filterState.room;
-      if (currentChannel === "messenger") {
-        refreshMessengerRoomsForRange();
-      }
+      setChannel("messenger");
+      // 예전엔 여기서 단톡방 목록(패널)을 다시 그렸는데(refreshMessengerRoomsForRange),
+      // 그 방식을 없애기로 했다 — 이제 사이드바에서 방을 고르면 목록 없이
+      // 바로 그 방의 참여자 화면으로 들어간다(My Time과 동일 패턴).
+      // refreshMessengerRoomsForRange();
+      openSelectedChatroomFromSidebar();
     }
   });
 });
@@ -111,21 +120,29 @@ function groupByEntityName(list) {
 }
 
 /* ── 이름 길이별 폰트 크기 ── */
+// 카드 패널을 더 작게(8열→10열) 줄인 만큼(비율 0.8배) 이름 글자 크기도
+// 같은 비율로 줄여서, 카드가 작아져도 예전과 같은 시각적 균형을 유지한다.
+// (메일·메신저 사람 카드가 전부 이 함수 하나를 공유하므로 두 패널이
+// 자동으로 통일된 크기로 맞춰진다.)
+const NAME_FONT_SCALE = 0.8;
+function scaledClamp(minRem, midCqw, maxRem) {
+  return `clamp(${(minRem * NAME_FONT_SCALE).toFixed(3)}rem, ${(midCqw * NAME_FONT_SCALE).toFixed(3)}cqw, ${(maxRem * NAME_FONT_SCALE).toFixed(3)}rem)`;
+}
 function nameFontSize(name) {
   const len = (name || "").length;
   const isKorean = /[가-힣]/.test(name || "");
   if (isKorean) {
-    if (len <= 4) return "clamp(0.9rem, 1.7cqw, 1.7rem)";
-    if (len <= 6) return "clamp(0.82rem, 1.4cqw, 1.4rem)";
-    if (len <= 9) return "clamp(0.72rem, 1.2cqw, 1.2rem)";
-    if (len <= 15) return "clamp(0.6rem,  1.0cqw, 1.0rem)";
-    return "clamp(0.5rem,  0.82cqw, 0.88rem)";
+    if (len <= 4) return scaledClamp(0.9, 1.7, 1.7);
+    if (len <= 6) return scaledClamp(0.82, 1.4, 1.4);
+    if (len <= 9) return scaledClamp(0.72, 1.2, 1.2);
+    if (len <= 15) return scaledClamp(0.6, 1.0, 1.0);
+    return scaledClamp(0.5, 0.82, 0.88);
   }
-  if (len <= 5) return "clamp(0.88rem, 1.68cqw, 1.68rem)";
-  if (len <= 8) return "clamp(0.8rem,  1.43cqw, 1.43rem)";
-  if (len <= 12) return "clamp(0.7rem,  1.2cqw,  1.2rem)";
-  if (len <= 18) return "clamp(0.58rem, 0.97cqw, 0.97rem)";
-  return "clamp(0.48rem, 0.8cqw,  0.85rem)";
+  if (len <= 5) return scaledClamp(0.88, 1.68, 1.68);
+  if (len <= 8) return scaledClamp(0.8, 1.43, 1.43);
+  if (len <= 12) return scaledClamp(0.7, 1.2, 1.2);
+  if (len <= 18) return scaledClamp(0.58, 0.97, 0.97);
+  return scaledClamp(0.48, 0.8, 0.85);
 }
 
 /* ── 발신 전용/브랜드 계정 판별 ── */
@@ -311,6 +328,43 @@ function affinityColor(aff) {
   const raw = aff ?? -1;
   const tier = AFFINITY_TIERS.find((tr) => raw >= tr.min);
   return tierColor(AFFINITY_HUE, tier.sat, tier.lightHi, tier.lightLo);
+}
+
+/* ── 친밀도 퍼센트 → 5단계 카테고리 라벨 ──
+   "~% 이상" 식 퍼센트 표기 대신 말로 풀어서 보여주기 위한 구간(경계는
+   100~90 / 90~70 / 70~45 / 45~20 / 20~0 요청값 그대로 사용). */
+const AFFINITY_LABEL_TIERS = [
+  { min: 90, label: "아주 친밀한 관계" },
+  { min: 70, label: "친밀한 관계" },
+  { min: 45, label: "보통의 관계" },
+  { min: 20, label: "친밀하지 않은 관계" },
+  { min: -Infinity, label: "무관한 관계" },
+];
+function affinityLabelFromPct(pct) {
+  const tier = AFFINITY_LABEL_TIERS.find((tr) => pct >= tr.min);
+  return tier.label;
+}
+function affinityLabel(aff) {
+  return affinityLabelFromPct(Math.round((aff ?? 0) * 100));
+}
+
+/* ── 단톡방 분위기 점수(0~100) → 말로 풀어쓴 라벨 ──
+   mood_score는 높을수록 사적·친밀한 분위기라는 스펙에 맞춰 5단계로 나눔. */
+function moodLabel(score) {
+  if (score == null) return null;
+  if (score >= 80) return "매우 사적이고 친밀한 분위기";
+  if (score >= 60) return "편안하고 친근한 분위기";
+  if (score >= 40) return "무난한 분위기";
+  if (score >= 20) return "다소 사무적인 분위기";
+  return "격식 있고 사무적인 분위기";
+}
+function moodEmoji(score) {
+  if (score == null) return "";
+  if (score >= 80) return "💛";
+  if (score >= 60) return "🙂";
+  if (score >= 40) return "😐";
+  if (score >= 20) return "🧊";
+  return "🧾";
 }
 
 function initials(name) {
@@ -552,8 +606,8 @@ function renderCards() {
       : initials(displayName);
     let badge = "";
     if (sortMode === "affinity") {
-      if (affinity != null)
-        badge = `<div class="mp-period-badge">${Math.round(affinity * 100)}%</div>`;
+      // 친밀도 등급은 카드 위가 아니라 구분선(renderAffinityBands)에만
+      // 표시한다 — 카드에는 아무것도 안 붙임.
     } else if (sortMode === "name") {
       badge = "";
     } else if (sortMode === "sent") {
@@ -586,7 +640,7 @@ function renderCards() {
   grid.querySelectorAll(".mp-avatar img.mp-brand-logo").forEach(setupBrandLogo);
 }
 
-const AFFINITY_BAND_COUNT = 5;
+// 등급별 배경색(진한 순 → 옅은 순, AFFINITY_LABEL_TIERS와 인덱스로 짝을 맞춤)
 const AFFINITY_BAND_BG = [
   { hue: 18, sat: 78, light: 91 },
   { hue: 24, sat: 60, light: 93 },
@@ -595,98 +649,37 @@ const AFFINITY_BAND_BG = [
   { hue: 42, sat: 12, light: 98.5 },
 ];
 
-function kmeans1D(values, k) {
-  const unique = [...new Set(values)].sort((a, b) => a - b);
-  const actualK = Math.max(1, Math.min(k, unique.length));
-  if (actualK === 1) return [unique[0]];
-
-  let centroids = Array.from(
-    { length: actualK },
-    (_, i) => unique[Math.round((i * (unique.length - 1)) / (actualK - 1))],
-  );
-
-  for (let iter = 0; iter < 100; iter++) {
-    const sums = new Array(actualK).fill(0);
-    const counts = new Array(actualK).fill(0);
-    for (const v of values) {
-      let best = 0,
-        bestDist = Infinity;
-      for (let c = 0; c < actualK; c++) {
-        const d = Math.abs(v - centroids[c]);
-        if (d < bestDist) {
-          bestDist = d;
-          best = c;
-        }
-      }
-      sums[best] += v;
-      counts[best]++;
-    }
-    let moved = false;
-    for (let c = 0; c < actualK; c++) {
-      if (counts[c] === 0) continue;
-      const next = sums[c] / counts[c];
-      if (Math.abs(next - centroids[c]) > 1e-9) moved = true;
-      centroids[c] = next;
-    }
-    if (!moved) break;
-  }
-
-  const sortedDesc = [
-    ...new Set(centroids.map((c) => Math.round(c * 1000) / 1000)),
-  ].sort((a, b) => b - a);
-  return sortedDesc;
-}
-
+// 예전엔 실제 데이터 분포(k-means)로 5개 구간 경계를 매번 다시 계산해서,
+// 데이터가 한쪽에 몰려 있으면(예: 전부 "소원한 사람") 등급이 1~2개만 뜨고
+// 나머지는 아예 안 보였다 — 요청대로 100~90/90~70/70~45/45~20/20~0 고정
+// 경계(AFFINITY_LABEL_TIERS)를 그대로 써서, 데이터가 어떻든 5개 등급이
+// 전부 자기 구분선 + 배경색을 갖고 표시되도록 함(해당하는 사람이 0명이어도
+// 구분선과 빈 밴드는 그대로 보여준다).
 function renderAffinityBands(list, cardHtml) {
   const pctOf = (p) => Math.round((p.affinity || 0) * 100);
-  const values = list.map(pctOf);
-  const centroids = kmeans1D(values, AFFINITY_BAND_COUNT);
-
-  const boundaries = [];
-  for (let i = 0; i < centroids.length - 1; i++) {
-    boundaries.push((centroids[i] + centroids[i + 1]) / 2);
-  }
-
   let globalIdx = 0;
-  let cursor = 0;
-  const bandsHtml = [];
-  let prevBandFloor = null;
 
-  for (let b = 0; b < centroids.length; b++) {
-    const isLastBand = b === centroids.length - 1;
-    const threshold = isLastBand ? -Infinity : boundaries[b];
-    let end = cursor;
-    while (end < list.length && pctOf(list[end]) >= threshold) {
-      end++;
-    }
-    const bandPeople = list.slice(cursor, end);
-    cursor = end;
-    if (!bandPeople.length) continue;
-
-    const bg =
-      AFFINITY_BAND_BG[b] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
+  return AFFINITY_LABEL_TIERS.map((tier, i) => {
+    const bandPeople = list.filter(
+      (p) => affinityLabelFromPct(pctOf(p)) === tier.label,
+    );
+    const bg = AFFINITY_BAND_BG[i] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
     const bandBg = `hsl(${bg.hue} ${bg.sat}% ${bg.light}%)`;
 
-    const cardsHtml = bandPeople.map((p) => cardHtml(p, globalIdx++)).join("");
+    const cardsHtml = bandPeople.length
+      ? bandPeople.map((p) => cardHtml(p, globalIdx++)).join("")
+      : `<div class="mp-band-empty">이 등급에 해당하는 사람이 없습니다.</div>`;
 
-    const bandMax = pctOf(bandPeople[0]);
-    const bandMin = pctOf(bandPeople[bandPeople.length - 1]);
-    const divider =
-      prevBandFloor == null
-        ? ""
-        : `<div class="mp-band-divider"><span>친밀도 ${prevBandFloor}%이상</span></div>`;
-
-    bandsHtml.push(`
+    return `
       <div class="mp-band">
-        ${divider}
+        <div class="mp-band-divider"></div>
         <div class="mp-band-cards" style="--band-bg:${bandBg}">
+          <span class="mp-band-label">${tier.label}</span>
           ${cardsHtml}
         </div>
       </div>
-    `);
-    prevBandFloor = bandMin;
-  }
-  return bandsHtml.join("");
+    `;
+  }).join("");
 }
 
 let timelineListenersAttached = false;
@@ -720,7 +713,9 @@ function updateFill() {
         if (messengerScreen === "rooms") {
           refreshMessengerRoomsForRange();
         } else if (messengerScreen === "people" && currentChatroomId) {
-          fetchAndRenderChatroomPeople();
+          // 방 분위기가 날짜 범위를 바꿀 때마다 사라졌던 문제 — 여기서도 방
+          // 분위기를 같이 넘겨줘서(캐시되어 있어 비용은 거의 없음) 항상 고정으로 보이게 함
+          fetchAndRenderChatroomPeople(fetchRoomMoodScore(currentChatroomId));
         }
         const detailEl = document.getElementById("mp-detail");
         if (
@@ -884,7 +879,6 @@ async function loadPeople() {
   }
 
   renderCards();
-  startAvatarGeneration();
   initMyAvatar();
 
   if (dateRange) {
@@ -981,12 +975,11 @@ function refreshSelfAvatarEl() {
   el.innerHTML = `<img src="${myAvatarUrl}" alt="나" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
 }
 
-const mailBtn = document.getElementById("mp-mail-btn");
-const messengerBtn = document.getElementById("mp-messenger-btn");
+// 메일/메신저 전환 버튼은 없앰(My Time과 동일) — 사이드바에서 메일 계정을
+// 고르면 mailView가, 메신저 데이터를 고르면 messengerView가 뜨도록
+// setChannel()을 initGlobalFilter 콜백에서 직접 호출한다.
 const mailView = document.getElementById("mp-mail-view");
 const messengerView = document.getElementById("mp-messenger-view");
-const accountPickerMount = document.getElementById("account-picker-mount");
-const chatroomPickerMount = document.getElementById("chatroom-picker-mount");
 
 const MAIL_SORT_OPTIONS = [
   { value: "affinity", label: "친밀도" },
@@ -1093,20 +1086,11 @@ function sortPeopleList(list) {
 function setChannel(channel) {
   const isMail = channel === "mail";
   currentChannel = channel;
-  mailBtn.classList.toggle("active", isMail);
-  messengerBtn.classList.toggle("active", !isMail);
   mailView.style.display = isMail ? "" : "none";
   messengerView.style.display = isMail ? "none" : "";
 
-  accountPickerMount.style.display = isMail ? "" : "none";
-  chatroomPickerMount.style.display = isMail ? "none" : "";
-
-  document.getElementById("account-picker-mount").style.display = isMail
-    ? ""
-    : "none";
-  document.getElementById("mp-brand-filter-btn").style.display = isMail
-    ? ""
-    : "none";
+  const brandBtn = document.getElementById("mp-brand-filter-btn");
+  if (brandBtn) brandBtn.style.display = isMail ? "" : "none";
   if (isMail) refreshSortMenuForMail();
   else if (messengerScreen === "people") refreshSortMenuForPeople();
   else refreshSortMenuForRooms();
@@ -1144,6 +1128,18 @@ async function ensureMessengerDateRange() {
     }
   }
   initTimeline(messengerDateRange.first, messengerDateRange.last);
+}
+
+// 사이드바에서 메신저 데이터(단톡방)를 고르면, 예전처럼 단톡방 목록 패널을
+// 거치지 않고 바로 그 방의 참여자 화면으로 들어간다 — 방 이름은 새로 API를
+// 부르지 않고 사이드바가 이미 갖고 있는 목록(store.getCollectedLists().rooms)
+// 에서 id로 찾아 쓴다.
+async function openSelectedChatroomFromSidebar() {
+  if (!selectedChatroomId) return;
+  await ensureMessengerDateRange();
+  const { rooms = [] } = store.getCollectedLists() || {};
+  const room = rooms.find((r) => r.id === selectedChatroomId);
+  await openChatroom(selectedChatroomId, room ? room.label : selectedChatroomId);
 }
 
 async function fetchMessengerChatroomsForRange() {
@@ -1235,7 +1231,7 @@ async function renderChatroomGrid() {
         .map((r, i) => {
           const moodText =
             roomSortMode === "mood" && r._moodScore != null
-              ? ` · 분위기 ${Math.round(r._moodScore)}%`
+              ? ` · ${moodLabel(r._moodScore)}`
               : "";
           return `
         <div class="mp-card mp-room-card" data-idx="${i}" title="${esc(r.chatroom_name)}">
@@ -1259,10 +1255,13 @@ async function openChatroom(chatroomId, chatroomName) {
       <p>참여자를 불러오는 중...</p>
     </div>
   `;
-  await fetchAndRenderChatroomPeople();
+  // 방을 선택(클릭)한 시점에 방 분위기도 같이 불러와서, 사람 목록과 함께
+  // 헤더에 텍스트로(퍼센트 대신) 바로 박아 보여준다.
+  const moodPromise = fetchRoomMoodScore(chatroomId);
+  await fetchAndRenderChatroomPeople(moodPromise);
 }
 
-async function fetchAndRenderChatroomPeople() {
+async function fetchAndRenderChatroomPeople(moodPromise) {
   let people = [];
   try {
     const res = await fetch("/chatroom-person-detail", {
@@ -1279,28 +1278,38 @@ async function fetchAndRenderChatroomPeople() {
   } catch (e) {
     console.error("chatroom-person-detail 오류:", e);
   }
-  renderChatroomPeople(currentChatroomName, sortPeopleList(people));
+  const moodScore = moodPromise ? await moodPromise : null;
+  renderChatroomPeople(currentChatroomName, sortPeopleList(people), moodScore);
 }
 
-function renderChatroomPeople(chatroomName, people) {
+function renderChatroomPeople(chatroomName, people, moodScore) {
   currentChatroomPeople = people;
   const cardsHtml = people.length
     ? people
-        .map(
-          (p, i) => `
+        .map((p, i) => {
+          const avatarInner = p.avatar_url
+            ? `<img src="${p.avatar_url}" alt="${esc(p.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(p.name)}'">`
+            : initials(p.name);
+          return `
         <div class="mp-card mp-person-card" data-idx="${i}" title="${esc(p.name)}">
-          <div class="mp-avatar" style="background:${CARD_BG[i % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[i % AVATAR_COLORS_DETAIL.length]};">${initials(p.name)}</div>
+          <div class="mp-avatar" style="background:${CARD_BG[i % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[i % AVATAR_COLORS_DETAIL.length]};">${avatarInner}</div>
           <div class="mp-name" style="font-size:${nameFontSize(p.name)}">${esc(p.name)}</div>
           <div class="mp-period-badge">${p.message_count}건</div>
-        </div>`,
-        )
+        </div>`;
+        })
         .join("")
     : `<div class="mp-empty"><i class="bi bi-people"></i><p>이 기간엔 메신저를 보낸 참여자가 없습니다.</p></div>`;
+
+  const moodHtml =
+    moodScore != null
+      ? `<span class="mp-room-mood"><span class="mp-room-mood-emoji">${moodEmoji(moodScore)}</span>${moodLabel(moodScore)}</span>`
+      : "";
 
   messengerView.innerHTML = `
     <div class="mp-messenger-room-header">
       <button class="mp-back-btn" type="button"><i class="bi bi-arrow-left"></i> 단톡방 목록</button>
       <span class="mp-messenger-room-name">${esc(chatroomName)}</span>
+      ${moodHtml}
     </div>
     <div class="mp-grid" id="mp-person-grid">${cardsHtml}</div>`;
 }
@@ -1318,15 +1327,20 @@ messengerView.addEventListener("click", (e) => {
     if (person) openMessengerDetail(person);
     return;
   }
-  if (e.target.closest(".mp-back-btn")) renderChatroomGrid();
+  // 사이드바에서 바로 방으로 들어온 경우 messengerChatrooms가 아직 한 번도
+  // 안 채워졌을 수 있으니(예전엔 목록 화면을 먼저 거쳐야만 채워졌음),
+  // renderChatroomGrid() 대신 새로 불러오는 refreshMessengerRoomsForRange()를
+  // 써서 null 목록을 그대로 렌더링하다 에러 나는 일이 없게 한다.
+  if (e.target.closest(".mp-back-btn")) refreshMessengerRoomsForRange();
 });
 
-mailBtn.addEventListener("click", () => setChannel("mail"));
-messengerBtn.addEventListener("click", async () => {
-  setChannel("messenger");
-  await ensureMessengerDateRange();
-  await loadMessengerView();
-});
+// 메일/메신저 전환 버튼은 없앴다(My Time과 동일 — 사이드바가 전담).
+// mailBtn.addEventListener("click", () => setChannel("mail"));
+// messengerBtn.addEventListener("click", async () => {
+//   setChannel("messenger");
+//   await ensureMessengerDateRange();
+//   await loadMessengerView();
+// });
 
 const brandFilterBtn = document.getElementById("mp-brand-filter-btn");
 const brandFilterLabel = document.getElementById("mp-brand-filter-label");
@@ -1372,9 +1386,13 @@ ddMenu.addEventListener("click", async (e) => {
   } else {
     peopleSortMode = chosen;
     refreshSortMenuForPeople();
+    // 정렬을 바꿀 때도 방 분위기가 사라지지 않도록 같이 넘겨줌(캐시되어 있어
+    // 다시 네트워크 요청이 가지 않음)
+    const moodScore = await fetchRoomMoodScore(currentChatroomId);
     renderChatroomPeople(
       currentChatroomName,
       sortPeopleList(currentChatroomPeople),
+      moodScore,
     );
   }
 });
@@ -1581,6 +1599,18 @@ function renderBarChart(data) {
     })
     .join("");
   chartArea.innerHTML = `<div style="display:flex;align-items:stretch;gap:10px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;">${html}</div>`;
+
+  // 오른쪽 원본 확인 창이 막대를 눌러야만 열리던 걸, 처음부터 가장 최근 달로
+  // 기본으로 열려있도록(요청) — 막대 그래프를 다 그린 다음 마지막(최신) 달을
+  // 자동으로 "클릭"한 것처럼 처리.
+  const latest = data.monthly[data.monthly.length - 1];
+  const latestGroup = chartArea.querySelector(
+    `.mp-vchart-group[data-month="${latest.month}"]`,
+  );
+  if (latestGroup) {
+    latestGroup.classList.add("active");
+    openEmailDrawer(latest.month, latest.sent, latest.received);
+  }
 }
 
 function renderMessengerBarChart(data) {
@@ -1637,8 +1667,21 @@ function renderMessengerBarChart(data) {
     })
     .join("");
   chartArea.innerHTML = `<div style="display:flex;align-items:stretch;gap:10px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;">${html}</div>`;
+
+  // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청)
+  const latest = data.monthly[data.monthly.length - 1];
+  const latestGroup = chartArea.querySelector(
+    `.mp-vchart-group[data-month="${latest.month}"]`,
+  );
+  if (latestGroup) {
+    latestGroup.classList.add("active");
+    openMessengerDayList(latest.month);
+  }
 }
 
+// 방사형 스포크 다이어그램 대신 프로필 사진 + 이름 + 관계 설명을 담은
+// 카드 그리드로 표현(요청) — 열 수는 고정하지 않고 auto-fill로 패널 폭에
+// 맞게 2~3열 사이를 알아서 오가도록 반응형 처리.
 function renderRelationDiagram(personName, relationships) {
   const el = document.getElementById("mp-desc-profile-content");
   if (!relationships.length) {
@@ -1646,37 +1689,26 @@ function renderRelationDiagram(personName, relationships) {
       '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
     return;
   }
-  const size = 380,
-    center = size / 2,
-    radius = 130;
   const others = relationships.map((r) => ({
     name: r.source === personName ? r.target : r.source,
     label: r.relation_label || "",
   }));
-  const n = others.length;
-  const spokesHtml = others
-    .map((o, i) => {
-      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
-      const x = center + radius * Math.cos(angle);
-      const y = center + radius * Math.sin(angle);
-      const midX = center + radius * 0.55 * Math.cos(angle);
-      const midY = center + radius * 0.55 * Math.sin(angle);
-      const color = WC_COLORS[i % WC_COLORS.length];
+  const cardsHtml = others
+    .map((o) => {
+      const p = currentChatroomPeople.find((x) => x.name === o.name);
+      const avatarInner =
+        p && p.avatar_url
+          ? `<img src="${p.avatar_url}" alt="${esc(o.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(o.name)}'">`
+          : initials(o.name);
       return `
-        <line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="${color}" stroke-width="1.5" stroke-opacity="0.4"/>
-        <rect x="${midX - 24}" y="${midY - 9}" width="48" height="18" rx="9" fill="${color}" fill-opacity="0.14"/>
-        <text x="${midX}" y="${midY + 4}" text-anchor="middle" font-size="10" font-weight="700" fill="${color}">${esc(o.label)}</text>
-        <circle cx="${x}" cy="${y}" r="26" fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="1.5"/>
-        <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="800" fill="${color}">${esc(initials(o.name))}</text>
-        <text x="${x}" y="${y + 42}" text-anchor="middle" font-size="11" fill="#5a5a5a">${esc(o.name)}</text>`;
+        <div class="mp-relation-card">
+          <div class="mp-relation-card-avatar">${avatarInner}</div>
+          <div class="mp-relation-card-name">${esc(o.name)}</div>
+          ${o.label ? `<div class="mp-relation-card-label">${esc(o.label)}</div>` : `<div class="mp-relation-card-label mp-relation-card-label-empty">파악된 설명 없음</div>`}
+        </div>`;
     })
     .join("");
-  el.innerHTML = `
-    <svg viewBox="0 0 ${size} ${size}" style="width:100%;max-width:400px;height:auto;display:block;margin:0 auto;">
-      ${spokesHtml}
-      <circle cx="${center}" cy="${center}" r="32" fill="#1a6e4a"/>
-      <text x="${center}" y="${center + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">${esc(initials(personName))}</text>
-    </svg>`;
+  el.innerHTML = `<div class="mp-relation-cards">${cardsHtml}</div>`;
 }
 
 let activeDrawerMonth = null;
@@ -1740,7 +1772,7 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   document.getElementById("mp-echange-list-title").textContent =
     fmtMonthLabel(month);
   document.getElementById("mp-echange-list-count").textContent = person
-    ? `${personName} · 총 ${sentCount + recvCount}건 (보낸 ${sentCount} · 받은 ${recvCount}) · 날짜를 누르면 그날 메일을 볼 수 있어요`
+    ? `${personName} · 총 ${sentCount + recvCount}건 (보낸 ${sentCount} · 받은 ${recvCount}) · 막대를 누르면 해당 월의, 날짜를 누르면 그날의 원본 메일을 확인할 수 있어요`
     : "";
   document.getElementById("mp-echange-list-body").innerHTML =
     '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
@@ -1893,7 +1925,7 @@ async function openMessengerDayList(month) {
   document.getElementById("mp-echange-list-title").textContent =
     fmtMonthLabel(month);
   document.getElementById("mp-echange-list-count").textContent = person
-    ? `${person.name} · 날짜를 누르면 그날 대화를 볼 수 있어요`
+    ? `${person.name} · 막대를 누르면 해당 월의, 날짜를 누르면 그날의 원본 대화를 확인할 수 있어요`
     : "";
   document.getElementById("mp-echange-list-body").innerHTML =
     '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
@@ -2121,6 +2153,29 @@ async function refreshDetailStats(person) {
   renderWordCloud(keywords.slice(0, 10), "mp-detail-wc");
 }
 
+// 메일/메신저 통계 범례 — 예전엔 메일용 두 항목(보낸/받은 메일)이 HTML에
+// 고정되어 있고 메신저에서는 그냥 숨기기만 해서 "보낸 메신저"라는 표시가
+// 전혀 없었음(요청) — 모드별로 내용을 다시 그려서 메신저에도 초록 막대가
+// 뭘 뜻하는지 보이게 함.
+function setStatsLegend(mode) {
+  const legend = document.getElementById("mp-stats-legend");
+  if (!legend) return;
+  const dot = (color) =>
+    `<span style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>`;
+  const item = (color, label) =>
+    `<span style="display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:600;color:#4a4640;white-space:nowrap;flex-shrink:0;">${dot(color)}${label}</span>`;
+  if (mode === "mail") {
+    legend.innerHTML = item("#12886e", "보낸 메일") + item("#5a94e8", "받은 메일");
+    legend.style.display = "flex";
+  } else if (mode === "messenger") {
+    legend.innerHTML = item("#12886e", "보낸 메신저");
+    legend.style.display = "flex";
+  } else {
+    legend.innerHTML = "";
+    legend.style.display = "none";
+  }
+}
+
 async function openDetail(person, rowIndex) {
   const gmailId = await getCurrentMailId();
   const detailDisplayName = resolveDisplayName(person);
@@ -2128,7 +2183,8 @@ async function openDetail(person, rowIndex) {
   currentDetailMode = "mail";
   currentDetailPersonEmail = person.email || "";
   currentMessengerPerson = null;
-  document.getElementById("mp-tab-stats").textContent = "이메일 교환";
+  document.getElementById("mp-tab-stats").textContent = "메일 통계";
+  document.getElementById("mp-stats-title").textContent = "메일 통계";
   document.getElementById("mp-tab-desc").textContent = "설명";
   document.getElementById("mp-tab-kw").textContent = "키워드";
   closeEmailDrawer();
@@ -2136,10 +2192,13 @@ async function openDetail(person, rowIndex) {
   document.querySelector(".mp-detail-self-info").style.display = "";
   document.getElementById("mp-detail-avatar-self").style.display = "";
   document.querySelector(".mp-detail-relation").style.display = "";
+  // 친밀도 퍼센트를 감싸던 핑크 링을 없애기로 해서(요청) 메일 상세보기도
+  // 메신저와 동일하게 항상 링을 꺼둔다 — 대신 등급 텍스트는 관계 라벨
+  // 밑(.mp-detail-affinity-label)에 표시.
   document
     .querySelector(".mp-detail-avatar-ring")
-    ?.classList.remove("mp-ring-off");
-  document.getElementById("mp-stats-legend").style.display = "";
+    ?.classList.add("mp-ring-off");
+  setStatsLegend("mail");
   document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
   document
     .getElementById("mp-detail-namewrap")
@@ -2170,27 +2229,21 @@ async function openDetail(person, rowIndex) {
       : "";
   });
 
-  const ac = affinityColor(person.affinity);
+  // 색감 통일 요청 — 아바타 배경도 친밀도에 따른 색(핑크/주황 계열) 대신
+  // "나" 아바타와 동일한 무채색 그라데이션으로 통일.
   const avatarEl = document.getElementById("mp-detail-avatar");
-  avatarEl.style.background = ac.gradient;
-  avatarEl.style.color = ac.text;
+  avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+  avatarEl.style.color = "#515151";
 
-  const ringFill = document.getElementById("mp-detail-avatar-ring-fill");
-  const ringLabel = document.getElementById("mp-detail-avatar-ring-label");
+  // 링이 없어진 자리에 친밀도 등급을 관계 라벨 밑에 효율적으로 표시
   const affPct =
     person.affinity != null ? Math.round(person.affinity * 100) : null;
-  if (ringFill) {
-    const circumference = 2 * Math.PI * 46;
-    ringFill.style.transition = "none";
-    ringFill.style.strokeDashoffset = circumference;
-    ringFill.getBoundingClientRect();
-    ringFill.style.transition = "";
-    ringFill.style.strokeDashoffset = String(
-      circumference * (1 - (affPct ?? 0) / 100),
-    );
-  }
-  if (ringLabel) {
-    ringLabel.innerHTML = `<i class="bi bi-heart-fill"></i>${affPct != null ? affPct + "%" : "-"}`;
+  const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
+  if (affinityLabelEl) {
+    affinityLabelEl.innerHTML =
+      affPct != null
+        ? `<i class="bi bi-heart-fill"></i>${affinityLabelFromPct(affPct)}`
+        : "";
   }
   const detailEmail = (person.email || "").toLowerCase();
   const detailPhoto =
@@ -2231,6 +2284,9 @@ async function openMessengerDetail(person) {
   currentMessengerPerson = person;
 
   document.getElementById("mp-tab-stats").textContent = "메신저 통계";
+  // "이메일 교환"이 그대로 남아있던 잔재 — mp-stats-title은 예전엔 HTML에
+  // 박제된 텍스트라 메신저에서도 안 바뀌고 있었음(요청으로 수정)
+  document.getElementById("mp-stats-title").textContent = "메신저 통계";
   document.getElementById("mp-tab-desc").textContent = "관계";
   document.getElementById("mp-tab-kw").textContent = "키워드";
 
@@ -2240,20 +2296,23 @@ async function openMessengerDetail(person) {
   document
     .querySelector(".mp-detail-avatar-ring")
     ?.classList.add("mp-ring-off");
-  document.getElementById("mp-stats-legend").style.display = "none";
+  setStatsLegend("messenger");
   document
     .getElementById("mp-detail-namewrap")
     .classList.add("mp-detail-namewrap-wide");
 
+  // 색감 통일 요청 — 메신저 아바타 배경도 초록 계열 대신 메일과 동일한 무채색으로
   const avatarEl = document.getElementById("mp-detail-avatar");
-  avatarEl.style.background = "linear-gradient(150deg,#cfe9df,#a9d4c4)";
-  avatarEl.style.color = "#1a6e4a";
-  avatarEl.textContent = initials(person.name);
-
-  const ringFill = document.getElementById("mp-detail-avatar-ring-fill");
-  const ringLabel = document.getElementById("mp-detail-avatar-ring-label");
-  if (ringFill) ringFill.style.strokeDashoffset = String(2 * Math.PI * 46);
-  if (ringLabel) ringLabel.innerHTML = "";
+  avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+  avatarEl.style.color = "#515151";
+  if (person.avatar_url) {
+    avatarEl.innerHTML = `<img src="${person.avatar_url}" alt="${esc(person.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(person.name)}'">`;
+  } else {
+    avatarEl.innerHTML = "";
+    avatarEl.textContent = initials(person.name);
+  }
+  const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
+  if (affinityLabelEl) affinityLabelEl.innerHTML = "";
 
   document.getElementById("mp-detail-name").textContent =
     person.name || "(알 수 없음)";

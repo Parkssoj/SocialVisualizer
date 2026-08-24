@@ -5,7 +5,7 @@
 .gwfs-btn {
   position: fixed;
   right: 28px;
-  bottom: 28px;
+  top: 76px; // 헤더(60px) 밑에 여유를 둬서 우측 상단에 뜨도록
   z-index: 2147483000; // 페이지 어떤 요소보다도 위에 항상 떠 있어야 함
   width: 58px;
   height: 58px;
@@ -43,7 +43,7 @@
 .gwfs-panel {
   position: fixed;
   right: 28px;
-  bottom: 98px;
+  top: 146px; // 버튼(top:76px, 58px 높이) 바로 아래로 열리도록
   z-index: 2147482999;
   width: min(630px, calc(100vw - 40px));
   max-height: min(760px, calc(100vh - 100px));
@@ -383,14 +383,14 @@
 @media (max-width: 520px) {
   .gwfs-btn {
     right: 18px;
-    bottom: 18px;
+    top: 70px;
     width: 52px;
     height: 52px;
   }
   .gwfs-panel {
     right: 12px;
     left: 12px;
-    bottom: 84px;
+    top: 136px;
     width: auto;
   }
 }

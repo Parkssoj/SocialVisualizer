@@ -55,28 +55,14 @@
                 <div class="mp-title-wrap">
                   <div class="mp-title">My <span>People</span></div>
                   <span class="mp-count" id="mp-count"></span>
-                  <div class="mp-channel-btns">
-                    <button
-                      class="mp-channel-btn active"
-                      id="mp-mail-btn"
-                      type="button"
-                    >
-                      <i class="bi bi-envelope"></i>
-                      <span>메일</span>
-                    </button>
-                    <button
-                      class="mp-channel-btn"
-                      id="mp-messenger-btn"
-                      type="button"
-                    >
-                      <i class="bi bi-chat-dots"></i>
-                      <span>메신저</span>
-                    </button>
-                  </div>
                 </div>
+                <!-- 메일/메신저 전환 버튼, 계정 토글, 채팅방 토글은 전부 없앰 —
+                     My Time과 동일하게 사이드바에서 메일 계정을 고르면 메일 뷰가,
+                     메신저 데이터를 고르면 메신저 뷰가 자동으로 뜬다.
+                     account-picker-mount / chatroom-picker-mount는 mypeople.js가
+                     컨테이너 없이(null) "헤드리스"로 계속 호출해 초기 계정/채팅방
+                     id만 조용히 resolve한다(화면엔 안 그려짐). -->
                 <div class="mp-header-controls">
-                  <div id="account-picker-mount"></div>
-                  <div id="chatroom-picker-mount" style="display: none"></div>
                   <button
                     class="mp-brand-filter-btn"
                     id="mp-brand-filter-btn"
@@ -204,10 +190,16 @@
                         id="mp-detail-avatar-self"
                       ></div>
                       <div class="mp-detail-relation">
-                        <span
-                          class="mp-detail-relation-label"
-                          id="mp-detail-relation-label"
-                        ></span>
+                        <div class="mp-detail-relation-labels">
+                          <span
+                            class="mp-detail-relation-label"
+                            id="mp-detail-relation-label"
+                          ></span>
+                          <span
+                            class="mp-detail-affinity-label"
+                            id="mp-detail-affinity-label"
+                          ></span>
+                        </div>
                         <div class="mp-detail-relation-line"></div>
                       </div>
                       <div class="mp-detail-avatar-ring">
@@ -308,7 +300,7 @@
                         id="mp-tab-stats"
                         onclick="switchDetailTab('stats')"
                       >
-                        이메일 교환
+                        메일 통계
                       </button>
                       <button
                         class="mp-detail-tab-btn"
@@ -383,7 +375,7 @@
                                 style="
                                   background: none;
                                   border: none;
-                                  border-bottom: 1.5px solid #128a6e;
+                                  border-bottom: 1.5px solid rgba(28, 28, 30, 0.16);
                                   border-radius: 0;
                                   box-shadow: none;
                                   padding: 0 0 5px;
@@ -393,7 +385,7 @@
                                   color: #1c1c1e;
                                 "
                               >
-                                이메일 교환
+                                메일 통계
                               </div>
                               <span
                                 id="mp-stats-total"
@@ -416,54 +408,7 @@
                                 align-items: center;
                                 flex-shrink: 0;
                               "
-                            >
-                              <span
-                                style="
-                                  display: flex;
-                                  align-items: center;
-                                  gap: 10px;
-                                  font-size: 1rem;
-                                  font-weight: 600;
-                                  color: #4a4640;
-                                  white-space: nowrap;
-                                  flex-shrink: 0;
-                                "
-                                ><span
-                                  style="
-                                    width: 9px;
-                                    height: 9px;
-                                    border-radius: 50%;
-                                    background: #12886e;
-                                    display: inline-block;
-                                    flex-shrink: 0;
-                                  "
-                                ></span
-                                >보낸 메일</span
-                              >
-                              <span
-                                style="
-                                  display: flex;
-                                  align-items: center;
-                                  gap: 10px;
-                                  font-size: 1rem;
-                                  font-weight: 600;
-                                  color: #4a4640;
-                                  white-space: nowrap;
-                                  flex-shrink: 0;
-                                "
-                                ><span
-                                  style="
-                                    width: 9px;
-                                    height: 9px;
-                                    border-radius: 50%;
-                                    background: #5a94e8;
-                                    display: inline-block;
-                                    flex-shrink: 0;
-                                  "
-                                ></span
-                                >받은 메일</span
-                              >
-                            </div>
+                            ></div>
                           </div>
                           <div class="mp-vchart-wrap">
                             <div class="mp-vchart-y" id="mp-vchart-y">

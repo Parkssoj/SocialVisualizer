@@ -60,7 +60,9 @@
               <div class="rc-hero-sub" id="rcHeroSub">
                 내 메일함 통계 한눈에 보기
               </div>
-              <div id="account-picker-mount"></div>
+              <!-- 계정 선택은 사이드바가 전담 — account-picker-mount는 없앴고
+                   recap.js는 컨테이너 없이(null) "헤드리스"로 계속 호출해
+                   초기 계정 id만 조용히 resolve한다(화면엔 안 그려짐). -->
             </div>
             <a href="graph-viz.html" class="rc-hero-graph-link">
               <span>View knowledge graph</span>

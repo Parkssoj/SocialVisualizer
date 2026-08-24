@@ -14,7 +14,8 @@
 .gw-collect-wrap {
   padding: 28px 32px;
   width: 100%;
-  max-width: 1300px;
+  // 버튼(카드)을 전체적으로 키워달라는 요청에 맞춰 최대 폭도 함께 넓힘
+  max-width: 1500px;
   margin: 0 auto;
 }
 
@@ -22,7 +23,7 @@
   margin-bottom: 35px; /* 타이틀과 버튼 사이의 간격을 넉넉하게 조정 */
 }
 .gw-page-title {
-  font-size: 1.4rem;
+  font-size: clamp(1.4rem, 1.8vw, 1.8rem);
   font-weight: 700;
   color: #2a3f54;
   margin-bottom: 4px;
@@ -34,7 +35,7 @@
   color: #fb923c;
 }
 .gw-page-subtitle {
-  font-size: 1rem;
+  font-size: clamp(1rem, 1.05vw, 1.15rem);
   color: #73879c;
   margin-bottom: 0;
 }
@@ -43,7 +44,7 @@
 .gw-hub-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr); /* PC에서는 4개를 1줄로 배치 */
-  gap: 20px;
+  gap: clamp(20px, 2.2vw, 32px);
   margin-top: 40px; // .right_col이 세로로 중앙 정렬해주므로 고정 110px는 필요 없음
 }
 
@@ -65,8 +66,9 @@
   flex-direction: column;
   background: #fff;
   border: none;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  // 버튼(카드) 요소를 전체적으로 키워달라는 요청 — 안쪽 여백을 화면 폭에 비례해 키움
+  padding: clamp(16px, 1.8vw, 26px);
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition:
@@ -89,22 +91,22 @@
 }
 
 .gw-hub-title {
-  font-size: 1.1rem;
+  font-size: clamp(1.15rem, 1.35vw, 1.4rem);
   font-weight: 700;
   color: #2a3f54;
-  margin-bottom: 4px; /* 설명이 들어오므로 아래 여백을 확 줄임 */
+  margin-bottom: 6px; /* 설명이 들어오므로 아래 여백을 확 줄임 */
   text-align: center;
   transition: color 0.2s;
 }
 
 /* ── 새롭게 추가된 설명글 ── */
 .gw-hub-desc {
-  font-size: 0.85rem;
+  font-size: clamp(0.92rem, 1vw, 1.02rem);
   color: #73879c;
   text-align: center;
-  margin-bottom: 14px; /* 이미지와의 간격 */
+  margin-bottom: 16px; /* 이미지와의 간격 */
   word-break: keep-all; /* 단어 단위로 예쁘게 줄바꿈 */
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .gw-hub-img-wrap {

@@ -22,8 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // 직접 다시 불러서 사이드바는 그대로 둔 채 콘텐츠만 새로고침한다.
     if (meta && meta.isInitial) return;
     if (filterState.mail) {
+      setMtChannel("mail");
       initMail(filterState.mail);
     } else if (filterState.room) {
+      setMtChannel("messenger");
       currentChatroomId = filterState.room;
       mtMessengerLoaded = true;
       loadMtMessengerData();
@@ -83,14 +85,30 @@ function escHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-function showTooltip(anchorEl, html) {
+// 주요 연락처 설명이 "이름: ... 관계: ... 자주 주고받은 내용: ..."처럼
+// 라벨이 붙은 한 줄 문자열로 오므로, 그 라벨들 앞에 줄바꿈을 넣어 각각
+// 한 줄씩 보이게 만든다.
+function formatContactDesc(text) {
+  let html = escHtml(text);
+  ["이름:", "관계:", "자주 주고받은 내용:"].forEach((label) => {
+    html = html.split(escHtml(label)).join(`<br>${escHtml(label)}`);
+  });
+  return html.replace(/^(<br>)+/, "");
+}
+function showTooltip(anchorEl, html, placement = "top") {
   const t = ensureTooltip();
   t.innerHTML = html;
   const rect = anchorEl.getBoundingClientRect();
   const left = Math.max(8, Math.min(window.innerWidth - 280, rect.left));
   t.style.left = `${left}px`;
-  t.style.top = `${rect.top - 8}px`;
-  t.style.transform = "translateY(-100%)";
+  if (placement === "bottom") {
+    // 주요 연락처 카드용 — 위가 아니라 카드 밑으로 상세 설명 창이 뜨도록
+    t.style.top = `${rect.bottom + 8}px`;
+    t.style.transform = "translateY(0)";
+  } else {
+    t.style.top = `${rect.top - 8}px`;
+    t.style.transform = "translateY(-100%)";
+  }
   requestAnimationFrame(() => t.classList.add("show"));
 }
 function hideTooltip() {
@@ -121,6 +139,20 @@ function createTimeline(ids) {
   }
   function yearToPct(y) {
     return (Number(y) * 12 + 1 - FIRST_NUM) / TOTAL;
+  }
+  // 연도 점(.mt-pm)을 실제 달력상의 시간 간격에 비례해서 찍으면(yearToPct),
+  // 데이터가 몰려있을 때 첫 연도가 트랙 맨 끝(0%)에 붙어 원이 잘려 보이는
+  // 문제가 있었다 — 요청대로 실제 시간 간격 대신 "연도 하나당 일정한 간격"으로
+  // 고정하고, 양 끝에 여백(INSET)을 둬서 원이 잘리지 않게 한다. 연도 수가
+  // 적으면(=데이터가 적으면) 그만큼 점들 사이 간격도 자연스럽게 좁아진다.
+  const YEAR_DOT_INSET = 0.07;
+  function yearIdxPct(i) {
+    if (YEAR_KEYS.length <= 1) return 0.5;
+    const clamped = Math.max(0, Math.min(YEAR_KEYS.length - 1, i));
+    return (
+      YEAR_DOT_INSET +
+      (clamped / (YEAR_KEYS.length - 1)) * (1 - YEAR_DOT_INSET * 2)
+    );
   }
   function getWindowKeys() {
     const keys = mode === "month" ? ALL_KEYS : YEAR_KEYS;
@@ -153,8 +185,10 @@ function createTimeline(ids) {
 
       const lbl = document.createElement("div");
       lbl.className = "mt-node-label";
+      // 월별 모드는 한 화면에 12개(1년치)를 다 보여줘야 해서 "2026.08"처럼
+      // 연도까지 적으면 너무 빽빽함 — 요청대로 월만 "8월" 식으로 표시
       lbl.textContent =
-        mode === "month" ? `${k.slice(0, 4)}.${k.slice(5)}` : `${k}년`;
+        mode === "month" ? `${parseInt(k.slice(5), 10)}월` : `${k}년`;
 
       const cnt = document.createElement("div");
       cnt.className = "mt-node-count";
@@ -178,16 +212,7 @@ function createTimeline(ids) {
           document.getElementById(ids.panel).classList.remove("pinned");
           hidePanel();
         } else {
-          pinnedKey = k;
-          track
-            .querySelectorAll(".mt-node-col")
-            .forEach((c) => c.classList.remove("pinned"));
-          col.classList.add("pinned");
-          showPanel(col, k, d);
-          document.getElementById(ids.panel).classList.add("pinned");
-          centerIdx = (mode === "month" ? ALL_KEYS : YEAR_KEYS).indexOf(k);
-          updatePointerCursor();
-          notifyPeriod(k);
+          pinKey(col, k, d);
         }
       });
     });
@@ -222,7 +247,11 @@ function createTimeline(ids) {
       if (ids.contactLookup) {
         el.addEventListener("mouseenter", () => {
           const desc = ids.contactLookup(c);
-          showTooltip(el, desc ? escHtml(desc) : "등록된 설명이 없습니다.");
+          showTooltip(
+            el,
+            desc ? formatContactDesc(desc) : "등록된 설명이 없습니다.",
+            "bottom",
+          );
         });
         el.addEventListener("mouseleave", hideTooltip);
       }
@@ -248,27 +277,62 @@ function createTimeline(ids) {
       .forEach((c) => c.classList.remove("active"));
   }
 
+  // 슬라이더에서 기간 하나를 "고정(pin)" — 클릭했을 때와, 페이지 로드 시 가장
+  // 최근 달을 기본으로 띄울 때 둘 다 이 함수를 쓴다.
+  function pinKey(col, k, d) {
+    pinnedKey = k;
+    document
+      .getElementById(ids.track)
+      .querySelectorAll(".mt-node-col")
+      .forEach((c) => c.classList.remove("pinned"));
+    col.classList.add("pinned");
+    showPanel(col, k, d);
+    document.getElementById(ids.panel).classList.add("pinned");
+    centerIdx = (mode === "month" ? ALL_KEYS : YEAR_KEYS).indexOf(k);
+    updatePointerCursor();
+    notifyPeriod(k);
+  }
+
+  // 페이지를 처음 열었을 때(아직 아무 기간도 클릭 안 한 상태)도 왼쪽 요약/주요
+  // 연락처 패널과 오른쪽 키워드 창이 비어있지 않도록, 가장 최근 달을 기본으로
+  // 고정해서 보여준다.
+  function pinDefaultLast() {
+    if (!ALL_KEYS.length) return;
+    const key = ALL_KEYS[ALL_KEYS.length - 1];
+    const d = MONTH_DATA[key];
+    const col = document
+      .getElementById(ids.track)
+      .querySelector(`.mt-node-col[data-key="${key}"]`);
+    if (!col || !d) {
+      notifyPeriod(key);
+      return;
+    }
+    pinKey(col, key, d);
+  }
+
   function buildPointer() {
     const pointerTrack = document.getElementById(ids.pointerTrack);
     pointerTrack.querySelectorAll(".mt-pm").forEach((el) => el.remove());
 
-    ALL_KEYS.forEach((k, idx) => {
+    // 예전엔 달(ALL_KEYS)마다 점을 하나씩 찍어서, 데이터가 1년치(한 해)만
+    // 있어도 점이 12개나 생겨 "연도 하나가 여러 개로 쪼개진" 것처럼 보였다 —
+    // 요청대로 "연도 하나당 동그라미 하나"가 되도록 YEAR_KEYS 기준으로 점을
+    // 찍는다. 연도가 하나뿐이면 그 점을 처음부터 선택된 상태로 고정해서
+    // 보여준다.
+    YEAR_KEYS.forEach((y, i) => {
       const pm = document.createElement("div");
       pm.className = "mt-pm";
-      pm.style.left = `${monthToPct(k) * 100}%`;
+      pm.dataset.year = y;
+      if (YEAR_KEYS.length === 1) pm.classList.add("is-only");
+      pm.style.left = `${yearIdxPct(i) * 100}%`;
       pm.addEventListener("click", (e) => {
         e.stopPropagation();
-        centerIdx =
-          mode === "month"
-            ? idx
-            : Math.floor(idx / (ALL_KEYS.length / YEAR_KEYS.length));
-        centerIdx = Math.max(
-          0,
-          Math.min(
-            (mode === "month" ? ALL_KEYS : YEAR_KEYS).length - 1,
-            centerIdx,
-          ),
-        );
+        if (mode === "year") {
+          centerIdx = Math.max(0, YEAR_KEYS.indexOf(y));
+        } else {
+          const idx = ALL_KEYS.findIndex((k) => k.startsWith(`${y}-`));
+          centerIdx = Math.max(0, idx === -1 ? 0 : idx);
+        }
         updatePointerCursor();
         render();
       });
@@ -291,9 +355,9 @@ function createTimeline(ids) {
     const MIN_GAP_PX = 64;
     const axisWidth =
       axis.offsetWidth || axis.getBoundingClientRect().width || 0;
-    const withPct = YEAR_KEYS.map((y) => ({
+    const withPct = YEAR_KEYS.map((y, i) => ({
       y,
-      pct: Math.max(0, Math.min(98, yearToPct(y) * 100)),
+      pct: yearIdxPct(i) * 100,
     }));
 
     let filtered = withPct.length ? [withPct[0]] : [];
@@ -331,22 +395,52 @@ function createTimeline(ids) {
     updatePointerWindow();
   }
 
+  // 선택된 연도 점 위에 화살표를 띄우기 위한 표시 갱신 — 월별 모드에서는 지금
+  // 보고 있는 달이 속한 연도, 연도별 모드에서는 지금 선택된 연도를 기준으로
+  // 판단해서 그 점에만 "selected" 클래스를 붙인다.
+  function updateYearDotSelection() {
+    const track = document.getElementById(ids.pointerTrack);
+    if (!track) return;
+    let selectedYear = null;
+    if (mode === "year") {
+      selectedYear =
+        YEAR_KEYS[Math.max(0, Math.min(YEAR_KEYS.length - 1, centerIdx))];
+    } else {
+      const mk = ALL_KEYS[Math.max(0, Math.min(ALL_KEYS.length - 1, centerIdx))];
+      selectedYear = mk ? mk.split("-")[0] : null;
+    }
+    track.querySelectorAll(".mt-pm").forEach((el) => {
+      el.classList.toggle("selected", !!selectedYear && el.dataset.year === selectedYear);
+    });
+  }
+
   function updatePointerCursor() {
     const keys = mode === "month" ? ALL_KEYS : YEAR_KEYS;
     const k = keys[Math.max(0, Math.min(keys.length - 1, centerIdx))];
-    const pct = mode === "month" ? monthToPct(k) * 100 : yearToPct(k) * 100;
+    const pct =
+      mode === "month"
+        ? monthToPct(k) * 100
+        : yearIdxPct(YEAR_KEYS.indexOf(k)) * 100;
     document.getElementById(ids.pointerCursor).style.left =
       Math.max(0, Math.min(100, pct)) + "%";
+    updateYearDotSelection();
   }
 
   function updatePointerWindow() {
     const wKeys = getWindowKeys();
     if (!wKeys.length) return;
-    const s = mode === "month" ? monthToPct(wKeys[0]) : yearToPct(wKeys[0]);
-    const e =
-      mode === "month"
-        ? monthToPct(wKeys[wKeys.length - 1])
-        : yearToPct(wKeys[wKeys.length - 1]) + 12 / TOTAL;
+    let s, e;
+    if (mode === "month") {
+      s = monthToPct(wKeys[0]);
+      e = monthToPct(wKeys[wKeys.length - 1]);
+    } else {
+      const startIdx = YEAR_KEYS.indexOf(wKeys[0]);
+      const endIdx = YEAR_KEYS.indexOf(wKeys[wKeys.length - 1]);
+      const step =
+        YEAR_KEYS.length > 1 ? (1 - YEAR_DOT_INSET * 2) / (YEAR_KEYS.length - 1) : 0;
+      s = yearIdxPct(startIdx);
+      e = yearIdxPct(endIdx) + step * 0.6;
+    }
     const win = document.getElementById(ids.pointerWindow);
     win.style.left = `${Math.max(0, s * 100)}%`;
     win.style.width = `${Math.min(100, (e - s) * 100)}%`;
@@ -356,16 +450,20 @@ function createTimeline(ids) {
     if (e.target.classList.contains("mt-pm")) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    const totalIdx = Math.round(pct * ALL_KEYS.length);
     if (mode === "month") {
+      const totalIdx = Math.round(pct * ALL_KEYS.length);
       centerIdx = Math.max(0, Math.min(ALL_KEYS.length - 1, totalIdx));
     } else {
+      // 연도 점이 이제 실제 시간 간격이 아니라 일정한 간격(yearIdxPct)으로
+      // 찍히므로, 트랙을 눌렀을 때도 같은 간격 기준으로 가장 가까운 연도를 찾는다.
+      const rawIdx =
+        YEAR_KEYS.length > 1
+          ? ((pct - YEAR_DOT_INSET) / (1 - YEAR_DOT_INSET * 2)) *
+            (YEAR_KEYS.length - 1)
+          : 0;
       centerIdx = Math.max(
         0,
-        Math.min(
-          YEAR_KEYS.length - 1,
-          Math.floor(totalIdx / (ALL_KEYS.length / YEAR_KEYS.length)),
-        ),
+        Math.min(YEAR_KEYS.length - 1, Math.round(rawIdx)),
       );
     }
     updatePointerCursor();
@@ -391,10 +489,9 @@ function createTimeline(ids) {
 
     buildPointer();
     render();
-    renderYearStrip();
-    // 페이지를 처음 열었을 때(아직 아무 기간도 클릭 안 한 상태)도 오른쪽 키워드
-    // 창이 비어있지 않도록, 가장 최근 달을 기본 기간으로 알려준다.
-    notifyPeriod(ALL_KEYS[ALL_KEYS.length - 1]);
+    // 가장 최근 달을 기본으로 고정 — 요약/주요 연락처(왼쪽)와 월별 키워드
+    // (오른쪽) 둘 다 처음부터 채워져 보이도록 한다.
+    pinDefaultLast();
     return true;
   }
 
@@ -427,6 +524,16 @@ function createKeywordPanel(ids, api) {
   const bodyEl = () => document.getElementById(ids.body);
   const hintEl = () => document.getElementById(ids.hint);
   const backBtnEl = () => document.getElementById(ids.backBtn);
+  const titleEl = () => (ids.title ? document.getElementById(ids.title) : null);
+
+  // "월별 키워드"라는 고정 문구 대신, 지금 왼쪽에서 선택된 기간에 맞춰
+  // "2026년 08월 키워드" / "2026년 키워드"처럼 제목을 매번 바꿔준다.
+  function updateTitle(mode, key) {
+    const el = titleEl();
+    if (!el || !key) return;
+    el.textContent =
+      mode === "year" ? `${key}년 키워드` : `${key.slice(0, 4)}년 ${key.slice(5)}월 키워드`;
+  }
 
   function daysInMonth(key) {
     const [y, m] = key.split("-").map(Number);
@@ -446,6 +553,7 @@ function createKeywordPanel(ids, api) {
     currentYear = null;
     currentKeyword = null;
     if (backBtnEl()) backBtnEl().style.display = "none";
+    if (titleEl()) titleEl().textContent = "키워드";
 
     if (!idValue) {
       renderEmpty("연결된 계정이 없습니다.");
@@ -580,7 +688,23 @@ function createKeywordPanel(ids, api) {
     const max = Math.max(1, ...counts.map((c) => c.count));
 
     const wrap = document.createElement("div");
-    wrap.innerHTML = `<div class="mt-kw-daily-title">"${escHtml(word)}" 일별 언급 횟수 — ${escHtml(monthKey)}</div>`;
+    wrap.className = "mt-kw-daily-box";
+    // 막대그래프 색(주황 그라데이션)과 같은 색 스와치를 제목 앞에 붙여서, 이
+    // 색의 막대그래프가 이 키워드를 나타낸다는 걸 바로 알 수 있게 함 —
+    // 제목+그래프+날짜줄 전체를 하나의 박스(.mt-kw-daily-box)로 감싸서
+    // 시각적으로 분리했다.
+    wrap.innerHTML = `<div class="mt-kw-daily-title"><span class="mt-kw-daily-swatch"></span>"${escHtml(word)}" 일별 언급 횟수 — ${escHtml(monthKey)}</div>`;
+
+    // Y축 — 그 달의 실제 최댓값(max)에 맞춰 0 / max÷2 / max 눈금을 매번 다시
+    // 계산해서 넣는다("데이터 표본에 따라 Y축이 자체적으로 조정"). 이게 없으면
+    // 하루이틀만 값이 있고 나머지가 전부 0인 달에서는 막대가 얼마나 되는지
+    // 기준을 알 수 없어 거의 안 보이는 것처럼 느껴졌다.
+    const chartWrap = document.createElement("div");
+    chartWrap.className = "mt-kw-daily-chart-wrap";
+    const yAxis = document.createElement("div");
+    yAxis.className = "mt-kw-daily-y";
+    yAxis.innerHTML = `<span>${max.toLocaleString()}</span><span>${Math.round(max / 2).toLocaleString()}</span><span>0</span>`;
+
     const chart = document.createElement("div");
     chart.className = "mt-kw-daily-chart";
     const daysRow = document.createElement("div");
@@ -592,9 +716,11 @@ function createKeywordPanel(ids, api) {
       bar.title = `${c.date}: ${c.count}건`;
       const fill = document.createElement("div");
       fill.className = "mt-kw-daily-bar-fill";
+      // 값이 있는 막대는 최소 8%는 확보해서(예전엔 4%라 값이 작을 때 거의
+      // 안 보였음) 눈에 띄게 함 — 실제 값은 Y축과 title(hover)로 확인 가능.
       fill.style.height =
         c.count > 0
-          ? Math.max(4, Math.round((c.count / max) * 100)) + "%"
+          ? Math.max(8, Math.round((c.count / max) * 100)) + "%"
           : "1px";
       bar.appendChild(fill);
 
@@ -612,7 +738,9 @@ function createKeywordPanel(ids, api) {
       daysRow.appendChild(dayLbl);
     });
 
-    wrap.appendChild(chart);
+    chartWrap.appendChild(yAxis);
+    chartWrap.appendChild(chart);
+    wrap.appendChild(chartWrap);
     wrap.appendChild(daysRow);
     bodyEl().innerHTML = "";
     bodyEl().appendChild(wrap);
@@ -672,6 +800,7 @@ function createKeywordPanel(ids, api) {
       currentMonthKey = key;
       currentYear = null;
     }
+    updateTitle(mode, key);
     renderList();
   }
 
@@ -684,7 +813,7 @@ function createKeywordPanel(ids, api) {
 
 /* ══════════════════════ 메일 뷰 ══════════════════════ */
 const mailKwPanel = createKeywordPanel(
-  { body: "mtKwBody", hint: "mtKwHint", backBtn: "mtKwBackBtn" },
+  { body: "mtKwBody", hint: "mtKwHint", backBtn: "mtKwBackBtn", title: "mtKwTitle" },
   {
     monthlyUrl: "/mail-keyword-monthly-stats",
     dailyUrl: "/mail-keyword-daily-stats",
@@ -793,7 +922,7 @@ userIdPromise.then((gmailId) => initMail(gmailId || ""));
 
 /* ══════════════════════ 메신저 뷰 ══════════════════════ */
 const msgKwPanel = createKeywordPanel(
-  { body: "msgKwBody", hint: "msgKwHint", backBtn: "msgKwBackBtn" },
+  { body: "msgKwBody", hint: "msgKwHint", backBtn: "msgKwBackBtn", title: "msgKwTitle" },
   {
     monthlyUrl: "/chatroom-keyword-monthly-stats",
     dailyUrl: "/chatroom-keyword-daily-stats",
@@ -896,44 +1025,19 @@ async function loadMtMessengerData() {
   }
 }
 
-/* ── 메일 / 메신저 채널 토글 ── */
-const mtMailBtn = document.getElementById("mt-mail-btn");
-const mtMessengerBtn = document.getElementById("mt-messenger-btn");
+/* ── 메일 / 메신저 채널 전환 ──
+   예전엔 페이지에 있는 메일/메신저 버튼을 눌러야 전환됐는데, 이제 계정·방
+   선택은 사이드바가 전담하므로 버튼은 없앴다 — 사이드바에서 메일 계정을
+   고르면 자동으로 이 뷰가 뜨고, 메신저 방을 고르면 저 뷰가 뜬다(아래
+   DOMContentLoaded의 initGlobalFilter 콜백에서 setMtChannel을 직접 호출). */
 const mtMailView = document.getElementById("mt-mail-view");
 const mtMessengerView = document.getElementById("mt-messenger-view");
-const accountPickerMount = document.getElementById("account-picker-mount");
-const chatroomPickerMount = document.getElementById("chatroom-picker-mount");
 let mtMessengerLoaded = false;
 let mtActiveChannel = "mail";
 
 function setMtChannel(channel) {
   mtActiveChannel = channel;
   const isMail = channel === "mail";
-  mtMailBtn.classList.toggle("active", isMail);
-  mtMessengerBtn.classList.toggle("active", !isMail);
   mtMailView.style.display = isMail ? "" : "none";
   mtMessengerView.style.display = isMail ? "none" : "";
-  accountPickerMount.style.display = isMail ? "" : "none";
-  chatroomPickerMount.style.display = isMail ? "none" : "";
 }
-
-mtMailBtn.addEventListener("click", () => setMtChannel("mail"));
-mtMessengerBtn.addEventListener("click", async () => {
-  setMtChannel("messenger");
-  if (!mtMessengerLoaded) {
-    mtMessengerLoaded = true;
-    await loadMtMessengerData();
-  }
-});
-
-/* ── 상단 월별/연별 토글 ── */
-document.querySelectorAll(".mt-mode-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document
-      .querySelectorAll(".mt-mode-btn")
-      .forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    const timeline = mtActiveChannel === "mail" ? mailTimeline : msgTimeline;
-    timeline.setMode(btn.dataset.mode);
-  });
-});

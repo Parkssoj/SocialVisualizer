@@ -124,6 +124,8 @@ class UserPaths:
         self.MESSAGE_KEYWORDS_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_keyword_stats.json")
         self.MESSAGE_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_summaries.json")
         self.MESSAGE_MOOD_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_mood.json")
+        self.MESSAGE_AVATARS_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_avatars.json")
+        self.MESSAGE_AVATAR_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "chatroom_avatars")
         self.UPDATE_DIR = os.path.join(self.GRAPHRAG_ROOT, "update_output")
         self.MAX_MAILS = _MAX_MAILS_CONFIG.get(user_id, None)
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
