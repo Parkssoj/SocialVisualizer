@@ -2,18 +2,21 @@
 // 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업(floatingSearch.js).
 // 색감은 search.scss(실제 검색 페이지)와 동일하게: 흰 바탕 + 주황 포인트 + 그레이/검정.
 
+// 요청 — 헤더 밑에 따로 떠 있던 버튼을, 헤더(.top_nav, top:0 / min-height:70px)
+// 안쪽 맨 오른쪽에 들어가 있는 것처럼 보이도록 위치/크기를 맞춤(세로 중앙
+// 정렬: (70-44)/2 = 13px).
 .gwfs-btn {
   position: fixed;
   right: 28px;
-  top: 76px; // 헤더(60px) 밑에 여유를 둬서 우측 상단에 뜨도록
+  top: 13px;
   z-index: 2147483000; // 페이지 어떤 요소보다도 위에 항상 떠 있어야 함
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 50%;
   background: linear-gradient(150deg, #fb923c, #f97316);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,7 +46,7 @@
 .gwfs-panel {
   position: fixed;
   right: 28px;
-  top: 146px; // 버튼(top:76px, 58px 높이) 바로 아래로 열리도록
+  top: 69px; // 버튼(top:13px, 44px 높이) 바로 아래로 열리도록
   z-index: 2147482999;
   width: min(630px, calc(100vw - 40px));
   max-height: min(760px, calc(100vh - 100px));
@@ -383,14 +386,14 @@
 @media (max-width: 520px) {
   .gwfs-btn {
     right: 18px;
-    top: 70px;
-    width: 52px;
-    height: 52px;
+    top: 13px;
+    width: 40px;
+    height: 40px;
   }
   .gwfs-panel {
     right: 12px;
     left: 12px;
-    top: 136px;
+    top: 65px;
     width: auto;
   }
 }

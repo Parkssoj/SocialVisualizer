@@ -1,10 +1,19 @@
 // imap-collect.html 전용 스타일 (메신저 드롭존 원복 및 대화방/모드 가로 1줄 배치 버전)
 
-/* ── 페이지 전체를 위로 강하게 끌어올림 ── */
+/* ── 페이지 콘텐츠가 항상 화면 맨 위에 붙어있어서(요청 3번째) 화면이 큰 경우
+   아래쪽에 빈 공간이 크게 남던 문제 — 고정 위쪽 여백(margin-top)으로 밀어
+   붙이는 대신, 헤더 밑 남은 세로 공간(100vh - 헤더 여백) 안에서 콘텐츠가
+   반응형으로 세로 중앙에 오도록 함. 콘텐츠가 화면보다 크면 자연스럽게
+   위에서부터 채워지고 스크롤된다(창/패널 크기 자체는 그대로 유지). */
 .page-imap-collect {
   .right_col {
-    margin-top: 90px !important;
-    padding-top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 90px !important;
+    box-sizing: border-box;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .gw-collect-wrap {
@@ -161,6 +170,21 @@
   gap: 12px;
 }
 
+// 요청 — "메일 주소"(카드1)와 "수집 개수"(카드2)가 한 줄에, "앱 비밀번호"와
+// "모드"가 그다음 한 줄에 오도록. 두 카드 위에 오는 섹션(프리셋 칩 vs 불러온
+// 폴더 목록)의 높이가 서로 달라서 그 아래 필드 줄이 어긋나 있었다 — 임의로
+// 높이를 맞추는 대신, 두 카드를 감싸는 그리드에 subgrid로 행을 공유시켜서
+// 내용이 얼마든 항상 정확히 맞도록 함(.gw-collect-cards-column에서 이어짐).
+#imap-server-grid,
+#imap-collect-grid {
+  display: contents;
+}
+#imap-server-grid > .gw-form-group:first-child,
+#imap-collect-grid > .gw-form-group:first-child {
+  // display:contents가 되면서 없어진 원래 grid gap(12px)을 대신 채움
+  margin-bottom: 12px;
+}
+
 /* 💡 메신저 탭 안의 '대화방 이름'과 '모드'만 가로 1줄(2열)로 배치 */
 #tab-panel-message .gw-form-grid {
   grid-template-columns: 1fr 1fr !important;
@@ -257,6 +281,12 @@
   flex-wrap: wrap;
   gap: 10px;
   max-height: 180px;
+  // 옵션 카드의 "수집 개수/모드" 줄이 메일 계정 로그인 카드의 "메일 주소/앱
+  // 비밀번호" 줄과 같은 높이에서 시작하도록(요청) — 폴더를 아직 안 불러온
+  // 빈 상태에서는 안내문구 한 줄뿐이라 그 위 프리셋(Gmail/NAVER 등) 칩
+  // 영역보다 훨씬 짧았던 것을 최소 높이로 보정.
+  min-height: 64px;
+  align-content: flex-start;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
@@ -585,9 +615,12 @@
   gap: 48px !important;
   align-items: start !important;
   position: relative !important;
-  // 위쪽 페이지 헤더에서 좀 더 떨어지도록(요청) — 아래 카드 쪽 여백은 반대로
-  // .gw-split-header-left/right의 margin-bottom을 줄여서 붙였다.
-  margin-top: 26px !important;
+  // 요청: "1 데이터 수집"/메일·메신저 버튼/"2 분석 데이터 만들기" 줄을 카드
+  // 쪽으로 더 내려서 붙이되, 카드(창) 자체는 그대로 있어야 함 — 그래서 이
+  // margin-top을 늘린 만큼(6px) 바로 아래 .gw-split-header-*의 margin-bottom을
+  // 똑같이 줄여서, 카드가 시작하는 절대 위치는 그대로 유지한 채 그 줄 텍스트만
+  // 카드 쪽으로 내려오게 만들었다.
+  margin-top: 32px !important;
 }
 
 /* 구분선 위치 계산: grid-template-columns가 6fr 4fr에 gap 48px이면 실제 트랙
@@ -623,8 +656,9 @@
   gap: 14px !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
-  // 아래 카드들과 더 달라붙도록 줄임(예전 12px)
-  margin-bottom: 6px !important;
+  // 카드와 더 달라붙도록 줄임(예전 6px) — 위 .gw-split-grid-wrapper의
+  // margin-top을 늘린 만큼만 줄여서 카드 위치 자체는 그대로 유지
+  margin-bottom: 0 !important;
   grid-column: 1 !important;
   height: 40px !important;
 }
@@ -635,8 +669,11 @@
   justify-content: flex-start !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
-  margin-top: 15px !important; /* 분석 데이터 만들기 하향 조절 유지 */
-  margin-bottom: 6px !important;
+  // "1 데이터 수집"/메일·메신저 버튼과 "2 분석 데이터 만들기"가 가운데선에
+  // 딱 맞도록(요청) — 왼쪽 헤더에는 없는 margin-top이 오른쪽에만 있어서
+  // 오른쪽 줄이 15px 아래로 처져 있던 것을 제거해 두 헤더를 같은 높이로 맞춤
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   grid-column: 2 !important;
   height: 40px !important;
 }
@@ -703,21 +740,39 @@
   flex: 1 !important;
 }
 
+// 요청 — 카드1(메일 계정 로그인)의 "메일 주소/앱 비밀번호"와 카드2(옵션)의
+// "수집 개수/모드"가 같은 줄에 오도록, 두 카드가 행(row)을 공유하는
+// subgrid를 사용. 행 구성: 1=카드 제목, 2=프리셋 칩/불러온 폴더 영역,
+// 3=첫 필드 줄(메일 주소·수집 개수), 4=둘째 필드 줄(앱 비밀번호·모드),
+// 5=카드1에만 있는 "폴더 불러오기" 버튼 줄(카드2는 이 행에 내용 없음 — 비어있어도 무방).
 .gw-collect-cards-column {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
-  gap: 16px !important;
+  grid-template-rows: auto auto auto auto auto;
+  column-gap: 16px !important;
+  row-gap: 0 !important;
+  align-items: start;
+}
+
+.gw-collect-cards-column .gw-card {
+  margin-bottom: 0 !important;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / span 5;
 }
 
 @media (max-width: 1200px) {
   .gw-collect-cards-column {
     grid-template-columns: 1fr !important;
+    grid-template-rows: none;
   }
-}
-
-.gw-collect-cards-column .gw-card {
-  margin-bottom: 0 !important;
-  height: 100% !important;
+  // 한 칸으로 쌓이는 좁은 화면에서는 두 카드가 같은 행 트랙을 공유하면
+  // 겹쳐버리므로, subgrid를 끄고 원래 방식(카드 내부에서 알아서 쌓임)으로 되돌림.
+  .gw-collect-cards-column .gw-card {
+    display: block;
+    grid-template-rows: none;
+    grid-row: auto;
+  }
 }
 
 @keyframes spin {

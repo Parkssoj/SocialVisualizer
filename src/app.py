@@ -532,6 +532,16 @@ def upload():
             shutil.rmtree(paths.ATTACHMENT_DIR)
             print(f"[CLEAN] attachment 폴더 초기화 완료: {paths.ATTACHMENT_DIR}")
 
+        # [추가] lancedb 벡터 인덱스 삭제 — 이전 인덱싱 때 쓴 임베딩 모델과 차원이 다르면
+        # (예: OpenAI text-embedding-3-small 1536차원 → bge-m3 1024차원) lancedb가
+        # "Vector has dimension X, but index configured with vector_size Y" 에러로 깨짐.
+        # rewrite는 어차피 전체 재인덱싱이므로 매번 새로 만들게 지운다.
+        if RAG_ENGINE == "graphrag":
+            lancedb_dir = os.path.join(paths.GRAPHRAG_ROOT, "output", "lancedb")
+            if os.path.exists(lancedb_dir):
+                shutil.rmtree(lancedb_dir)
+                print(f"[CLEAN] lancedb 벡터 인덱스 초기화 완료: {lancedb_dir}")
+
         # [추가] 인덱스 준비 여부 판단 기준 파일 삭제 → 첨부파일 트리거가 인덱스 없음으로
         # 판단해 거절됨. rewrite 완료 전에 첨부파일이 먼저 처리되는 문제 방지.
         # _index_ready()가 보는 파일이 엔진마다 다르므로(GraphRAG: output/stats.json,

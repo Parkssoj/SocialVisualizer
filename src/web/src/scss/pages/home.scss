@@ -331,11 +331,13 @@ html {
   flex-direction: row !important;
   align-items: center !important; /* ⭐ 좌/우 수직 가운데 맞춰 내림 ⭐ */
   justify-content: space-between !important;
-  gap: 48px !important;
-  max-width: 1320px !important;
+  gap: 40px !important;
+  // 오른쪽 미리보기 카드를 더 키우면서도 전체가 화면에 들어오도록 컨테이너 자체를 넓힘
+  max-width: 1480px !important;
   margin: 0 auto !important;
   min-height: calc(100vh - 80px); /* 화면 전체에 대해 가운데 위치 조율 */
-  padding: 80px 40px 60px !important; /* ⭐ 상단 패딩을 늘려 아래로 내림 ⭐ */
+  // 왼쪽 문구를 더 왼쪽으로 보내달라는 요청 — 왼쪽 여백만 줄여서 문구 블록 전체를 왼쪽으로 당김
+  padding: 80px 40px 60px 20px !important;
   box-sizing: border-box !important;
 }
 
@@ -385,8 +387,9 @@ html {
 .gw-orbit-left {
   position: relative;
   z-index: 4;
-  flex: 1 1 48% !important;
-  max-width: 640px;
+  flex: 1 1 44% !important;
+  // 한 줄로 표시되는 설명 문구를 넉넉히 담을 수 있도록 폭을 넓힘
+  max-width: 720px;
   text-align: left !important;
   display: flex !important;
   flex-direction: column !important;
@@ -418,8 +421,9 @@ html {
     sans-serif;
   font-style: normal;
   font-weight: 800 !important;
-  font-size: clamp(3rem, 4.8vw, 4.8rem) !important; /* 메인 타이틀 크기 확장 */
-  line-height: 1.18 !important;
+  // "Social Visualizer"를 좀 더 크게 키워달라는 요청 — clamp 상/하한을 함께 올림
+  font-size: clamp(3.4rem, 5.6vw, 5.6rem) !important; /* 메인 타이틀 크기 확장 */
+  line-height: 1.15 !important;
   letter-spacing: -0.02em;
   color: #262626;
   text-align: left !important;
@@ -435,10 +439,10 @@ html {
   filter: url(#glow-4);
 }
 
-/* ⭐ 2. 서브 문구 정확히 2줄 고정 ⭐ */
+/* ⭐ 2. 서브 문구 한 줄 고정(요청) ⭐ */
 .gw-hero-desc {
   margin: 0 0 32px !important;
-  max-width: 580px !important; /* 2줄 고정 폭 조율 */
+  max-width: none !important; /* 한 줄로 이어지도록 폭 제한을 없앰 */
   font-family:
     "Geist",
     "Inter",
@@ -449,7 +453,7 @@ html {
   line-height: 1.65;
   color: #555555;
   text-align: left !important;
-  white-space: pre-line !important; /* 줄바꿈 정확히 2줄 반영 */
+  white-space: nowrap !important; /* 항상 한 줄로 표시 */
 }
 
 .gw-hero-cta {
@@ -509,7 +513,7 @@ html {
 .gw-hero-previews {
   position: relative;
   z-index: 4;
-  flex: 1 1 48% !important;
+  flex: 1 1 56% !important;
   display: flex !important;
   flex-direction: column !important; /* 세로 1줄 고정 */
   align-items: flex-end !important; /* 오른쪽 수평 정렬 */
@@ -519,10 +523,11 @@ html {
   width: 100% !important;
 }
 
+/* 오른쪽 두 미리보기 카드를 더 크게 키워달라는 요청 — max-width를 500px→660px로 확장 */
 .gw-preview-card {
   display: block;
   width: 100% !important;
-  max-width: 500px !important;
+  max-width: 660px !important;
   aspect-ratio: 1600 / 1020;
   border-radius: 16px;
   overflow: hidden;
@@ -537,7 +542,7 @@ html {
 .gw-preview-card--static {
   aspect-ratio: 1903 / 927;
   width: 100% !important;
-  max-width: 500px !important;
+  max-width: 660px !important;
 }
 
 .gw-preview-card:hover {
@@ -646,6 +651,11 @@ html {
   .gw-hero-desc,
   .gw-hero-eyebrow {
     text-align: center !important;
+  }
+  .gw-hero-desc {
+    // 좁은 화면에서는 한 줄 고정을 풀어 잘리지 않고 자연스럽게 줄바꿈되게 함
+    white-space: normal !important;
+    max-width: 100% !important;
   }
   .gw-hero-cta {
     justify-content: center !important;

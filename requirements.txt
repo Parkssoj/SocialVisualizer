@@ -146,6 +146,7 @@ pytz==2026.1.post1
 PyYAML==6.0.3
 referencing==0.37.0
 regex==2026.2.28
+rembg==2.0.69
 requests==2.32.5
 rich==13.9.4
 rpds-py==2026.6.3

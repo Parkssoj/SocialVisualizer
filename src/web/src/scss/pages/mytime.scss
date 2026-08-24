@@ -1,26 +1,54 @@
 // mytime.html 전용 스타일 (기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외)
 
+// 요청 — "My People" 문구가 있는 위치만큼 정확하게 "My Time" 문구도 올리고,
+// 그 아래 창들도 같이 올리면서 전체 페이지 스크롤 없이 창(패널) 안쪽
+// 스크롤로만 움직이도록 함. My People(.mp-page)이 이미 이 방식으로 되어있어서
+// 그 패턴을 그대로 가져온다 — body/html을 hidden으로 막고, .right_col과
+// .mt-page를 position:fixed로 화면에 고정한 뒤, 그 안을 flex column으로 쌓아서
+// 남는 세로 공간을 .mt-view가 flex:1로 차지하게 하고, 실제 스크롤은 안쪽의
+// .mt-panel / .mt-kw-body가 각자 담당한다.
+body,
+html {
+  overflow: hidden;
+}
+
 .right_col {
+  position: fixed !important;
+  top: 74px !important; // 공용 헤더 바로 아래(My People과 동일)
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   background: #ffffff;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
 footer {
   display: none !important;
 }
 
+.right_col > div:first-child {
+  padding-top: 0;
+}
+
 /* ── 페이지 ── */
 .mt-page {
-  // 예전엔 88vw(뷰포트 기준)라서 왼쪽 사이드바가 .right_col을 밀어내도 이 폭 자체는
-  // 꿈쩍 안 하고 그대로라 사이드바가 열리면 오히려 화면 밖으로 살짝 밀려나갔음.
-  // 92%(부모 .right_col 기준)로 바꿔서 사이드바가 열리고 닫힐 때 이 폭도 같이
-  // 줄었다 늘었다 하도록 함.
-  width: 94%;
-  // 아바타/사진 칸을 없애고 요약·키워드 두 창을 5:5로 넓게 쓰게 되면서, 페이지
-  // 자체도 가로로 좀 더 길어지도록 상한을 늘림.
-  max-width: 1900px;
-  margin: 0 auto;
-  padding: 12px clamp(20px, 3vw, 56px) 32px;
+  position: fixed !important;
+  top: 74px !important; // My People(.mp-page)과 정확히 같은 위치
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: auto;
+  max-width: none;
+  margin: 0 !important;
+  // position:fixed라서 부모(.right_col)의 margin-left는 안 먹는다 — My People과
+  // 마찬가지로 좌측 패딩에 직접 --gw-sidebar-w를 더해서 사이드바 폭만큼 밀어냄.
+  padding: 0 clamp(20px, 3vw, 56px) 24px calc(clamp(20px, 3vw, 56px) + var(--gw-sidebar-w, 0px)) !important;
   box-sizing: border-box;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 페이지 상단 헤더: My Time 로고(+메일/메신저 버튼) + 월별/연별 토글 (좌우 컬럼 밖, 전체 폭) */
@@ -28,7 +56,9 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  flex-shrink: 0;
+  padding-top: 12px;
+  margin-bottom: 14px;
 }
 /* 제목 + 메일/메신저 버튼 그룹 */
 .mt-title-group {
@@ -63,6 +93,17 @@ footer {
 }
 .mt-title span {
   color: #f97316;
+}
+/* My People에서 제목 옆에 사람 명수를 보여주는 .mp-count와 동일한 뱃지 —
+   여기서는 "2020.11 ~ 2026.08 데이터" 같은 전체 기간 문구를 보여준다. */
+.mt-count {
+  font-size: clamp(0.6rem, 1.2vw, 0.72rem);
+  color: #fb923c;
+  font-weight: 700;
+  background: rgba(251, 146, 60, 0.12);
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
 }
 .mt-mode-toggle {
   display: flex;
@@ -139,15 +180,34 @@ footer {
   grid-template-columns: 1fr 1fr;
   gap: clamp(16px, 2.4vw, 32px);
   align-items: stretch;
+  // .mt-view가 flex:1로 확보한 남는 세로 공간을 이 그리드가 그대로 이어받아서
+  // .mt-main / .mt-kw-panel의 실제 높이를 정해준다 — 이게 있어야 안쪽의
+  // .mt-panel(absolute+inset:0), .mt-kw-body(overflow-y:auto)가 스크롤할
+  // 기준 높이를 가진다.
+  flex: 1;
+  min-height: 0;
 }
 @media (max-width: 820px) {
+  // 좁은 화면에서는 두 창이 세로로 쌓이는데, grid는 auto 행 높이라 flex:1인
+  // 카드 내용이 찌그러질 수 있음 — 그리드 대신 세로 flex로 바꾸고, 이 영역
+  // 자체가 하나의 내부 스크롤 컨테이너가 되게 해서 "전체 페이지 스크롤 없이
+  // 창 스크롤로만" 조건을 좁은 화면에서도 그대로 지킨다.
   .mt-two-col {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    overflow-y: auto;
+  }
+  .mt-main,
+  .mt-kw-panel {
+    flex: 0 0 auto;
+    min-height: 340px;
   }
 }
 
 .mt-col-main {
   min-width: 0;
+  min-height: 0;
   // .mt-two-col의 align-items: stretch는 grid item인 .mt-col-main 자체를 행
   // 높이만큼 늘려줄 뿐, 그 안의 실제 카드(.mt-main)는 평범한 자식 div라 자동으로
   // 같이 안 늘어난다 — display: flex + .mt-main에 flex: 1을 줘서 항상 꽉 채운다.
@@ -165,8 +225,13 @@ footer {
   padding: clamp(20px, 2.6vw, 34px) clamp(20px, 3vw, 40px) clamp(18px, 2.4vw, 30px);
   display: flex;
   flex-direction: column;
-  min-height: clamp(320px, 58vh, 600px); /* 화면 높이에 따라 반응형으로 조절 */
-  // .mt-col-main이 grid stretch로 늘어난 만큼 이 카드가 그 부모를 꽉 채우도록 함.
+  // 예전엔 min-height를 화면 높이(vh) 기준으로 직접 잡아서 페이지가 그만큼
+  // 세로로 길어지고, 뷰포트가 작으면 창이 잘리거나 전체 페이지가 스크롤됐음.
+  // 이제 .mt-page ~ .mt-two-col이 전부 flex:1로 남는 높이를 정확히 계산해
+  // 내려주므로, 여기는 그 높이를 그대로 받기만 하면 된다(min-height: 0으로
+  // flex item이 내용만큼 넘치지 않고 딱 그 높이에서 잘리도록 — 실제 스크롤은
+  // 안쪽 .mt-panel이 담당).
+  min-height: 0;
   flex: 1;
 }
 
@@ -364,12 +429,11 @@ footer {
     transform 0.15s;
 }
 .mt-panel-contact:hover {
-  /* 예전엔 테두리 색만 살짝 바뀌어서 잘 안 보였음 — 배경 자체를 진한
-     주황으로 채워서 눈에 확 띄게 함 */
-  background: #f97316;
-  border-color: #f97316;
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+  // 요청 — 기존 진한 주황(#f97316)이 너무 찐해서 더 연하게.
+  background: #fdd9b8;
+  border-color: #fdba74;
+  color: #7a3a0a;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.2);
   transform: translateY(-1px);
 }
 
@@ -384,6 +448,7 @@ footer {
   box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
   padding: clamp(12px, 1.5vw, 16px) clamp(20px, 3vw, 40px) clamp(10px, 1.3vw, 14px);
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 /* 날짜 범위 표시 — 트랙 위 가운데 한 줄 */
 .mt-pointer-dates {
@@ -468,44 +533,58 @@ footer {
   align-items: center;
   justify-content: center;
 }
+// 요청 — 연도 점을 월별 타임슬라이더의 .mt-dot과 비슷한 디자인(크기·테두리·
+// 그림자)으로 맞춤. 기존엔 7px로 너무 작았음.
 .mt-pm {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 7px;
-  height: 7px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #4a4a4a;
+  background: rgba(74, 74, 74, 0.6);
+  border: 2px solid #fffefc;
+  box-shadow: 0 0 0 1.5px #4a4a4a;
   z-index: 2;
   cursor: pointer;
   transition:
     transform 0.12s,
-    background 0.12s;
+    background 0.12s,
+    box-shadow 0.12s;
 }
 .mt-pm:hover {
-  transform: translate(-50%, -50%) scale(1.8);
+  transform: translate(-50%, -50%) scale(1.3);
   background: #f97316;
+  box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.28);
 }
 /* 연도가 하나뿐이면 선택할 다른 연도가 없으니, 그 하나의 점을 처음부터
    "선택된" 상태로 고정해서 보여준다. */
 .mt-pm.is-only {
   background: #f97316;
-  transform: translate(-50%, -50%) scale(1.6);
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.22);
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.28);
 }
 .mt-pm.is-only:hover {
-  transform: translate(-50%, -50%) scale(1.8);
+  transform: translate(-50%, -50%) scale(1.4);
+}
+// 요청 — 지금 선택된 연도의 점도 월별 타임슬라이더의 pinned 도트처럼
+// 주황색으로 눈에 띄게 커지도록.
+.mt-pm.selected {
+  background: #f97316;
+  box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.28);
+  transform: translate(-50%, -50%) scale(1.4);
 }
 // 선택된 연도 점 위에 화살표(작은 삼각형) 표시 — 요청대로 지금 어느 연도가
-// 선택돼 있는지 한눈에 보이도록.
+// 선택돼 있는지 한눈에 보이도록. 점이 커진 만큼 화살표도 같이 키움(기존엔
+// 너무 작았음).
 .mt-pm.selected::before {
   content: "";
   position: absolute;
   left: 50%;
   bottom: 100%;
   transform: translateX(-50%);
-  margin-bottom: 4px;
-  border-width: 0 5px 6px 5px;
+  margin-bottom: 6px;
+  border-width: 0 8px 9px 8px;
   border-style: solid;
   border-color: transparent transparent #f97316 transparent;
 }
@@ -536,9 +615,16 @@ footer {
   white-space: nowrap;
 }
 
-/* ── 메일/메신저 뷰 전환 ── */
+/* ── 메일/메신저 뷰 전환 ──
+   두 뷰(메일/메신저)는 mytime.js가 inline style.display로 하나만 보여준다.
+   보이는 쪽이 .mt-page의 남는 세로 공간(flex:1)을 전부 차지하고, 그 공간을
+   다시 .mt-pointer-wrap(고정 높이) + .mt-two-col(나머지 전부)로 나눠준다. */
 .mt-view {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 /* My People .mp-panel과 동일한 카드 스타일(배경/테두리/모서리) */
 .mt-card {
@@ -566,8 +652,11 @@ footer {
   padding: clamp(20px, 2.8vw, 36px) clamp(22px, 3vw, 40px) clamp(18px, 2.6vw, 32px);
   display: flex;
   flex-direction: column;
-  // .mt-main과 같은 min-height를 써서 왼쪽 창과 눈높이가 맞도록.
-  min-height: clamp(320px, 58vh, 600px);
+  // .mt-main과 마찬가지로 화면 높이(vh) 기준 min-height 대신 부모(.mt-col-main과
+  // grid stretch로 같은 행에 있는 .mt-two-col)가 내려주는 높이를 flex:1로 그대로
+  // 받는다 — 창이 잘리지 않으면서도 왼쪽 창과 항상 같은 높이를 유지.
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
 }
 .mt-kw-header {
@@ -697,10 +786,32 @@ footer {
   background: linear-gradient(180deg, #fdba74, #f97316);
   box-shadow: 0 1px 4px rgba(249, 115, 22, 0.4);
 }
+// 요청 — Y축/X축이 각각 뭘 나타내는지 표시.
+.mt-kw-daily-y-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(48, 37, 34, 0.5);
+  margin-bottom: 4px;
+}
+.mt-kw-daily-x-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(48, 37, 34, 0.5);
+  text-align: center;
+  margin-top: 8px;
+}
+.mt-kw-daily-empty {
+  font-size: 0.9rem;
+  color: rgba(48, 37, 34, 0.5);
+  text-align: center;
+  padding: 24px 0;
+  margin: 0;
+}
 .mt-kw-daily-chart-wrap {
   display: flex;
   align-items: stretch;
   gap: 10px;
+  min-width: 0;
 }
 /* Y축 — 그 달의 실제 최댓값(max)에 맞춰 0 / max÷2 / max를 매번 다시 계산해서
    넣는다(mytime.js). 값이 작은 달에서도 막대가 어느 정도 크기인지 기준이
@@ -717,12 +828,23 @@ footer {
   font-weight: 700;
   color: rgba(48, 37, 34, 0.42);
 }
+// 요청 — 막대 수가 적을 때 억지로 늘어나지 않도록, 막대/간격을 고정폭으로
+// 맞추고 이 영역 안에서만(Y축은 고정) 필요할 때 가로 스크롤되게 함.
+.mt-kw-daily-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+}
 .mt-kw-daily-chart {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
+  gap: 14px;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
   // 예전엔 부모 체인의 flex 계산에 기대는 높이(flex:1 + min-height:100%)라
   // 어떤 상황에선 실제로 늘어나지 않아 막대가 거의 안 보였다 — 뷰포트 기준
   // 확실한 높이를 직접 주는 걸로 바꿔서 항상 넉넉한 높이를 보장한다.
@@ -731,8 +853,8 @@ footer {
   border-bottom: 1.5px solid #e0e0e0;
 }
 .mt-kw-daily-bar {
-  flex: 1;
-  min-width: 5px;
+  flex: 0 0 32px;
+  width: 32px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -758,13 +880,18 @@ footer {
 }
 .mt-kw-daily-days {
   display: flex;
-  gap: 3px;
+  // 막대(.mt-kw-daily-chart)와 같은 간격/폭이어야 날짜 숫자가 그 막대 밑에
+  // 정확히 맞춰 보인다.
+  gap: 14px;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
   margin-top: 6px;
   flex-shrink: 0;
 }
 .mt-kw-daily-day {
-  flex: 1;
-  min-width: 5px;
+  flex: 0 0 32px;
+  width: 32px;
   text-align: center;
   font-size: 1rem;
   color: rgba(48, 37, 34, 0.5);
@@ -792,6 +919,16 @@ footer {
 }
 .mt-tooltip.show {
   opacity: 1;
+}
+// 요청 — 주요 연락처 hover 설명 창을, 그 연락처 카드가 hover 시 변하는
+// 연한 주황(.mt-panel-contact:hover)과 같은 톤으로.
+.mt-tooltip.mt-tooltip-contact {
+  background: #fdf3e7;
+  border-color: #fdba74;
+  color: #7a3a0a;
+}
+.mt-tooltip.mt-tooltip-contact .mt-tooltip-row + .mt-tooltip-row {
+  border-top-color: rgba(122, 58, 10, 0.16);
 }
 .mt-tooltip-row {
   display: flex;

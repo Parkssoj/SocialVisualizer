@@ -39,7 +39,9 @@ footer {
   top: 74px !important; // 공용 헤더 바로 아래(73px)에 거의 붙임 — 창 위치는 이 값 유지
   left: 0 !important;
   right: 0 !important;
-  bottom: 100px !important;
+  // 요청 — 메인 그리드 패널 높이를 아래쪽(타임슬라이더 쪽)에서 살짝 줄여서, 패널과
+  // 타임슬라이더 사이에 약간의 여유 칸을 만듦(너무 넓히지는 않음).
+  bottom: 118px !important;
   // position:fixed라서 부모(.right_col)의 margin-left는 이 요소에 영향을 못 줌 —
   // 그래서 좌측 패딩에 직접 --gw-sidebar-w를 더해서 사이드바 폭만큼 콘텐츠를 밀어냄.
   // (사이드바 없는 페이지에선 변수 기본값이 0px라 기존 90px 그대로 유지됨)
@@ -207,7 +209,9 @@ footer {
 .mp-header-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  // 요청 — 광고제거 버튼과 정렬 드롭다운이 너무 붙어있어서 간격을 띄움
+  // (광고제거를 왼쪽으로 더 밀어낸 효과).
+  gap: 20px;
   align-self: flex-end; // 제목(더 큰 폰트)과 같은 줄에서 버튼들을 줄 맨 아래로 붙여서 바로 아래 패널과 가깝게
 }
 /* accountPicker.js가 자체 <style>로 주입하는 .gw-account-picker(font-size:
@@ -243,9 +247,10 @@ footer {
   background: rgba(255, 255, 255, 0.8);
   border: none;
   border-radius: 10px;
-  padding: 6px 16px;
+  // 요청 — 광고제거 토글 버튼(메일/메신저 공통)을 살짝 더 키움.
+  padding: 8px 18px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 600;
   color: #3f302a;
   backdrop-filter: blur(8px);
@@ -279,9 +284,10 @@ footer {
   background: rgba(255, 255, 255, 0.8);
   border: none;
   border-radius: 10px;
-  padding: 6px 16px;
+  // 요청 — 정렬 토글을 광고제거 버튼(.mp-brand-filter-btn)만큼 키움.
+  padding: 8px 18px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 600;
   color: #3f302a;
   backdrop-filter: blur(8px);
@@ -328,7 +334,8 @@ footer {
 }
 .mp-dropdown-item {
   padding: 9px 16px;
-  font-size: clamp(0.68rem, 1.9cqw, 0.84rem);
+  // 요청 — 토글(.mp-dropdown-btn) 글씨 크기(1rem)만큼 드롭다운 메뉴 글씨도 키움.
+  font-size: 1rem;
   font-weight: 500;
   color: #3f302a;
   cursor: pointer;
@@ -380,7 +387,8 @@ footer {
   // 자체는 요청대로 원래 모습(가로선) 그대로 유지 — 가운데 텍스트만 뺌.
   display: flex;
   align-items: center;
-  margin: 4px 0;
+  // 요청 — 등급별 줄(밴드)끼리 너무 붙어있어서 간격을 띄움.
+  margin: 18px 0;
   height: 1px;
   background: rgba(48, 37, 34, 0.14);
 }
@@ -408,7 +416,9 @@ footer {
   font-size: 1rem;
   font-weight: 700;
   color: #6a6a6a;
-  background: rgba(106, 106, 106, 0.1);
+  // 요청 — 라벨 배경을 반투명 회색이 아니라 그 줄(밴드)과 완전히 같은
+  // 불투명 배경색으로 맞춤(--band-bg는 .mp-band-cards가 정의한 값을 그대로 상속)
+  background: var(--band-bg, #f4f4f5);
   padding: 2px 10px;
   border-radius: 20px;
   white-space: nowrap;
@@ -753,7 +763,8 @@ footer {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 .mp-messenger-room-name {
-  font-size: 0.9rem;
+  // 요청 — 뒤로가기 버튼을 없애서 이제 맨 왼쪽에 오는 방 이름 글씨가 너무 작아서 키움.
+  font-size: 1.2rem;
   font-weight: 700;
   color: #4a4a4a;
 }
@@ -764,7 +775,8 @@ footer {
   align-items: center;
   gap: 5px;
   margin-left: 4px;
-  font-size: 0.8rem;
+  // 요청 — 방 이름과 같이 상단 줄 글씨가 전반적으로 작아서 같이 키움.
+  font-size: 1.05rem;
   font-weight: 600;
   color: #7a5a3a;
   background: rgba(251, 191, 120, 0.22);
@@ -773,7 +785,7 @@ footer {
   white-space: nowrap;
 }
 .mp-room-mood-emoji {
-  font-size: 0.95rem;
+  font-size: 1.2rem;
   line-height: 1;
 }
 
@@ -883,6 +895,12 @@ footer {
     0 10px 36px rgba(0, 0, 0, 0.14),
     0 0 0 4px rgba(255, 255, 255, 0.9);
   overflow: hidden;
+}
+// 요청 — "나" 아바타 크기가 상대방 아바타(링이 꺼지면서 커진
+// .mp-detail-avatar-ring.mp-ring-off 쪽 clamp)보다 작아 보이던 것을 맞춤.
+.mp-detail-avatar-self {
+  width: clamp(64px, calc(100cqh - 22px), 168px);
+  height: clamp(64px, calc(100cqh - 22px), 168px);
 }
 /* 브랜드 로고 이미지는 원본에 여백이 많아 확대해서 원을 꽉 채움 */
 .mp-avatar img.mp-brand-logo,
@@ -1028,60 +1046,39 @@ footer {
     rgba(28, 28, 30, 0.03)
   );
 }
-// 관계 라벨(친구/가족 등)과 친밀도 등급 라벨을 세로로 쌓아 보여주는 래퍼 —
-// 링(핑크 게이지)이 없어진 자리에 등급 표현을 효율적으로 배치하기 위함
-.mp-detail-relation-labels {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
+// 요청 — 선 위에는 관계 라벨, 선 밑에는 친밀도 등급 설명이 오도록 배치.
+// 부모 .mp-detail-relation이 align-items:center라 그냥 두면 세로 중앙
+// (=선과 같은 높이)에 겹치므로, 각각 absolute로 빼서 선 중앙(top:50%) 기준
+// 위/아래로 오프셋.
 .mp-detail-relation-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 1rem;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-100% - 6px));
+  z-index: 2;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #1c1c1e;
-  background: #fff;
-  border: 1.5px solid rgba(28, 28, 30, 0.14);
-  padding: clamp(4px, calc((100cqh - 42px) * 0.06), 7px)
-    clamp(8px, calc((100cqh - 42px) * 0.14), 16px);
-  border-radius: 999px;
-  box-shadow: 0 4px 12px rgba(28, 28, 30, 0.08);
   white-space: nowrap;
 }
 .mp-detail-relation-label:empty {
   display: none;
 }
-.mp-detail-relation-label i {
-  color: #8a8378;
-  font-size: 0.85em;
-}
 // 링(핑크 원형 게이지)을 없앤 대신, 친밀도 등급(아주 친밀한 관계 등)을
-// 관계 라벨 바로 밑에 작은 배지로 효율적으로 표시 — 조잡해 보이지 않도록
-// 관계 라벨과 같은 파일(흰 배경 + 얇은 테두리) 톤으로 통일하되 살짝 더 작게.
+// 선 밑에 순수 텍스트로 표시.
 .mp-detail-affinity-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.86rem;
-  font-weight: 700;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, 14px);
+  z-index: 2;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #6e6e73;
-  background: #f4f4f5;
-  border: 1px solid rgba(28, 28, 30, 0.1);
-  padding: 3px 12px;
-  border-radius: 999px;
   white-space: nowrap;
 }
 .mp-detail-affinity-label:empty {
   display: none;
-}
-.mp-detail-affinity-label i {
-  color: #b0392f;
-  font-size: 0.85em;
 }
 .mp-detail-name {
   font-size: clamp(0.85rem, calc((100cqh - 42px) * 0.24), 2.1rem);
@@ -1258,8 +1255,9 @@ footer {
    2~3열을 오가도록 반응형 처리(카드 최소폭 150px). */
 .mp-relation-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  // 요청 — 표(참여 패턴 행 추가)가 들어가면서 카드가 넓어져야 해서 최소폭을 키움.
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
   width: 100%;
 }
 .mp-relation-card {
@@ -1267,20 +1265,20 @@ footer {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  padding: 18px 12px;
+  gap: 10px;
+  padding: 20px 16px;
   background: #fff;
   border: 1px solid rgba(28, 28, 30, 0.1);
   border-radius: 16px;
 }
 .mp-relation-card-avatar {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: #6e6e73;
   background: linear-gradient(150deg, #e0e0e0, #c5c5c5);
@@ -1288,7 +1286,7 @@ footer {
   flex-shrink: 0;
 }
 .mp-relation-card-name {
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: #1c1c1e;
   white-space: nowrap;
@@ -1296,19 +1294,39 @@ footer {
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.mp-relation-card-label {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: #6e6e73;
-  background: #f4f4f5;
-  border-radius: 999px;
-  padding: 3px 12px;
+// 요청 — 관계/참여 패턴을 새 박스 없이 기존 카드 안에서 표처럼 2열로,
+// 선을 그어 구분. 요소가 작았던 것도 키움.
+.mp-relation-card-table {
+  width: 100%;
+  border-top: 1px solid rgba(28, 28, 30, 0.12);
+}
+.mp-relation-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  border-bottom: 1px solid rgba(28, 28, 30, 0.12);
+}
+.mp-relation-card-row + .mp-relation-card-row {
+  border-top: none;
+}
+.mp-relation-card-cell {
+  padding: 8px 10px;
+  font-size: 0.98rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
-.mp-relation-card-label-empty {
+.mp-relation-card-cell-key {
+  font-weight: 700;
+  color: #6e6e73;
+  text-align: left;
+  border-right: 1px solid rgba(28, 28, 30, 0.12);
+}
+.mp-relation-card-cell-val {
+  font-weight: 600;
+  color: #1c1c1e;
+  text-align: right;
+}
+.mp-relation-card-cell-empty {
   color: #b0b0b0;
   font-style: italic;
 }
@@ -1349,6 +1367,15 @@ footer {
   padding: 2px 8px;
   border-radius: 20px;
   letter-spacing: 0;
+}
+
+// 요청 — Y축이 뭘 나타내는지 표시.
+.mp-vchart-y-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #9a8e7f;
+  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 /* 세로 막대그래프 (이메일 교환) */
@@ -1453,6 +1480,14 @@ footer {
   color: #8a8073;
   white-space: nowrap;
   font-weight: 700;
+}
+// 요청 — 매번 "2020년 11월"처럼 표시하니 자리를 많이 차지해서 "11월"만
+// 남기되, 연도가 바뀌는 첫 달에는 이 작은 연도 표시를 위에 같이 달아줌.
+.mp-vchart-year {
+  font-size: 0.68rem;
+  color: #b0a89c;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* 이메일 목록 카드 (막대 클릭 시 오른쪽에 열리는 서랍) */
@@ -1659,11 +1694,8 @@ footer {
   justify-content: center;
   gap: 8px 12px;
   padding: 14px 10px;
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.85) 0%,
-    rgba(242, 238, 255, 0.5) 100%
-  );
+  // 요청 — 그라데이션 대신 아주 연한 보라색 단색으로.
+  background: #f5f2fc;
   border: none;
   border-radius: 14px;
   box-shadow:
@@ -1718,7 +1750,8 @@ footer {
       ════════════════════════════════════ */
 .mp-timeline {
   position: fixed;
-  bottom: 12px;
+  // 요청 — 타임슬라이더를 살짝 더 위로 올려서 잘 보이도록.
+  bottom: 20px;
   // .mp-page와 마찬가지로 position:fixed라서 부모의 margin/padding이 안 먹는다 —
   // 사이드바가 열리고 닫힐 때 이 슬라이더도 같이 줄었다 늘었다 하도록 왼쪽에
   // --gw-sidebar-w를 더함(사이드바 없는 페이지/닫힘 상태는 변수가 0이라 기존과 동일).
@@ -1745,17 +1778,17 @@ footer {
 }
 .mp-tl-date-label {
   /* 상단 mp-channel-btn/mp-brand-filter-btn/mp-dropdown-btn과 동일한 1rem */
+  // 요청 — 스크린샷에 보이던 둥근 배지(배경색 박스)를 없애고, 슬라이더 양 끝에
+  // 그냥 검정 글씨로만 날짜가 보이도록 함.
   font-size: 1rem;
   font-weight: 700;
-  color: #7a470f;
-  background: #f7eee6;
-  padding: 3px 10px;
-  border-radius: 20px;
   letter-spacing: 0.02em;
+  color: #000;
 }
 .mp-tl-selected {
   font-size: 1rem;
-  color: #9c6c4a;
+  // 요청 — 타임슬라이더 쪽 날짜 글씨는 전부 검정색으로.
+  color: #000;
   font-weight: 500;
   text-align: center;
   flex: 1;
@@ -1860,7 +1893,8 @@ footer {
 }
 .mp-tl-tick-lbl {
   font-size: 1rem;
-  color: #88634a;
+  // 요청 — 타임슬라이더 쪽 날짜 글씨는 전부 검정색으로.
+  color: #000;
   font-weight: 600;
   white-space: nowrap;
 }

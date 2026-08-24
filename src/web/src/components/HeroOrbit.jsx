@@ -210,9 +210,8 @@ export default function HeroOrbit() {
           className="gw-hero-desc gw-anim"
           style={{ transitionDelay: "0.15s" }}
         >
-          Social Visualizer는 메일, 메신저를 연결하여
-          <br></br>
-          당신의 인간관계와 삶의 흐름을 시각화합니다.
+          Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의
+          흐름을 시각화합니다.
         </p>
         <div
           className="gw-hero-cta gw-anim"

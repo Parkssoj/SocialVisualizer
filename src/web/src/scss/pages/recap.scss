@@ -297,10 +297,12 @@
   height: 10px;
   overflow: hidden;
 }
+// 요청 — 4~10등(랭크 클래스 없는 기본값)은 그냥 회색으로. 원래 3등이 이미
+// 회색 계열이라 겹치므로, 3등 색은 연한 갈색으로 바꿔서 구분되게 함.
 .rc-bar-fill {
   height: 100%;
   border-radius: 20px;
-  background: linear-gradient(90deg, #f97316, #c2410c);
+  background: linear-gradient(90deg, #c8c8c8, #a7a7a7);
   width: 0;
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -311,7 +313,7 @@
   background: linear-gradient(90deg, #a5b4fc, #818cf8);
 }
 .rc-bar-fill.rank3 {
-  background: linear-gradient(90deg, #c8c8c8, #a7a7a7);
+  background: linear-gradient(90deg, #d2b48c, #b5895f);
 }
 .rc-bar-count {
   font-size: 0.85rem;

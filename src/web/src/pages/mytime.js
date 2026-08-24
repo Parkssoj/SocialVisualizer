@@ -101,6 +101,9 @@ function showTooltip(anchorEl, html, placement = "top") {
   const rect = anchorEl.getBoundingClientRect();
   const left = Math.max(8, Math.min(window.innerWidth - 280, rect.left));
   t.style.left = `${left}px`;
+  // 요청 — 주요 연락처(placement="bottom")에 뜨는 설명 창을, 그 연락처
+  // 요소가 hover 시 변하는 주황색과 맞추되 더 연하게(mt-tooltip-contact).
+  t.classList.toggle("mt-tooltip-contact", placement === "bottom");
   if (placement === "bottom") {
     // 주요 연락처 카드용 — 위가 아니라 카드 밑으로 상세 설명 창이 뜨도록
     t.style.top = `${rect.bottom + 8}px`;
@@ -126,9 +129,14 @@ function createTimeline(ids) {
   let mode = "month";
   let centerIdx = 2;
   let pinnedKey = null;
-  // 상단 타임슬라이더 — 월별 모드일 때 한 화면에 12개(1년치)를 보여줘서 "달"을
-  // 나타내는 슬라이더가 되도록 함(예전엔 8개 슬라이딩 윈도우).
-  const WIN = { month: 12, year: 5 };
+  // 제목 옆 뱃지("2020.11 ~ 2026.08 데이터")로 옮겨진 전체 기간 텍스트 —
+  // buildPointer()에서 계산해두고, 지금 보고 있는 채널(메일/메신저)일 때만
+  // 공용 뱃지(#mtDataRangeLbl)에 반영한다(updateSharedRangeBadge 참고).
+  let fullRangeText = "";
+  // 상단 타임슬라이더 — 연도별 모드는 한 화면에 5개씩 슬라이딩 윈도우로 보여줌.
+  // 월별 모드는 슬라이딩 윈도우가 아니라 "지금 선택된 연도에 속한 달"만
+  // 모아서 보여준다(getWindowKeys 참고) — 그래서 여기엔 year 값만 남는다.
+  const WIN = { year: 5 };
 
   function monthToNum(k) {
     const [y, m] = k.split("-").map(Number);
@@ -143,9 +151,12 @@ function createTimeline(ids) {
   // 연도 점(.mt-pm)을 실제 달력상의 시간 간격에 비례해서 찍으면(yearToPct),
   // 데이터가 몰려있을 때 첫 연도가 트랙 맨 끝(0%)에 붙어 원이 잘려 보이는
   // 문제가 있었다 — 요청대로 실제 시간 간격 대신 "연도 하나당 일정한 간격"으로
-  // 고정하고, 양 끝에 여백(INSET)을 둬서 원이 잘리지 않게 한다. 연도 수가
-  // 적으면(=데이터가 적으면) 그만큼 점들 사이 간격도 자연스럽게 좁아진다.
-  const YEAR_DOT_INSET = 0.07;
+  // 고정한다. 연도 수가 적으면(=데이터가 적으면) 그만큼 점들 사이 간격도
+  // 자연스럽게 좁아진다.
+  // 요청 — 트랙 양 끝에 따로 숫자 라벨을 두는 대신, 맨 처음/맨 끝 연도의 점
+  // 버튼 자체가 트랙의 양 끝(0%/100%)에 오도록 인셋을 없앰(트랙 좌우
+  // 패딩이 이미 있어서 원이 잘리지 않는다).
+  const YEAR_DOT_INSET = 0;
   function yearIdxPct(i) {
     if (YEAR_KEYS.length <= 1) return 0.5;
     const clamped = Math.max(0, Math.min(YEAR_KEYS.length - 1, i));
@@ -155,12 +166,21 @@ function createTimeline(ids) {
     );
   }
   function getWindowKeys() {
-    const keys = mode === "month" ? ALL_KEYS : YEAR_KEYS;
-    const win = WIN[mode];
+    if (mode === "month") {
+      // 요청 — 예전엔 centerIdx를 중심으로 한 12개짜리 슬라이딩 윈도우라,
+      // 연도 경계에 걸치면 다른 연도의 달이 섞여 보였다(예: 2026년을
+      // 선택했는데 2020년 12월이 같이 뜸). 지금 선택된(centerIdx가 속한)
+      // 연도에 속한 달만 모아서 보여주도록 바꿈 — 다른 연도 달은 절대 안 섞임.
+      const k = ALL_KEYS[Math.max(0, Math.min(ALL_KEYS.length - 1, centerIdx))];
+      if (!k) return [];
+      const year = k.split("-")[0];
+      return ALL_KEYS.filter((mk) => mk.split("-")[0] === year);
+    }
+    const win = WIN.year;
     let start = Math.max(0, centerIdx - Math.floor(win / 2));
-    start = Math.min(start, keys.length - win);
+    start = Math.min(start, YEAR_KEYS.length - win);
     start = Math.max(0, start);
-    return keys.slice(start, start + win);
+    return YEAR_KEYS.slice(start, start + win);
   }
 
   function render() {
@@ -339,15 +359,18 @@ function createTimeline(ids) {
       pointerTrack.insertBefore(pm, document.getElementById(ids.pointerWindow));
     });
 
-    // 시작~끝 날짜를 양 끝에 따로 두지 않고 한 줄로 합쳐서 트랙 위 가운데에 표시.
+    // 요청 — "2020.11 ~ 2026.08 데이터" 문구는 이제 트랙 위가 아니라 제목
+    // ("My Time") 옆 뱃지로 옮겨간다. 여기 있던 트랙 위 자리에는 대신
+    // "선택된 연도는 2026년도 입니다" 같은, 지금 선택 상태를 보여주는 문구를
+    // 띄운다(updateYearDotSelection에서 매번 갱신).
     const fmtYm = (k) => `${k.slice(0, 4)}.${k.slice(5)}`;
-    const rangeLbl = document.getElementById(ids.rangeLbl);
-    if (rangeLbl) {
-      rangeLbl.textContent =
-        ALL_KEYS.length > 1
-          ? `${fmtYm(ALL_KEYS[0])} ~ ${fmtYm(ALL_KEYS[ALL_KEYS.length - 1])} 데이터`
-          : `${fmtYm(ALL_KEYS[0])} 데이터`;
-    }
+    fullRangeText =
+      ALL_KEYS.length > 1
+        ? `${fmtYm(ALL_KEYS[0])} ~ ${fmtYm(ALL_KEYS[ALL_KEYS.length - 1])} 데이터`
+        : ALL_KEYS.length
+          ? `${fmtYm(ALL_KEYS[0])} 데이터`
+          : "";
+    if (ids.channel === mtActiveChannel) updateSharedRangeBadge(fullRangeText);
 
     const axis = document.getElementById(ids.pointerAxis);
     axis.innerHTML = "";
@@ -412,15 +435,30 @@ function createTimeline(ids) {
     track.querySelectorAll(".mt-pm").forEach((el) => {
       el.classList.toggle("selected", !!selectedYear && el.dataset.year === selectedYear);
     });
+
+    const rangeLbl = document.getElementById(ids.rangeLbl);
+    if (rangeLbl) {
+      rangeLbl.textContent = selectedYear
+        ? `선택된 연도는 ${selectedYear}년도 입니다`
+        : "—";
+    }
   }
 
   function updatePointerCursor() {
     const keys = mode === "month" ? ALL_KEYS : YEAR_KEYS;
     const k = keys[Math.max(0, Math.min(keys.length - 1, centerIdx))];
-    const pct =
-      mode === "month"
-        ? monthToPct(k) * 100
-        : yearIdxPct(YEAR_KEYS.indexOf(k)) * 100;
+    // 요청 — "나" 아바타가 연도 점(.mt-pm)과 다른 좌표계(monthToPct = 실제 시간
+    // 비례)를 쓰고 있어서 월별 모드에서 해당 연도 점 위치와 어긋나 보이던 문제.
+    // 연도 점은 yearIdxPct(균등 간격)로 찍히므로, 월별 모드에서도 지금 보고 있는
+    // 달이 속한 연도의 점과 정확히 같은 좌표(yearIdxPct)를 쓰도록 맞춘다.
+    let pct;
+    if (mode === "month") {
+      const y = k.split("-")[0];
+      const yIdx = YEAR_KEYS.indexOf(y);
+      pct = (yIdx === -1 ? monthToPct(k) : yearIdxPct(yIdx)) * 100;
+    } else {
+      pct = yearIdxPct(YEAR_KEYS.indexOf(k)) * 100;
+    }
     document.getElementById(ids.pointerCursor).style.left =
       Math.max(0, Math.min(100, pct)) + "%";
     updateYearDotSelection();
@@ -504,7 +542,7 @@ function createTimeline(ids) {
     notifyPeriod(keys[Math.max(0, Math.min(keys.length - 1, centerIdx))]);
   }
 
-  return { setData, setMode };
+  return { setData, setMode, getRangeText: () => fullRangeText };
 }
 
 /* ── 오른쪽 "월별 키워드" 창 컨트롤러 ──
@@ -679,12 +717,15 @@ function createKeywordPanel(ids, api) {
     if (view !== "daily" || currentKeyword !== word || !bodyEl()) return;
 
     const total = daysInMonth(monthKey);
-    const counts = [];
+    const allCounts = [];
     for (let d = 1; d <= total; d++) {
       const dateKey = `${monthKey}-${String(d).padStart(2, "0")}`;
       const found = (dayData[dateKey] || []).find((x) => x.word === word);
-      counts.push({ date: dateKey, day: d, count: found ? found.count : 0 });
+      allCounts.push({ date: dateKey, day: d, count: found ? found.count : 0 });
     }
+    // 요청 — x축에 그 달의 모든 날짜가 다 나와서 너무 빽빽했던 걸, 실제로
+    // 이 키워드가 언급된 날짜만 표시하도록 필터링.
+    const counts = allCounts.filter((c) => c.count > 0);
     const max = Math.max(1, ...counts.map((c) => c.count));
 
     const wrap = document.createElement("div");
@@ -695,16 +736,33 @@ function createKeywordPanel(ids, api) {
     // 시각적으로 분리했다.
     wrap.innerHTML = `<div class="mt-kw-daily-title"><span class="mt-kw-daily-swatch"></span>"${escHtml(word)}" 일별 언급 횟수 — ${escHtml(monthKey)}</div>`;
 
+    if (!counts.length) {
+      wrap.innerHTML += `<p class="mt-kw-daily-empty">이 달에는 "${escHtml(word)}"가 언급된 날짜가 없습니다.</p>`;
+      bodyEl().innerHTML = "";
+      bodyEl().appendChild(wrap);
+      return;
+    }
+
     // Y축 — 그 달의 실제 최댓값(max)에 맞춰 0 / max÷2 / max 눈금을 매번 다시
     // 계산해서 넣는다("데이터 표본에 따라 Y축이 자체적으로 조정"). 이게 없으면
     // 하루이틀만 값이 있고 나머지가 전부 0인 달에서는 막대가 얼마나 되는지
     // 기준을 알 수 없어 거의 안 보이는 것처럼 느껴졌다.
+    // 요청 — X축/Y축이 각각 무엇을 나타내는지 라벨을 붙임.
     const chartWrap = document.createElement("div");
     chartWrap.className = "mt-kw-daily-chart-wrap";
     const yAxis = document.createElement("div");
     yAxis.className = "mt-kw-daily-y";
     yAxis.innerHTML = `<span>${max.toLocaleString()}</span><span>${Math.round(max / 2).toLocaleString()}</span><span>0</span>`;
+    const yAxisTitle = document.createElement("div");
+    yAxisTitle.className = "mt-kw-daily-y-title";
+    yAxisTitle.textContent = "언급 횟수";
 
+    // 요청 — 막대 수가 적을 때 flex:1로 다 늘어나 막대가 너무 굵고 간격만
+    // 벌어져 보이던 문제. 막대 폭/간격을 고정값으로 맞추고, 막대 수가 많아
+    // 고정 폭 합이 넘칠 때만 이 스크롤 영역 안에서 가로 스크롤되게 한다
+    // (Y축은 스크롤 밖에 고정).
+    const scrollArea = document.createElement("div");
+    scrollArea.className = "mt-kw-daily-scroll";
     const chart = document.createElement("div");
     chart.className = "mt-kw-daily-chart";
     const daysRow = document.createElement("div");
@@ -738,10 +796,16 @@ function createKeywordPanel(ids, api) {
       daysRow.appendChild(dayLbl);
     });
 
+    scrollArea.appendChild(chart);
+    scrollArea.appendChild(daysRow);
     chartWrap.appendChild(yAxis);
-    chartWrap.appendChild(chart);
+    chartWrap.appendChild(scrollArea);
+    wrap.appendChild(yAxisTitle);
     wrap.appendChild(chartWrap);
-    wrap.appendChild(daysRow);
+    const xAxisTitle = document.createElement("div");
+    xAxisTitle.className = "mt-kw-daily-x-title";
+    xAxisTitle.textContent = "날짜(언급 있는 날만 표시)";
+    wrap.appendChild(xAxisTitle);
     bodyEl().innerHTML = "";
     bodyEl().appendChild(wrap);
   }
@@ -856,6 +920,7 @@ const mailTimeline = createTimeline({
   pointerCursor: "pointerCursor",
   pointerAxis: "pointerAxis",
   rangeLbl: "mtPointerRangeLbl",
+  channel: "mail",
   onPeriod: (mode, key) => mailKwPanel.setPeriod(mode, key),
   contactLookup: mailContactLookup,
 });
@@ -964,6 +1029,7 @@ const msgTimeline = createTimeline({
   pointerCursor: "msgPointerCursor",
   pointerAxis: "msgPointerAxis",
   rangeLbl: "msgPointerRangeLbl",
+  channel: "messenger",
   onPeriod: (mode, key) => msgKwPanel.setPeriod(mode, key),
   contactLookup: msgContactLookup,
 });
@@ -1035,9 +1101,19 @@ const mtMessengerView = document.getElementById("mt-messenger-view");
 let mtMessengerLoaded = false;
 let mtActiveChannel = "mail";
 
+// My People 옆 사람 명수 뱃지처럼, My Time 제목 옆에도 전체 기간 뱃지를
+// 하나만 둔다(메일/메신저 뷰가 따로 있어도 제목은 하나뿐이므로). 지금 보고
+// 있는 채널의 타임라인이 갖고 있는 기간 텍스트로 채운다.
+function updateSharedRangeBadge(text) {
+  const el = document.getElementById("mtDataRangeLbl");
+  if (el) el.textContent = text || "";
+}
+
 function setMtChannel(channel) {
   mtActiveChannel = channel;
   const isMail = channel === "mail";
   mtMailView.style.display = isMail ? "" : "none";
   mtMessengerView.style.display = isMail ? "none" : "";
+  const active = isMail ? mailTimeline : msgTimeline;
+  updateSharedRangeBadge(active.getRangeText());
 }

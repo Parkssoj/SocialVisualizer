@@ -190,17 +190,16 @@
                         id="mp-detail-avatar-self"
                       ></div>
                       <div class="mp-detail-relation">
-                        <div class="mp-detail-relation-labels">
-                          <span
-                            class="mp-detail-relation-label"
-                            id="mp-detail-relation-label"
-                          ></span>
-                          <span
-                            class="mp-detail-affinity-label"
-                            id="mp-detail-affinity-label"
-                          ></span>
-                        </div>
+                        <!-- 요청 — 선 위에는 관계, 선 밑에는 친밀도 설명 -->
+                        <span
+                          class="mp-detail-relation-label"
+                          id="mp-detail-relation-label"
+                        ></span>
                         <div class="mp-detail-relation-line"></div>
+                        <span
+                          class="mp-detail-affinity-label"
+                          id="mp-detail-affinity-label"
+                        ></span>
                       </div>
                       <div class="mp-detail-avatar-ring">
                         <svg
@@ -375,7 +374,8 @@
                                 style="
                                   background: none;
                                   border: none;
-                                  border-bottom: 1.5px solid rgba(28, 28, 30, 0.16);
+                                  border-bottom: 1.5px solid
+                                    rgba(28, 28, 30, 0.16);
                                   border-radius: 0;
                                   box-shadow: none;
                                   padding: 0 0 5px;
@@ -410,6 +410,9 @@
                               "
                             ></div>
                           </div>
+                          <!-- 요청 — Y축이 뭘 나타내는지 표시(My Time 일별 키워드
+                               그래프와 같은 방식) -->
+                          <div class="mp-vchart-y-title">건수</div>
                           <div class="mp-vchart-wrap">
                             <div class="mp-vchart-y" id="mp-vchart-y">
                               <span>—</span><span>—</span><span>0</span>

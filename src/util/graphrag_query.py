@@ -485,7 +485,7 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
     )
     return answer, source_ids
 
-# 질의 방법 분류
+# 질의 방법 분류 (RAG 검색 자체가 아닌 보조 작업이라 SUB_TASK_CHAT_MODEL 사용 — lightrag_query.py와 동일 원칙)
 def _classify_query_method(message: str) -> str:
     prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,
                 글로벌 검색(전체 경향·요약·패턴·빈도)에 적합한지 판단하라.
@@ -493,10 +493,13 @@ def _classify_query_method(message: str) -> str:
 
                 질문: {message}"""
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
 
     res = client.chat.completions.create(
-        model=os.getenv("RAG_CHAT_MODEL"),
+        model=os.getenv("SUB_TASK_CHAT_MODEL"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )

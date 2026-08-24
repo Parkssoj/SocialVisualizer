@@ -99,7 +99,10 @@ def _build_raw_text(group):
 
 def _judge_mood_with_llm(text, period_label):
     # 원본 대화 텍스트를 읽고 사적 대화 비율(%)과 설명을 함께 반환 (LLM 호출 1회)
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
     try:
         response = client.chat.completions.create(
             model=os.getenv("SUB_TASK_CHAT_MODEL"),

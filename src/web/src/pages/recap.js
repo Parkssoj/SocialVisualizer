@@ -230,8 +230,9 @@ function renderMailStats(data, field, ids, tag, unit) {
   if (field === "received") {
     const heroSub = document.getElementById("rcHeroSub");
     if (heroSub) {
+      // 요청 — "메일함 통계" → "전체적인 통계를 보여줍니다"로 문구 변경.
       heroSub.textContent =
-        (name !== "-" ? name + "님의 " : "") + "메일함 통계";
+        (name !== "-" ? name + "님의 " : "") + "전체적인 통계를 보여줍니다";
     }
   }
 
