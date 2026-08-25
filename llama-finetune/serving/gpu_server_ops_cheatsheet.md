@@ -4,17 +4,17 @@
 
 | tmux 세션 | 실제 모델 | GPU | 포트 | 용도 |
 |---|---|---|---|---|
-| `mailgrapher-v5-serve` | socialvisualizer-llama-index (merged) | GPU2 | 8002 | 인덱싱용 파인튜닝 모델 서빙 |
+| `socialvisualizer-index-serve` | socialvisualizer-llama-index (merged) | GPU2 | 8002 | 인덱싱용 파인튜닝 모델 서빙 |
 | `vllm-embed` | BAAI/bge-m3 | GPU3 | 8001 | 임베딩 서버 |
 | `vllm-llama` | Qwen2.5-7B-Instruct | GPU3 | 8003 | 서브태스크용 서빙 |
-| `mailgrapher-query-serve` | socialvisualizer-llama-query (merged) | GPU3 | 8004 | 질의(local_search/global_search)용 서빙 |
-| `flux-server` | FLUX.1-schnell | GPU3 | - | 이미지/아바타 생성 |
+| `socialvisualizer-query-serve` | socialvisualizer-llama-query (merged) | GPU3 | 8004 | 질의(local_search/global_search)용 서빙 |
+| `flux-server` | FLUX.1-schnell | GPU3 | 8005 | 이미지/아바타 생성 |
 
 ## 재기동 명령
 
 ```bash
 # index 모델 (GPU2, port 8002)
-tmux new -s mailgrapher-v5-serve
+tmux new -s socialvisualizer-index-serve
 source /workspace/mailgrapher-llama-venv/bin/activate
 CUDA_VISIBLE_DEVICES=2 vllm serve /workspace/models/mailgrapher-llama-v5-merged \
   --served-model-name socialvisualizer-llama-index \
@@ -32,13 +32,13 @@ tmux new -s vllm-llama
 source /workspace/mailgrapher-llama-venv/bin/activate
 CUDA_VISIBLE_DEVICES=3 vllm serve Qwen/Qwen2.5-7B-Instruct --port 8003 --gpu-memory-utilization 0.5
 
-# flux 이미지 생성
+# ── flux 이미지 생성 (port 8005, flux_server.py 안에 하드코딩돼 있어 CLI 인자 없음) ──
 tmux new -s flux-server
 cd /workspace
 CUDA_VISIBLE_DEVICES=3 python flux_server.py
 
-# query 모델 (GPU3, port 8004)
-tmux new -s mailgrapher-query-serve
+# ── query 모델 (GPU3, port 8004) ──
+tmux new -s socialvisualizer-query-serve
 source /workspace/mailgrapher-llama-venv/bin/activate
 CUDA_VISIBLE_DEVICES=3 vllm serve /workspace/models/mailgrapher-llama-query-merged \
   --served-model-name socialvisualizer-llama-query \
