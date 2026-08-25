@@ -3,25 +3,25 @@
 # 메일/메신저 기간별 요약(mail_summaries.json, message_summaries.json)이 생성된 뒤,
 # 각 기간(연/월)의 summary 텍스트를 바탕으로 그 기간의 분위기를 나타내는 "상황 이미지"를
 # 하나씩 생성해 같은 JSON의 각 기간 항목에 image_url로 심어 넣는다.
-# 이미지 생성 로직 자체는 avatar_generator.py와 동일한 방식(OpenAI 이미지 API,
-# IMAGE_GENERATION_MODEL)을 재사용한다.
+# 이미지 생성 로직 자체는 avatar_generator.py와 동일한 방식(GPU 서버의 로컬
+# FLUX.1-schnell 서버, flux_server.py)을 재사용한다 — 배포 파이프라인에서는
+# OpenAI 이미지 API를 쓰지 않는다.
 
 import os
 import json
 import base64
 import hashlib
 import threading
+import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
-
-SUMMARY_IMAGE_MODEL = os.getenv("IMAGE_GENERATION_MODEL")
-SUMMARY_IMAGE_SIZE = "1024x1024"
-SUMMARY_IMAGE_QUALITY = "low"
+IMAGE_API_BASE = os.getenv("IMAGE_API_BASE", "http://localhost:8005")
+SUMMARY_IMAGE_SIZE = 1024
+SUMMARY_IMAGE_STEPS = 4
+SUMMARY_IMAGE_GUIDANCE_SCALE = 0.0
 
 _file_lock = threading.Lock()
 
@@ -49,18 +49,22 @@ Summary of the period (extract concrete activities/objects/settings from this an
 
 
 def generate_summary_image_bytes(summary_text: str, period_label: str) -> bytes:
-    # TEMP: GPT 이미지 생성 임시 비활성화
-    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
-    # result = client.images.generate(
-    #     model=SUMMARY_IMAGE_MODEL,
-    #     prompt=_build_summary_image_prompt(summary_text, period_label),
-    #     size=SUMMARY_IMAGE_SIZE,
-    #     quality=SUMMARY_IMAGE_QUALITY,
-    #     output_format="png",
-    #     n=1,
-    # )
-    # b64 = result.data[0].b64_json
-    # return base64.b64decode(b64)
+    """GPU 서버의 FLUX.1-schnell 서버(flux_server.py)를 호출해 기간 요약 이미지를 생성한다.
+    avatar_generator.py의 generate_avatar_image_bytes와 동일한 호출 방식(POST /generate)."""
+    response = requests.post(
+        f"{IMAGE_API_BASE}/generate",
+        json={
+            "prompt": _build_summary_image_prompt(summary_text, period_label),
+            "steps": SUMMARY_IMAGE_STEPS,
+            "guidance_scale": SUMMARY_IMAGE_GUIDANCE_SCALE,
+            "height": SUMMARY_IMAGE_SIZE,
+            "width": SUMMARY_IMAGE_SIZE,
+        },
+        timeout=240,  # GPU 서버가 동시 요청을 사실상 순차 처리하므로 여유를 둠 (avatar_generator.py와 동일한 이유)
+    )
+    response.raise_for_status()
+    b64 = response.json()["image_base64"]
+    return base64.b64decode(b64)
 
 
 def _generate_images_for_summaries(summaries_path: str, images_dir: str, url_prefix: str, log_tag: str):

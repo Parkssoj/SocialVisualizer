@@ -37,15 +37,63 @@ chatroomIdPromise.then((id) => {
   selectedChatroomId = id || "";
 });
 
-/* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ── */
+/* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ──
+         no-reply@google.com, no-reply@accounts.google.com, google-noreply@google.com 처럼
+         실제로는 서로 다른 발신 주소지만 화면엔 전부 "google"로 표시되는 브랜드/발신전용
+         계정들을, 표시 이름 기준으로 하나의 대표 카드로 합친다. 브랜드가 아닌 일반 계정은
+         원래대로 이메일 단위 그대로 둔다.
+         대표로 뽑히지 않은 나머지 주소들의 대화 내역이 안 보이게 되는 걸 막기 위해, 대표
+         객체에 병합된 이메일 전체 목록(_groupEmails)을 붙여둔다 — 상세보기/통계 조회 시
+         이 배열을 써서 모든 주소의 메일을 합쳐서 보여준다(personEmails() 참고). */
 function groupByEntityName(list) {
   const seen = new Map();
   list.forEach((p) => {
-    const key = (p.email || "").toLowerCase().trim();
-    if (!key) return;
-    if (!seen.has(key)) seen.set(key, p);
+    const email = (p.email || "").toLowerCase().trim();
+    if (!email) return;
+    const key = isBrandSender(p) ? `brand:${resolveDisplayName(p).toLowerCase()}` : email;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, { ...p, _groupEmails: [email] });
+    } else {
+      if (!existing._groupEmails.includes(email)) existing._groupEmails.push(email);
+      if ((p.affinity || 0) > (existing.affinity || 0)) {
+        // 친밀도 더 높은 쪽으로 대표(이름/이메일 등 표시용 필드)를 교체하되, 지금까지
+        // 모아둔 _groupEmails는 유지한다.
+        const groupEmails = existing._groupEmails;
+        seen.set(key, { ...p, _groupEmails: groupEmails });
+      }
+    }
   });
   return [...seen.values()];
+}
+
+/* 카드/상세보기에서 실제로 조회 대상이 될 이메일 목록. 브랜드 통합 카드면 병합된 전체
+     주소를, 아니면 자기 자신의 이메일 하나만 반환한다. */
+function personEmails(person) {
+  if (person && Array.isArray(person._groupEmails) && person._groupEmails.length) {
+    return person._groupEmails;
+  }
+  return person && person.email ? [person.email.toLowerCase()] : [];
+}
+
+/* email → 숫자 맵(sentStatsMap 등)에서, 통합 카드면 병합된 모든 주소의 값을 합산한다. */
+function sumMap(map, person) {
+  return personEmails(person).reduce((s, e) => s + (map[e] || 0), 0);
+}
+
+/* periodStats(email → {sent, received})에서 통합 카드의 전체 주소분을 합산한다. */
+function sumPeriodStats(person) {
+  return personEmails(person).reduce(
+    (acc, e) => {
+      const ps = periodStats[e];
+      if (ps) {
+        acc.sent += ps.sent || 0;
+        acc.received += ps.received || 0;
+      }
+      return acc;
+    },
+    { sent: 0, received: 0 },
+  );
 }
 
 /* ── 이름 길이별 폰트 크기 ── */
@@ -310,6 +358,9 @@ let selMin = 0,
 let fullMin = 0,
   fullMax = 0; // ms (전체 기간, 슬라이더 무관)
 let activeFilter = "all";
+let currentRenderedList = []; // 마지막 renderCards()가 실제로 그린(그룹핑·필터·정렬 끝난) 목록 —
+// 카드 클릭 시 이걸로 찾아야 브랜드 통합 카드의 _groupEmails가 살아있다. allPeople에서
+// 이메일로 다시 찾으면 원본(미병합) 객체가 나와서 병합 정보가 사라진다.
 let periodStats = {}; // email → {sent, received}
 let periodStatsLoaded = false;
 let statsDebounceTimer = null;
@@ -388,7 +439,10 @@ async function fetchReceivedStats() {
 
 async function fetchPeriodStats() {
   const gmailId = (await userIdPromise) || "";
-  if (!gmailId) return;
+  if (!gmailId) {
+    renderCards(); // 계정 정보가 없어도 화면이 "불러오는 중"에 계속 멈춰있지 않게 한다
+    return;
+  }
   const post = (body) => ({
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -428,9 +482,10 @@ async function fetchPeriodStats() {
       Object.keys(newStats).length,
       newStats,
     );
-    renderCards();
   } catch (e) {
     console.error("fetchPeriodStats 오류:", e);
+  } finally {
+    renderCards();
   }
 }
 
@@ -455,6 +510,16 @@ function updateCardBadges() {
 /* ── 카드 렌더링 ── */
 function renderCards() {
   const grid = document.getElementById("mp-grid");
+  // periodStats가 아직 한 번도 로딩되지 않은 시점(페이지 진입 직후, 아바타 생성 배치가
+  // 먼저 끝나서 renderCards가 조기 호출되는 경우 등)에는 필터 안 된 원본 목록을 절대
+  // 그리지 않는다 — 안 그러면 avatarGeneration 등 다른 곳에서 부르는 renderCards() 때문에
+  // 여전히 "많이 떴다가 5개로 줄어드는" 깜빡임이 재현된다.
+  if (!periodStatsLoaded) {
+    if (grid) {
+      grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
+    }
+    return;
+  }
   let list = groupByEntityName(allPeople);
   console.log(
     "[renderCards] loaded:",
@@ -469,8 +534,8 @@ function renderCards() {
   }
   if (periodStatsLoaded) {
     list = list.filter((p) => {
-      const ps = periodStats[(p.email || "").toLowerCase()];
-      return ps && (ps.sent || 0) + (ps.received || 0) > 0;
+      const ps = sumPeriodStats(p);
+      return (ps.sent || 0) + (ps.received || 0) > 0;
     });
   }
   // 정렬
@@ -482,27 +547,21 @@ function renderCards() {
     );
   } else if (sortMode === "total") {
     list.sort((a, b) => {
-      const ea = (a.email || "").toLowerCase(),
-        eb = (b.email || "").toLowerCase();
       return (
-        (sentStatsMap[eb] || 0) +
-        (receivedStatsMap[eb] || 0) -
-        ((sentStatsMap[ea] || 0) + (receivedStatsMap[ea] || 0))
+        sumMap(sentStatsMap, b) +
+        sumMap(receivedStatsMap, b) -
+        (sumMap(sentStatsMap, a) + sumMap(receivedStatsMap, a))
       );
     });
   } else if (sortMode === "sent") {
-    list.sort(
-      (a, b) =>
-        (sentStatsMap[(b.email || "").toLowerCase()] || 0) -
-        (sentStatsMap[(a.email || "").toLowerCase()] || 0),
-    );
+    list.sort((a, b) => sumMap(sentStatsMap, b) - sumMap(sentStatsMap, a));
   } else if (sortMode === "received") {
     list.sort(
-      (a, b) =>
-        (receivedStatsMap[(b.email || "").toLowerCase()] || 0) -
-        (receivedStatsMap[(a.email || "").toLowerCase()] || 0),
+      (a, b) => sumMap(receivedStatsMap, b) - sumMap(receivedStatsMap, a),
     );
   }
+  currentRenderedList = list; // 클릭 시 이 배열로 찾아야 병합된 _groupEmails가 유지된다
+
   const countEl = document.getElementById("mp-count");
   if (countEl) countEl.textContent = list.length ? `${list.length}명` : "";
 
@@ -510,12 +569,17 @@ function renderCards() {
     grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
     return;
   }
+  // incoming(cardHtml 이름 함수화)을 기준으로 채택 — 아래쪽 renderAffinityBands(list, cardHtml) /
+  // list.map((p,i)=>cardHtml(p,i)) 호출부(공통 코드, 충돌 없음)가 이미 이 이름을 전제로 하고 있어
+  // HEAD의 인라인 map 구조를 쓰면 "cardHtml is not defined"로 깨짐.
+  // 다만 통계 조회는 HEAD 쪽의 sumMap/sumPeriodStats(그룹 카드 합산, _groupEmails 대응)로 유지 —
+  // incoming의 직접 조회(periodStats[email] 등)는 브랜드 통합 카드에서 합계가 덜 잡히는 문제가 있음.
   function cardHtml(p, i) {
     const affinity = p.affinity;
     const ac = affinityColor(affinity);
     const cardVars = `--ca-light:${ac.light};--ca-dark:${ac.dark};--ca-shadow:${ac.shadow};--ca-shadow-hover:${ac.shadowHover};`;
     const displayName = resolveDisplayName(p);
-    const ps = periodStats[(p.email || "").toLowerCase()] || {};
+    const ps = sumPeriodStats(p);
     const em = (p.email || "").toLowerCase();
     const total = (ps.sent || 0) + (ps.received || 0);
     const photo = generatedAvatars[em] || contactPhotos[em];
@@ -530,16 +594,16 @@ function renderCards() {
     } else if (sortMode === "name") {
       badge = "";
     } else if (sortMode === "sent") {
-      const cnt = sentStatsMap[em] || 0;
+      const cnt = sumMap(sentStatsMap, p);
       if (cnt > 0)
         badge = `<div class="mp-period-badge sent">보낸 ${cnt}건</div>`;
     } else if (sortMode === "received") {
-      const cnt = receivedStatsMap[em] || 0;
+      const cnt = sumMap(receivedStatsMap, p);
       if (cnt > 0)
         badge = `<div class="mp-period-badge recv">받은 ${cnt}건</div>`;
     } else if (sortMode === "total") {
       const totalCnt =
-        (sentStatsMap[em] || 0) + (receivedStatsMap[em] || 0) || total;
+        sumMap(sentStatsMap, p) + sumMap(receivedStatsMap, p) || total;
       if (totalCnt > 0)
         badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
     }
@@ -869,6 +933,14 @@ function buildTicks(firstMs, lastMs) {
 
 /* ── 데이터 로드 ── */
 async function loadPeople() {
+  // 활동 없는 발신자가 필터링되기 전 "원본" 목록이 잠깐 화면에 나왔다가 사라지는 깜빡임을
+  // 막기 위해, 기간 통계(periodStats)가 아직 없는 첫 렌더에서는 카드 목록 대신 로딩 표시를
+  // 유지한다 — 실제 카드는 아래에서 fetchPeriodStats까지 끝난 뒤 한 번만 그린다.
+  const grid = document.getElementById("mp-grid");
+  if (grid) {
+    grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
+  }
+
   const gmailId = (await userIdPromise) || "";
   const post = (body) => ({
     method: "POST",
@@ -912,7 +984,6 @@ async function loadPeople() {
     console.error("loadPeople 네트워크 오류:", e);
   }
 
-  renderCards();
   initMyAvatar();
 
   if (dateRange) {
@@ -928,6 +999,60 @@ async function loadPeople() {
     };
   }
   initTimeline(mailDateRange.first, mailDateRange.last);
+
+  // 여기서 한 번만 실제 카드를 그린다(fetchPeriodStats 내부에서 성공/실패 어느 쪽이든
+  // renderCards를 호출하므로 그 결과가 화면에 나오는 첫 카드 목록이 된다).
+  await fetchPeriodStats();
+
+  // 아바타 생성은 periodStats까지 반영된 "실제로 화면에 뜨는" 목록(currentRenderedList)이
+  // 확정된 뒤에 시작한다 — person 테이블엔 있지만 실제 메일 교환 기록이 없어 화면에
+  // 절대 안 뜨는 사람까지 이미지 생성 API를 호출하는 낭비를 막기 위함.
+  startAvatarGeneration();
+}
+
+/* ── 실제로 카드에 뜨는(=이 기간에 진짜 메일을 주고받은) 사람에 대해서만 아바타 생성
+         (이미 생성된 사람은 서버에서 캐시로 건너뜀) 실제 기업/브랜드 발신자인지는 서버에서
+         LLM으로 판별해 로고 이미지를, 그 외에는 로컬 FLUX 서버로 일러스트 아바타를 생성한다.
+         person 테이블에는 있지만 mail 테이블상 실제 교환 기록이 없어 카드 목록에서 걸러지는
+         사람까지 생성하면 절대 안 보일 이미지를 의미 없이 계속 만들게 되므로 대상에서 뺀다. ── */
+async function startAvatarGeneration() {
+  if (avatarGenStarted) return;
+  avatarGenStarted = true;
+
+  const gmailId = (await userIdPromise) || "";
+  if (!gmailId) return;
+
+  const seenEmails = new Set();
+  const candidates = [];
+  currentRenderedList.forEach((p) => {
+    const name = resolveDisplayName(p);
+    personEmails(p).forEach((email) => {
+      if (!email || seenEmails.has(email) || generatedAvatars[email]) return;
+      seenEmails.add(email);
+      candidates.push({ email, name });
+    });
+  });
+
+  if (!candidates.length) return;
+
+  const BATCH_SIZE = 6;
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    const batch = candidates.slice(i, i + BATCH_SIZE);
+    try {
+      const res = await fetch("/generate-person-avatars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: gmailId, people: batch }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        Object.assign(generatedAvatars, j.data || {});
+        renderCards();
+      }
+    } catch (e) {
+      console.error("아바타 생성 오류:", e);
+    }
+  }
 }
 
 /* ── 로그인한 사용자 본인 아바타: 페이지 로드 시 1회 생성/캐시해두고,
@@ -1788,19 +1913,40 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   const monthEnd = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
   const gmailId = (await userIdPromise) || "";
 
+  // 브랜드 통합 카드면 병합된 모든 주소에서 각각 메일 목록을 가져와 합친다.
+  const emails = personEmails(person);
+
   try {
-    const res = await fetch("/mail-person-emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: gmailId,
-        person_user_id: person.email,
-        start_date: monthStart,
-        end_date: monthEnd,
-      }),
-    });
+    const results = await Promise.allSettled(
+      emails.map((email) =>
+        fetch("/mail-person-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: gmailId,
+            person_user_id: email,
+            start_date: monthStart,
+            end_date: monthEnd,
+          }),
+        }),
+      ),
+    );
     if (activeDrawerMonth !== month) return; // 그 사이 다른 달을 클릭했으면 이 응답은 버림
-    renderEmailDrawerList(res.ok ? (await res.json()).data || [] : []);
+    const lists = await Promise.all(
+      results.map(async (r) => {
+        if (r.status !== "fulfilled" || !r.value.ok) return [];
+        return (await r.value.json()).data || [];
+      }),
+    );
+    const seenIds = new Set();
+    const merged = [];
+    lists.flat().forEach((e) => {
+      if (e.id && seenIds.has(e.id)) return;
+      if (e.id) seenIds.add(e.id);
+      merged.push(e);
+    });
+    merged.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    renderEmailDrawerList(merged);
   } catch (e) {
     console.error("메일 목록 조회 오류:", e);
     if (activeDrawerMonth === month) renderEmailDrawerList([]);
@@ -2010,6 +2156,42 @@ window.switchDetailTab = switchDetailTab; // HTML의 인라인 onclick에서 호
 window.closeEmailDrawer = closeEmailDrawer; // #mp-echange-back의 인라인 onclick용(기존에 누락돼있던 것)
 window.toggleGraphView = toggleGraphView; // "카드 보기" 버튼의 인라인 onclick용(기존에 누락돼있던 것)
 
+/* 여러 달의 {month, sent, received}를 월 단위로 합산 (브랜드 통합 카드 = 여러 주소 대상) */
+function mergeExchangeStats(list) {
+  const byMonth = new Map();
+  let totalSent = 0,
+    totalReceived = 0;
+  list.forEach((r) => {
+    if (!r) return;
+    (r.monthly || []).forEach((m) => {
+      const cur = byMonth.get(m.month) || { month: m.month, sent: 0, received: 0 };
+      cur.sent += m.sent || 0;
+      cur.received += m.received || 0;
+      byMonth.set(m.month, cur);
+    });
+    totalSent += (r.total && r.total.sent) || 0;
+    totalReceived += (r.total && r.total.received) || 0;
+  });
+  const monthly = [...byMonth.values()].sort((a, b) =>
+    a.month.localeCompare(b.month),
+  );
+  return { monthly, total: { sent: totalSent, received: totalReceived } };
+}
+
+/* 여러 사람의 키워드 리스트를 단어 기준으로 합산 */
+function mergeKeywordLists(lists) {
+  const byWord = new Map();
+  lists.forEach((kws) => {
+    (kws || []).forEach((kw) => {
+      const cur = byWord.get(kw.word) || { word: kw.word, count: 0, dates: [] };
+      cur.count += kw.count || 0;
+      if (kw.dates) cur.dates.push(...kw.dates);
+      byWord.set(kw.word, cur);
+    });
+  });
+  return [...byWord.values()];
+}
+
 async function refreshDetailStats(person) {
   const gmailId = (await userIdPromise) || "";
 
@@ -2018,38 +2200,50 @@ async function refreshDetailStats(person) {
   document.getElementById("mp-detail-wc").innerHTML =
     '<span style="color:#b0b0b0;font-size:1rem;">로딩 중...</span>';
 
-  const dateBody = {
-    user_id: gmailId,
-    person_user_id: person.email,
-    start_date: msToDateStr(selMin),
-    end_date: msToDateStr(selMax),
-  };
   const post = (body) => ({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
-  // 교환통계 + 키워드 동시 fetch
-  const [statsRes, kwRes] = await Promise.allSettled([
-    fetch("/mail-exchange-stats", post(dateBody)),
-    fetch("/keyword-by-person-date", post(dateBody)),
+  // 브랜드 통합 카드(예: google)면 병합된 모든 주소를 각각 조회해서 합산한다 —
+  // 대표 1명 것만 보면 나머지 주소로 온 메일 내역이 통째로 안 보이게 되기 때문.
+  const emails = personEmails(person);
+  const dateBodies = emails.map((email) => ({
+    user_id: gmailId,
+    person_user_id: email,
+    start_date: msToDateStr(selMin),
+    end_date: msToDateStr(selMax),
+  }));
+
+  const [statsResults, kwResults] = await Promise.all([
+    Promise.allSettled(
+      dateBodies.map((b) => fetch("/mail-exchange-stats", post(b))),
+    ),
+    Promise.allSettled(
+      dateBodies.map((b) => fetch("/keyword-by-person-date", post(b))),
+    ),
   ]);
 
   // 교환 그래프
-  let statsData = null;
-  if (statsRes.status === "fulfilled" && statsRes.value.ok) {
-    const j = await statsRes.value.json();
-    statsData = j.data || j;
-  }
-  renderBarChart(statsData);
+  const statsDataList = await Promise.all(
+    statsResults.map(async (r) => {
+      if (r.status !== "fulfilled" || !r.value.ok) return null;
+      const j = await r.value.json();
+      return j.data || j;
+    }),
+  );
+  renderBarChart(mergeExchangeStats(statsDataList));
 
   // 키워드
-  let keywords = [];
-  if (kwRes.status === "fulfilled" && kwRes.value.ok) {
-    const j = await kwRes.value.json();
-    keywords = j.keywords || [];
-  }
+  const kwDataList = await Promise.all(
+    kwResults.map(async (r) => {
+      if (r.status !== "fulfilled" || !r.value.ok) return [];
+      const j = await r.value.json();
+      return j.keywords || [];
+    }),
+  );
+  const keywords = mergeKeywordLists(kwDataList);
   renderWordCloud(keywords.slice(0, 10), "mp-detail-wc");
 }
 
@@ -2125,8 +2319,11 @@ async function openDetail(person, rowIndex) {
     avatarEl.textContent = initials(detailDisplayName);
   }
   document.getElementById("mp-detail-name").textContent = detailDisplayName;
+  const groupEmails = personEmails(person);
   document.getElementById("mp-detail-email").textContent =
-    person.email || "이메일 정보 없음";
+    groupEmails.length > 1
+      ? `${person.email} 외 ${groupEmails.length - 1}개 주소 (통합 표시)`
+      : person.email || "이메일 정보 없음";
 
   switchDetailTab("stats");
 
@@ -2289,7 +2486,9 @@ document.getElementById("mp-grid").addEventListener("click", (e) => {
   const card = e.target.closest(".mp-card");
   if (!card) return;
   const idx = parseInt(card.dataset.idx);
-  const person = allPeople.find((p) => p.email === card.dataset.email);
+  // allPeople(원본, 미병합)이 아니라 실제로 카드가 그려질 때 쓴 currentRenderedList에서
+  // 찾아야 브랜드 통합 카드의 _groupEmails(병합된 주소 목록)가 살아있다.
+  const person = currentRenderedList[idx];
   if (person) openDetail(person, Math.floor(idx / 7));
 });
 
@@ -2492,6 +2691,6 @@ async function toggleGraphView() {
   }
 }
 
-loadPeople().then(() => fetchPeriodStats());
+loadPeople();
 
 setTimeout(_initMiniGraph, 2500);

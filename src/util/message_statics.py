@@ -14,7 +14,10 @@ from util.extract_statics import _run_and_join
 
 load_dotenv("src/parquet/.env")
 
-client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("LLM_API_KEY"),
+    base_url=os.getenv("SUB_TASK_API_BASE") or None,
+)
 
 # build_message_blocks()가 쓰는 대화 내용 줄 포맷과 정확히 대응:
 #   "HH:MM 발신자: 메시지"          -> sender/text

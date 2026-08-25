@@ -573,12 +573,23 @@ def get_date_range_person_stats(user_id, start_date, end_date, sort_by):
         counts = {}
 
         for row in rows:
-            field = row["receiver"] if sort_by == "sent" else row["sender"]
-            for email in email_pattern.findall(field or ""):
-                email = email.lower()
-                if email == user_id.lower():
-                    continue
-                counts[email] = counts.get(email, 0) + 1
+            field = (row["receiver"] if sort_by == "sent" else row["sender"]) or ""
+            found = email_pattern.findall(field)
+            if found:
+                for email in found:
+                    email = email.lower()
+                    if email == user_id.lower():
+                        continue
+                    counts[email] = counts.get(email, 0) + 1
+            else:
+                # 발신/수신 필드가 이메일 형식이 아닌 경우("cgv", "산학교육지원센터"처럼
+                # 파싱 과정에서 이름만 남은 발신자 등). person 테이블(person_mail_account_id)에도
+                # 이런 비-이메일 식별자가 그대로 저장돼 있으므로, 여기서도 같은 방식으로
+                # 정규화해서 집계해야 한다 — 안 그러면 이 사람들은 실제 메일이 있어도 항상
+                # 0건으로 잡혀서 mypeople 목록에서 영구히 걸러진다.
+                ident = field.strip().lower()
+                if ident and ident != user_id.lower():
+                    counts[ident] = counts.get(ident, 0) + 1
 
         result = [
             {"email": email, sort_by: count}

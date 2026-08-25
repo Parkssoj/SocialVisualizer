@@ -351,6 +351,10 @@
             "Omit sections that have no supporting data — do not write empty headers.",
             "Respond in the same language as the user's question.",
             "Korean questions MUST be answered in Korean.",
+            "When answering in Korean, ALWAYS use polite formal speech (존댓말/합쇼체, e.g. sentence endings like '-습니다', '-입니다', '-했습니다'). NEVER use casual/informal speech (반말) regardless of the tone of the source data.",
+            "When the answer consists of multiple points, format it as a real Markdown bulleted list — each bullet MUST start on its own new line with '- ', never run multiple bullets together in one paragraph.",
+            "NEVER repeat the same category, topic, or near-duplicate bullet point more than once. Before finishing, review the list and merge or remove duplicates so every bullet covers a genuinely distinct point.",
+            "Do NOT pad the response with generic filler examples just to lengthen the answer — every example cited must be a specific, distinctive expression that clearly supports its bullet.",
             "When listing emails in your response, always include the email ID in the format \"ID: <16-digit-hex>\" for each email mentioned."
         ]
     },
