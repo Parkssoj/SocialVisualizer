@@ -111,15 +111,12 @@ export function refreshSidebarList() {
       : mails
           .map((m) => {
             const isActive = !currentRoom && m.id === currentMail;
-            const badge =
-              m.indexed === false
-                ? `<span class="gws-item-badge">인덱싱 중</span>`
-                : "";
+            // 요청 — 데이터 선택 목록에 뜨던 "인덱싱 중" 배지를 제거(하드코딩 중이라
+            // 노출할 필요 없는 내부 상태였음).
             return `
               <li class="gws-item ${isActive ? "is-active" : ""}" data-type="mail" data-value="${escapeAttr(m.id)}" title="${escapeAttr(m.label)}">
                 <span class="gws-item-icon"><i class="bi bi-envelope-fill"></i></span>
                 <span class="gws-item-text">${escapeHtml(m.label)}</span>
-                ${badge}
               </li>`;
           })
           .join("");

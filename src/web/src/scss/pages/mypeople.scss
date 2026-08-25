@@ -1437,12 +1437,34 @@ footer {
   background: rgba(28, 28, 30, 0.06);
   border-radius: 3px;
 }
+// 요청 — 기간이 2020~2026년처럼 길어지면 달 수가 수십 개가 되는데, 예전엔
+// flex:1로 억지로 폭을 다 채우려다 라벨끼리 겹쳐 보였다. 이제 달 하나당 폭을
+// 고정해서(절대 안 줄어듦) 몇 년치가 와도 라벨이 항상 읽히고, 넘치는 만큼은
+// #mp-chart(아래)가 가로 스크롤을 담당한다.
+#mp-chart {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 28, 30, 0.2) transparent;
+}
+.mp-vchart-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  background: #fff;
+  width: max-content;
+  min-width: 100%;
+}
 .mp-vchart-group {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  flex-shrink: 0;
+  flex: 0 0 34px;
+  width: 34px;
   height: 100%;
   padding: 0 3px;
   border-radius: 4px;
@@ -1490,7 +1512,8 @@ footer {
   align-items: stretch;
   gap: 4px;
   height: 100%;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: auto;
   padding: 4px 10px 6px;
   border: 1.5px solid rgba(28, 28, 30, 0.12);
   border-radius: 10px;

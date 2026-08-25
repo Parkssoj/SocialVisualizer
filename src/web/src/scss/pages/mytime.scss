@@ -483,16 +483,11 @@ footer {
   transform: translateY(-50%);
 }
 .mt-pointer-window {
-  position: absolute;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: rgba(249, 115, 22, 0.52);
-  border-radius: 2px;
-  pointer-events: none;
-  transition:
-    left 0.2s,
-    width 0.2s;
+  /* 요청 — 타임슬라이더에서 동그라미 커서 말고는 아무것도 움직이거나 색이
+     바뀌지 않아야 함. 이 구간 강조 바(주황색)가 좌우로 움직이며 색이 있는
+     것처럼 보였던 원인이라 아예 숨김 — 트랙(.mt-pointer-bg)은 항상 같은
+     회색 한 줄로 고정되고, 움직이는 건 .mt-pointer-cursor(동그라미)뿐이다. */
+  display: none;
 }
 /* 타임라인 위를 이동하는 "나" 아바타 커서 */
 .mt-pointer-cursor {

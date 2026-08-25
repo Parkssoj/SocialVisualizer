@@ -3,7 +3,7 @@ import "../scss/components/_sidebar.scss";
 import "../scss/pages/mypeople.scss";
 
 import { bootstrapApp } from "../main-app.js";
-import { initAccountPicker } from "../features/accountPicker.js";
+import { initAccountPicker, displayAccountLabel } from "../features/accountPicker.js";
 import * as d3 from "d3";
 import { refreshSidebarList } from "../layout/appSidebar.js";
 import { initGlobalFilter } from "../utils/filterSync.js";
@@ -237,7 +237,17 @@ const BRAND_DISPLAY_NAMES = new Set([
   "x",
   "discord",
   "microsoft",
+  "마이크로소프트",
+  "microsoft 365",
   "xbox",
+  // 요청 — 광고 제거 토글에서 이 시연용 브랜드 계정들도 같이 걸러지도록 추가
+  "무신사",
+  "예스24",
+  "쿠팡",
+  "올리브영",
+  "클래스유",
+  "배달의민족",
+  "네이버",
   "neo4j",
   "the neo4j team",
   "facebook",
@@ -319,7 +329,10 @@ function autoFitBrandLogo(img) {
       fracH = (maxY - minY) / h;
     const frac = Math.min(fracW, fracH);
     if (frac <= 0) return;
-    const scale = Math.max(1, Math.min(1 / frac, 3.4));
+    // 요청 — 여백이 넓은 로고(Apple, 당근마켓 등)가 너무 확대돼서 잘려 보임.
+    // 자동 확대를 사실상 꺼서(최대 1.15배) object-fit: cover 프레임 안에서
+    // 로고가 과하게 클로즈업되지 않도록 함.
+    const scale = Math.max(1, Math.min(1 / frac, 1.15));
     img.style.transform = `scale(${scale.toFixed(2)})`;
   } catch (e) {}
 }
@@ -335,14 +348,26 @@ function isBrandSender(p) {
   return isGenericLocalPart(local) || isBrandDisplayName(p.name);
 }
 
+// 요청 — 실제로 인덱싱된 연락처 중 시연에 안 어울리는 이름을 화면 표시용으로만
+// 바꿔치기(예: 실명이 그대로 노출되는 경우). 실제 DB의 person_name에는 영향 없음.
+const DISPLAY_NAME_OVERRIDES = {
+  "Alexander Erdl": "Neo4j",
+};
+
 function resolveDisplayName(p) {
   if (!p.email) return p.name && p.name.trim() ? p.name.trim() : "(알 수 없음)";
   const [local, domain] = p.email.split("@");
+  // 요청 — 브랜드/광고 계정도 실제로 우리가 지정한 이름(예: "당근마켓")이 있으면
+  // 그걸 그대로 써야지, 도메인에서 억지로 뽑아낸 영문 텍스트("daangn")로 덮어쓰면 안 됨.
+  // 이름이 아예 없을 때만 도메인에서 유추한다.
+  if (p.name && p.name.trim()) {
+    const trimmed = p.name.trim();
+    return DISPLAY_NAME_OVERRIDES[trimmed] || trimmed;
+  }
   if (isBrandSender(p)) {
     const parts = (domain || "").split(".");
     return parts.length >= 3 ? parts[parts.length - 2] : parts[0];
   }
-  if (p.name && p.name.trim()) return p.name.trim();
   return local || "(알 수 없음)";
 }
 
@@ -463,6 +488,9 @@ let generatedAvatars = {};
 let avatarGenStarted = false;
 let sortMode = "affinity";
 let hideBrandAccounts = false;
+// 요청 — "강혁" 사람카드 패널을 화면에서 지워달라(재시딩 없이 즉시 반영되도록
+// 프론트에서 필터). 이메일 기준으로 숨긴다.
+const HIDDEN_PERSON_EMAILS = new Set(["dowon96@naver.com"]);
 let sentStatsMap = {};
 let receivedStatsMap = {};
 let currentDetailPerson = null;
@@ -617,6 +645,7 @@ function renderCards() {
     return;
   }
   let list = groupByEntityName(allPeople);
+  list = list.filter((p) => !HIDDEN_PERSON_EMAILS.has((p.email || "").toLowerCase()));
   if (hideBrandAccounts) {
     list = list.filter((p) => !isBrandSender(p));
   }
@@ -695,7 +724,7 @@ function renderCards() {
         badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
     }
     return `
-            <div class="mp-card ca-fade" style="${cardVars}" data-idx="${i}" data-name="${p.name || ""}" data-email="${p.email || ""}" title="${p.email || ""}">
+            <div class="mp-card ca-fade" style="${cardVars}" data-idx="${i}" data-name="${p.name || ""}" data-email="${p.email || ""}" title="${displayAccountLabel(p.email || "")}">
               <div class="mp-avatar" style="color:${ac.text}">${avatarInner}</div>
               <div class="mp-name" style="font-size:${nameFontSize(displayName)}">${displayName}</div>
               ${badge}
@@ -821,18 +850,31 @@ function updateFill() {
   }
 }
 
+// 요청 — 시연 시작 시 타임슬라이더 시작 지점을 맨 처음(전체 데이터 시작)이 아니라
+// 2017년 2월 4일로 기본 설정. 실제 데이터 시작(2017년 1월)보다 살짝 뒤라서 처음
+// 화면엔 거의 모든 사람이 보이지만, 사용자가 슬라이더를 2020년 아래로 더 내리면
+// 그때부터는 활동 시작이 2017년으로 앞당겨진 13명만 남는다(seed_fake_people.py의
+// EARLY_ACTIVITY_EMAILS 참고 — 순수 프론트엔드 변경이라 DB 재시딩 불필요).
+const TL_DEFAULT_START_MS = new Date(2017, 1, 4).getTime();
+
 function initTimeline(firstMs, lastMs) {
   globalFirst = firstMs;
   globalLast = lastMs;
   fullMin = firstMs;
   fullMax = lastMs;
-  selMin = firstMs;
-  selMax = lastMs;
 
   const inMin = document.getElementById("tl-min");
   const inMax = document.getElementById("tl-max");
-  inMin.value = 0;
+  const defaultStartMs = Math.min(
+    Math.max(TL_DEFAULT_START_MS, firstMs),
+    lastMs,
+  );
+  const defaultStartVal =
+    firstMs < lastMs ? msToVal(defaultStartMs) : 0;
+  inMin.value = Math.max(0, Math.min(1000, defaultStartVal));
   inMax.value = 1000;
+  selMin = valToMs(+inMin.value);
+  selMax = lastMs;
 
   document.getElementById("tl-start-lbl").textContent = fmtDate(firstMs);
   document.getElementById("tl-end-lbl").textContent = fmtDate(lastMs);
@@ -1033,7 +1075,14 @@ async function initMyAvatar() {
   const myEmailEl = document.getElementById("mp-detail-my-email");
   if (myNameEl)
     myNameEl.textContent = sessionStorage.getItem("gw_user_name") || "나";
-  if (myEmailEl) myEmailEl.textContent = gmailId || "이메일 정보 없음";
+  // 요청 — 상세보기창의 "나" 이메일에 3924ewa@gmail.com이 뜨는 문제 — 최소한
+  // 이 상세보기창에서만이라도 03yeah03@gmail.com으로 보이도록 화면표시만 치환.
+  // (실제 조회/저장에 쓰는 gmailId 값 자체는 그대로 둠 — 표시 문구만 바꿈.)
+  if (myEmailEl) {
+    const displayEmail =
+      gmailId === "3924ewa@gmail.com" ? "03yeah03@gmail.com" : gmailId;
+    myEmailEl.textContent = displayEmail || "이메일 정보 없음";
+  }
   if (!gmailId) return;
   try {
     const cacheRes = await fetch("/self-avatar", {
@@ -1365,6 +1414,24 @@ async function openChatroom(chatroomId, chatroomName) {
   await fetchAndRenderChatroomPeople(moodPromise);
 }
 
+// 요청 — "IT 공과대학" 방 참여자 이름을 화면 표시만 바꿔치기(실제 참여자
+// 식별자/데이터는 그대로 두고, 사람 이름이 나오는 자리마다 이걸로 감싸서 씀).
+const IT_ROOM_NAME = "IT 공과대학";
+const IT_ROOM_NAME_OVERRIDES = {
+  "김동현": "이현우",
+  "성진": "진성",
+  "소윤": "은희",
+  "유승준": "전도빈",
+  "이예빈": "이예나",
+  "준호": "호준",
+};
+function applyRoomNameOverride(chatroomName, name) {
+  if (chatroomName === IT_ROOM_NAME && IT_ROOM_NAME_OVERRIDES[name]) {
+    return IT_ROOM_NAME_OVERRIDES[name];
+  }
+  return name;
+}
+
 async function fetchAndRenderChatroomPeople(moodPromise) {
   let people = [];
   try {
@@ -1378,6 +1445,9 @@ async function fetchAndRenderChatroomPeople(moodPromise) {
       }),
     });
     const all = res.ok ? (await res.json()).data.people || [] : [];
+    all.forEach((p) => {
+      p.name = applyRoomNameOverride(currentChatroomName, p.name);
+    });
     people = all.filter((p) => (p.message_count || 0) > 0);
   } catch (e) {
     console.error("chatroom-person-detail 오류:", e);
@@ -1696,7 +1766,7 @@ function renderBarChart(data) {
             Math.round((m.received / maxVal) * 100),
           );
           const mon = m.month.split("-")[1];
-          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
+          return `<div class="mp-vchart-group" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${sentPct}%" title="보낸: ${m.sent}"></div>
                 <div class="mp-vchart-bar recv" style="height:${recvPct}%" title="받은: ${m.received}"></div>
@@ -1705,13 +1775,17 @@ function renderBarChart(data) {
             </div>`;
         })
         .join("");
-      return `<div class="mp-vchart-year-group" style="flex:${g.months.length} 1 0;">
+      return `<div class="mp-vchart-year-group">
               <div class="mp-vchart-year-label">${g.year}년</div>
               <div class="mp-vchart-year-months">${monthsHtml}</div>
             </div>`;
     })
     .join("");
-  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:14px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${groupsHtml}</div>`;
+  // 요청 — 기간이 길어져(예: 2020~2026년 7년치) 달 수가 많아지면 flex:1로 억지로
+  // 폭을 다 채우려다 달 라벨끼리 겹쳐 보이는 문제가 있었음. 이제 달 하나당 폭을
+  // 고정하고(.mp-vchart-group), 넘치는 만큼은 chartArea 자체를 가로 스크롤(CSS,
+  // #mp-chart)하도록 바꿔서 몇 년치가 들어와도 라벨이 절대 안 겹친다.
+  chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
   // 오른쪽 원본 확인 창이 막대를 눌러야만 열리던 걸, 처음부터 가장 최근 달로
   // 기본으로 열려있도록(요청) — 막대 그래프를 다 그린 다음 마지막(최신) 달을
@@ -1723,6 +1797,9 @@ function renderBarChart(data) {
   if (latestGroup) {
     latestGroup.classList.add("active");
     openEmailDrawer(latest.month, latest.sent, latest.received);
+    // 기간이 길어 가로 스크롤이 생긴 경우, 처음 열자마자 가장 최근(=오른쪽 끝)
+    // 달이 바로 보이도록 스크롤을 오른쪽 끝으로 옮겨준다.
+    latestGroup.scrollIntoView({ inline: "end", block: "nearest" });
   }
 }
 
@@ -1753,7 +1830,7 @@ function renderMessengerBarChart(data) {
         .map((m) => {
           const pct = Math.max(2, Math.round((m.count / maxVal) * 100));
           const mon = m.month.split("-")[1];
-          return `<div class="mp-vchart-group" style="flex:1;" data-month="${m.month}" title="${m.month}: ${m.count}건 (눌러서 일별로 보기)">
+          return `<div class="mp-vchart-group" data-month="${m.month}" title="${m.month}: ${m.count}건 (눌러서 일별로 보기)">
               <div class="mp-vchart-bars">
                 <div class="mp-vchart-bar sent" style="height:${pct}%" title="${m.count}건"></div>
               </div>
@@ -1761,13 +1838,15 @@ function renderMessengerBarChart(data) {
             </div>`;
         })
         .join("");
-      return `<div class="mp-vchart-year-group" style="flex:${g.months.length} 1 0;">
+      return `<div class="mp-vchart-year-group">
               <div class="mp-vchart-year-label">${g.year}년</div>
               <div class="mp-vchart-year-months">${monthsHtml}</div>
             </div>`;
     })
     .join("");
-  chartArea.innerHTML = `<div style="display:flex;align-items:flex-end;gap:14px;width:100%;height:100%;padding:0 8px;box-sizing:border-box;background:#fff;">${groupsHtml}</div>`;
+  // 메일 차트와 동일하게 달 하나당 고정폭 + 가로 스크롤(overflow, #mp-chart)로
+  // 바꿔서 기간이 길어도(2020~2026년) 라벨이 겹치지 않게 한다.
+  chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
   // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청)
   const latest = data.monthly[data.monthly.length - 1];
@@ -1777,6 +1856,7 @@ function renderMessengerBarChart(data) {
   if (latestGroup) {
     latestGroup.classList.add("active");
     openMessengerDayList(latest.month);
+    latestGroup.scrollIntoView({ inline: "end", block: "nearest" });
   }
 }
 
@@ -1801,11 +1881,12 @@ function renderRelationDiagram(personName, relationships) {
         p && p.avatar_url
           ? `<img src="${p.avatar_url}" alt="${esc(o.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(o.name)}'">`
           : initials(o.name);
-      // 요청 — 그 사람의 참여 패턴(메시지 건수) 정보도 같이 넣고, 새 박스를
-      // 만들지 말고 기존 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분.
+      // 요청 — 그 사람의 채팅 횟수 정보도 같이 넣고, 새 박스를 만들지 말고 기존
+      // 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분. 라벨은 "참여 패턴"이 아니라
+      // "채팅횟수"로, 값은 "~건" 형식으로.
       const participationText =
         p && p.message_count != null
-          ? `메시지 ${p.message_count.toLocaleString()}건`
+          ? `${p.message_count.toLocaleString()}건`
           : "정보 없음";
       return `
         <div class="mp-relation-card">
@@ -1817,7 +1898,7 @@ function renderRelationDiagram(personName, relationships) {
               <div class="mp-relation-card-cell mp-relation-card-cell-val${o.label ? "" : " mp-relation-card-cell-empty"}">${o.label ? esc(o.label) : "파악된 설명 없음"}</div>
             </div>
             <div class="mp-relation-card-row">
-              <div class="mp-relation-card-cell mp-relation-card-cell-key">참여 패턴</div>
+              <div class="mp-relation-card-cell mp-relation-card-cell-key">채팅횟수</div>
               <div class="mp-relation-card-cell mp-relation-card-cell-val">${esc(participationText)}</div>
             </div>
           </div>
@@ -2118,6 +2199,9 @@ async function openMessengerDayChat(date) {
       body: JSON.stringify({ chatroom_id: currentChatroomId, date }),
     });
     const messages = res.ok ? (await res.json()).data.messages || [] : [];
+    messages.forEach((m) => {
+      if (!m.is_system) m.sender = applyRoomNameOverride(currentChatroomName, m.sender);
+    });
     renderMessengerDayChat(messages);
   } catch (e) {
     console.error("chatroom-day-messages 오류:", e);
@@ -2436,8 +2520,8 @@ async function openDetail(person, rowIndex) {
   const groupEmails = personEmails(person);
   document.getElementById("mp-detail-email").textContent =
     groupEmails.length > 1
-      ? `${person.email} 외 ${groupEmails.length - 1}개 주소 (통합 표시)`
-      : person.email || "이메일 정보 없음";
+      ? `${displayAccountLabel(person.email)} 외 ${groupEmails.length - 1}개 주소 (통합 표시)`
+      : (person.email ? displayAccountLabel(person.email) : "이메일 정보 없음");
 
   switchDetailTab("stats");
 
@@ -2524,10 +2608,16 @@ async function openMessengerDetail(person) {
       }),
     });
     const rels = res.ok ? (await res.json()).data.relationships || [] : [];
+    rels.forEach((r) => {
+      r.source = applyRoomNameOverride(currentChatroomName, r.source);
+      r.target = applyRoomNameOverride(currentChatroomName, r.target);
+    });
+    // 요청 — 고등학교 동창 단톡방처럼 멤버가 많은 방은 관계가 8개로 잘려서 다
+    // 안 보였음. 상한을 넉넉히 올려서(최대 24명 상당) 사실상 다 보이게 함.
     const mine = rels
       .filter((r) => r.source === person.name || r.target === person.name)
       .sort((a, b) => (b.strength || 0) - (a.strength || 0))
-      .slice(0, 8);
+      .slice(0, 24);
     renderRelationDiagram(person.name, mine);
   } catch (e) {
     console.error("chatroom-relationships 오류:", e);

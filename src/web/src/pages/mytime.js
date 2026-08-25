@@ -210,13 +210,8 @@ function createTimeline(ids) {
       lbl.textContent =
         mode === "month" ? `${parseInt(k.slice(5), 10)}월` : `${k}년`;
 
-      const cnt = document.createElement("div");
-      cnt.className = "mt-node-count";
-      cnt.textContent = d.count ? `${d.count.toLocaleString()}건` : "";
-
       col.appendChild(dot);
       col.appendChild(lbl);
-      col.appendChild(cnt);
       track.appendChild(col);
 
       col.addEventListener("mouseenter", () => {

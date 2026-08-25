@@ -245,6 +245,16 @@
   cursor: pointer;
 }
 
+// 요청 — 메신저 탭 "대화방 이름" 입력칸 글씨 크기를 옆의 "전체 업데이트"
+// (모드 드롭다운) 글씨 크기와 정확히 똑같이. .gw-input/.gw-select 공용 규칙이
+// 이미 같은 값(1.12rem)이지만, 확실히 하려고 id로 한 번 더 고정.
+#message-room-name,
+#message-sync-mode,
+#imap-user,
+#imap-pass {
+  font-size: 1.12rem !important;
+}
+
 /* ── 프리셋 칩 ── */
 .gw-presets {
   display: grid;
