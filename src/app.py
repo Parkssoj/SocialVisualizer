@@ -30,7 +30,6 @@ from flask import (
     stream_with_context
 )
 from flask_cors import CORS
-import fitz  # PyMuPDF
 from docx import Document
 import olefile
 import csv
