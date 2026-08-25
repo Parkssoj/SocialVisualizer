@@ -69,17 +69,23 @@ from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
+    get_mail_keyword_monthly_stats,
+    get_mail_keyword_daily_stats,
+    get_mail_keyword_mentioners,
     get_mail_sync_stats,
     get_user_rating_stats,
     get_high_affinity_person_stats,
     get_keywords_by_person_date,
     get_mail_date_range,
     get_mail_exchange_stats,
+    get_mail_person_daily_stats,
     calculate_eis,
     get_person_descriptions,
+    get_mail_relationships,
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
+from util.mail_data_manager import get_mail_bodies_by_ids
 from util.file_manager import (
     _sanitize_filename
 )
@@ -115,17 +121,29 @@ from util.database.db_writer import (
 )
 from util.database.chatroom_db_writer import init_chatroom_tables
 from util.database.chatroom_reader import (
+    list_indexed_chatrooms,
+    get_messenger_date_range,
+    get_chatroom_name,
     get_chatroom_people,
     get_chatroom_people_stats,
     get_chatroom_relationships,
     get_chatroom_person_detail,
+    get_chatroom_mood,
+    get_chatroom_keywords_by_person,
+    get_chatroom_keyword_monthly_stats,
+    get_chatroom_keyword_daily_stats,
+    get_chatroom_keyword_mentioners,
+    get_chatroom_person_monthly_stats,
+    get_chatroom_person_daily_stats,
+    get_chatroom_day_messages,
+    get_chatroom_summaries,
 )
 from util.extract_statics import start_statics_pipeline_background
 from util.avatar_generator import (
     get_cached_person_avatars,
-    generate_person_avatars_batch,
     get_cached_self_avatar,
     generate_self_avatar,
+    get_cached_chatroom_people_avatars,
 )
 from util.sse_broadcaster import (
     subscribe,
@@ -917,6 +935,66 @@ def keyword_by_person_date():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/mail-keyword-monthly-stats", methods=["POST"]) # 전체 상대방 합산, 월별 키워드 목록+언급 수
+def send_mail_keyword_monthly_stats():
+    data = request.json or {}
+    user_id    = data.get("user_id", "").strip()
+    start_date = (data.get("start_date") or "").strip() or None
+    end_date   = (data.get("end_date") or "").strip() or None
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    return jsonify({
+        "user_id": user_id,
+        "data": get_mail_keyword_monthly_stats(user_id, start_date, end_date),
+    })
+
+@app.route("/mail-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+def send_mail_keyword_daily_stats():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    month   = data.get("month", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    return jsonify({
+        "user_id": user_id,
+        "month":   month,
+        "data": get_mail_keyword_daily_stats(user_id, month),
+    })
+
+@app.route("/mail-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 사람 목록(이름+횟수+아바타)
+def send_mail_keyword_mentioners():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    date    = data.get("date", "").strip()
+    keyword = data.get("keyword", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+    if not keyword:
+        return jsonify({"error": "keyword is required"}), 400
+
+    mentioners = get_mail_keyword_mentioners(user_id, date, keyword)
+
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    avatar_map = get_cached_person_avatars(paths)
+    for m in mentioners:
+        m["avatar_url"] = avatar_map.get((m["person_id"] or "").strip().lower())
+
+    return jsonify({
+        "user_id": user_id,
+        "date":    date,
+        "keyword": keyword,
+        "data": mentioners,
+    })
+
 @app.route("/rebuild-keyword-mail", methods=["POST"])
 def rebuild_keyword_mail_route():
     data = request.json or {}
@@ -971,21 +1049,25 @@ def get_person_avatars():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify(get_cached_person_avatars(paths))
 
-@app.route("/generate-person-avatars", methods=["POST"])
-def generate_person_avatars():
-    data = request.json or {}
-    user_id = data.get("user_id", "").strip()
-    people = data.get("people", [])
-    if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
-    paths = UserPaths(BASE_DIR, user_id, "mail")
-    result = generate_person_avatars_batch(paths, people)
-    return jsonify({"user_id": user_id, "data": result})
-
 @app.route("/person-avatar-image/<user_id>/<filename>")
 def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
+
+@app.route("/chatroom-person-avatar-image/<chatroom_id>/<filename>")
+def chatroom_person_avatar_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_AVATAR_IMAGES_DIR, filename)
+
+@app.route("/mail-summary-image/<user_id>/<filename>")
+def mail_summary_image(user_id, filename):
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    return send_from_directory(paths.MAIL_SUMMARY_IMAGES_DIR, filename)
+
+@app.route("/message-summary-image/<chatroom_id>/<filename>")
+def message_summary_image(chatroom_id, filename):
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    return send_from_directory(paths.MESSAGE_SUMMARY_IMAGES_DIR, filename)
 
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
@@ -1051,6 +1133,55 @@ def send_mail_exchange_stats():
 
     return jsonify({"data": get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date)})
 
+@app.route("/mail-person-daily-stats", methods=["POST"])
+def send_mail_person_daily_stats():
+    data = request.json or {}
+    user_id       = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    month          = data.get("month", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "month":          month,
+        "data": get_mail_person_daily_stats(user_id, person_mail_id, month),
+    })
+
+@app.route("/messenger-chatrooms", methods=["POST"])
+def send_messenger_chatrooms():
+    data = request.json or {}
+    start_date = (data.get("start_date") or "").strip() or None
+    end_date   = (data.get("end_date") or "").strip() or None
+    chatrooms = list_indexed_chatrooms(BASE_DIR, start_date, end_date)
+    return jsonify({"data": {"chatrooms": chatrooms}})
+
+@app.route("/messenger-date-range", methods=["POST"])
+def send_messenger_date_range():
+    return jsonify({"data": get_messenger_date_range(BASE_DIR)})
+
+@app.route("/chatroom-name", methods=["POST"])
+def send_chatroom_name():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    chatroom_name = get_chatroom_name(chatroom_id)
+    if chatroom_name is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": {"chatroom_name": chatroom_name},
+    })
+
 @app.route("/chatroom-people", methods=["POST"])
 def send_chatroom_people():
     data = request.json or {}
@@ -1062,6 +1193,11 @@ def send_chatroom_people():
     people = get_chatroom_people(chatroom_id)
     if people is None:
         return jsonify({"error": "chatroom not found"}), 404
+
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for p in people:
+        p["avatar_url"] = avatar_map.get(p["participant_id"])
 
     return jsonify({
         "chatroom_id": chatroom_id,
@@ -1118,6 +1254,11 @@ def send_chatroom_person_detail():
             return jsonify({"error": "person not found"}), 404
         return jsonify({"error": "chatroom not found"}), 404
 
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for p in people:
+        p["avatar_url"] = avatar_map.get(p["participant_id"])
+
     return jsonify({
         "chatroom_id":    chatroom_id,
         "participant_id": participant_id,
@@ -1125,6 +1266,244 @@ def send_chatroom_person_detail():
         "end_date":       end_date,
         "data": {
             "people": people,
+        },
+    })
+
+@app.route("/chatroom-mood", methods=["POST"])
+def send_chatroom_mood():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    start_date  = data.get("start_date", "").strip()
+    end_date    = data.get("end_date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    mood = get_chatroom_mood(chatroom_id, start_date, end_date)
+    if mood is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "start_date":  start_date,
+        "end_date":    end_date,
+        "data": mood,
+    })
+
+@app.route("/chatroom-keywords-by-person", methods=["POST"])
+def send_chatroom_keywords_by_person():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip()
+    start_date     = data.get("start_date", "").strip()
+    end_date       = data.get("end_date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
+    if not start_date or not end_date:
+        return jsonify({"error": "start_date and end_date are required"}), 400
+
+    keywords = get_chatroom_keywords_by_person(chatroom_id, start_date, end_date, participant_id)
+    if keywords is None:
+        return jsonify({"error": "chatroom not found"}), 404
+    if keywords is False:
+        return jsonify({"error": "person not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "start_date":     start_date,
+        "end_date":       end_date,
+        "data": {
+            "keywords": keywords,
+        },
+    })
+
+@app.route("/chatroom-keyword-monthly-stats", methods=["POST"]) # 전체 참여자 합산, 월별 키워드 목록+언급 수
+def send_chatroom_keyword_monthly_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    start_date  = (data.get("start_date") or "").strip() or None
+    end_date    = (data.get("end_date") or "").strip() or None
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_keyword_monthly_stats(chatroom_id, start_date, end_date)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
+    })
+
+@app.route("/chatroom-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+def send_chatroom_keyword_daily_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    month       = data.get("month", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    stats = get_chatroom_keyword_daily_stats(chatroom_id, month)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "month":       month,
+        "data": stats,
+    })
+
+@app.route("/chatroom-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 참여자 목록(이름+횟수+아바타)
+def send_chatroom_keyword_mentioners():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    date        = data.get("date", "").strip()
+    keyword     = data.get("keyword", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+    if not keyword:
+        return jsonify({"error": "keyword is required"}), 400
+
+    mentioners = get_chatroom_keyword_mentioners(chatroom_id, date, keyword)
+    if mentioners is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    avatar_map = get_cached_chatroom_people_avatars(paths)
+    for m in mentioners:
+        m["avatar_url"] = avatar_map.get(m["participant_id"])
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "date":        date,
+        "keyword":     keyword,
+        "data": mentioners,
+    })
+
+@app.route("/chatroom-person-monthly-stats", methods=["POST"])
+def send_chatroom_person_monthly_stats():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip()
+    start_date     = (data.get("start_date") or "").strip() or None
+    end_date       = (data.get("end_date") or "").strip() or None
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
+
+    stats = get_chatroom_person_monthly_stats(chatroom_id, participant_id, start_date, end_date)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+    if stats is False:
+        return jsonify({"error": "person not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "data": stats,
+    })
+
+@app.route("/chatroom-person-daily-stats", methods=["POST"])
+def send_chatroom_person_daily_stats():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    participant_id = data.get("participant_id", "").strip()
+    month          = data.get("month", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
+    if not month:
+        return jsonify({"error": "month is required"}), 400
+
+    stats = get_chatroom_person_daily_stats(chatroom_id, participant_id, month)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+    if stats is False:
+        return jsonify({"error": "person not found"}), 404
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "participant_id": participant_id,
+        "month":          month,
+        "data": stats,
+    })
+
+@app.route("/chatroom-day-messages", methods=["POST"])
+def send_chatroom_day_messages():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+    date        = data.get("date", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+
+    messages = get_chatroom_day_messages(BASE_DIR, chatroom_id, date)
+    if messages is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "date":        date,
+        "data": {"messages": messages},
+    })
+
+@app.route("/chatroom-summaries", methods=["POST"])
+def send_chatroom_summaries():
+    data = request.json or {}
+    chatroom_id    = data.get("chatroom_id", "").strip()
+    summarize_unit = data.get("summarize_unit", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+    if summarize_unit not in ("monthly", "yearly"):
+        return jsonify({"error": "summarize_unit must be 'monthly' or 'yearly'"}), 400
+
+    summaries = get_chatroom_summaries(chatroom_id, summarize_unit)
+    if summaries is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    # image_url은 DB(message_summarize)가 아니라 message_summaries.json에만 있고
+    # 요약 생성 뒤 이미지 생성이 끝나는 대로 채워지므로, 여기서 summary_period 기준으로
+    # 병합해 내려준다(스키마 변경 없이 파일을 그대로 읽어 붙이는 방식).
+    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+    image_urls = {}
+    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
+        try:
+            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
+                file_summaries = json.load(f)
+            for period, info in file_summaries.get(summarize_unit, {}).items():
+                if info.get("image_url"):
+                    image_urls[period] = info["image_url"]
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    for s in summaries:
+        s["image_url"] = image_urls.get(s["summary_period"])
+
+    return jsonify({
+        "chatroom_id":    chatroom_id,
+        "summarize_unit": summarize_unit,
+        "data": {
+            "summaries": summaries,
         },
     })
 
@@ -1186,6 +1565,40 @@ def send_person_emails_in_range():
     emails.sort(key=lambda e: e["date"])
 
     return jsonify({"data": emails})
+
+@app.route("/mail-day-emails", methods=["POST"])
+def send_mail_day_emails():
+    """chatroom-day-messages(메신저: 하루치 대화 원문)의 메일판. 상세보기에서
+    /mail-person-daily-stats로 받은 일별 목록 중 하루를 클릭했을 때, 그날 이 사람과
+    주고받은 메일 전체(본문 포함)를 반환. 기존 /mail-person-emails의 파일 캐시 방식과
+    달리, documents.parquet(GraphRAG 산출물)에서 직접 본문을 읽는다."""
+    data = request.json or {}
+    user_id        = data.get("user_id", "").strip()
+    person_mail_id = data.get("person_user_id", "").strip()
+    date           = data.get("date", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not person_mail_id:
+        return jsonify({"error": "person_user_id is required"}), 400
+    if not date:
+        return jsonify({"error": "date is required"}), 400
+
+    mail_refs = get_person_mail_ids_in_range(user_id, person_mail_id, date, date)
+    paths = UserPaths(BASE_DIR, user_id, "mail")
+    bodies = get_mail_bodies_by_ids(paths, {ref["id"] for ref in mail_refs})
+    emails = [
+        {**bodies[ref["id"]], "id": ref["id"], "direction": ref["direction"], "date": ref["date"]}
+        for ref in mail_refs if ref["id"] in bodies
+    ]
+    emails.sort(key=lambda e: e["date"])
+
+    return jsonify({
+        "user_id":        user_id,
+        "person_user_id": person_mail_id,
+        "date":           date,
+        "data": {"emails": emails},
+    })
 
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
@@ -1253,6 +1666,14 @@ def send_person_descriptions():
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_person_descriptions(user_id)})
+
+@app.route("/mail-relationships", methods=["POST"])
+def send_mail_relationships():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    return jsonify({"user_id": user_id, "data": get_mail_relationships(user_id)})
 
 @app.route("/mail-summaries", methods=["POST"])
 def send_mail_summaries():

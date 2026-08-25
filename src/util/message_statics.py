@@ -10,6 +10,8 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from util.extract_statics import _run_and_join
+
 load_dotenv("src/parquet/.env")
 
 client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
@@ -28,12 +30,12 @@ _MSG_LINE_RE = re.compile(
 def _parse_message_blocks_from_parquet(paths) -> list[dict]:
     import pandas as pd
 
-    text_units_path = paths.RELATIONSHIPS_PATH.replace("relationships.parquet", "text_units.parquet")
-    if not os.path.exists(text_units_path):
-        print(f"[MSG_STATS] text_units.parquet 없음: {text_units_path}")
+    documents_path = os.path.join(paths.PARQUET_DIR, "documents.parquet")
+    if not os.path.exists(documents_path):
+        print(f"[MSG_STATS] documents.parquet 없음: {documents_path}")
         return []
 
-    df = pd.read_parquet(text_units_path)
+    df = pd.read_parquet(documents_path)
 
     blocks = []
     seen_ids = set()
@@ -203,7 +205,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
 
 {history_text}
 
-위 메시지들만 근거로 아래 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요.
+위 메시지들만 근거로 아래 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요. "~입니다." 체로 통일하세요.
 참여 패턴: <대화에 얼마나 자주/활발히 참여하는지 한 문장으로>
 자주 하는 이야기: <주로 어떤 주제/내용의 메시지를 보내는지 한 문장으로>
 말투: <반말/존댓말, 이모티콘 사용 등 말투 특징을 한 문장으로>""".strip()
@@ -302,5 +304,8 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
 
 def _extract_message_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
-    _save_chatroom_people_messages(paths, mode)
-    _save_message_keyword_stats(paths, mode)
+    # 서로 다른 출력 파일(people/keywords)에 쓰고 순서 의존성이 없어 병렬 실행
+    _run_and_join([
+        (_save_chatroom_people_messages, (paths, mode)),
+        (_save_message_keyword_stats, (paths, mode)),
+    ])

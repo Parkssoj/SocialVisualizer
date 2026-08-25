@@ -293,10 +293,6 @@ function createJobPanel(user, kind = 'mail') {
         <strong class="job-result-skipped">0</strong>
         <span>개 중복 스킵</span>
       </div>
-      <a class="gw-collect-btn" href="/dashboard/" style="padding:8px 20px;font-size:0.85rem;box-shadow:none;text-decoration:none;">
-        <i class="bi bi-arrow-right-circle"></i>
-        대시보드로 이동
-      </a>
     </div>
   `;
   jobsList.prepend(panelEl);

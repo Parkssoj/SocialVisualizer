@@ -429,6 +429,103 @@ def save_chatroom_people_to_db(paths, update_date=None):
         conn.close()
 
 
+def save_chatroom_relationships_to_db(paths, update_date=None):
+    """graph_data.json의 사람-사람 interacts_with 엣지 중 relation_label이 붙은 것만
+    chatroom_relationship 테이블에 저장한다. person_a/person_b가 chatroom_people을 FK로
+    참조하므로 반드시 save_chatroom_people_to_db가 끝난 뒤에 호출해야 한다.
+
+    GraphRAG가 같은 두 사람에 대해 A→B, B→A를 따로 뽑는 경우가 있어서, 같은 두 사람 쌍은
+    무방향으로 취급해 하나만 남긴다(weight를 저장하지 않으므로 나중에 뽑힌 엣지로 덮어쓴다)."""
+    if not os.path.exists(paths.GRAPH_JSON_PATH):
+        print(f"[WARN] 그래프 JSON 파일이 없습니다: {paths.GRAPH_JSON_PATH}")
+        return
+
+    key = _resolve_chatroom_key(paths.USER_ID, update_date)
+    if key is None:
+        print(f"[WARN] chatroom 테이블에 해당 채팅방이 없습니다: {paths.USER_ID}")
+        return
+    chatroom_id, update_date, user_id = key
+
+    with open(paths.GRAPH_JSON_PATH, "r", encoding="utf-8") as f:
+        graph_data = json.load(f)
+
+    # graph_data.json 엣지엔 type 필드가 없어서(interacts_with인지 구분 불가), relation_label
+    # 태그만으로 거르면 Person-Date/Keyword/NamedEntity 엣지까지 섞여 들어온다(LLM이 태그를
+    # interacts_with 외의 엣지에도 잘못 붙이는 경우가 있음). graph_data.json의 entity_type도
+    # 못 믿는 게, 1:1 채팅방(방 이름=상대방 이름)에서 상대방이 Person이 아니라 ChatRoom
+    # 엔티티로만 잘못 분류되는 경우가 있다. 대신 message 파싱으로 만들어진(엔티티 추출과
+    # 무관한) chatroom_people 참여자 명단을 진짜 "사람" 기준으로 쓴다 — 이 명단이 어차피
+    # person_a/person_b의 FK 대상이라 이중으로 정확하다.
+    people_cursor_conn = get_db_connection()
+    people_cursor = people_cursor_conn.cursor()
+    try:
+        people_cursor.execute(
+            "SELECT participant_id FROM chatroom_people WHERE chatroom_id=%s AND index_date=%s AND user_id=%s",
+            (chatroom_id, update_date, user_id),
+        )
+        person_names = {row[0] for row in people_cursor.fetchall()}
+    finally:
+        people_cursor.close()
+        people_cursor_conn.close()
+
+    merged: dict = {}
+    for edge in graph_data.get("edges", []):
+        relation_label = edge.get("relation_label")
+        source, target = edge.get("source"), edge.get("target")
+        if not relation_label or not source or not target or source == target:
+            continue
+        if source not in person_names or target not in person_names:
+            continue
+
+        person_a, person_b = sorted((source, target))
+        merged[(person_a, person_b)] = {
+            "person_a": person_a,
+            "person_b": person_b,
+            "relation_label": relation_label,
+            "description": edge.get("description"),
+        }
+
+    if not merged:
+        print("[DB] chatroom_relationship 저장할 관계 없음")
+        return
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        insert_sql = """
+            INSERT INTO chatroom_relationship (
+                chatroom_id, index_date, user_id,
+                person_a, person_b, relation_label, description
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                relation_label = VALUES(relation_label),
+                description    = VALUES(description)
+        """
+        saved, skipped = 0, 0
+        for pair in merged.values():
+            try:
+                cursor.execute(insert_sql, (
+                    chatroom_id, update_date, user_id,
+                    pair["person_a"], pair["person_b"],
+                    pair["relation_label"], pair["description"],
+                ))
+                saved += 1
+            except Exception as e:
+                # person_a/person_b가 chatroom_people에 없는 경우(FK 위반) 그 쌍만 건너뛴다.
+                skipped += 1
+                print(f"[WARN] chatroom_relationship 저장 실패 ({pair['person_a']}-{pair['person_b']}): {e}")
+        conn.commit()
+        print(f"[DB] chatroom_relationship 테이블 저장 완료: {saved}건 (건너뜀 {skipped}건)")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERROR] save_chatroom_relationships_to_db 실패: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def save_message_keyword_to_db(paths, update_date=None):
     # message_keyword_stats.json을 읽어 participant에 실제 존재하는 (참여자, 블록) 쌍만 message_keyword에 저장
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
@@ -538,6 +635,64 @@ def save_message_summarize_to_db(paths, update_date=None):
     except Exception as e:
         conn.rollback()
         print(f"[ERROR] save_message_summarize_to_db 실패: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def save_message_mood_to_db(paths, update_date=None):
+    # message_mood.json(연/월별 분위기 점수+설명)을 message_mood 테이블에 저장
+    key = _resolve_chatroom_key(paths.USER_ID, update_date)
+    if key is None:
+        print(f"[WARN] chatroom 테이블에 해당 채팅방이 없습니다: {paths.USER_ID}")
+        return
+    chatroom_id, update_date, user_id = key
+
+    if not os.path.exists(paths.MESSAGE_MOOD_PATH):
+        print(f"[WARN] 파일이 없습니다: {paths.MESSAGE_MOOD_PATH}")
+        return
+
+    with open(paths.MESSAGE_MOOD_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    rows = []
+    for period, info in data.get("yearly", {}).items():
+        rows.append((
+            period, "yearly", chatroom_id, update_date, user_id,
+            info.get("mood_description"),
+            info.get("mood_score"),
+        ))
+    for period, info in data.get("monthly", {}).items():
+        rows.append((
+            period, "monthly", chatroom_id, update_date, user_id,
+            info.get("mood_description"),
+            info.get("mood_score"),
+        ))
+
+    if not rows:
+        print("[WARN] save_message_mood_to_db: 저장할 데이터가 없습니다.")
+        return
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        insert_sql = """
+            INSERT INTO message_mood (
+                summary_period, summary_unit, chatroom_id, index_date, user_id,
+                mood_description, mood_score
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                mood_description = VALUES(mood_description),
+                mood_score = VALUES(mood_score)
+        """
+        cursor.executemany(insert_sql, rows)
+        conn.commit()
+        print(f"[DB] message_mood 테이블 저장 완료: {len(rows)}건")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERROR] save_message_mood_to_db 실패: {e}")
         raise
     finally:
         cursor.close()

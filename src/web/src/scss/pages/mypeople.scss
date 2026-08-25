@@ -9,14 +9,18 @@ footer {
 }
 
 /* top_nav는 더 이상 여기서 따로 오버라이드하지 않음 — 공용 헤더(_header.scss)의
-   position:fixed; top:12px; 등을 그대로 써서 다른 페이지/홈 화면과 위치·디자인 통일.
-   그 헤더의 실제 높이(12px 여백 + 100px)에 맞춰 아래 right_col/.mp-page의 top도
-   57px → 136px로 맞춤(다른 페이지들이 쓰는 padding-top: 136px과 동일한 기준). */
+   position:fixed; top:15px; min-height:58px; 등을 그대로 써서 다른 페이지/홈 화면과
+   위치·디자인 통일. 이 페이지는 padding-top이 아니라 position:fixed + top으로 아래
+   right_col/.mp-page를 직접 띄우기 때문에, _header.scss의 top_nav의 top/min-height가
+   바뀔 때마다 여기 top 값도 "헤더 높이 + top + 24px" 공식으로 같이 맞춰야 함(안 그러면
+   이 페이지만 여백이 그대로 남음 — 실제로 한 번 이 문제가 있었음). top_nav가 top:3px/
+   min-height:100px에서 top:15px/min-height:58px로 바뀐 뒤에도 여기는 옛날 공식(127px)
+   그대로 남아있던 걸 발견해서 새 공식(58+15+24=97px)으로 같이 맞춤. */
 
 /* right_col: fixed, starts exactly at bottom of navbar */
 .right_col {
   position: fixed !important;
-  top: 136px !important;
+  top: 74px !important; // 공용 헤더 바로 아래(73px)에 거의 붙임 — 창 위치는 이 값 유지
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
@@ -32,11 +36,11 @@ footer {
 }
 .mp-page {
   position: fixed !important;
-  top: 136px !important;
+  top: 74px !important; // 공용 헤더 바로 아래(73px)에 거의 붙임 — 창 위치는 이 값 유지
   left: 0 !important;
   right: 0 !important;
   bottom: 100px !important;
-  padding: 16px 90px 0 90px !important;
+  padding: 0 90px 0 90px !important; // 상단 패딩 제거 — 창 위치는 이 값 유지
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
@@ -67,24 +71,25 @@ footer {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* #mp-detail이 이제 이 안의 형제(mail/messenger 뷰 밖)로 옮겨져서, absolute+inset:0인
+     #mp-detail을 이 컨테이너 기준으로 꽉 채우려면 여기가 positioning context여야 함 */
+  position: relative;
 }
 
 /* ── 그리드 패널 ── */
 .mp-panel {
   width: 100%;
   background: rgba(255, 255, 255, 0.72);
-  border: 1.5px solid rgba(200, 230, 215, 0.8);
+  border: none;
   border-radius: 20px;
   backdrop-filter: blur(12px);
   box-shadow:
-    0 4px 28px rgba(251, 146, 60, 0.1),
+    0 8px 28px rgba(48, 37, 34, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   flex: 1;
   min-height: 0;
   padding: 8px 14px;
   overflow-y: auto;
-  -webkit-mask-image: -webkit-radial-gradient(circle, #fff 100%, #000 100%);
-  mask-image: radial-gradient(circle, #fff 100%, #000 100%);
   /* 카드 그리드 안의 글자 크기(아바타 이니셜/이름/배지)가 이 패널의 실제 너비
            기준으로 반응하도록 컨테이너로 지정 */
   container-type: inline-size;
@@ -93,7 +98,7 @@ footer {
   width: 4px;
 }
 .mp-panel::-webkit-scrollbar-thumb {
-  background: #b8ddd0;
+  background: #ddc7b8;
   border-radius: 10px;
 }
 .mp-panel:has(.mp-detail.open) {
@@ -111,7 +116,10 @@ footer {
 .mp-header-left {
   flex: 1;
   display: flex;
-  align-items: center;
+  // center였으면 mp-title-wrap(큰 제목 폰트)이 더 커서 오른쪽 컨트롤이
+  // 자동으로 중앙 정렬되며 아래로 처져 보였음 — flex-start로 위쪽 기준 정렬해서
+  // 컨트롤들이 제목과 같은 높이(맨 위)에 붙도록 고정
+  align-items: flex-start;
   justify-content: space-between;
   /* 왼쪽 패널(.mp-panel)과 같은 너비를 가지므로, 이 헤더 영역 자체를 컨테이너로
            지정해 제목/드롭다운 등 텍스트가 실제 렌더링 폭 기준으로 반응하게 한다 */
@@ -123,9 +131,18 @@ footer {
   gap: 8px;
 }
 .mp-title {
-  font-size: clamp(1.6rem, 8cqw, 2.6rem);
+  /* mt-title과 동일한 고정 크기/폰트 (컨테이너 상속 대신 명시 지정) */
+  font-family:
+    "Pretendard",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+  font-size: 2.6rem;
   font-weight: 800;
-  color: #1b2e22;
+  color: #2e1d1b;
   letter-spacing: -0.04em;
 }
 .mp-title span {
@@ -139,14 +156,75 @@ footer {
   padding: 2px 8px;
   border-radius: 20px;
 }
+/* mp-count 옆 채널 선택 버튼, mp-brand-filter-btn과 같은 팔레트/톤 */
+.mp-channel-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+.mp-channel-btn {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  line-height: inherit;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  /* 서로 다른 컨테이너에 있는 요소들도 항상 동일하게 보이도록 고정 rem 값 사용 */
+  font-size: 1rem;
+  font-weight: 600;
+  color: #3f302a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    box-shadow 0.15s,
+    background 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.mp-channel-btn:hover {
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
+}
+.mp-channel-btn.active {
+  background: #fb923c;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
+}
 /* ── 정렬 컨트롤 묶음(광고 제거 버튼 + 정렬 드롭다운) ── */
 .mp-header-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  align-self: flex-end; // 제목(더 큰 폰트)과 같은 줄에서 버튼들을 줄 맨 아래로 붙여서 바로 아래 패널과 가깝게
 }
-#account-picker-mount {
-  margin-top: 20px;
+/* accountPicker.js가 자체 <style>로 주입하는 .gw-account-picker(font-size:
+   0.85rem 고정, border 1px solid)를 이 페이지에서만 다른 버튼들과 같은 크기/톤으로
+   덮어씀 — 공용 파일(다른 페이지에서도 씀)을 직접 고치는 대신 페이지 스코프로 오버라이드 */
+#account-picker-mount .gw-account-picker {
+  font-size: 1rem;
+}
+/* 메신저 탭의 "단톡방 계정" 선택 드롭다운 — 옆의 .mp-dropdown-btn/.mp-brand-filter-btn과
+   높이·모서리·테두리가 달라서 정렬이 어긋나 보였음. 같은 규격(테두리 없음, 그림자만,
+   1rem, border-radius 10px)으로 맞춤 */
+#chatroom-picker-mount .gw-account-picker {
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.15s;
+}
+#chatroom-picker-mount .gw-account-picker:focus {
+  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .mp-brand-filter-btn {
   box-sizing: border-box;
@@ -159,37 +237,35 @@ footer {
   align-items: center;
   gap: 6px;
   background: rgba(255, 255, 255, 0.8);
-  border: 1.5px solid rgba(200, 230, 215, 0.9);
+  border: none;
   border-radius: 10px;
   padding: 6px 16px;
   cursor: pointer;
-  font-size: clamp(0.68rem, 1.9cqw, 0.85rem);
+  font-size: 1rem;
   font-weight: 600;
-  color: #2a3f35;
+  color: #3f302a;
   backdrop-filter: blur(8px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   transition:
-    border-color 0.15s,
+    box-shadow 0.15s,
     background 0.15s,
     color 0.15s;
   white-space: nowrap;
   user-select: none;
-  margin-top: 20px;
 }
 .mp-brand-filter-btn:hover {
-  border-color: #fb923c;
   background: #fff;
+  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .mp-brand-filter-btn.active {
   background: #fb923c;
-  border-color: #fb923c;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(251, 146, 60, 0.28);
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
 /* ── 노션식 드롭다운 토글 ── */
 .mp-dropdown {
   position: relative;
-  margin-top: 20px;
 }
 .mp-dropdown-btn {
   display: flex;
@@ -197,34 +273,34 @@ footer {
   justify-content: space-between;
   gap: 24px;
   background: rgba(255, 255, 255, 0.8);
-  border: 1.5px solid rgba(200, 230, 215, 0.9);
+  border: none;
   border-radius: 10px;
   padding: 6px 16px;
   cursor: pointer;
-  font-size: clamp(0.68rem, 1.9cqw, 0.85rem);
+  font-size: 1rem;
   font-weight: 600;
-  color: #2a3f35;
+  color: #3f302a;
   backdrop-filter: blur(8px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   transition:
-    border-color 0.15s,
+    box-shadow 0.15s,
     background 0.15s;
   white-space: nowrap;
   user-select: none;
   min-width: 140px;
 }
 .mp-dropdown-btn:hover {
-  border-color: #fb923c;
   background: #fff;
+  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 .mp-dropdown-btn.open {
-  border-color: #fb923c;
   background: #fff;
   border-radius: 10px 10px 0 0;
-  border-bottom-color: transparent;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.3);
 }
 .mp-dropdown-chevron {
   font-size: clamp(0.58rem, 1.6cqw, 0.7rem);
-  color: #7aaa96;
+  color: #aa8a7a;
   transition: transform 0.18s;
 }
 .mp-dropdown-btn.open .mp-dropdown-chevron {
@@ -237,10 +313,9 @@ footer {
   right: 0;
   min-width: 100%;
   background: #fff;
-  border: 1.5px solid #fb923c;
-  border-top: none;
+  border: none;
   border-radius: 0 0 10px 10px;
-  box-shadow: 0 8px 24px rgba(251, 146, 60, 0.12);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
   z-index: 500;
   overflow: hidden;
 }
@@ -251,7 +326,7 @@ footer {
   padding: 9px 16px;
   font-size: clamp(0.68rem, 1.9cqw, 0.84rem);
   font-weight: 500;
-  color: #2a3f35;
+  color: #3f302a;
   cursor: pointer;
   transition: background 0.12s;
   display: flex;
@@ -259,7 +334,7 @@ footer {
   gap: 8px;
 }
 .mp-dropdown-item:hover {
-  background: #f0faf6;
+  background: #faf3f0;
   color: #fb923c;
 }
 .mp-dropdown-item.selected {
@@ -285,6 +360,98 @@ footer {
   align-items: start;
 }
 
+/* ── 친밀도 5분위 밴드 ── .mp-band는 .mp-grid의 그리드 아이템이지만
+   grid-column:1/-1로 한 줄 전체를 차지해서 그 안에 독립된 카드 그리드(.mp-band-cards)를
+   넣는 구조. 상위 밴드일수록 배경(--band-bg)이 진하고, 하위로 갈수록 옅어지도록
+   JS(renderAffinityBands)에서 인라인으로 값을 넣어준다. */
+.mp-band {
+  grid-column: 1 / -1;
+}
+.mp-band-divider {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: #909090;
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(48, 37, 34, 0.14);
+  }
+  span {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #6A6A6A;
+    background: rgba(106, 106, 106, 0.1);
+    padding: 2px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+}
+.mp-band-cards {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+  align-items: start;
+  background: var(--band-bg, transparent);
+  border-radius: 16px;
+  padding: 10px;
+}
+
+/* 단톡방 카드 아바타 = 참여자 이니셜 원을 인원수만큼 분할해 채움. 실제 행 구성/font-size는
+   인원수에 따라 mypeople.js(buildRoomAvatarHtml)가 계산해서 넣음. CSS grid 대신 "줄(row)마다
+   독립된 flex 컨테이너"로 만들어서, 홀수 인원이라 마지막 줄 칸 수가 안 맞아도(예: 5명 = 3+2)
+   빈 칸 없이 원을 꽉 채움. */
+.mp-room-avatar {
+  overflow: hidden;
+  /* .mp-avatar의 clamp는 이 패널 전체 너비(cqw) 기준이라 방 카드가 커져도 그대로였음 —
+     방 카드는 사람 카드보다 훨씬 넓으니 아바타 원 자체도 그만큼 크게 별도 지정 */
+  max-width: clamp(180px, 20cqw, 280px);
+  min-width: clamp(100px, 11cqw, 150px);
+}
+.mp-room-avatar-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+}
+.mp-room-avatar-row {
+  display: flex;
+  flex: 1;
+  gap: 1px;
+}
+.mp-room-avatar-cell {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  overflow: hidden;
+}
+
+/* 단톡방 카드는 사람 카드보다 눈에 띄게 커야 해서, 같은 .mp-grid를 쓰되 열 수를
+   줄여 카드를 키움. 아바타 원 자체는 .mp-room-avatar의 clamp 상한(280px)에 이미 걸려
+   더는 안 커지므로, 카드를 그보다 훨씬 크게 키워봐야 원 주변 여백만 늘어남 — 그래서
+   원래보다 열을 하나씩 더 넣어 카드를 조금 줄임(그래도 사람 카드보다는 확실히 큼) */
+.mp-room-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+@media (max-width: 1280px) {
+  .mp-room-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 960px) {
+  .mp-room-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* 카드 — 열 너비 기준 정사각형, 화면 비율에 따라 반응 */
 .mp-card {
   border-radius: 14px;
@@ -301,6 +468,9 @@ footer {
     box-shadow 0.22s;
   position: relative;
   overflow: hidden;
+  /* 친밀도 기반 카드 색상(.ca-fade) 비활성화에 따른 고정 배경 */
+  background: #fff;
+  box-shadow: 0 3px 14px rgba(48, 37, 34, 0.12);
 }
 .mp-card::before {
   content: "";
@@ -315,12 +485,13 @@ footer {
 }
 .mp-card:hover {
   transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 12px 24px rgba(48, 37, 34, 0.18);
 }
 
 /* 파스텔 팔레트 */
 .mp-card.c0 {
-  background: linear-gradient(150deg, #a8e8d8, #72cbb5);
-  box-shadow: 0 3px 14px rgba(114, 203, 181, 0.28);
+  background: linear-gradient(150deg, #e8c8a8, #cb9f72);
+  box-shadow: 0 3px 14px rgba(174, 174, 174, 0.28);
 }
 .mp-card.c1 {
   background: linear-gradient(150deg, #b8d4f8, #8ab6f4);
@@ -339,15 +510,15 @@ footer {
   box-shadow: 0 3px 14px rgba(248, 164, 196, 0.28);
 }
 .mp-card.c5 {
-  background: linear-gradient(150deg, #a4e8e4, #78d4d0);
-  box-shadow: 0 3px 14px rgba(120, 212, 208, 0.28);
+  background: linear-gradient(150deg, #e8d3a4, #d4b978);
+  box-shadow: 0 3px 14px rgba(184, 184, 184, 0.28);
 }
 .mp-card.c6 {
   background: linear-gradient(150deg, #fed4a8, #fcbc80);
   box-shadow: 0 3px 14px rgba(252, 188, 128, 0.28);
 }
 .mp-card.c0:hover {
-  box-shadow: 0 12px 24px rgba(114, 203, 181, 0.4);
+  box-shadow: 0 12px 24px rgba(174, 174, 174, 0.4);
 }
 .mp-card.c1:hover {
   box-shadow: 0 12px 24px rgba(138, 182, 244, 0.4);
@@ -362,13 +533,13 @@ footer {
   box-shadow: 0 12px 24px rgba(248, 164, 196, 0.4);
 }
 .mp-card.c5:hover {
-  box-shadow: 0 12px 24px rgba(120, 212, 208, 0.4);
+  box-shadow: 0 12px 24px rgba(184, 184, 184, 0.4);
 }
 .mp-card.c6:hover {
   box-shadow: 0 12px 24px rgba(252, 188, 128, 0.4);
 }
 
-/* 친밀도 기반 카드 색상 — 친밀도 값에 따라 초록 계열 채도/명도가 연속적으로 변하는 그라데이션 */
+/* 친밀도 기반 카드 색상 — 사용자 요청으로 비활성화 (주석 처리). 카드는 .mp-card 기본 스타일(흰 배경)을 사용함.
 .mp-card.ca-fade {
   background: linear-gradient(150deg, var(--ca-light), var(--ca-dark));
   box-shadow: 0 3px 14px var(--ca-shadow);
@@ -376,6 +547,10 @@ footer {
 .mp-card.ca-fade:hover {
   box-shadow: 0 12px 24px var(--ca-shadow-hover);
 }
+*/
+
+/* 메신저 탭 카드(단톡방/참여자)도 메일 사람카드와 같은 색(.mp-card 기본 흰 배경)을
+   쓰도록, 예전에 있던 민트색 전용 배경/그림자 오버라이드는 제거함 */
 
 .mp-avatar {
   width: 76%;
@@ -397,7 +572,7 @@ footer {
 .mp-name {
   font-size: clamp(1.1rem, 3cqw, 2.15rem);
   font-weight: 700;
-  color: rgba(30, 50, 44, 0.82);
+  color: rgba(43, 43, 43, 0.82);
   text-align: center;
   line-height: 1.25;
   word-break: keep-all;
@@ -408,7 +583,7 @@ footer {
   right: 6px;
   font-size: clamp(0.62rem, 1.2cqw, 0.8rem);
   font-weight: 700;
-  color: rgba(20, 50, 40, 0.75);
+  color: rgba(40, 40, 40, 0.75);
   background: rgba(255, 255, 255, 0.82);
   border-radius: 9px;
   padding: 3px 9px;
@@ -424,11 +599,16 @@ footer {
   color: #1d4ed8;
   background: rgba(90, 148, 232, 0.18);
 }
+/* 메신저 탭 사람카드(참여자)·단톡방 카드 — 이름(.mp-name)만 빼고 배지 글자 1rem으로 통일 */
+.mp-room-card .mp-period-badge,
+.mp-person-card .mp-period-badge {
+  font-size: 1rem;
+}
 .mp-empty {
   grid-column: 1 / -1;
   text-align: center;
   padding: 50px 0;
-  color: #a0b8b0;
+  color: #b8aaa0;
 }
 .mp-empty i {
   font-size: clamp(1.6rem, 5cqw, 2.5rem);
@@ -443,10 +623,11 @@ footer {
   inset: 0;
   z-index: 8;
   background: #fff;
+  border: none;
   border-radius: 16px;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.16);
 }
 .mp-graph-panel.open {
   display: flex;
@@ -456,14 +637,14 @@ footer {
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  border-bottom: 1.5px solid #d4ece4;
-  background: #f5faf8;
+  border-bottom: 1.5px solid #ecded4;
+  background: #F8F8F8;
   flex-shrink: 0;
 }
 .mp-graph-panel-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1a5a4a;
+  color: #5a3a1a;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -473,17 +654,58 @@ footer {
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border: 1.5px solid #c4dfd8;
+  border: none;
   background: #fff;
-  color: #1a5a4a;
+  color: #5a3a1a;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
+}
+.mp-graph-close:hover {
+  background: #f4ede8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+/* ── 메신저 탭: 단톡방 참여자 화면 헤더(뒤로가기 + 방 이름) ── */
+.mp-messenger-room-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1.5px solid #e5e5e5;
+  background: #f5f5f5;
+  flex-shrink: 0;
+}
+.mp-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: none;
+  background: #fff;
+  color: #5a3a1a;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
-  transition: background 0.12s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
 }
-.mp-graph-close:hover {
-  background: #e8f4f0;
+.mp-back-btn:hover {
+  background: #f3ece4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+.mp-messenger-room-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #4a4a4a;
 }
 
 /* ════════════════════════════════════
@@ -497,14 +719,14 @@ footer {
   display: none;
   position: absolute;
   inset: 0;
-  background: #f7fcfa;
+  background: #FAFAFA;
   border-radius: 18px;
   overflow: hidden;
   flex-direction: column;
   animation: detailIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 10;
   box-shadow:
-    0 24px 64px rgba(0, 40, 30, 0.13),
+    0 12px 36px rgba(13, 13, 13, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   /* 뷰포트(vw)가 아니라 이 패널 자신의 실제 너비를 기준으로 내부 요소들이
            반응형으로 커지고 작아지도록 컨테이너 쿼리 컨텍스트로 지정 */
@@ -533,26 +755,26 @@ footer {
   width: clamp(28px, 2.2cqw, 34px);
   height: clamp(28px, 2.2cqw, 34px);
   border-radius: 50%;
-  border: 1.5px solid rgba(200, 225, 215, 0.7);
+  border: none;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ab8ac;
-  font-size: clamp(0.72rem, 0.85cqw, 0.9rem);
+  color: #b8a49a;
+  font-size: 1rem;
   transition:
     background 0.15s,
     color 0.15s,
-    border-color 0.15s,
+    box-shadow 0.15s,
     transform 0.15s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
 }
 .mp-detail-close:hover {
   background: #fff;
-  color: #0f3d2e;
-  border-color: #fb923c;
+  color: #3d220f;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
   transform: scale(1.08);
 }
 
@@ -571,7 +793,7 @@ footer {
   min-height: 0;
   overflow: hidden;
   container-type: size;
-  background: linear-gradient(135deg, #ffffff 0%, #f2fbf7 55%, #edf4ff 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #fbf5f2 55%, #edf4ff 100%);
   border-bottom: 1.5px solid rgba(251, 146, 60, 0.12);
   position: relative;
 }
@@ -585,7 +807,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1.2rem, calc((100cqh - 42px) * 0.32), 3.6rem);
+  font-size: 1rem;
   font-weight: 800;
   box-shadow:
     0 10px 36px rgba(0, 0, 0, 0.14),
@@ -643,7 +865,7 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: clamp(0.58rem, calc((100cqh - 42px) * 0.09), 0.76rem);
+  font-size: 1rem;
   font-weight: 800;
   color: #fff;
   background: linear-gradient(150deg, #f472b6, #db2777);
@@ -723,9 +945,9 @@ footer {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: clamp(0.64rem, calc((100cqh - 42px) * 0.1), 0.88rem);
+  font-size: 1rem;
   font-weight: 700;
-  color: #0f6e56;
+  color: #6e3e0f;
   background: #fff;
   border: 1.5px solid rgba(251, 146, 60, 0.4);
   padding: clamp(4px, calc((100cqh - 42px) * 0.06), 7px)
@@ -749,10 +971,33 @@ footer {
   line-height: 1.2;
 }
 .mp-detail-email {
-  font-size: clamp(0.74rem, calc((100cqh - 42px) * 0.115), 1rem);
-  color: #8aaa98;
+  font-size: 1rem;
+  color: #aa908a;
   margin: 0;
   letter-spacing: 0.01em;
+}
+/* 메신저 상세: 헤더에서 "나" 아바타/관계선을 숨기는 대신 그 자리에 이 사람의 설명을 보여줌
+   (openMessengerDetail이 .show를 붙이고, openDetail(메일)은 뗌) */
+.mp-detail-messenger-desc {
+  display: none;
+  font-size: clamp(0.7rem, 0.8cqw, 0.84rem);
+  color: #5a6a62;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+.mp-detail-messenger-desc.show {
+  display: block;
+}
+/* 메신저 상세에서만 이름/부제/설명 칸이 헤더의 남는 폭을 다 가져가게 늘림(스크롤 대신
+   설명이 옆으로 넓게 펼쳐지도록) — openMessengerDetail이 이 클래스를 붙이고, openDetail
+   (메일)은 뗌. 메일 쪽은 이 클래스가 안 붙으니 기존 가운데 정렬 그대로 유지됨 */
+.mp-detail-namewrap-wide {
+  flex: 1;
+  min-width: 0;
+  /* 헤더 오른쪽 아래에 절대배치되는 탭 버튼(.mp-detail-tab-group)과 겹치지 않도록,
+     그 자리만큼 오른쪽 여백을 비워둠 */
+  padding-right: clamp(220px, 26cqw, 320px);
+  box-sizing: border-box;
 }
 
 /* 탭 미니 버튼 그룹 (헤더 하단 경계선 바로 위 오른쪽) */
@@ -770,17 +1015,20 @@ footer {
   border-radius: 20px;
   border: none;
   cursor: pointer;
-  font-size: clamp(0.66rem, 0.85cqw, 0.85rem);
+  font-size: 1rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.03em;
   text-align: center;
-  transition: opacity 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
   white-space: nowrap;
   background: #5a94e8;
 }
 #mp-tab-stats {
-  background: #67ceb8;
+  background: #ce9e67;
 }
 #mp-tab-desc {
   background: #8cb4ef;
@@ -789,16 +1037,16 @@ footer {
   opacity: 0.82;
 }
 .mp-detail-tab-btn.active-stats {
-  background: #67ceb8;
-  box-shadow: 0 2px 10px rgba(103, 206, 184, 0.45);
+  background: #ce9e67;
+  box-shadow: 0 2px 7px rgba(173, 173, 173, 0.5);
 }
 .mp-detail-tab-btn.active-desc {
   background: #8cb4ef;
-  box-shadow: 0 2px 10px rgba(140, 180, 239, 0.45);
+  box-shadow: 0 2px 7px rgba(140, 180, 239, 0.5);
 }
 .mp-detail-tab-btn.active-kw {
   background: #b99ee9;
-  box-shadow: 0 2px 10px rgba(185, 158, 233, 0.45);
+  box-shadow: 0 2px 7px rgba(185, 158, 233, 0.5);
 }
 #mp-tab-kw {
   background: #b99ee9;
@@ -815,7 +1063,7 @@ footer {
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr;
-  background: linear-gradient(180deg, #f6fcf9 0%, #f0faf4 100%);
+  background: linear-gradient(180deg, #FAFAFA 0%, #faf2f0 100%);
 }
 
 /* 키워드 탭 패널 */
@@ -845,7 +1093,7 @@ footer {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(160deg, #f4f8ff 0%, #f0faf8 100%);
+  background: linear-gradient(160deg, #f4f8ff 0%, #faf5f0 100%);
   padding: clamp(20px, 2.5cqw, 36px) clamp(20px, 3cqw, 48px);
   flex-direction: column;
 }
@@ -871,7 +1119,7 @@ footer {
 .mp-desc-profile-key {
   flex-shrink: 0;
   min-width: 120px;
-  font-size: clamp(0.7rem, 0.82cqw, 0.82rem);
+  font-size: 1rem;
   font-weight: 700;
   color: #3a5bcc;
   background: linear-gradient(135deg, #eef1ff, #e6ecff);
@@ -882,7 +1130,7 @@ footer {
   box-shadow: 0 1px 4px rgba(90, 120, 220, 0.1);
 }
 .mp-desc-profile-val {
-  font-size: clamp(0.78rem, 0.92cqw, 0.94rem);
+  font-size: 1rem;
   color: #1e2e42;
   line-height: 1.65;
   word-break: keep-all;
@@ -890,7 +1138,7 @@ footer {
 }
 .mp-desc-profile-empty {
   color: #b0c4d8;
-  font-size: 0.86rem;
+  font-size: 1rem;
   font-style: italic;
   text-align: center;
   padding: 40px 0;
@@ -907,8 +1155,8 @@ footer {
   overflow: hidden;
   background: linear-gradient(
     160deg,
-    rgba(196, 236, 214, 0.22) 0%,
-    rgba(224, 248, 234, 0.14) 100%
+    rgba(222, 222, 222, 0.22) 0%,
+    rgba(239, 239, 239, 0.14) 100%
   );
 }
 
@@ -921,15 +1169,15 @@ footer {
   border: 1.5px solid rgba(251, 146, 60, 0.3);
   border-radius: 20px;
   padding: clamp(4px, 0.5cqw, 6px) clamp(10px, 1.2cqw, 16px);
-  font-size: clamp(0.7rem, 0.85cqw, 0.86rem);
+  font-size: 1rem;
   font-weight: 700;
-  color: #147a5c;
+  color: #7a4214;
   letter-spacing: 0.05em;
   box-sizing: border-box;
   box-shadow: 0 1px 4px rgba(251, 146, 60, 0.1);
 }
 .mp-detail-section-sub {
-  font-size: clamp(0.62rem, 0.72cqw, 0.74rem);
+  font-size: 1rem;
   font-weight: 700;
   color: #fb923c;
   background: rgba(251, 146, 60, 0.1);
@@ -959,7 +1207,7 @@ footer {
   flex-shrink: 0;
 }
 .mp-vchart-y span {
-  font-size: 0.92rem;
+  font-size: 1rem;
   color: #9a8e7f;
   text-align: right;
   line-height: 1;
@@ -1004,16 +1252,8 @@ footer {
   gap: 5px;
   flex-shrink: 0;
   height: 100%;
-  cursor: pointer;
   padding: 0 3px;
   border-radius: 4px;
-  transition: background 0.15s;
-}
-.mp-vchart-group:hover {
-  background: rgba(28, 28, 30, 0.05);
-}
-.mp-vchart-group.active {
-  background: rgba(251, 146, 60, 0.14);
 }
 .mp-vchart-bars {
   display: flex;
@@ -1030,9 +1270,6 @@ footer {
     height 0.65s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.15s;
 }
-.mp-vchart-group:hover .mp-vchart-bar {
-  opacity: 0.85;
-}
 .mp-vchart-bar.sent {
   background: linear-gradient(0deg, #9a3412, #fb923c);
 }
@@ -1047,7 +1284,7 @@ footer {
   gap: 2px;
 }
 .mp-vchart-month {
-  font-size: 0.86rem;
+  font-size: 1rem;
   color: #8a8073;
   white-space: nowrap;
   font-weight: 700;
@@ -1098,7 +1335,7 @@ footer {
 }
 .mp-email-tag.sent {
   background: rgba(251, 146, 60, 0.12);
-  color: #0f6e56;
+  color: #6e3e0f;
 }
 .mp-email-tag.received {
   background: rgba(90, 148, 232, 0.14);
@@ -1124,6 +1361,84 @@ footer {
   color: #a39a8d;
 }
 
+/* ── 메신저 상세: 월 클릭 → 일별 목록 → 하루 클릭 → 그날 대화 (메일 드로어 재사용) ── */
+.mp-day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.mp-day-row:hover {
+  border-color: #26b99a;
+  background: rgba(38, 185, 154, 0.06);
+}
+.mp-day-row-date {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+.mp-day-row-count {
+  font-size: 0.82rem;
+  color: #8a8073;
+  background: rgba(28, 28, 30, 0.06);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+.mp-chatline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+.mp-chatline {
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.mp-chatline.system {
+  background: transparent;
+  border: none;
+  text-align: center;
+  color: #a39a8d;
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 4px 0;
+}
+.mp-chatline-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mp-chatline-sender {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a6e4a;
+}
+.mp-chatline-time {
+  font-size: 0.74rem;
+  color: #a39a8d;
+}
+.mp-chatline-text {
+  font-size: 0.9rem;
+  color: #2c2c2e;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* 워드 클라우드 */
 .mp-wc-wrap {
   flex: 1;
@@ -1140,9 +1455,11 @@ footer {
     rgba(255, 255, 255, 0.85) 0%,
     rgba(242, 238, 255, 0.5) 100%
   );
-  border: 1px solid rgba(180, 160, 240, 0.25);
+  border: none;
   border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -1214,17 +1531,18 @@ footer {
   align-items: center;
 }
 .mp-tl-date-label {
-  font-size: clamp(0.68rem, 0.9cqw, 0.78rem);
+  /* 상단 mp-channel-btn/mp-brand-filter-btn/mp-dropdown-btn과 동일한 1rem */
+  font-size: 1rem;
   font-weight: 700;
-  color: #0f7a62;
-  background: #e6f7f2;
+  color: #7a470f;
+  background: #f7eee6;
   padding: 3px 10px;
   border-radius: 20px;
   letter-spacing: 0.02em;
 }
 .mp-tl-selected {
-  font-size: clamp(0.7rem, 0.95cqw, 0.8rem);
-  color: #4a9c80;
+  font-size: 1rem;
+  color: #9c6c4a;
   font-weight: 500;
   text-align: center;
   flex: 1;
@@ -1244,7 +1562,7 @@ footer {
   left: 0;
   right: 0;
   height: 8px;
-  background: rgba(180, 220, 205, 0.75);
+  background: rgba(206, 206, 206, 0.1);
   border-radius: 4px;
   box-shadow: 0 1px 4px rgba(251, 146, 60, 0.15);
 }
@@ -1253,7 +1571,7 @@ footer {
 .mp-tl-fill {
   position: absolute;
   height: 8px;
-  background: linear-gradient(90deg, #fb923c, #ea580c);
+  background: #fb923c;
   border-radius: 4px;
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.35);
@@ -1293,7 +1611,7 @@ footer {
 }
 .mp-tl-track-wrap input[type="range"]::-webkit-slider-thumb:active {
   cursor: grabbing;
-  background: #e6f7f2;
+  background: #f7eee6;
 }
 .mp-tl-track-wrap input[type="range"]::-moz-range-thumb {
   width: 20px;
@@ -1325,18 +1643,19 @@ footer {
 .mp-tl-tick-line {
   width: 1.5px;
   height: 7px;
-  background: #7ab8a4;
+  background: #b8947a;
 }
 .mp-tl-tick-lbl {
-  font-size: clamp(0.6rem, 0.85cqw, 0.7rem);
-  color: #4a8872;
+  font-size: 1rem;
+  color: #88634a;
   font-weight: 600;
   white-space: nowrap;
 }
 
 /* 반응형: 중간 화면 — 오른쪽 패널 축소 */
 @media (max-width: 1280px) {
-  .mp-grid {
+  .mp-grid,
+  .mp-band-cards {
     grid-template-columns: repeat(7, 1fr);
   }
   .mp-page {
@@ -1354,7 +1673,8 @@ footer {
   .mp-content {
     flex-direction: column;
   }
-  .mp-grid {
+  .mp-grid,
+  .mp-band-cards {
     grid-template-columns: repeat(5, 1fr);
   }
   .mp-timeline {
@@ -1363,7 +1683,8 @@ footer {
   }
 }
 @media (max-width: 640px) {
-  .mp-grid {
+  .mp-grid,
+  .mp-band-cards {
     grid-template-columns: repeat(4, 1fr);
   }
   .mp-page {
@@ -1372,5 +1693,30 @@ footer {
   .mp-timeline {
     left: 28px;
     right: 28px;
+  }
+}
+
+/* 메신저 상세보기 전용 글자 크기 통일 — 사진 옆 이름(#mp-detail-name)과 키워드 탭
+   내용(#mp-detail-wc)만 빼고 전부 1rem. openMessengerDetail()이 #mp-detail에
+   .mp-detail-messenger를 붙이고 openDetail()(메일)은 떼서, 메일 쪽엔 영향 없음. */
+#mp-detail.mp-detail-messenger {
+  #mp-detail-email,
+  .mp-detail-messenger-desc,
+  #mp-detail-relation-label,
+  .mp-detail-tab-btn,
+  #mp-stats-total,
+  .mp-vchart-month,
+  .mp-vchart-y span,
+  #mp-echange-list-title,
+  #mp-echange-list-count,
+  .mp-day-row-date,
+  .mp-day-row-count,
+  .mp-chatline-sender,
+  .mp-chatline-time,
+  .mp-chatline-text,
+  .mp-chatline.system,
+  .mp-back-btn,
+  .mp-empty p {
+    font-size: 1rem !important;
   }
 }

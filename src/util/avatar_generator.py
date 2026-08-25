@@ -11,13 +11,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image, ImageChops
-from util.database.db_reader import get_person_descriptions
+from util.database.db_reader import get_person_descriptions, get_all_persons
+from util.database.chatroom_reader import get_chatroom_people
 
 load_dotenv("src/parquet/.env")
 
 client = OpenAI(api_key=os.getenv("LLM_API_KEY"))
 
-AVATAR_MODEL = "gpt-image-1"
+AVATAR_MODEL = os.getenv("IMAGE_GENERATION_MODEL")
 AVATAR_SIZE = "1024x1024"
 AVATAR_QUALITY = "low"
 
@@ -41,12 +42,38 @@ def _save_avatar_map(paths, avatar_map: dict):
         json.dump(avatar_map, f, ensure_ascii=False, indent=2)
 
 
+def _chatroom_avatar_filename(participant_id: str) -> str:
+    return hashlib.md5(participant_id.strip().encode("utf-8")).hexdigest() + ".png"
+
+
+def _load_chatroom_avatar_map(paths) -> dict:
+    if not os.path.exists(paths.MESSAGE_AVATARS_PATH):
+        return {}
+    with open(paths.MESSAGE_AVATARS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_chatroom_avatar_map(paths, avatar_map: dict):
+    os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
+    with open(paths.MESSAGE_AVATARS_PATH, "w", encoding="utf-8") as f:
+        json.dump(avatar_map, f, ensure_ascii=False, indent=2)
+
+
 def _extract_relationship_hint(description: str) -> str:
     """person.description 텍스트(이름/관계/자주 주고받은 내용)에서 '관계' 줄만 추출해
     아바타 스타일에 참고할 짧은 컨텍스트로 사용한다. 메일 내용 자체는 노출하지 않는다."""
     if not description:
         return ""
     m = re.search(r"관계:\s*(.+)", description)
+    return m.group(1).strip() if m else ""
+
+
+def _extract_tone_hint(description: str) -> str:
+    """chatroom_people.description 텍스트(참여 패턴/자주 하는 이야기/말투)에서 '말투' 줄만
+    추출해 아바타 스타일에 참고할 짧은 컨텍스트로 사용한다. 메일 쪽 '관계' 줄과 같은 역할."""
+    if not description:
+        return ""
+    m = re.search(r"말투:\s*(.+)", description)
     return m.group(1).strip() if m else ""
 
 
@@ -433,21 +460,19 @@ def _composite_on_color(image_bytes: bytes, bg_rgb: tuple) -> bytes:
 
 
 def generate_avatar_image_bytes(name: str, relationship_hint: str = "", seed_key: str = "") -> bytes:
-    # TEMP: GPT 이미지 생성 임시 비활성화
-    raise RuntimeError("이미지 생성이 임시로 비활성화되어 있습니다")
-    # attrs = _pick_style_attributes(seed_key or name)
-    # result = client.images.generate(
-    #     model=AVATAR_MODEL,
-    #     prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
-    #     size=AVATAR_SIZE,
-    #     quality=AVATAR_QUALITY,
-    #     background="transparent",
-    #     output_format="png",
-    #     n=1,
-    # )
-    # b64 = result.data[0].b64_json
-    # raw_bytes = base64.b64decode(b64)
-    # return _composite_on_color(raw_bytes, attrs["bg_rgb"])
+    attrs = _pick_style_attributes(seed_key or name)
+    result = client.images.generate(
+        model=AVATAR_MODEL,
+        prompt=_build_avatar_prompt(name, relationship_hint, seed_key),
+        size=AVATAR_SIZE,
+        quality=AVATAR_QUALITY,
+        background="transparent",
+        output_format="png",
+        n=1,
+    )
+    b64 = result.data[0].b64_json
+    raw_bytes = base64.b64decode(b64)
+    return _composite_on_color(raw_bytes, attrs["bg_rgb"])
 
 
 def _load_relationship_hints(user_id: str) -> dict:
@@ -552,3 +577,76 @@ def generate_person_avatars_batch(paths, people: list) -> dict:
                 future.result()
 
     return {email: avatar_map[email] for email in seen if email in avatar_map}
+
+
+def generate_all_person_avatars(paths) -> dict:
+    """인덱싱 완료 직후 이 계정의 연락처 전체를 조회해 일괄 아바타 생성한다(프론트엔드
+    지연 생성 대신 서버 사이드 트리거용 진입점). 이미 캐시된 사람은 generate_person_avatars_batch
+    내부의 skip 로직이 그대로 걸러준다."""
+    persons = get_all_persons(paths.USER_ID)
+    people = [
+        {"email": p["person_mail_account_id"], "name": p.get("person_name") or ""}
+        for p in persons
+        if p.get("person_mail_account_id")
+    ]
+    return generate_person_avatars_batch(paths, people)
+
+
+def get_cached_chatroom_people_avatars(paths) -> dict:
+    return _load_chatroom_avatar_map(paths)
+
+
+def generate_chatroom_people_avatars_batch(paths) -> dict:
+    """
+    chatroom_people 테이블에서 이 채팅방(paths.USER_ID)의 참여자 전체를 조회해, 아직
+    아바타가 없는 참여자만 GPT 이미지 API로 일러스트 아바타를 생성한다. 메신저 참여자는
+    이메일이 없고(캐시 키는 participant_id) 기업/브랜드 로고 판별 대상도 아니므로,
+    메일 쪽의 브랜드 로고 분기 없이 항상 일러스트 아바타를 생성한다.
+    스타일 힌트는 chatroom_people.description의 '말투' 줄(_extract_tone_hint)을 메일의
+    '관계' 줄과 같은 방식으로 재사용해, 메일 아바타와 동일한 프롬프트/아트 스타일을 유지한다.
+    반환: { participant_id: "/chatroom-person-avatar-image/<chatroom_id>/<filename>" }
+    """
+    people = get_chatroom_people(paths.USER_ID)
+    if not people:
+        return {}
+
+    os.makedirs(paths.MESSAGE_AVATAR_IMAGES_DIR, exist_ok=True)
+    avatar_map = _load_chatroom_avatar_map(paths)
+
+    targets = []
+    seen = set()
+    for p in people:
+        participant_id = (p.get("participant_id") or "").strip()
+        name = (p.get("name") or "").strip()
+        if not participant_id or not name or participant_id in seen:
+            continue
+        seen.add(participant_id)
+        if participant_id not in avatar_map:
+            tone_hint = _extract_tone_hint(p.get("description") or "")
+            targets.append((participant_id, name, tone_hint))
+
+    def _generate_one(participant_id, name, tone_hint):
+        try:
+            image_bytes = generate_avatar_image_bytes(name, tone_hint, participant_id)
+
+            filename = _chatroom_avatar_filename(participant_id)
+            filepath = os.path.join(paths.MESSAGE_AVATAR_IMAGES_DIR, filename)
+            with open(filepath, "wb") as f:
+                f.write(image_bytes)
+            url = f"/chatroom-person-avatar-image/{paths.USER_ID}/{filename}"
+            with _map_lock:
+                avatar_map[participant_id] = url
+                _save_chatroom_avatar_map(paths, avatar_map)
+            print(f"[AVATAR] 참여자 아바타 생성 완료: {participant_id} ({name})")
+            return participant_id, url
+        except Exception as e:
+            print(f"[AVATAR] 참여자 아바타 생성 실패 ({participant_id}): {e}")
+            return participant_id, None
+
+    if targets:
+        with ThreadPoolExecutor(max_workers=min(len(targets), 3)) as executor:
+            futures = [executor.submit(_generate_one, pid, name, hint) for pid, name, hint in targets]
+            for future in as_completed(futures):
+                future.result()
+
+    return {pid: avatar_map[pid] for pid in seen if pid in avatar_map}
