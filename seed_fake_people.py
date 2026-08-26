@@ -8,18 +8,26 @@
 #      친밀도(가족/베프/동료/가끔연락/소원함/광고)를 다양하게 섞고, 영어 이름 8명,
 #      광고/브랜드 계정 6개를 포함한다.
 #   2. mail_keyword 테이블에 2020-01 ~ 2026-08까지 매달 빼곡하게 키워드 데이터를 채운다
-#      (My Time 메일 뷰의 월별/일별 키워드 그래프용).
+#      (My Time 메일 뷰의 월별/일별 키워드 그래프용). My Time 요약 카드(mail_summaries.json,
+#      DB가 아니라 파일 자체가 소스)의 특정 달 텍스트 하드코딩도 MAIL_SUMMARY_OVERRIDES +
+#      apply_mail_summary_overrides()로 여기서 같이 관리한다(예: 2026-08).
 #   3. 메신저(카카오) 쪽 채팅방 5개의 이름을 "가족 단톡방" 등으로 바꾸고, 마찬가지로
 #      2020-01 ~ 2026-08 채팅 요약(message_summarize) + 키워드(message_keyword)를 채운다.
 #      그중 "3학년 4반 고등학교 단톡방"(HS_CHATROOM_ID)은 멤버 15명, 데이터 범위
-#      2022-03-08~2026-05-04(HS_DATE_START/HS_DATE_END)까지로, 고3(수능)→대학 새내기→
-#      전공/알바/입대→휴학복학/인턴→자소서·면접·취업준비를 반영한 연도별 서사 +
-#      그에 맞는 키워드로 채운다(2022-09는 HS_MONTH_TEXT_OVERRIDES로 직접 손으로 채움).
-#      그 중 김도현은
+#      2022-01~올해까지로, 대학 새내기→전공/알바/입대→휴학복학/인턴→취업준비→
+#      사회초년생을 반영한 연도별 서사 + 그에 맞는 키워드로 채운다(2022-09는
+#      HS_MONTH_TEXT_OVERRIDES/HS_MONTH_CONTACTS_OVERRIDES/HS_MONTH_KEYWORD_OVERRIDES로
+#      직접 손으로 채운 내용으로 대체). 그 중 김도현은
 #      2022년엔 거의 매번 말하다가, 2023년 1~4월까지는 여전히 눈에 띄게 남아있고
 #      그 뒤로는 매달 점점 줄어드는 곡선으로 잦아드는 걸로(총 1382건, HS_KIM_2022_TOTAL/
 #      HS_KIM_TAIL_TOTAL/HS_KIM_TAIL_DECAY 참고), 15명 사이 관계도 chatroom_relationship에
-#      전부 심어서 관계 탭에 다 뜨게 한다.
+#      전부 심어서 관계 탭에 다 뜨게 한다. 다만 2026-05 한 달만은 그 연도별 서사(사회초년생
+#      테마) 대신 "대학 다니는 서로의 근황" 내용으로 손으로 고정(HS_MAY2026_* 참고) —
+#      일반 로직이 그 달 블록을 만든 직후 같은 함수 안에서 바로 덮어쓰므로 이 스크립트
+#      한 번 실행으로 전부 반영되고, 따로 실행할 스크립트는 없다.
+#
+# ※ 하드코딩된 값을 손으로 고칠 땐 이 파일만 고치고 재실행한다 — mail_summaries.json
+#    등 산출물 파일을 직접 열어 고치지 않는다(다음 재실행 때 다시 덮어써서 어긋남).
 #
 # ※ 화면/DB 어디에도 "[DEMO]" 같은 표식 문구를 넣지 않는다 — 실제 데이터처럼 보여야
 #    한다는 요청에 따라, 대신 person_mail_account_id 목록(roster)과 chatroom_id +
@@ -50,6 +58,9 @@ from dotenv import load_dotenv
 load_dotenv("src/parquet/.env")
 
 import mysql.connector
+from util.user_path import UserPaths
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 MAIL_USER_ID = "03yeah03@gmail.com"  # 실제 계정 식별자 — 화면 표시만 accountPicker.js에서 3924ewa@gmail.com으로 바뀜(DB는 그대로)
 AVATAR_DIR = os.path.join("src", "web", "public", "images", "avatar")
@@ -262,26 +273,37 @@ MAIL_KEYWORD_POOL = [
 
 HS_CHATROOM_ID = "64c6eaa5a654c2e3c7948bec2be03b3dbe63fb43"
 
-# "3학년 4반 고등학교 단톡방" 전용 — 방 이름 그대로 고3(3학년) 때 반 단톡방이므로
-# 데이터는 고3이던 2022년(HS_DATE_START=2022-03-08)부터 시작해 대학 새내기→전공
-# 수업/알바/군입대→휴학복학/인턴→자소서·면접·취업준비까지, 2026년 5월(HS_DATE_END)
-# 까지 이어진다. 연도별 서사 + 그 시기에 맞는 키워드. month별로 살짝 다른 문장이
-# 나오도록 phrases를 여러 개 두고 월 인덱스로 순환시킨다.
+# "3학년 4반 고등학교 단톡방" 전용 — 실제 채팅 데이터는 2022년(대학 새내기)부터
+# 시작하지만(start_year), 고2/고3(2020/2021) 항목도 이름 그대로 참고용으로 남겨둠.
+# 연도별 서사 + 그 시기에 맞는 키워드. month별로 살짝 다른 문장이 나오도록
+# phrases를 여러 개 두고 월 인덱스로 순환시킨다.
 HS_YEAR_THEMES = {
-    2022: dict(
+    2020: dict(
+        stage="고2",
+        keywords=["동아리", "기말고사", "모의고사", "체육대회", "학원", "생기부", "야자", "수행평가"],
+        phrases=[
+            "다들 고2라 학교, 학원 오가느라 하루가 빡빡하다는 얘기가 많았다",
+            "동아리 활동이랑 곧 있을 체육대회 얘기로 단톡방이 시끌시끌했다",
+            "모의고사 성적표 나온 날은 다같이 한숨 쉬다가도 서로 다독여줬다",
+            "야자 끝나고 편의점에서 잠깐 얼굴 보자는 얘기가 자주 나왔다",
+            "생기부 챙기랴 수행평가 챙기랴 다들 정신없다고 투덜댔다",
+            "기말고사 끝나고 다같이 노래방 가자는 계획을 세웠다",
+        ],
+    ),
+    2021: dict(
         stage="고3",
-        keywords=["모의고사", "자습", "야자", "원서접수", "입시설명회", "수능", "대학 면접 준비", "성적표"],
+        keywords=["수능", "모의고사", "자습", "야자", "원서접수", "입시설명회", "면접준비", "성적표"],
         phrases=[
             "고3이 되면서 다들 부쩍 예민해졌지만 서로 응원하는 말을 많이 남겼다",
             "모의고사 등급 얘기가 나올 때마다 단톡방 분위기가 무거워졌다",
             "자습실, 야자 얘기뿐이라 얼굴 볼 시간이 거의 없다는 하소연이 많았다",
             "수시 원서 몇 개 쓸지 고민하는 글이 자주 올라왔다",
-            "입시설명회 다녀온 후기와 여름방학 계획이 뒤섞여 올라왔다",
             "수능이 다가오면서 다들 잠 못 잔다는 얘기, 그래도 파이팅하자는 얘기가 오갔다",
+            "수능 끝난 날엔 다같이 만나서 펑펑 울고 웃었다는 후기가 올라왔다",
             "정시 원서접수와 면접 준비로 다시 한 번 다들 예민해졌다",
         ],
     ),
-    2023: dict(
+    2022: dict(
         stage="대학 새내기",
         keywords=["새내기", "OT", "MT", "수강신청", "학과", "동아리박람회", "대학생활", "미팅"],
         phrases=[
@@ -293,7 +315,7 @@ HS_YEAR_THEMES = {
             "다들 바빠졌지만 방학 때 꼭 모이자는 약속을 남겼다",
         ],
     ),
-    2024: dict(
+    2023: dict(
         stage="전공 수업·알바·군입대",
         keywords=["전공수업", "알바", "군입대", "휴학", "자취", "학점", "조모임", "면회"],
         phrases=[
@@ -305,7 +327,7 @@ HS_YEAR_THEMES = {
             "방학 때 오랜만에 다같이 모여 근황을 나눴다",
         ],
     ),
-    2025: dict(
+    2024: dict(
         stage="휴학·복학·인턴",
         keywords=["휴학", "복학", "인턴", "공모전", "자격증", "토익", "포트폴리오", "졸업유예"],
         phrases=[
@@ -317,7 +339,7 @@ HS_YEAR_THEMES = {
             "졸업 유예할지 말지 고민하는 글이 올라오기도 했다",
         ],
     ),
-    2026: dict(
+    2025: dict(
         stage="자소서·면접·취업준비",
         keywords=["자소서", "면접", "취업준비", "채용공고", "스터디", "포트폴리오", "합격", "불합격"],
         phrases=[
@@ -326,9 +348,23 @@ HS_YEAR_THEMES = {
             "면접 보러 간다는 소식에 다같이 파이팅을 외쳤다",
             "합격 소식이 올라온 날은 단톡방이 축하로 가득했다",
             "불합격 소식엔 서로 위로하며 다음을 응원했다",
+            "취업 스터디, 포트폴리오 얘기로 다들 바쁜 나날을 보냈다",
+        ],
+    ),
+    2026: dict(
+        stage="사회초년생",
+        keywords=["첫출근", "회사생활", "적응", "월급", "회식", "재테크", "동창회", "안부"],
+        phrases=[
+            "첫 출근 후기와 회사 생활 적응기가 올라왔다",
+            "첫 월급 얘기, 재테크 고민 얘기로 다들 어른이 됐다며 웃었다",
+            "회식 후기와 직장 생활의 소소한 에피소드가 이어졌다",
+            "오랜만에 동창회로 다같이 모이자는 얘기가 나왔다",
+            "다들 바빠졌어도 가끔씩 안부를 챙기며 대화를 이어갔다",
         ],
     ),
 }
+# (2020/2021 항목은 요청으로 방 데이터 시작 연도를 2022년으로 올리면서 더 이상
+# 안 쓰이지만, 참고용으로 남겨둠 — HS_CHATROOM start_year=2022 아래 참고.)
 
 # 요청 — 고등학교 동창 단톡방 멤버를 15명으로 늘림(기존 4명 + 11명 추가).
 HS_MEMBERS = [
@@ -336,6 +372,21 @@ HS_MEMBERS = [
     "정하늘", "오승민", "한지원", "배수아", "임찬우",
     "신예진", "강태오", "문서영", "조은비", "윤도경", "백하은",
 ]
+
+# 요청 — My Time 2022-09 "주요 연락처"에 마우스를 올렸을 때 뜨는 사람 설명(chatroom_people.
+# description)을 아주 간단하게 채워달라는 요청 — 9명만(HS_MONTH_CONTACTS_OVERRIDES[(2022,9)]와
+# 동일한 명단). 나머지 멤버는 기존처럼 방 이름 기반 기본 설명을 그대로 씀.
+HS_MEMBER_DESCRIPTIONS = {
+    "김도현": "성격 좋고 붙임성 있어서 반에서 인기가 많았던 친구입니다.",
+    "이수빈": "차분하고 배려심 많아서 다들 편하게 의지하는 친구입니다.",
+    "박재현": "운동을 좋아하고 성격이 활발한 친구입니다.",
+    "강태오": "유머 감각이 좋아 분위기를 잘 띄우는 친구입니다.",
+    "문서영": "그림 그리기를 좋아하는 감성적인 친구입니다.",
+    "백하은": "꼼꼼하고 계획적인 성격의 친구입니다.",
+    "신예진": "노래를 잘해서 반 행사 때마다 인기였던 친구입니다.",
+    "오승민": "게임과 컴퓨터를 좋아하는 친구입니다.",
+    "윤도경": "말수는 적지만 정이 많은 친구입니다.",
+}
 
 # 요청 — 김도현은 2022년(갓 대학 새내기 때)엔 거의 매번 말할 정도로 활발했지만,
 # 그 이후로는 "찔끔찔끔 아주 조금씩만" 말하는 걸로. 총합은 정확히 1382건.
@@ -353,6 +404,30 @@ HS_KIM_TAIL_TOTAL = 132   # 2023-01 ~ 2026-08 총량(매달 지수 감쇠로 나
 HS_KIM_TAIL_DECAY = 0.75  # 1보다 작을수록 초반 surplus가 더 빨리 잦아듦
 HS_KIM_TOTAL = HS_KIM_2022_TOTAL + HS_KIM_TAIL_TOTAL  # 1382건
 
+# 요청 — 2026-05 한 달만 일반 서사 로직(HS_YEAR_THEMES[2026]="사회초년생" 테마) 대신
+# "대학 다니는 서로의 근황" 내용으로 손으로 고정. 키워드는 3-4개만, 각 키워드의 월
+# 합계는 전부 5 이하로("언급수 5-6개 아래" 요청) — 대학=5(3+2), 근황=4(3+1), 복학=2,
+# 동기=2. (participant, count) — 실제로 그 달 블록에 등장하는 참여자여야 하므로(FK),
+# 어느 block_id에 심을지는 아래에서 그 달 실제로 생성된 블록들의 active_members를
+# 보고 동적으로 고른다(김도현은 이 방 서사상 "찔끔찔끔"이라 매달 3블록 중 실제로
+# 등장하는 블록이 매번 다를 수 있음 — 하드코딩된 block_id 대신 동적 매칭이 필요).
+HS_MAY2026_PERIOD = "2026-05"
+HS_MAY2026_SUMMARY = (
+    "2026년 5월, 대학 다니는 서로의 근황에 대해 대화를 나누고 있습니다. "
+    "'대학', '근황' 얘기가 특히 많이 오갔고, 강태오, 김도현, 박재현와(과) 자주 대화했다."
+)
+HS_MAY2026_KEYWORDS = [
+    ("대학", "김도현", 3),
+    ("대학", "박재현", 2),
+    ("근황", "강태오", 3),
+    ("근황", "김도현", 1),
+    ("복학", "박재현", 2),
+    ("동기", "강태오", 2),
+]
+# 요청 — "주요 연락처"에서 오승민/한지원/배수아/임찬우/신예진/강태오/문서영/조은비/
+# 윤도경/백하은 10명 빼줘. (남는 5명 — HS_MEMBERS에서 저 10명을 제외한 나머지.)
+HS_MAY2026_CONTACTS = ["김도현", "이수빈", "박재현", "최유나", "정하늘"]
+
 # 요청 — "3학년 4반 고등학교 단톡방" 타임 슬라이더를 2022-03-08 ~ 2026-05-04로.
 # (참고: /messenger-date-range는 인덱싱된 모든 메신저 방을 통틀어 MIN/MAX를 구하는
 # 전역 계산이라, 다른 방들의 범위가 더 넓으면 화면에 보이는 슬라이더 자체의 양 끝은
@@ -366,18 +441,11 @@ HS_DATE_END = datetime.date(2026, 5, 4)
 # 뽑은 chatroom_relationship 데이터가 없거나 부족하다 — 그래서 15명 사이 관계를
 # 여기서 직접 chatroom_relationship 테이블에 채워 넣는다(15명 전원이 서로 연결되도록
 # 105쌍 전부 저장 — 김도현 상세보기 관계 탭에서 나머지 14명이 다 보이도록 하는 게 핵심).
-HS_RELATION_LABELS = ["단짝 친구", "친한 동창", "동창", "가끔 연락하는 사이"]
+# 요청 — 관계 라벨을 15명 전원 "친구"로 통일(예전엔 단짝친구/친한동창/동창/가끔
+# 연락하는 사이 4단계로 순환시켰는데, 그 풀은 이제 안 씀).
 HS_RELATION_DESCRIPTIONS = {
-    "단짝 친구": "'3학년 4반' 시절부터 지금까지 가장 자주 연락하는 단짝입니다.",
-    "친한 동창": "'3학년 4반' 동창 중에서도 특히 친하게 지내는 사이입니다.",
-    "동창": "고등학교 '3학년 4반' 동창으로, 동창회 등에서 종종 만납니다.",
-    "가끔 연락하는 사이": "같은 반이었지만 요즘은 가끔씩만 안부를 주고받는 사이입니다.",
     "친구": "3학년 4반 동창이자, 지금도 자주 연락하며 지내는 친구입니다.",
 }
-
-# 요청 — 김도현 상세보기 관계 탭에서 이 5명은 라벨을 "친구"로 고정(위 4단계 순환
-# 풀 대신 이 이름들만 예외 처리).
-HS_KIM_FRIEND_NAMES = {"이수빈", "임찬우", "정하늘", "조은비", "최유나"}
 
 # 요청 — 방 분위기가 "다소 사무적인 분위기"로 뜨던 걸 "활발하고 밝은 분위기"로.
 # 프론트(mypeople.js moodLabel)는 mood_score가 높을수록 사적·친밀한 분위기로 보므로
@@ -480,12 +548,6 @@ CHATROOMS = [
         "keywords": ["합주", "공연", "연습", "곡선정", "보컬트레이닝", "뒷풀이", "정기공연", "발성"],
     },
     {
-        "chatroom_id": "8b94336a96491260786638bce7ed92d63185c35a",
-        "new_name": "대학교 전공 동기 모임",
-        "members": ["조민석", "한소율", "임지호", "오다은"],
-        "keywords": ["조모임", "시험", "학점", "취업준비", "동기모임", "과제", "종강", "스터디"],
-    },
-    {
         "chatroom_id": "a10734ca1a9690cf0d297932348024c8483e2091",
         "new_name": "헬스장 운동 메이트",
         "members": ["PT쌤", "신재원", "황보람"],
@@ -498,16 +560,11 @@ CHATROOMS = [
             "keywords": ["공대", "토익", "자료", "강의", "공지사항", "혜택", "비교과", "한성대"],
         },
     
-    {
-        # 요청 — 실제로 인덱싱된 적 없는 완전히 새로운 가짜 채팅방. chatroom 테이블에
-        # 해당 chatroom_id가 없으므로 seed_messenger_domain()이 자동으로 새 행을
-        # INSERT한다(다른 실제 방의 index_date/user_id를 그대로 빌려씀).
-        "chatroom_id": "1c51f4c1edcc77077a28f1065c45e259e295e85d",
-        "new_name": "IT 공과대학",
-        "members": ["김태훈", "이산", "박라온", "정유빈"],
-        "keywords": ["과제", "조별과제", "코딩테스트", "전공수업", "학점", "졸업프로젝트", "취업", "스터디"],
-        "create_if_missing": True,
-    },
+    # 요청 — 위에서 만들었던 "IT 공과대학"(chatroom_id 1c51f4c...)이 이미 있던 진짜
+    # 방인 "IT공과대학 공지방"(chatroom_id a8c50ec...)과 메신저 데이터 선택 목록에서
+    # 중복으로 떠서, 나중에 만든(=우리가 새로 만든 가짜) 쪽을 지우기로 함. 여기서
+    # 목록에서 빼서 재실행해도 다시 안 생기게 하고, DB에 이미 들어간 행은
+    # dedupe_chatrooms.py로 따로 지운다.
 ]
 
 
@@ -630,6 +687,12 @@ EXTRA_REMOVE_EMAILS = [
     # 요청 — Google Drive 공유 알림이 실제 인물 이름("최지유")으로 잘못 표시되며
     # 가짜 로스터의 진짜 최지유 카드와 겹쳐 보이는 문제 — 카드 자체를 제거.
     "drive-shares-dm-noreply@google.com",
+    # 요청 — My People 패널에 표시 이름 없이 뜨는 실제 연락처 카드 제거.
+    "cafucafu@naver.com",
+    "csi10186@gmail.com",
+    "jjiuu1090@gmail.com",
+    # 요청 — My People 패널에 겹쳐 뜨는 실제 최지유 연락처 카드 제거.
+    "gpttitti@hansung.ac.kr",
 ]
 
 # 요청 — "보통의 관계"에서 "아주 친밀한 관계"로 옮긴 5명은 화면 친밀도(EIS 점수,
@@ -644,6 +707,26 @@ HIGH_INTIMACY_EMAILS = {
     "nabi21@kakao.com",      # 문인선(구 윤보람)
     "grace.lee@outlook.com", # Grace Lee
     "haru31@kakao.com",      # 박소정(구 최수아) — 요청으로 장진우와 친밀도 스왑
+}
+
+# 요청 — Recap "친밀도" 랭킹에서 90%대 인원끼리 다 99/99/99로 겹쳐 보이는 문제.
+# HIGH_INTIMACY_EMAILS 4명은 R·P가 이미 거의 최대치라 T(톤 점수)만 사람마다
+# 다르게 주면 EIS가 갈라진다 — 다정한 톤(llm_tone=friendly) 비중만 사람별로
+# 다르게 줘서(kg_tone은 그대로 "casual" 고정) 99/96/94/92 스타일로 분산시킨다.
+HIGH_INTIMACY_FRIENDLY_FRACTION = {
+    "jjang14@daum.net": 0.96,      # 조태윤 → EIS ≈ 99%
+    "grace.lee@outlook.com": 0.76, # Grace Lee → EIS ≈ 96%
+    "haru31@kakao.com": 0.63,      # 박소정 → EIS ≈ 94%
+    "nabi21@kakao.com": 0.49,      # 문인선 → EIS ≈ 92%
+}
+
+# 요청 — Recap 친밀도 랭킹에서 90% 미만 구간도 다 87%로 겹쳐 보이는 문제.
+# family 티어 중 화면 상위에 뜨는 3명만 톤 비중(과 강세준은 kg_tone 풀도 같이)을
+# 사람마다 다르게 줘서 87/82/78 스타일로 분산시킨다. R·P는 건드리지 않는다.
+MID_INTIMACY_TONE_OVERRIDE = {
+    "yoon38@hanmail.net": {"friendly": 0.50, "kg_pool": None},                          # doheeya → EIS ≈ 87%(기존과 동일)
+    "sunny10@gmail.com":  {"friendly": 0.17, "kg_pool": None},                          # 김민주 → EIS ≈ 82%
+    "cotton45@nate.com":  {"friendly": 0.05, "kg_pool": ["transactional", "formal", "casual"]},  # 강세준 → EIS ≈ 78%
 }
 
 
@@ -884,6 +967,14 @@ def seed_mail_domain(conn, roster, index_date):
         """
 
         mail_counter = 0
+        # 요청 — Recap "많이 보낸/받은 사람" 랭킹이 mail_contact_stats.json(실제 메일
+        # 인덱싱 파이프라인이 만드는 별도 파일)을 그대로 읽는데, 이 파일엔 로스터
+        # 사람들이 아예 없어서(광고/알림 메일만 있음) 랭킹이 죄다 Pinterest/Google
+        # 같은 걸로 뜨는 문제 — 여기서 실제로 person 테이블에 넣는 것과 똑같은
+        # 이름/수신/발신 수치를 모아뒀다가 아래 apply_mail_contact_stats_overrides()로
+        # 그 파일에도 같이 반영한다(파일이 재인덱싱으로 초기화돼도 이 스크립트를
+        # 다시 돌리면 항상 다시 채워짐).
+        roster_stats = {}
         # 요청 — 이서연(LEE_SEOYEON_EMAIL)은 타임슬라이더를 2025년 이전으로 내렸을 때
         # 과제/수업 위주 전용 키워드(LSY_KEYWORD_POOL_EARLY)만 보여야 하는데, 이서연이
         # active_pool에 섞여 있으면 아래 공용 매달-키워드 루프(2020~2026 전체 범위)가
@@ -932,6 +1023,10 @@ def seed_mail_domain(conn, roster, index_date):
                 friendly = round(total_n * p["reply"] * 0.6)
                 dates = spread_dates(p["years"][0], p["years"][1], max(1, total_n))
 
+            roster_stats[p["email"]] = {
+                "name": p["name"], "sent": sent_n, "received": recv_n, "friendly_mail": friendly,
+            }
+
             overrides = PERSON_OVERRIDES.get(p["email"], {})
             cur.execute(person_sql, (
                 p["email"], MAIL_USER_ID, index_date, p["name"],
@@ -978,16 +1073,25 @@ def seed_mail_domain(conn, roster, index_date):
                         elapsed = round(1 + (i * 3) % 6, 2) if is_reply else None
                 elif is_high_intimacy:
                     kg_tone = "casual"       # T의 kg 성분 = 1.0
-                    llm_tone = "friendly"    # T의 llm 성분 = 1.0
                     is_reply = 1             # P의 반응비율 = 1.0
                     elapsed = round(0.5 + (i % 3) * 0.3, 2)  # 30분~1시간대 — P의 시간감쇠 ≈ 1.0
+                    hi_frac = HIGH_INTIMACY_FRIENDLY_FRACTION.get(p["email"])
+                    if hi_frac is not None:
+                        llm_tone = "friendly" if i < round(hi_frac * total_n) else "not_friendly"
+                    else:
+                        llm_tone = "friendly"    # T의 llm 성분 = 1.0
                 else:
-                    kg_tone = tone_pool[i % len(tone_pool)]
+                    mid_override = MID_INTIMACY_TONE_OVERRIDE.get(p["email"])
+                    kg_pool = mid_override["kg_pool"] if (mid_override and mid_override["kg_pool"]) else tone_pool
+                    kg_tone = kg_pool[i % len(kg_pool)]
                     is_reply = 1 if (p["reply"] > 0 and i % max(1, round(1 / max(p["reply"], 0.05))) == 0) else 0
                     elapsed = None
                     if is_reply and e_hi > 0:
                         elapsed = round(e_lo + (i * 3) % max(1, (e_hi - e_lo) + 1), 2)
-                    llm_tone = "friendly" if p["tone"] in ("casual", "mixed") and i % 2 == 0 else "not_friendly"
+                    if mid_override is not None:
+                        llm_tone = "friendly" if i < round(mid_override["friendly"] * total_n) else "not_friendly"
+                    else:
+                        llm_tone = "friendly" if p["tone"] in ("casual", "mixed") and i % 2 == 0 else "not_friendly"
 
                 cur.execute(mail_sql, (
                     mail_id, MAIL_USER_ID, index_date, DEMO_FOLDER, d,
@@ -1059,6 +1163,66 @@ def seed_mail_domain(conn, roster, index_date):
         print(f"[OK] 메일 도메인: person {len(roster)}명, mail {mail_counter}건, mail_keyword {kw_counter}건")
     finally:
         cur.close()
+    return roster_stats
+
+
+# 요청 — My Time(메일) 월별 요약 카드는 DB가 아니라 mail_summaries.json 파일 자체가
+# 소스라(app.py의 /mail-summaries가 이 파일을 그대로 읽어 반환) — 다른 하드코딩처럼
+# DB에 INSERT하는 방식이 아니라 이 파일을 직접 읽고 덮어쓴다. "하드코딩은 전부
+# seed_fake_people.py 하나로 통일" 요청에 따라, 파일을 따로 손으로 고치는 대신 여기서
+# 관리한다. contacts/count/threads는 요약 텍스트와 직접 연동되는 필드가 아니라서
+# (다른 달들도 요약 주제와 무관하게 그 달 연락처 목록/건수를 담고 있음) 손대지 않고
+# summary 텍스트만 바꾼다.
+MAIL_SUMMARY_OVERRIDES = {
+    "2026-08": (
+        "2026년 8월은 '프로젝트'와 '광고' 관련 메일이 많았습니다. 프로젝트 관련 첨부파일 "
+        "메일과 함께 업무 및 일정 조율 메일도 꾸준히 오갔습니다. 또한 광고 관련 메일이 많이 "
+        "분포합니다."
+    ),
+}
+
+
+def apply_mail_summary_overrides(base_dir):
+    paths = UserPaths(base_dir, MAIL_USER_ID, "mail")
+    if not os.path.exists(paths.MAIL_SUMMARIES_PATH):
+        print(f"[WARN] {paths.MAIL_SUMMARIES_PATH} 이 없어 mail 요약 오버라이드를 건너뜁니다.")
+        return
+    with open(paths.MAIL_SUMMARIES_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    monthly = data.get("monthly", {})
+    for period, summary in MAIL_SUMMARY_OVERRIDES.items():
+        if period not in monthly:
+            print(f"[WARN] mail_summaries.json에 {period} 항목이 없어 그 항목은 건너뜁니다.")
+            continue
+        monthly[period]["summary"] = summary
+    with open(paths.MAIL_SUMMARIES_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"[OK] mail_summaries.json 오버라이드 {len(MAIL_SUMMARY_OVERRIDES)}건 적용 → {paths.MAIL_SUMMARIES_PATH}")
+
+
+# 요청 — Recap "나에게 많이 보낸 사람"/"내가 많이 보낸 사람"이 실제 로스터 데이터가
+# 아니라 mail_contact_stats.json에 남아있던 광고/알림 메일(Pinterest, Google, ChatGPT
+# 등)로만 채워져 있던 문제 — mail_summaries.json과 같은 방식으로, DB에 넣은 것과
+# 동일한 이름/수신/발신 수치를 이 파일에도 병합해서 Recap이 My People과 같은 실제
+# 데이터를 보도록 맞춘다. 기존에 있던 광고/알림 항목은 지우지 않고 그대로 둔다
+# (로스터 인원 수치가 훨씬 커서 어차피 랭킹 상위는 로스터 사람들이 차지함).
+def apply_mail_contact_stats_overrides(base_dir, roster_stats):
+    paths = UserPaths(base_dir, MAIL_USER_ID, "mail")
+    if not os.path.exists(paths.MAIL_CONTACTS_PATH):
+        print(f"[WARN] {paths.MAIL_CONTACTS_PATH} 이 없어 mail_contact_stats 오버라이드를 건너뜁니다.")
+        return
+    with open(paths.MAIL_CONTACTS_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    for email, stats in roster_stats.items():
+        data[email] = {
+            "name": stats["name"],
+            "sent": stats["sent"],
+            "received": stats["received"],
+            "friendly_mail": stats["friendly_mail"],
+        }
+    with open(paths.MAIL_CONTACTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"[OK] mail_contact_stats.json에 로스터 {len(roster_stats)}명 반영 → {paths.MAIL_CONTACTS_PATH}")
 
 
 # ────────────────────────────── 4. 메신저(카카오) 도메인 시딩 ──────────────────────────────
@@ -1132,17 +1296,22 @@ def seed_messenger_domain(conn, room, block_counter_start):
                 (room["new_name"], chatroom_id, index_date, user_id),
             )
 
-        # 참여자를 chatroom_people에도 등록(참여자 탭에 이름이 뜨도록)
+        # 참여자를 chatroom_people에도 등록(참여자 탭에 이름이 뜨도록 + 주요 연락처
+        # 호버 설명용). description도 ON DUPLICATE KEY UPDATE 대상에 넣어야 재실행 시
+        # HS_MEMBER_DESCRIPTIONS를 바꿔도 실제로 반영된다(기존엔 message_count만 갱신돼서
+        # 이미 있던 행은 최초 생성 당시 설명에 영원히 고정돼 있었음).
         cp_sql = """
             INSERT INTO chatroom_people (
                 participant_id, chatroom_id, index_date, user_id, chatroom_people_name,
                 message_count, description
             ) VALUES (%s,%s,%s,%s,%s,%s,%s)
-            ON DUPLICATE KEY UPDATE message_count=VALUES(message_count)
+            ON DUPLICATE KEY UPDATE
+                message_count = VALUES(message_count),
+                description = VALUES(description)
         """
         for member in room["members"]:
-            cur.execute(cp_sql, (member, chatroom_id, index_date, user_id, member, 0,
-                                  f"'{room['new_name']}' 멤버입니다."))
+            description = HS_MEMBER_DESCRIPTIONS.get(member, f"'{room['new_name']}' 멤버입니다.")
+            cur.execute(cp_sql, (member, chatroom_id, index_date, user_id, member, 0, description))
         conn.commit()
 
         # 요청 — "위에서 만든 사람 15명"에 대한 관계가 관계 창에 전부 떠야 함. 이 방은
@@ -1159,20 +1328,11 @@ def seed_messenger_domain(conn, room, block_counter_start):
                     relation_label = VALUES(relation_label),
                     description    = VALUES(description)
             """
+            # 요청 — 15명 사이 관계 라벨을 전부 "친구"로 통일(기존 4단계 순환 풀 제거).
             pairs = list(itertools.combinations(sorted(room["members"]), 2))
-            for i, (person_a, person_b) in enumerate(pairs):
-                # 요청 — 김도현-{이수빈,임찬우,정하늘,조은비,최유나} 쌍은 라벨을
-                # "친구"로 고정(그 외는 기존 4단계 순환 풀 그대로).
-                other = None
-                if person_a == HS_TARGET_MEMBER:
-                    other = person_b
-                elif person_b == HS_TARGET_MEMBER:
-                    other = person_a
-                if other in HS_KIM_FRIEND_NAMES:
-                    label = "친구"
-                else:
-                    label = HS_RELATION_LABELS[i % len(HS_RELATION_LABELS)]
-                desc = HS_RELATION_DESCRIPTIONS[label]
+            label = "친구"
+            desc = HS_RELATION_DESCRIPTIONS[label]
+            for person_a, person_b in pairs:
                 cur.execute(rel_sql, (chatroom_id, index_date, user_id, person_a, person_b, label, desc))
             conn.commit()
 
@@ -1226,9 +1386,17 @@ def seed_messenger_domain(conn, room, block_counter_start):
         if is_narrative:
             months_2022 = [(yy, mm) for (yy, mm) in months if yy == 2022]
             if months_2022:
-                block_vals_2022 = spread_int_total(HS_KIM_2022_TOTAL, len(months_2022) * 3)
-                for i, ym in enumerate(months_2022):
-                    kim_block_plan[ym] = block_vals_2022[i * 3:(i + 1) * 3]
+                # 요청 — My People 김도현 상세보기의 2022년 월별 메신저 통계 그래프가
+                # 매달 정확히 125건으로 완전히 평평하게 나오는 문제(스크린샷으로 확인) —
+                # 원인은 spread_int_total()의 가중치가 주기 9로 반복되는데, 그걸 블록
+                # 30개(달 10개 × 3블록)에 한 번에 적용하면 달 경계(3블록 단위)와 주기가
+                # 우연히 맞아떨어져서 달마다 3블록 가중치 합이 항상 똑같아지는 수학적
+                # 우연이 있었다. 그래서 2023년 이후(hs_declining_monthly_totals)와 같은
+                # 2단계 방식으로 바꿔 — 먼저 "월별 총량"을 따로 흔들어 나눈 뒤, 그 달의
+                # 3블록으로 다시 나눈다.
+                month_totals_2022 = spread_int_total(HS_KIM_2022_TOTAL, len(months_2022))
+                for ym, month_total in zip(months_2022, month_totals_2022):
+                    kim_block_plan[ym] = spread_int_total(month_total, 3)
 
             tail_months = [(yy, mm) for (yy, mm) in months if yy > 2022]
             if tail_months:
@@ -1238,6 +1406,11 @@ def seed_messenger_domain(conn, room, block_counter_start):
                 for ym, month_total in zip(tail_months, tail_month_totals):
                     kim_block_plan[ym] = spread_int_total(month_total, 3)
         kim_block_cursor = {ym: 0 for ym in kim_block_plan}
+
+        # (y, m) -> [(block_id, active_members), ...] — 월별 오버라이드(HS_MAY2026_*)가
+        # "이 블록엔 실제로 누가 있었는지"를 나중에 다시 조회하지 않고도 알 수 있도록
+        # 블록을 만들 때마다 바로 기록해둔다.
+        month_block_participants = {}
 
         for mi, (y, m) in enumerate(months):
             blocks_this_month = 3
@@ -1301,6 +1474,7 @@ def seed_messenger_domain(conn, room, block_counter_start):
                     block_id, chatroom_id, index_date, user_id, block_date,
                     msg_count, len(active_members), kg_tone, llm_tone, participant_json,
                 ))
+                month_block_participants.setdefault((y, m), []).append((block_id, list(active_members)))
 
                 for member_idx, member in enumerate(active_members):
                     sent = sent_map[member]
@@ -1335,6 +1509,42 @@ def seed_messenger_domain(conn, room, block_counter_start):
                 month_contacts = room["members"]
             contacts = json.dumps(month_contacts, ensure_ascii=False)
             cur.execute(summ_sql, ("monthly", period, chatroom_id, index_date, user_id, summary, contacts))
+
+        # 요청 — 2026-05는 위에서 이미 일반 로직(사회초년생 테마)으로 채워진 블록/키워드/
+        # 요약을 이 방(HS_CHATROOM_ID)에 한해 손으로 다시 덮어쓴다. 일반 루프가 만든
+        # 블록(month_block_participants)은 그대로 재사용하고, 그 블록들에 걸린 키워드만
+        # 지운 뒤 HS_MAY2026_KEYWORDS로 다시 심는다 — 참여자는 실제로 그 블록에 있었던
+        # 사람 중에서 동적으로 찾으므로(FK: message_keyword -> participant), 김도현처럼
+        # "찔끔찔끔"이라 매달 등장 블록이 달라지는 사람도 안전하게 매칭된다.
+        if is_narrative and room["chatroom_id"] == HS_CHATROOM_ID:
+            may_key = tuple(int(x) for x in HS_MAY2026_PERIOD.split("-"))
+            may_blocks = month_block_participants.get(may_key)
+            if may_blocks:
+                block_ids = [bid for bid, _ in may_blocks]
+                placeholders = ",".join(["%s"] * len(block_ids))
+                cur.execute(
+                    f"DELETE FROM message_keyword WHERE chatroom_id=%s AND index_date=%s "
+                    f"AND user_id=%s AND block_id IN ({placeholders})",
+                    (chatroom_id, index_date, user_id, *block_ids),
+                )
+                for kw, participant, count in HS_MAY2026_KEYWORDS:
+                    target_block = next(
+                        (bid for bid, members in may_blocks if participant in members), None
+                    )
+                    if target_block is None:
+                        print(f"[WARN] HS_MAY2026_KEYWORDS: '{participant}'이(가) "
+                              f"{HS_MAY2026_PERIOD} 어느 블록에도 없어 '{kw}' 건너뜀")
+                        continue
+                    cur.execute(kw_sql, (
+                        kw, participant, target_block, chatroom_id, index_date, user_id, count,
+                    ))
+                cur.execute(summ_sql, (
+                    "monthly", HS_MAY2026_PERIOD, chatroom_id, index_date, user_id,
+                    HS_MAY2026_SUMMARY, json.dumps(HS_MAY2026_CONTACTS, ensure_ascii=False),
+                ))
+            else:
+                print(f"[WARN] HS_MAY2026_KEYWORDS: {HS_MAY2026_PERIOD}에 해당하는 블록이 "
+                      f"없어(날짜 범위 밖) 오버라이드를 건너뜁니다.")
 
         conn.commit()
 
@@ -1418,7 +1628,13 @@ def main():
         cleanup_mail_domain(conn, roster)
 
         print("[STEP] 메일 도메인(연락처/친밀도/키워드) 채우는 중...")
-        seed_mail_domain(conn, roster, index_date)
+        roster_stats = seed_mail_domain(conn, roster, index_date)
+
+        print("[STEP] My Time 메일 요약(mail_summaries.json) 오버라이드 적용 중...")
+        apply_mail_summary_overrides(BASE_DIR)
+
+        print("[STEP] Recap 연락처 통계(mail_contact_stats.json) 오버라이드 적용 중...")
+        apply_mail_contact_stats_overrides(BASE_DIR, roster_stats)
 
         print("[STEP] 메신저 채팅방 이름/요약/키워드 채우는 중...")
         block_counter = 0

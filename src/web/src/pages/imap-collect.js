@@ -125,7 +125,11 @@ function resetForm() {
   document.getElementById("collect-limit").value = "0";
   toggleCustomLimit();
   document.getElementById("collect-limit-custom").value = "";
-  document.getElementById("sync-mode").value = "append";
+  // 요청 — "모드"가 기본으로 "전체 업데이트"(rewrite)로 뜨게. 원래 HTML(<select id="sync-mode">)
+  // 자체엔 rewrite가 selected로 되어 있는데, 계정 하나 수집을 시작한 뒤 폼을 초기화하는 이
+  // 함수가 "append"(업데이트 안 된 메일만)로 강제 되돌리고 있어서, 두 번째 계정부터는
+  // 화면상 기본값이 "전체 업데이트"가 아니게 보였음.
+  document.getElementById("sync-mode").value = "rewrite";
 }
 
 // ── 폴더 토글 ──

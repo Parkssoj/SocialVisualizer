@@ -69,6 +69,16 @@ export function renderAppSidebar(containerId = "app-sidebar") {
     updateMainLayout(collapsed);
   };
 
+  // 요청 — 페이지를 새로 열 때는 항상 목록 맨 위 항목이 기본으로 선택돼
+  // 있어야 함. 예전엔 이전에(다른 페이지에서, 또는 지난 방문 때) 골라뒀던
+  // 계정/채팅방이 localStorage에 남아있으면 그게 계속 우선돼서, 맨 위가
+  // 아닌 다른 항목이 선택된 채로 열리는 경우가 있었다 — 페이지를 새로 열
+  // 때(=renderAppSidebar 호출 시점)는 그 저장값을 매번 초기화해서 아래
+  // refreshSidebarList()의 "선택값 없으면 맨 위 항목" 기본 로직이 항상
+  // 적용되게 한다. (같은 페이지 안에서 사용자가 직접 다른 항목을 클릭하는
+  // 건 이 초기화와 무관하게 그대로 정상 동작함.)
+  store.setFilter("mail", null);
+
   refreshSidebarList();
 }
 
@@ -97,12 +107,31 @@ export function refreshSidebarList() {
   const { mails = [], rooms = [] } = store.getCollectedLists() || {};
   let { mail: currentMail, room: currentRoom } = store.getFilterState() || {};
 
-  // 저장된 선택값이 전혀 없으면 가장 최근(첫 번째) 메일을 기본값으로 지정
-  if (!currentMail && !currentRoom && mails.length > 0) {
-    currentMail = mails[0].id;
-    currentRoom = null;
-    store.setFilter("room", null);
-    store.setFilter("mail", currentMail);
+  // 요청 — 페이지를 처음 띄웠을 때 목록에서 아무 항목도 "눌려있는(active)"
+  // 상태로 안 보이는 문제 수정. 예전엔 저장된 선택값이 "아예 없을 때"만
+  // 기본값을 골랐는데, 예전에 골라뒀던 계정/채팅방이 그 사이 삭제되거나(중복
+  // 채팅방 정리 등) 목록에서 빠지면 저장값 자체는 남아있어서(falsy가 아님) 이
+  // if문을 안 타고, 그렇다고 그 값과 일치하는 항목도 없어서 결국 아무 데도
+  // is-active가 안 붙었다 — 저장된 값이 지금 목록에 실제로 있는지까지 확인해서,
+  // 없으면 "선택 안 된 것"으로 보고 항상 맨 위 항목이 기본으로 눌려있게 한다.
+  const isMailValid = !!currentMail && mails.some((m) => m.id === currentMail);
+  const isRoomValid = !!currentRoom && rooms.some((r) => r.id === currentRoom);
+
+  if (!isMailValid && !isRoomValid) {
+    if (mails.length > 0) {
+      currentMail = mails[0].id;
+      currentRoom = null;
+      store.setFilter("room", null);
+      store.setFilter("mail", currentMail);
+    } else if (rooms.length > 0) {
+      currentRoom = rooms[0].id;
+      currentMail = null;
+      store.setFilter("mail", null);
+      store.setFilter("room", currentRoom);
+    }
+  } else {
+    if (!isMailValid) currentMail = null;
+    if (!isRoomValid) currentRoom = null;
   }
 
   mailListEl.innerHTML =

@@ -518,7 +518,16 @@ function createTimeline(ids) {
     FIRST_NUM = monthToNum(ALL_KEYS[0]);
     const LAST_NUM = monthToNum(ALL_KEYS[ALL_KEYS.length - 1]);
     TOTAL = LAST_NUM - FIRST_NUM || 1;
-    centerIdx = Math.min(2, ALL_KEYS.length - 1);
+    // 요청 — 기본으로 뜨는 연도가 맨 앞쪽(예: 2020년)이던 걸 2026년도로. 예전엔
+    // centerIdx를 항상 맨 앞쪽 인덱스(2)로 고정해서, 아래 pinDefaultLast()가 오른쪽
+    // 패널엔 최신(2026) 데이터를 채워놓는 것과 달리 타임라인 슬라이더/연도 점은
+    // 여전히 맨 처음 연도에 맞춰진 채로 어긋나 보였다 — 2026년의 마지막 달(없으면
+    // 데이터상 가장 최근 달)로 맞춰서 슬라이더와 오른쪽 패널이 항상 같은 연도를
+    // 보여주게 함.
+    const keys2026 = ALL_KEYS.filter((k) => k.startsWith("2026-"));
+    centerIdx = keys2026.length
+      ? ALL_KEYS.indexOf(keys2026[keys2026.length - 1])
+      : ALL_KEYS.length - 1;
 
     buildPointer();
     render();

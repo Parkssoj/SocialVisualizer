@@ -348,22 +348,13 @@ function isBrandSender(p) {
   return isGenericLocalPart(local) || isBrandDisplayName(p.name);
 }
 
-// 요청 — 실제로 인덱싱된 연락처 중 시연에 안 어울리는 이름을 화면 표시용으로만
-// 바꿔치기(예: 실명이 그대로 노출되는 경우). 실제 DB의 person_name에는 영향 없음.
-const DISPLAY_NAME_OVERRIDES = {
-  "Alexander Erdl": "Neo4j",
-};
-
 function resolveDisplayName(p) {
   if (!p.email) return p.name && p.name.trim() ? p.name.trim() : "(알 수 없음)";
   const [local, domain] = p.email.split("@");
   // 요청 — 브랜드/광고 계정도 실제로 우리가 지정한 이름(예: "당근마켓")이 있으면
   // 그걸 그대로 써야지, 도메인에서 억지로 뽑아낸 영문 텍스트("daangn")로 덮어쓰면 안 됨.
   // 이름이 아예 없을 때만 도메인에서 유추한다.
-  if (p.name && p.name.trim()) {
-    const trimmed = p.name.trim();
-    return DISPLAY_NAME_OVERRIDES[trimmed] || trimmed;
-  }
+  if (p.name && p.name.trim()) return p.name.trim();
   if (isBrandSender(p)) {
     const parts = (domain || "").split(".");
     return parts.length >= 3 ? parts[parts.length - 2] : parts[0];
@@ -488,9 +479,6 @@ let generatedAvatars = {};
 let avatarGenStarted = false;
 let sortMode = "affinity";
 let hideBrandAccounts = false;
-// 요청 — "강혁" 사람카드 패널을 화면에서 지워달라(재시딩 없이 즉시 반영되도록
-// 프론트에서 필터). 이메일 기준으로 숨긴다.
-const HIDDEN_PERSON_EMAILS = new Set(["dowon96@naver.com"]);
 let sentStatsMap = {};
 let receivedStatsMap = {};
 let currentDetailPerson = null;
@@ -498,8 +486,47 @@ let detailDebounceTimer = null;
 let myAvatarUrl = null;
 let currentChannel = "mail";
 let mailDateRange = null;
-let messengerDateRange = null;
 let messengerChatrooms = null;
+// 요청 — 단톡방을 클릭해서 들어갔을 때 타임슬라이더/데이터가 "그 방만의" 기간으로
+// 뜨도록. 예전엔 방마다 다른 실제 기간 대신 전체 방을 합친 하나의 전역
+// messenger-date-range를 그대로 재사용해서(캐시도 딱 한 번만), 방을 눌러도 슬라이더가
+// 그 방과 무관한 범위로 초기화되며 깨져 보였다(짧게 눌린 것처럼 보이는 버그 포함).
+// 방마다 실제 기간을 알 수 있는 별도 API가 없어서, 이미 있는
+// /chatroom-keyword-monthly-stats(월별 전체 요약)를 기간 제한 없이 한 번 불러서 그
+// 방에 데이터가 있는 첫/마지막 달을 계산해 슬라이더 범위로 쓴다. 방마다 결과를
+// 캐싱해서 같은 방을 다시 열 때 다시 부르지 않는다.
+const roomDateRangeCache = new Map();
+async function fetchRoomDateRange(chatroomId) {
+  if (roomDateRangeCache.has(chatroomId)) return roomDateRangeCache.get(chatroomId);
+  let range = null;
+  try {
+    const res = await fetch("/chatroom-keyword-monthly-stats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatroom_id: chatroomId }),
+    });
+    if (res.ok) {
+      const months = Object.keys((await res.json()).data || {}).sort();
+      if (months.length) {
+        const [fy, fm] = months[0].split("-").map(Number);
+        const [ly, lm] = months[months.length - 1].split("-").map(Number);
+        range = {
+          first: new Date(fy, fm - 1, 1).getTime(),
+          last: new Date(ly, lm, 0, 23, 59, 59).getTime(), // 마지막 달의 말일
+        };
+      }
+    }
+  } catch (e) {
+    console.error("chatroom-keyword-monthly-stats(기간 계산용) 오류:", e);
+  }
+  if (!range) {
+    // 그 방에 키워드 데이터가 아직 없는 등 폴백 — 최근 1년으로.
+    const end = Date.now();
+    range = { first: end - 1000 * 60 * 60 * 24 * 365, last: end };
+  }
+  roomDateRangeCache.set(chatroomId, range);
+  return range;
+}
 let currentChatroomId = null;
 let currentChatroomPeople = [];
 let currentDetailMode = "mail";
@@ -633,6 +660,11 @@ function updateCardBadges() {
 }
 
 function renderCards() {
+  // 버그 수정 — renderCards()를 부르는 쪽(loadPeople/fetchPeriodStats 등)이 전부
+  // 비동기라, 그 사이 사용자가 메신저 방으로 넘어가 있으면 여기서 mp-grid/mp-count를
+  // 메일 카드로 덮어써서 방금 연 방 화면이 메일 데이터로 잠깐씩 바뀌어 보이는 경쟁
+  // 상태가 있었다. 지금 실제로 메일 화면을 보고 있을 때만 그린다.
+  if (currentChannel !== "mail") return;
   const grid = document.getElementById("mp-grid");
   // periodStats가 아직 한 번도 로딩되지 않은 시점(페이지 진입 직후, 아바타 생성 배치가
   // 먼저 끝나서 renderCards가 조기 호출되는 경우 등)에는 필터 안 된 원본 목록을 절대
@@ -645,7 +677,6 @@ function renderCards() {
     return;
   }
   let list = groupByEntityName(allPeople);
-  list = list.filter((p) => !HIDDEN_PERSON_EMAILS.has((p.email || "").toLowerCase()));
   if (hideBrandAccounts) {
     list = list.filter((p) => !isBrandSender(p));
   }
@@ -850,12 +881,12 @@ function updateFill() {
   }
 }
 
-// 요청 — 시연 시작 시 타임슬라이더 시작 지점을 맨 처음(전체 데이터 시작)이 아니라
-// 2017년 2월 4일로 기본 설정. 실제 데이터 시작(2017년 1월)보다 살짝 뒤라서 처음
-// 화면엔 거의 모든 사람이 보이지만, 사용자가 슬라이더를 2020년 아래로 더 내리면
-// 그때부터는 활동 시작이 2017년으로 앞당겨진 13명만 남는다(seed_fake_people.py의
-// EARLY_ACTIVITY_EMAILS 참고 — 순수 프론트엔드 변경이라 DB 재시딩 불필요).
-const TL_DEFAULT_START_MS = new Date(2017, 1, 4).getTime();
+// 요청 — 시연 시작 시 타임슬라이더 시작 지점을 2017.01.04로. 왼쪽 경계 라벨
+// (tl-start-lbl, 마찬가지로 2017.01.04로 하드코딩)과 정확히 일치시켜야 "선택된
+// 기간" 텍스트에 다른 날짜(예: 2017.02.05)가 안 뜬다.
+// 버그 수정 — new Date(year, month, day)의 month는 0부터 시작(0=1월)이라
+// new Date(2017, 1, 4)는 실제로 2월 4일이었음. 1월 4일을 만들려면 month에 0을 써야 함.
+const TL_DEFAULT_START_MS = new Date(2017, 0, 4).getTime();
 
 function initTimeline(firstMs, lastMs) {
   globalFirst = firstMs;
@@ -876,7 +907,10 @@ function initTimeline(firstMs, lastMs) {
   selMin = valToMs(+inMin.value);
   selMax = lastMs;
 
-  document.getElementById("tl-start-lbl").textContent = fmtDate(firstMs);
+  // 요청 — 03yeah03@gmail.com 타임라인 시작 라벨을 실제 데이터 시작일(2017.01.07)
+  // 대신 2017.01.04로 표시(화면 표시만 바꾼 것, 슬라이더 계산/실제 데이터는 그대로).
+  document.getElementById("tl-start-lbl").textContent =
+    currentChannel === "mail" ? "2017.01.04" : fmtDate(firstMs);
   document.getElementById("tl-end-lbl").textContent = fmtDate(lastMs);
 
   buildTicks(firstMs, lastMs);
@@ -998,8 +1032,6 @@ async function loadPeople() {
     console.error("loadPeople 네트워크 오류:", e);
   }
 
-  initMyAvatar();
-
   if (dateRange) {
     mailDateRange = {
       first: new Date(dateRange.first_date).getTime(),
@@ -1012,11 +1044,23 @@ async function loadPeople() {
       last: fallbackEnd,
     };
   }
+
+  // 버그 수정 — 이 fetch들이 진행되는 사이(페이지 막 로드된 직후 등)에 사용자가
+  // 이미 사이드바에서 메신저 방을 눌러 넘어갔으면, 여기서 화면(타임라인/카드/명수)을
+  // 건드리는 순간 방금 연 방 화면을 메일 데이터로 도로 덮어써버리는 경쟁 상태
+  // (레이스)가 생겨서 "방을 눌렀는데 잠깐 맞다가 다시 이상해짐" 현상이 났다.
+  // 데이터(mailDateRange)는 위에서 이미 저장했으니, 화면 반영은 지금 실제로
+  // 메일 화면을 보고 있을 때만 한다 — 나중에 메일로 다시 돌아오면 loadPeople()이
+  // 다시 호출되므로 이 데이터도 그때 다시 정상 반영된다.
+  if (currentChannel !== "mail") return;
+
+  initMyAvatar();
   initTimeline(mailDateRange.first, mailDateRange.last);
 
   // 여기서 한 번만 실제 카드를 그린다(fetchPeriodStats 내부에서 성공/실패 어느 쪽이든
   // renderCards를 호출하므로 그 결과가 화면에 나오는 첫 카드 목록이 된다).
   await fetchPeriodStats();
+  if (currentChannel !== "mail") return;
 
   // 아바타 생성은 periodStats까지 반영된 "실제로 화면에 뜨는" 목록(currentRenderedList)이
   // 확정된 뒤에 시작한다 — person 테이블엔 있지만 실제 메일 교환 기록이 없어 화면에
@@ -1075,14 +1119,9 @@ async function initMyAvatar() {
   const myEmailEl = document.getElementById("mp-detail-my-email");
   if (myNameEl)
     myNameEl.textContent = sessionStorage.getItem("gw_user_name") || "나";
-  // 요청 — 상세보기창의 "나" 이메일에 3924ewa@gmail.com이 뜨는 문제 — 최소한
-  // 이 상세보기창에서만이라도 03yeah03@gmail.com으로 보이도록 화면표시만 치환.
-  // (실제 조회/저장에 쓰는 gmailId 값 자체는 그대로 둠 — 표시 문구만 바꿈.)
-  if (myEmailEl) {
-    const displayEmail =
-      gmailId === "3924ewa@gmail.com" ? "03yeah03@gmail.com" : gmailId;
-    myEmailEl.textContent = displayEmail || "이메일 정보 없음";
-  }
+  // 요청 — 사람 상세보기의 "나" 이메일은 화면표시용 오버라이드 없이 실제
+  // 계정 그대로(03yeah03@gmail.com) 보여준다.
+  if (myEmailEl) myEmailEl.textContent = gmailId || "이메일 정보 없음";
   if (!gmailId) return;
   try {
     const cacheRes = await fetch("/self-avatar", {
@@ -1243,38 +1282,11 @@ function setChannel(channel) {
   else refreshSortMenuForRooms();
   if (isMail && mailDateRange) {
     initTimeline(mailDateRange.first, mailDateRange.last);
-  } else if (!isMail && messengerDateRange) {
-    initTimeline(messengerDateRange.first, messengerDateRange.last);
   }
-}
-
-async function ensureMessengerDateRange() {
-  if (!messengerDateRange) {
-    try {
-      const res = await fetch("/messenger-date-range", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const d = res.ok ? (await res.json()).data || {} : {};
-      if (d.first_date && d.last_date) {
-        messengerDateRange = {
-          first: new Date(d.first_date).getTime(),
-          last: new Date(d.last_date).getTime(),
-        };
-      }
-    } catch (e) {
-      console.error("messenger-date-range 오류:", e);
-    }
-    if (!messengerDateRange) {
-      const fallbackEnd = Date.now();
-      messengerDateRange = {
-        first: fallbackEnd - 1000 * 60 * 60 * 24 * 365 * 3,
-        last: fallbackEnd,
-      };
-    }
-  }
-  initTimeline(messengerDateRange.first, messengerDateRange.last);
+  // 메신저는 여기서 초기화하지 않는다 — openChatroom()이 그 방만의 기간으로
+  // 곧바로 초기화한다(아래 openSelectedChatroomFromSidebar 참고). 예전엔 여기서
+  // 전역 messengerDateRange로 먼저 초기화했다가 openChatroom에서 다시 덮어써서,
+  // 방을 열 때마다 무관한 범위의 슬라이더가 잠깐 보이는 버그가 있었다.
 }
 
 // 사이드바에서 메신저 데이터(단톡방)를 고르면, 예전처럼 단톡방 목록 패널을
@@ -1283,7 +1295,6 @@ async function ensureMessengerDateRange() {
 // 에서 id로 찾아 쓴다.
 async function openSelectedChatroomFromSidebar() {
   if (!selectedChatroomId) return;
-  await ensureMessengerDateRange();
   const { rooms = [] } = store.getCollectedLists() || {};
   const room = rooms.find((r) => r.id === selectedChatroomId);
   await openChatroom(selectedChatroomId, room ? room.label : selectedChatroomId);
@@ -1408,6 +1419,15 @@ async function openChatroom(chatroomId, chatroomName) {
       <p>참여자를 불러오는 중...</p>
     </div>
   `;
+  // 요청 — 타임슬라이더도 이 방만의 기간으로 초기화한 다음, 사람 목록을 불러온다
+  // (fetchAndRenderChatroomPeople이 이때 초기화된 selMin/selMax 기준으로 조회하므로
+  // 자연스럽게 이 방의 데이터만 뜬다).
+  const roomRange = await fetchRoomDateRange(chatroomId);
+  // 버그 수정 — 이 fetch가 진행되는 사이에 다른 방을 연달아 누르거나 메일로 돌아간
+  // 경우, 뒤늦게 도착한 이전 요청이 최신 화면을 덮어쓰지 않도록 확인 후에만 반영한다.
+  if (currentChannel !== "messenger" || currentChatroomId !== chatroomId) return;
+  initTimeline(roomRange.first, roomRange.last);
+
   // 방을 선택(클릭)한 시점에 방 분위기도 같이 불러와서, 사람 목록과 함께
   // 헤더에 텍스트로(퍼센트 대신) 바로 박아 보여준다.
   const moodPromise = fetchRoomMoodScore(chatroomId);
@@ -1432,7 +1452,35 @@ function applyRoomNameOverride(chatroomName, name) {
   return name;
 }
 
+// 요청 — "3학년 4반 고등학교" 단톡방 김도현 상세보기의 "참여 패턴" 설명이 우리
+// UI(참여 패턴/자주 하는 이야기/말투로 나뉜 키:값 카드)를 안 쓰고 그냥 글자만
+// 나와서, 고등학교 동창 모임다운 내용으로 새로 써서 같은 형식으로 하드코딩.
+// 방 이름은 실제 표시값이 "3학년 4반 고등학교"/"...단톡방" 등으로 정확히 뭔지
+// 확실하지 않을 수 있어 includes로 느슨하게 매칭.
+const MESSENGER_DESC_OVERRIDES = {
+  "김도현": {
+    room: "3학년 4반 고등학교",
+    description:
+      "참여 패턴: 활발히 참여합니다.\n" +
+      "자주 하는 이야기: 근황, 취업, 동창회 약속 같은 친구들 사는 이야기를 자주 나눕니다.\n" +
+      "말투: 반말로 편하게 얘기하며, 이모티콘도 자주 사용합니다.",
+  },
+};
+function applyMessengerDescriptionOverride(chatroomName, person) {
+  const ov = MESSENGER_DESC_OVERRIDES[person && person.name];
+  if (ov && (chatroomName || "").includes(ov.room)) return ov.description;
+  return person ? person.description : null;
+}
+
+// 요청 — 김도현 상세보기를 처음 열었을 때는 메신저 통계가 최신 달(오른쪽 끝) 대신
+// 맨 처음 달(왼쪽 끝)부터 보이도록.
+const MESSENGER_STATS_SCROLL_LEFT_PEOPLE = new Set(["김도현"]);
+
 async function fetchAndRenderChatroomPeople(moodPromise) {
+  // 버그 수정 — 아래 fetch/await가 진행되는 사이 사용자가 다른 방을 누르거나 메일로
+  // 돌아가면, 뒤늦게 도착한 이 응답이 최신 화면을 덮어쓰지 않도록 시작 시점의
+  // 방 id를 기억해뒀다가 반영 직전에 지금도 같은 방/채널인지 다시 확인한다.
+  const requestedChatroomId = currentChatroomId;
   let people = [];
   try {
     const res = await fetch("/chatroom-person-detail", {
@@ -1453,6 +1501,7 @@ async function fetchAndRenderChatroomPeople(moodPromise) {
     console.error("chatroom-person-detail 오류:", e);
   }
   const moodScore = moodPromise ? await moodPromise : null;
+  if (currentChannel !== "messenger" || currentChatroomId !== requestedChatroomId) return;
   renderChatroomPeople(currentChatroomName, sortPeopleList(people), moodScore);
 }
 
@@ -1848,15 +1897,24 @@ function renderMessengerBarChart(data) {
   // 바꿔서 기간이 길어도(2020~2026년) 라벨이 겹치지 않게 한다.
   chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
-  // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청)
-  const latest = data.monthly[data.monthly.length - 1];
-  const latestGroup = chartArea.querySelector(
-    `.mp-vchart-group[data-month="${latest.month}"]`,
+  // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청) — 다만 김도현은
+  // 처음 열었을 때 맨 처음 달(왼쪽 끝, 고2 시절부터 시작하는 서사)부터 보이도록 예외.
+  const scrollToStart =
+    currentMessengerPerson &&
+    MESSENGER_STATS_SCROLL_LEFT_PEOPLE.has(currentMessengerPerson.name);
+  const target = scrollToStart
+    ? data.monthly[0]
+    : data.monthly[data.monthly.length - 1];
+  const targetGroup = chartArea.querySelector(
+    `.mp-vchart-group[data-month="${target.month}"]`,
   );
-  if (latestGroup) {
-    latestGroup.classList.add("active");
-    openMessengerDayList(latest.month);
-    latestGroup.scrollIntoView({ inline: "end", block: "nearest" });
+  if (targetGroup) {
+    targetGroup.classList.add("active");
+    openMessengerDayList(target.month);
+    targetGroup.scrollIntoView({
+      inline: scrollToStart ? "start" : "end",
+      block: "nearest",
+    });
   }
 }
 
@@ -1881,12 +1939,11 @@ function renderRelationDiagram(personName, relationships) {
         p && p.avatar_url
           ? `<img src="${p.avatar_url}" alt="${esc(o.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(o.name)}'">`
           : initials(o.name);
-      // 요청 — 그 사람의 채팅 횟수 정보도 같이 넣고, 새 박스를 만들지 말고 기존
-      // 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분. 라벨은 "참여 패턴"이 아니라
-      // "채팅횟수"로, 값은 "~건" 형식으로.
+      // 요청 — 그 사람의 참여 패턴(메시지 건수) 정보도 같이 넣고, 새 박스를
+      // 만들지 말고 기존 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분.
       const participationText =
         p && p.message_count != null
-          ? `${p.message_count.toLocaleString()}건`
+          ? `메시지 ${p.message_count.toLocaleString()}건`
           : "정보 없음";
       return `
         <div class="mp-relation-card">
@@ -1898,7 +1955,7 @@ function renderRelationDiagram(personName, relationships) {
               <div class="mp-relation-card-cell mp-relation-card-cell-val${o.label ? "" : " mp-relation-card-cell-empty"}">${o.label ? esc(o.label) : "파악된 설명 없음"}</div>
             </div>
             <div class="mp-relation-card-row">
-              <div class="mp-relation-card-cell mp-relation-card-cell-key">채팅횟수</div>
+              <div class="mp-relation-card-cell mp-relation-card-cell-key">참여 패턴</div>
               <div class="mp-relation-card-cell mp-relation-card-cell-val">${esc(participationText)}</div>
             </div>
           </div>
@@ -2582,9 +2639,27 @@ async function openMessengerDetail(person) {
   document.getElementById("mp-detail-email").textContent =
     `단톡방 참여자 · 메신저 ${person.message_count || 0}건`;
 
+  // 요청 — 그냥 문장 하나로 텍스트만 쭉 나오던 걸(우리 UI 미사용), 메일 쪽 "설명"
+  // 탭처럼 "참여 패턴: ..." 형식의 줄을 라벨/값으로 나눠 보여주는 우리 UI로.
   const descEl = document.getElementById("mp-detail-messenger-desc");
   if (descEl) {
-    descEl.textContent = person.description || "등록된 설명이 없습니다.";
+    const rawDesc = applyMessengerDescriptionOverride(currentChatroomName, person);
+    if (!rawDesc) {
+      descEl.innerHTML =
+        '<span class="mp-msg-desc-empty">등록된 설명이 없습니다.</span>';
+    } else {
+      const lines = rawDesc.split("\n").filter(Boolean);
+      descEl.innerHTML = lines
+        .map((line) => {
+          const ci = line.indexOf(":");
+          if (ci === -1)
+            return `<div class="mp-msg-desc-line">${esc(line)}</div>`;
+          const key = line.slice(0, ci).trim();
+          const val = line.slice(ci + 1).trim();
+          return `<div class="mp-msg-desc-line"><span class="mp-msg-desc-key">${esc(key)}:</span>${esc(val)}</div>`;
+        })
+        .join("");
+    }
     descEl.classList.add("show");
   }
 
@@ -2612,12 +2687,11 @@ async function openMessengerDetail(person) {
       r.source = applyRoomNameOverride(currentChatroomName, r.source);
       r.target = applyRoomNameOverride(currentChatroomName, r.target);
     });
-    // 요청 — 고등학교 동창 단톡방처럼 멤버가 많은 방은 관계가 8개로 잘려서 다
-    // 안 보였음. 상한을 넉넉히 올려서(최대 24명 상당) 사실상 다 보이게 함.
+    // 버그 수정 — 관계 카드가 상위 8개로 잘려서 실제 참여자(예: 14명)보다 적게
+    // 보였음. 요청대로 전부 다 뜨도록 slice(0, 8) 제거.
     const mine = rels
       .filter((r) => r.source === person.name || r.target === person.name)
-      .sort((a, b) => (b.strength || 0) - (a.strength || 0))
-      .slice(0, 24);
+      .sort((a, b) => (b.strength || 0) - (a.strength || 0));
     renderRelationDiagram(person.name, mine);
   } catch (e) {
     console.error("chatroom-relationships 오류:", e);

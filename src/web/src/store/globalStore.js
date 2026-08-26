@@ -78,6 +78,16 @@ class GlobalStore {
         indexed: !!acc.indexed,
       }));
 
+      // 요청 — DB/실제 데이터는 절대 안 건드리고 "화면에 뜨는 순서"만 조정.
+      // 03yeah03@gmail.com이 항상 맨 위에 오도록(그래야 appSidebar.js가 기본으로
+      // 골라주는 mails[0]도 자동으로 이 계정이 됨). 나머지 계정들 순서는 그대로.
+      const PINNED_MAIL_FIRST = "03yeah03@gmail.com";
+      mails.sort((a, b) => {
+        if (a.id === PINNED_MAIL_FIRST) return -1;
+        if (b.id === PINNED_MAIL_FIRST) return 1;
+        return 0;
+      });
+
       const chatrooms = (roomsData.data && roomsData.data.chatrooms) || [];
       const rooms = chatrooms.map((r) => ({
         id: r.chatroom_id,
@@ -128,15 +138,17 @@ class GlobalStore {
       localStorage.removeItem(STORAGE_KEYS.MAIL);
     }
 
+    // 요청 — 03yeah03@gmail.com을 누르면(또는 기본 선택되면) 화면 데이터가
+    // 바로 뜨도록. 예전엔 클릭할 때마다 300ms 지연 후에야 페이지가 데이터를
+    // 다시 불러오는 이벤트가 발생해서, 누르고 나서 잠깐 멈칫하는 느낌이
+    // 있었다 — 디바운스 없이 즉시 이벤트를 쏘도록 바꿈.
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
 
-    this.debounceTimer = setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("gwStoreStateChanged", {
-          detail: this.getFilterState(),
-        }),
-      );
-    }, 300);
+    window.dispatchEvent(
+      new CustomEvent("gwStoreStateChanged", {
+        detail: this.getFilterState(),
+      }),
+    );
   }
 
   getCollectedLists() {

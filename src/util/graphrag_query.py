@@ -80,6 +80,10 @@ def _is_plausible_mail_id(mail_id: str) -> bool:
 # "- ID: xxx"처럼 단독 줄이면 줄째로, "1. ID: xxx"처럼 번호 뒤에 붙어있으면 그 부분만 지우는데,
 # 후자의 경우 번호(예: "1.")만 남고 내용이 텅 빈 줄이 생기므로 그것도 같이 정리한다.
 def strip_ids_for_display(text: str) -> str:
+    # 요청 — 로컬 모델이 프롬프트의 "불릿마다 줄바꿈" 지시를 안 지키고 " - 항목: 설명 - 항목: 설명"
+    # 처럼 한 문단으로 이어 붙여 화면(white-space: pre-wrap)에서 줄바꿈이 안 되는 문제 방지 —
+    # 이미 줄 앞이 아닌 자리의 " - "(불릿 마커)만 실제 개행으로 정규화한다.
+    text = re.sub(r'(?<!\n) - (?=\S)', '\n- ', text)
     text = re.sub(r'^[ \t]*[-*]?[ \t]*(ID|계정):\s*\S+[ \t]*\n?', '', text, flags=re.MULTILINE)
     text = re.sub(r'(ID|계정):\s*\S+', '', text)
     text = re.sub(r'^[ \t]*(?:\d+[.)]|[-*])[ \t]*$', '', text, flags=re.MULTILINE)

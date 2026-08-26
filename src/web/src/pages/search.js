@@ -105,21 +105,22 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   }
   function showResult(q, text, sourceIds) {
     let sourceHtml = '';
-    if (sourceIds && sourceIds.length > 0) {
-      // source_ids는 {id, account} 객체 배열. 항목 하나당 칩 하나씩 만들면 같은 계정이 중복으로 잔뜩 나오므로,
-      // "이 답변이 어느 계정/대화방 데이터에서 나왔는지"가 핵심이니 계정별로 묶어서 칩 하나씩만 보여준다.
-      const countByAccount = new Map();
-      sourceIds.forEach(src => {
-        const account = (typeof src === 'string' ? null : src.account) || '알 수 없음';
-        countByAccount.set(account, (countByAccount.get(account) || 0) + 1);
-      });
-      const items = Array.from(countByAccount.entries()).map(([account, count]) =>
-        `<span class="gw-source-btn gw-source-btn-plain">
-          <i class="${emptyIcon}"></i> ${escapeHtml(account)}${count > 1 ? `<span class="gw-source-count">${count}</span>` : ''}
-        </span>`
-      ).join('');
-      sourceHtml = `<div class="gw-source-emails"><div class="gw-source-label">근거 계정</div><div class="gw-source-btns">${items}</div></div>`;
-    }
+    // 요청 — "근거 계정" 표시 안 함(주석처리, 로직은 그대로 남겨둠).
+    // if (sourceIds && sourceIds.length > 0) {
+    //   // source_ids는 {id, account} 객체 배열. 항목 하나당 칩 하나씩 만들면 같은 계정이 중복으로 잔뜩 나오므로,
+    //   // "이 답변이 어느 계정/대화방 데이터에서 나왔는지"가 핵심이니 계정별로 묶어서 칩 하나씩만 보여준다.
+    //   const countByAccount = new Map();
+    //   sourceIds.forEach(src => {
+    //     const account = (typeof src === 'string' ? null : src.account) || '알 수 없음';
+    //     countByAccount.set(account, (countByAccount.get(account) || 0) + 1);
+    //   });
+    //   const items = Array.from(countByAccount.entries()).map(([account, count]) =>
+    //     `<span class="gw-source-btn gw-source-btn-plain">
+    //       <i class="${emptyIcon}"></i> ${escapeHtml(account)}${count > 1 ? `<span class="gw-source-count">${count}</span>` : ''}
+    //     </span>`
+    //   ).join('');
+    //   sourceHtml = `<div class="gw-source-emails"><div class="gw-source-label">근거 계정</div><div class="gw-source-btns">${items}</div></div>`;
+    // }
     resultEl.innerHTML = `
       <div class="gw-query-label">검색어: <strong>${escapeHtml(q)}</strong></div>
       <div class="gw-result-card">${escapeHtml(text)}</div>

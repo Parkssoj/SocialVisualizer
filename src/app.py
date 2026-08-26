@@ -303,7 +303,7 @@ def run_query_async():
                             answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
                         except Exception as e2:
                             print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                            answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                            answer = _run_graphrag(full_message, resMethod, message, fallback_paths, resType)
                     elif resMethod == "local":
                         try:
                             answer, source_ids = run_federated_local_search(full_message, message, accounts_paths, primary_user_id=user_id)
@@ -313,7 +313,7 @@ def run_query_async():
                                 answer, source_ids = run_graphrag_query(full_message, message, fallback_paths, method=resMethod)
                             except Exception as e2:
                                 print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                                answer = _run_graphrag(full_message, resMethod, message, fallback_paths, resType)
                     else:
                         try:
                             answer, source_ids = run_federated_global_search(full_message, message, accounts_paths, primary_user_id=user_id)
@@ -324,7 +324,7 @@ def run_query_async():
                             except Exception as e2:
                                 # API 방식 실패 시 기존 CLI 방식으로 자동 fallback
                                 print(f"[ENGINE] API 실패, CLI fallback: {e2}")
-                                answer = _run_graphrag(full_message, message, resMethod, fallback_paths, resType)
+                                answer = _run_graphrag(full_message, resMethod, message, fallback_paths, resType)
                                 # source_ids = _extract_source_mail_ids(answer)
 
             result = answer
@@ -430,7 +430,7 @@ def run_query():
             answer, _source_ids = run_lightrag_query(message, message, paths, method=resMethod)
         elif RAG_ENGINE == "graphrag":
             print(f"[QUERY] RAG_ENGINE=graphrag mode={resMethod}")
-            answer = _run_graphrag(message, resMethod, paths, resType)
+            answer = _run_graphrag(message, resMethod, message, paths, resType)
     except Exception as e:  # lightrag 쪽은 RuntimeError 외의 예외도 던질 수 있어 범위를 넓힘
         return jsonify({'error': str(e)}), 500
 
