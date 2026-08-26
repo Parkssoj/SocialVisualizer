@@ -27,7 +27,7 @@ export function displayAccountLabel(userId) {
 }
 
 export async function initAccountPicker(container, onChange, options = {}) {
-  const { domain = 'mail', storageKey = 'gw_user_id' } = options;
+  const { domain = 'mail', storageKey = 'gw_user_id', showRealEmail = false, hideIndexingBadge = false, labelOverrides = null } = options;
   injectStyle();
 
   const current = localStorage.getItem(storageKey) || '';
@@ -76,8 +76,10 @@ export async function initAccountPicker(container, onChange, options = {}) {
         accounts.forEach(acc => {
           const opt = document.createElement('option');
           opt.value = acc.user_id;
-          const label = nameById[acc.user_id] || displayAccountLabel(acc.user_id);
-          opt.textContent = label + (acc.indexed ? '' : ' (인덱싱 중)');
+          const label = nameById[acc.user_id]
+            || (labelOverrides && labelOverrides[acc.user_id])
+            || (showRealEmail ? acc.user_id : displayAccountLabel(acc.user_id));
+          opt.textContent = label + (acc.indexed || hideIndexingBadge ? '' : ' (인덱싱 중)');
           if (acc.user_id === effective) opt.selected = true;
           select.appendChild(opt);
         });

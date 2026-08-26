@@ -22,7 +22,7 @@ export function renderAppSidebar(containerId = "app-sidebar") {
       <div class="gws-rail-inner">
         <!-- "데이터 선택" 제목을 접기 버튼과 같은 줄(맨 위)에 둠 -->
         <div class="gws-rail-top">
-          <div class="gws-panel-title">데이터 선택</div>
+          <div class="gws-panel-title">소셜 데이터 선택</div>
           <button type="button" id="sidebar-toggle-btn" class="gws-collapse-btn" title="사이드바 접기/펼치기">
             <i class="bi bi-chevron-left"></i>
           </button>

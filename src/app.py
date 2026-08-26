@@ -1610,6 +1610,28 @@ def send_mail_day_emails():
         "data": {"emails": emails},
     })
 
+@app.route("/mail-body-by-ids", methods=["POST"])
+def send_mail_body_by_ids():
+    """검색 결과 답변의 근거(source_ids: [{id, account}, ...]) 중 하나를 "근거메일 보기"로
+    눌렀을 때, 그 메일 하나의 제목/발신/수신/본문을 반환한다. account가 실제로 그 메일이
+    저장된 계정(user_id)이므로 그걸로 UserPaths를 만든다(검색을 실행한 계정과 다를 수 있음)."""
+    data = request.json or {}
+    account = data.get("account", "").strip()
+    mail_id = data.get("mail_id", "").strip()
+
+    if not account:
+        return jsonify({"error": "account is required"}), 400
+    if not mail_id:
+        return jsonify({"error": "mail_id is required"}), 400
+
+    paths = UserPaths(BASE_DIR, account, "mail")
+    bodies = get_mail_bodies_by_ids(paths, {mail_id})
+    body = bodies.get(mail_id)
+    if not body:
+        return jsonify({"error": "메일을 찾을 수 없습니다."}), 404
+
+    return jsonify({"id": mail_id, "account": account, **body})
+
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
     data = request.json or {}

@@ -10,11 +10,15 @@
 // 메뉴 순서: 데이터 분석하기 → My People → My Time → 검색 → View knowledge graph.
 // 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외.
 const NAV_ITEMS = [
-  { page: "imap-collect", href: "imap-collect.html", label: "Data analysis" },
+  {
+    page: "imap-collect",
+    href: "imap-collect.html",
+    label: "Social data analysis",
+  },
   {
     page: "analysis-hub",
     href: "analysis-hub.html",
-    label: "View analysis results",
+    label: "View results",
     children: [
       { page: "mypeople", href: "mypeople.html", label: "My People" },
       { page: "mytime", href: "mytime.html", label: "My Time" },
@@ -22,7 +26,7 @@ const NAV_ITEMS = [
       { page: "search", href: "search.html", label: "Natural language search" },
     ],
   },
-  { page: "graph-viz", href: "graph-viz.html", label: "View knowledge graph" },
+  { page: "graph-viz", href: "graph-viz.html", label: "Knowledge graph" },
 ];
 
 export function renderHeader(activePage) {

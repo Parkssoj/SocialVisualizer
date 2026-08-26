@@ -394,10 +394,12 @@ footer {
 }
 .mp-band-cards {
   position: relative; // 등급 라벨(.mp-band-label)을 이 배경의 윗선 가운데에 딱 붙이기 위한 기준점
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  // 요청 — 가운데 정렬(피라미드 느낌)을 다시 왼쪽 정렬로 되돌림.
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
   gap: 7px;
-  align-items: start;
   background: var(--band-bg, transparent);
   border-radius: 16px;
   // 라벨 배지가 윗선에 절반 걸쳐 앉는 만큼 카드 내용과 안 겹치도록 위쪽만 여유를 둠
@@ -405,6 +407,12 @@ footer {
   // 데이터가 어느 한쪽으로 몰려있어도 5개 등급이 전부 자기 배경색을 가진
   // 빈 밴드로라도 보이도록(요청) — 사람이 0명이면 이 안내문 한 줄만 넣음.
   min-height: 52px;
+}
+// .mp-card 기본값(width:100%)은 grid 칸을 꽉 채우는 걸 전제로 한 값이라, flex로
+// 바뀐 이 안에서는 10칸 그리드였을 때와 같은 폭이 나오도록 flex-basis로 직접 계산.
+.mp-band-cards .mp-card {
+  flex: 0 0 calc((100% - 9 * 7px) / 10);
+  width: auto;
 }
 // 등급 설명 요소 — 줄(구분선) 대신 각 등급 배경(.mp-band-cards)의 윗선 가운데에
 // 딱 붙어 걸쳐 있도록 절반은 배경 밖(위), 절반은 배경 안(아래)에 걸치게 배치.
@@ -425,7 +433,7 @@ footer {
   z-index: 1;
 }
 .mp-band-empty {
-  grid-column: 1 / -1;
+  flex: 1 1 100%; // .mp-band-cards가 flex로 바뀌면서 grid-column 대신 이걸로 한 줄 전체를 차지
   padding: 12px 6px;
   font-size: 0.92rem;
   color: rgba(48, 37, 34, 0.4);
@@ -1068,9 +1076,9 @@ footer {
 // 선 밑에 순수 텍스트로 표시.
 .mp-detail-affinity-label {
   position: absolute;
-  left: 50%;
+  left: 0;
   top: 50%;
-  transform: translate(-50%, 14px);
+  transform: translate(0, 14px);
   z-index: 2;
   font-size: 0.8rem;
   font-weight: 600;
@@ -2010,9 +2018,13 @@ footer {
 
 /* 반응형: 중간 화면 — 오른쪽 패널 축소 */
 @media (max-width: 1280px) {
-  .mp-grid,
-  .mp-band-cards {
+  .mp-grid {
     grid-template-columns: repeat(9, 1fr);
+  }
+  // .mp-band-cards는 grid가 아니라 flex(카드마다 flex-basis)라, 열 수 대신
+  // 그 폭 계산식을 열 수(9)에 맞춰 다시 준다(위 base .mp-band-cards .mp-card 참고).
+  .mp-band-cards .mp-card {
+    flex-basis: calc((100% - 8 * 7px) / 9);
   }
   .mp-page {
     padding: 16px 72px 0 calc(72px + var(--gw-sidebar-w, 0px)) !important;
@@ -2029,9 +2041,11 @@ footer {
   .mp-content {
     flex-direction: column;
   }
-  .mp-grid,
-  .mp-band-cards {
+  .mp-grid {
     grid-template-columns: repeat(6, 1fr);
+  }
+  .mp-band-cards .mp-card {
+    flex-basis: calc((100% - 5 * 7px) / 6);
   }
   .mp-timeline {
     left: calc(40px + var(--gw-sidebar-w, 0px));
@@ -2039,9 +2053,11 @@ footer {
   }
 }
 @media (max-width: 640px) {
-  .mp-grid,
-  .mp-band-cards {
+  .mp-grid {
     grid-template-columns: repeat(5, 1fr);
+  }
+  .mp-band-cards .mp-card {
+    flex-basis: calc((100% - 4 * 7px) / 5);
   }
   .mp-page {
     padding: 12px 24px 0 calc(24px + var(--gw-sidebar-w, 0px)) !important;

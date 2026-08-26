@@ -1,0 +1,1 @@
+{"version":3,"file":"mylife-VLzf0hBE.js","sources":["../../src/pages/mylife.js"],"sourcesContent":["import { bootstrapApp } from \"../main-app.js\";\r\nimport \"../scss/pages/mylife.scss\";\r\n\r\nbootstrapApp(\"mylife\");\r\n"],"names":["bootstrapApp"],"mappings":"4GAGAA,EAAa"}

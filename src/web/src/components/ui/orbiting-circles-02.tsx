@@ -34,13 +34,13 @@ const NAV_NODES = [
   {
     href: "imap-collect.html",
     icon: "bi-inbox-fill",
-    label: "Data analysis",
+    label: "Social data analysis",
     angle: 70,
   },
   {
     href: "graph-viz.html",
     icon: "bi-diagram-3-fill",
-    label: "View knowledge graph",
+    label: "knowledge graph",
     angle: 160,
   },
   { href: "mylife.html", icon: "bi-heart-fill", label: "My Life", angle: -110 },
