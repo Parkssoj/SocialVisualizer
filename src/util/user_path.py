@@ -148,6 +148,30 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
+# 요청 — 메신저(카카오) 업로드 시 사용자가 이미 입력/추측된 방 이름을 알고 있는데,
+# 인덱싱이 끝나야만(chatroom DB 테이블에 이름이 들어가야만) 화면에 이름이 보였다.
+# 인덱싱 중에도 업로드 시점에 알고 있던 이름을 그대로 보여줄 수 있도록, account.json에
+# room_name도 같이 저장해둔다 (list_accounts/list_indexed_chatrooms/get_chatroom_name이
+# 인덱싱 전엔 이 값을 폴백으로 사용).
+def set_account_room_name(paths: "UserPaths", room_name: str):
+    if not room_name:
+        return
+    try:
+        os.makedirs(paths.USER_ROOT, exist_ok=True)
+        meta = {}
+        if os.path.exists(paths.ACCOUNT_META_PATH):
+            try:
+                with open(paths.ACCOUNT_META_PATH, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                meta = {}
+        meta["user_id"] = paths.USER_ID
+        meta["room_name"] = room_name
+        with open(paths.ACCOUNT_META_PATH, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False)
+    except OSError:
+        pass
+
 # 계정 하나의 인덱싱 완료 여부를 RAG_ENGINE에 맞는 방식으로 판단한다.
 # app.py의 _index_ready()와 같은 분기지만, user_path.py가 app.py를 import할 수 없어서
 # (순환 참조) 여기 따로 둔다. RAG_ENGINE이 바뀌어도 이 함수만 보면 되도록 모아뒀다.
@@ -160,6 +184,39 @@ def _account_indexed(paths) -> bool:
         from util.graphrag import _is_index_ready
         return _is_index_ready(paths)
     return False
+
+# path 아래 파일들 중 가장 최근 수정 시각(mtime)을 재귀적으로 찾는다. 인덱싱이
+# 끝날 때마다 이 디렉터리 밑 파일들이 새로 쓰이므로, "마지막으로 인덱싱된 시각"의
+# 근사치로 쓴다. 디렉터리가 아예 없으면(=아직 한 번도 인덱싱 안 됨) 0.
+def _dir_max_mtime(path: str) -> float:
+    if not os.path.isdir(path):
+        return 0.0
+    latest = 0.0
+    try:
+        for root, _dirs, files in os.walk(path):
+            for fname in files:
+                try:
+                    mtime = os.path.getmtime(os.path.join(root, fname))
+                    if mtime > latest:
+                        latest = mtime
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return latest
+
+# 계정 하나의 "가장 최근 인덱싱 시각" 근사치를 구한다. 인덱싱 완료 시각을 별도
+# 필드로 기록해두는 곳이 없어서, 인덱싱 산출물이 쌓이는 디렉터리(LightRAG output /
+# GraphRAG root) 안 파일들의 최신 mtime을 대신 쓴다 — 인덱싱이 돌 때마다 이 폴더
+# 밑 파일들이 새로 쓰이기 때문에 근사치로는 충분하다. (사이드바 "최근 인덱싱된
+# 계정 기본 선택" 기능에서 사용 — list_accounts()가 이 값으로 정렬한다.)
+def _account_indexed_at(paths) -> float:
+    from config.settings import RAG_ENGINE
+    if RAG_ENGINE == "lightrag":
+        return _dir_max_mtime(paths.LIGHTRAG_OUTPUT_DIR)
+    elif RAG_ENGINE == "graphrag":
+        return _dir_max_mtime(paths.GRAPHRAG_ROOT)
+    return 0.0
 
 # user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환.
 # domain 파라미터는 카카오 등 다른 도메인 지원을 위한 것 — 아래에서 _account_indexed()를
@@ -177,10 +234,13 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
 
             meta_path = os.path.join(dir_path, ACCOUNT_META_FILENAME)
             user_id = None
+            room_name = None
             if os.path.exists(meta_path):
                 try:
                     with open(meta_path, "r", encoding="utf-8") as f:
-                        user_id = (json.load(f).get("user_id") or "").strip()
+                        meta = json.load(f)
+                        user_id = (meta.get("user_id") or "").strip()
+                        room_name = (meta.get("room_name") or "").strip() or None
                 except (OSError, json.JSONDecodeError):
                     user_id = None
 
@@ -193,7 +253,18 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
             accounts.append({
                 "user_id": user_id,
                 "indexed": _account_indexed(paths),
+                "indexed_at": _account_indexed_at(paths),
+                # 메신저(카카오) 업로드 시점에 저장해둔 방 이름 — 인덱싱 전엔 chatroom
+                # DB 테이블에 이름이 없으므로, 있으면 이걸 폴백으로 쓴다(list_indexed_chatrooms 참고).
+                "room_name": room_name,
             })
+
+    # 가장 최근에 인덱싱된 계정이 맨 앞에 오도록 정렬 — 사이드바 기본 선택값이
+    # "가장 최근 인덱싱된 계정"이 되도록 하기 위함(프런트는 이 배열의 첫 번째
+    # 항목을 기본값으로 쓴다: appSidebar.js의 refreshSidebarList()). 아직 인덱싱
+    # 안 된 계정(indexed_at == 0)은 뒤로 밀리되, 그 안에서는 원래의 알파벳 순서를
+    # 그대로 유지한다(Python 정렬은 stable이라 동점이면 기존 순서 보존).
+    accounts.sort(key=lambda a: a["indexed_at"], reverse=True)
 
     return accounts
 

@@ -139,7 +139,15 @@ def save_person_stats_to_db(paths, update_date=None):
         """
 
         inserted_count = 0
+        skipped_count = 0
         for email, info in stats.items():
+            # person_mail_account_id 컬럼은 VARCHAR(255) — 발신자 파싱이 실패해서 메일
+            # 제목/본문 일부(약관 문구 등, 최대 820자까지 봤음)가 통째로 "이메일" 자리에
+            # 들어오는 경우가 있어서, 그런 값은 DB에 넣지 않고 건너뛴다(이런 항목 하나
+            # 때문에 나머지 전부가 롤백되어 사람 목록이 통째로 안 뜨는 문제를 막기 위함).
+            if len(email) > 255:
+                skipped_count += 1
+                continue
             profile = descriptions.get(email) or {}
             cursor.execute(
                 insert_sql,
@@ -158,7 +166,7 @@ def save_person_stats_to_db(paths, update_date=None):
             inserted_count += 1
 
         conn.commit()
-        print(f"[DB] person 테이블 저장 완료: {inserted_count}건")
+        print(f"[DB] person 테이블 저장 완료: {inserted_count}건 (255자 초과로 건너뜀: {skipped_count}건)")
 
     except Exception as e:
         conn.rollback()
@@ -200,11 +208,19 @@ def collect_indexing_stats(paths) -> dict:
     llm_calls = 0
     input_tokens = 0
     output_tokens = 0
-    llm_model = os.getenv("RAG_CHAT_MODEL", "")
+    # 인덱싱 온오프 스위치(INDEXING_COMPLETION_MODEL_ID)가 실제로 가리키는 모델을 그대로 라벨링.
+    # "indexing_chat_model"이면 로컬(INDEXING_CHAT_MODEL), 아니면("default_chat_model") OpenAI(RAG_CHAT_MODEL).
+    if os.getenv("INDEXING_COMPLETION_MODEL_ID") == "indexing_chat_model":
+        llm_model = os.getenv("INDEXING_CHAT_MODEL", "")
+    else:
+        llm_model = os.getenv("RAG_CHAT_MODEL", "")
 
     embed_calls = 0
     embed_tokens = 0
-    embed_model = os.getenv("RAG_EMBEDDING_MODEL", "")
+    if os.getenv("INDEXING_EMBEDDING_MODEL_ID") == "indexing_embedding_model":
+        embed_model = os.getenv("INDEXING_EMBEDDING_MODEL", "")
+    else:
+        embed_model = os.getenv("RAG_EMBEDDING_MODEL", "")
 
     for folder in LLM_FOLDERS:
         folder_path = os.path.join(cache_dir, folder)

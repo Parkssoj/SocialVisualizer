@@ -79,7 +79,18 @@ def _is_plausible_mail_id(mail_id: str) -> bool:
 # ID/계정 필드는 근거 추출(계정 매칭, 발신인 교정)에만 쓰고 사용자에게 보여줄 답변에서는 지운다.
 # "- ID: xxx"처럼 단독 줄이면 줄째로, "1. ID: xxx"처럼 번호 뒤에 붙어있으면 그 부분만 지우는데,
 # 후자의 경우 번호(예: "1.")만 남고 내용이 텅 빈 줄이 생기므로 그것도 같이 정리한다.
+
+# LLM이 답변 맨 앞에 자신이 받은 질문을 "> 질문 내용" 형태로 그대로 되풀이해서 붙이는 경우가 있음
+# (예: "> 프로젝트 관련 메일 알려줘 영어 말고 한국어로 답변해줘"). 사용자에게 보여줄 답변이 아니므로
+# 맨 앞줄이 '>'로 시작하면 그 줄(과 뒤따르는 빈 줄)까지 통째로 제거한다.
+def _strip_echoed_question(answer: str) -> str:
+    return re.sub(r'^>.*\n+', '', answer)
+
 def strip_ids_for_display(text: str) -> str:
+    # 요청 — 로컬 모델이 프롬프트의 "불릿마다 줄바꿈" 지시를 안 지키고 " - 항목: 설명 - 항목: 설명"
+    # 처럼 한 문단으로 이어 붙여 화면(white-space: pre-wrap)에서 줄바꿈이 안 되는 문제 방지 —
+    # 이미 줄 앞이 아닌 자리의 " - "(불릿 마커)만 실제 개행으로 정규화한다.
+    text = re.sub(r'(?<!\n) - (?=\S)', '\n- ', text)
     text = re.sub(r'^[ \t]*[-*]?[ \t]*(ID|계정):\s*\S+[ \t]*\n?', '', text, flags=re.MULTILINE)
     text = re.sub(r'(ID|계정):\s*\S+', '', text)
     text = re.sub(r'^[ \t]*(?:\d+[.)]|[-*])[ \t]*$', '', text, flags=re.MULTILINE)
@@ -101,6 +112,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                 engine = local_engine if method == "local" else global_engine
                 result = await engine.search(message) # cli subprocess 대신 엔진 객체 함수 호출 (subprocess 생성이나 종료가 없어서 속도 빨라짐)
                 answer = result.response # 검색 결과 객체에서 답변 텍스트 추출
+                answer = _strip_echoed_question(answer) # 답변 맨 앞에 붙는 "> 질문 그대로" 줄 제거
                 answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer) # graphrag가 답변에 삽입하는 출처 태그 제거
                 answer = re.sub(r'\*+|#+', '', answer) # 마크다운 강조 기호 제거 (**, ## 등)
                 answer = answer.strip() # 앞뒤 공백 제거
@@ -310,6 +322,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                 async for chunk in response:
                     full_response += chunk.choices[0].delta.content or ""
 
+                full_response = _strip_echoed_question(full_response) # 답변 맨 앞에 붙는 "> 질문 그대로" 줄 제거
                 answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', full_response)
                 answer = re.sub(r'\*+|#+', '', answer)
                 answer = answer.strip()
@@ -448,7 +461,8 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
                     **first_engine.reduce_llm_params,
                 )
 
-                answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', reduce_response.response)
+                reduce_text = _strip_echoed_question(reduce_response.response) # 답변 맨 앞에 붙는 "> 질문 그대로" 줄 제거
+                answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', reduce_text)
                 answer = re.sub(r'\*+|#+', '', answer)
                 answer = answer.strip()
 
@@ -485,7 +499,7 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
     )
     return answer, source_ids
 
-# 질의 방법 분류
+# 질의 방법 분류 (RAG 검색 자체가 아닌 보조 작업이라 SUB_TASK_CHAT_MODEL 사용 — lightrag_query.py와 동일 원칙)
 def _classify_query_method(message: str) -> str:
     prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,
                 글로벌 검색(전체 경향·요약·패턴·빈도)에 적합한지 판단하라.
@@ -493,10 +507,13 @@ def _classify_query_method(message: str) -> str:
 
                 질문: {message}"""
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
 
     res = client.chat.completions.create(
-        model=os.getenv("RAG_CHAT_MODEL"),
+        model=os.getenv("SUB_TASK_CHAT_MODEL"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )

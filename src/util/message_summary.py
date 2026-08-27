@@ -11,13 +11,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.message_statics import _parse_message_blocks_from_parquet
 from util.database.chatroom_db_writer import save_message_summarize_to_db
-from util.summary_image_generator import generate_message_summary_images
+# My Time 화면에서 기간 요약 삽화(image_url)를 더 이상 렌더링하지 않고, 이걸 만들려면
+# 로컬 FLUX 이미지 서버(port 8005)가 떠있어야 하는데 지금은 꺼져있어서 매번 생성 실패
+# 로그만 남긴다 — 안 쓰는 기능이라 호출 자체를 꺼둠 (2026-08-27).
+# from util.summary_image_generator import generate_message_summary_images
 
 load_dotenv("src/parquet/.env")
 
 
 def _summarize_with_llm(text, period_label, contacts):
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,
+    )
     try:
         response = client.chat.completions.create(
             model=os.getenv("SUB_TASK_CHAT_MODEL"),
@@ -134,4 +140,4 @@ def generate_message_summaries(paths):
     print(f"[message_summary] 저장 완료: {paths.MESSAGE_SUMMARIES_PATH}")
 
     save_message_summarize_to_db(paths)
-    generate_message_summary_images(paths)
+    # generate_message_summary_images(paths)  # 위 import 주석 처리 사유와 동일 — 미사용 기능

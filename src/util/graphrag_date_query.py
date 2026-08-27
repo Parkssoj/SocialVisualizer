@@ -269,7 +269,10 @@ def run_date_range_query(message: str, accounts_paths: list) -> str:
         )
     context = "\n\n".join(lines)
 
-    client = openai.OpenAI(api_key=os.environ.get("llm_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("RAG_CHAT_API_BASE") or None,
+    )
 
     account_note = (
         " 이메일마다 '계정:' 필드가 있으니, 여러 계정이 섞여 있다는 걸 인지하고 "

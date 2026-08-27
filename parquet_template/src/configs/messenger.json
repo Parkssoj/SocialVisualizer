@@ -314,7 +314,7 @@
             "Record ids refer to the record ID, NOT the index.",
             "When citing a Date entity, use the exact 'Value' field from the entity description (YYYY-MM-DD). Do NOT paraphrase or abbreviate it."
         ],
-        "citation_example": "\"박서연은 발표 자료 준비 진행 상황을 반복적으로 공유했다 [Data: Sources (15, 16), Reports (1), Entities (5, 7); Relationships (23)].\"",
+        "citation_example": "\"박서연은 발표 자료 준비 진행 상황을 반복적으로 공유했습니다 [Data: Sources (15, 16), Reports (1), Entities (5, 7); Relationships (23)].\"",
         "output_instructions": [
             "Produce the response strictly based on the provided data tables.",
             "Organize the response into clear sections as appropriate for the target length and format.",
@@ -325,6 +325,10 @@
             "Omit sections that have no supporting data — do not write empty headers.",
             "Respond in the same language as the user's question.",
             "Korean questions MUST be answered in Korean.",
+            "When answering in Korean, ALWAYS use polite formal speech (존댓말/합쇼체, e.g. sentence endings like '-습니다', '-입니다', '-했습니다'). NEVER use casual/informal speech (반말) regardless of the tone of the source data.",
+            "When the answer consists of multiple points, format it as a real Markdown bulleted list — each bullet MUST start on its own new line with '- ', never run multiple bullets together in one paragraph.",
+            "NEVER repeat the same category, topic, or near-duplicate bullet point more than once. Before finishing, review the list and merge or remove duplicates so every bullet covers a genuinely distinct point.",
+            "Do NOT pad the response with generic filler examples (e.g. repeatedly citing generic replies like '네' or '그렇습니다' as if they were meaningful examples) just to lengthen the answer — every example cited must be a specific, distinctive expression that clearly supports its bullet.",
             "When referencing a specific day's conversation in your response, always include the date in the format \"날짜: <YYYY-MM-DD>\"."
         ]
     },

@@ -1,5 +1,5 @@
 # src/util/database/chatroom_db_writer.py
-# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/message_keyword/message_summarize 테이블에 데이터 저장
+# db_writer.py의 메신저(카카오톡) 버전. chatroom/chatroom_people/message_block/participant/message_keyword/message_summarize/chatroom_relationship 테이블에 데이터 저장
 # get_db_connection/get_or_create_user_id/collect_indexing_stats는 도메인 독립적이라 db_writer.py 것을 그대로 재사용
 
 import os
@@ -14,8 +14,22 @@ def _normalize_datetime(value):
         return value.replace(microsecond=0)
     return value
 
+# participant.participant_name / message_keyword.participant_name 둘 다 VARCHAR(255).
+# message_statics._MSG_LINE_RE가 여러 줄 메시지의 중간 줄을 "HH:MM 이름: 내용" 패턴으로
+# 오탐하면 콜론 앞 문장 전체가 발신자 이름으로 잡혀 255자를 넘는 경우가 있다 — 그대로
+# INSERT하면 MySQL이 1406(Data too long)으로 블록 전체 저장을 실패시키므로, 잘라서 저장하되
+# 잘렸다는 걸 알 수 있게 말줄임표를 남긴다(프론트는 컬럼 값을 그대로 표시하면 되므로 별도 처리 불필요).
+_PARTICIPANT_NAME_MAXLEN = 255
+
+def _clip_participant_name(name: str, maxlen: int = _PARTICIPANT_NAME_MAXLEN) -> str:
+    name = (name or "").strip()
+    if len(name) <= maxlen:
+        return name
+    return name[: maxlen - 3].rstrip() + "..."
+
 def init_chatroom_tables():
-    """서버 시작 시 chatroom 관련 6개 테이블이 없으면 자동 생성 (sql/message_schema.sql과 동일한 구조)"""
+    """서버 시작 시 chatroom 관련 7개 테이블이 없으면 자동 생성 (chatroom_relationship 포함 — 원래
+    sql/message_schema.sql에 있었으나 이 저장소에는 해당 파일이 없어 여기 직접 추가함)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -119,6 +133,23 @@ def init_chatroom_tables():
                 PRIMARY KEY (summarize_unit, summary_period, chatroom_id, index_date, user_id),
                 FOREIGN KEY (chatroom_id, index_date, user_id)
                     REFERENCES chatroom(chatroom_id, index_date, user_id)
+            ) ENGINE=InnoDB
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chatroom_relationship (
+                chatroom_id CHAR(40) NOT NULL,
+                index_date DATETIME NOT NULL,
+                user_id CHAR(36) NOT NULL,
+                person_a VARCHAR(255) NOT NULL,
+                person_b VARCHAR(255) NOT NULL,
+                relation_label VARCHAR(100),
+                description TEXT,
+                PRIMARY KEY (chatroom_id, index_date, user_id, person_a, person_b),
+                FOREIGN KEY (person_a, chatroom_id, index_date, user_id)
+                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id),
+                FOREIGN KEY (person_b, chatroom_id, index_date, user_id)
+                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id)
             ) ENGINE=InnoDB
         """)
 
@@ -342,10 +373,12 @@ def save_message_block_to_db(paths, update_date=None):
 
             sent_by: dict[str, int] = {}
             for m in real_messages:
-                sent_by[m["sender"]] = sent_by.get(m["sender"], 0) + 1
+                clipped_sender = _clip_participant_name(m["sender"])
+                sent_by[clipped_sender] = sent_by.get(clipped_sender, 0) + 1
 
-            # 참여자 헤더(참여자:)가 비어있으면(예: 파싱 실패) 실제 발신자 집합으로 대체
-            participants = block["participants"] or list(sent_by.keys())
+            # 참여자 헤더(참여자:)가 비어있으면(예: 파싱 실패) 실제 발신자 집합으로 대체.
+            # sent_by 키는 이미 클립돼 있으니 헤더 쪽만 별도로 클립한다.
+            participants = [_clip_participant_name(p) for p in block["participants"]] or list(sent_by.keys())
 
             body_text = "\n".join(f"{m['time']} {m['sender']}: {m['text']}" for m in real_messages)
             llm_tone = _classify_message_tone_with_llm(body_text)
@@ -412,9 +445,13 @@ def save_chatroom_people_to_db(paths, update_date=None):
         """
         count = 0
         for name, messages in people.items():
+            # participant_id/chatroom_people_name도 participant 테이블과 동일한 원인(파싱 오탐으로
+            # 생긴 비정상적으로 긴 "이름")으로 VARCHAR(255)를 넘을 수 있어 동일하게 클립한다.
+            # descriptions는 원본(미클립) 이름으로 키가 잡혀 있으므로 조회는 원본 name으로 한다.
+            clipped_name = _clip_participant_name(name)
             cursor.execute(insert_sql, (
-                name, chatroom_id, update_date, user_id,
-                name, len(messages), descriptions.get(name),
+                clipped_name, chatroom_id, update_date, user_id,
+                clipped_name, len(messages), descriptions.get(name),
             ))
             count += 1
 

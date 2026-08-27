@@ -89,11 +89,6 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 <td><img width="80%" alt="mytime-1" src="./docs/images/mytime-1.png"></td>
 <td><img width="80%" alt="mytime-2" src="./docs/images/mytime-2.png"></td>
 
-<table>
-    <tr>
-        
-    </tr>
-</table>
 ---
 
 <b><u>Recap: 소셜 데이터를 분석한 통계치 가시화</u></b>
@@ -131,3 +126,17 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 - 개인이나 조직에서 사건·범죄 등의 특수한 이벤트 추적용으로 활용
 - 개인이나 조직에서 사건의 흐름을 시간·인물별로 파악하는 도구로 수정 및 확장 가능
 - 개인의 모든 소셜 데이터를 한 곳에 모으는 디지털 아카이브 용도로 활용
+
+---
+
+## 사용 모델
+
+| 구분 | 모델 | 용도 | 라이선스 |
+|---|---|---|---|
+| Llama — Index | [`meta-llama/Llama-3.1-8B-Instruct`](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) + [Index LoRA Adapter](https://huggingface.co/Golden-Olive/llama-3.1-8b-socialvisualizer-index-lora) | GraphRAG 그래프 인덱싱 (`extract_graph`, `community_reports`) | Meta Llama License |
+| Llama — Query | `meta-llama/Llama-3.1-8B-Instruct` + [Query LoRA Adapter](https://huggingface.co/Golden-Olive/llama-3.1-8b-socialvisualizer-query-lora) | GraphRAG 질의응답 (`local_search`, `global_search`) | Meta Llama License |
+| Qwen | [`Qwen/Qwen2.5-7B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) | 범용 서브태스크 수행 | Apache-2.0 |
+| FLUX | [`black-forest-labs/FLUX.1-schnell`](https://huggingface.co/black-forest-labs/FLUX.1-schnell) | 이미지 및 아바타 생성 | Apache-2.0 |
+| Embedding | [`BAAI/bge-m3`](https://huggingface.co/BAAI/bge-m3) | 텍스트 임베딩 및 벡터 검색 | MIT |
+
+Llama LoRA Adapter의 학습·서빙에 대한 자세한 내용은 [`llama-finetune/README.md`](./llama-finetune/README.md)를 참고.
