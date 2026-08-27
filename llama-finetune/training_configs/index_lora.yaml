@@ -1,5 +1,5 @@
 # socialvisualizer-llama-index LoRA 학습 설정
-# 실제 학습에 사용된 설정 그대로이며, GPU 학습 서버의 config 파일과 대조 확인됨.
+# 채택 체크포인트: checkpoint-513 (eval_loss=0.2565)
 model_name_or_path: meta-llama/Llama-3.1-8B-Instruct
 stage: sft
 do_train: true
