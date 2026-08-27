@@ -285,7 +285,10 @@ def run_date_range_query(message: str, paths) -> str:
         )
     context = "\n\n".join(lines)
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("RAG_CHAT_API_BASE") or None,  # 지정 시 로컬 vLLM(라마)으로 라우팅
+    )
 
     # 필터링된 이메일 목록을 근거로 최종 답변을 생성하는 호출이라(단순 분류/요약 같은
     # 보조 작업이 아니라 사용자에게 보여줄 실제 답) SUB_TASK_CHAT_MODEL이 아니라

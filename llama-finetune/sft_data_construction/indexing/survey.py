@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+메일 + 메신저 전체 코퍼스의 커뮤니티 크기를 조사해, 프로덕션 community_reports
+토큰 예산을 초과해 수작업 gold(compose_oversized.py 참고)가 필요한 커뮤니티를 찾아낸다.
+
 Surveys community sizes across the mail + messenger corpus to identify which
 communities exceed the production community_reports token budget and need
 hand-written gold (see compose_oversized.py).

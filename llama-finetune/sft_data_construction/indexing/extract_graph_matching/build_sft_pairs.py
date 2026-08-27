@@ -40,6 +40,47 @@ LoRA 파인튜닝용 (input, output) SFT 쌍을 만든다.
 
 실제 SFT jsonl(system prompt 포함, train/val 분리, 도메인 비율 결정)은
 build_llamafactory_dataset.py에서 이 출력을 입력으로 받아 만든다(아직 별도 단계).
+
+## English summary
+build_sft_pairs.py (v2) matches the GraphRAG extract_graph cache against the original chunks to
+build (input, output) SFT pairs for LoRA fine-tuning.
+
+What changed in v2 (messenger re-matching, 2026-08-18) — two issues confirmed against real data:
+
+1. Wrong input text source. v1 used the "full document text" from the original CSV (keyed by
+   document_id) as input. When a document is split into multiple text_units/chunks (mainly
+   messenger: a day's conversation over 1500 chars gets split), every chunk ended up sharing the
+   same "full document" input, which is wrong. text_units.parquet already has each chunk's real
+   raw text (the `text` column), so that is now used instead — unsplit documents (full emails,
+   most messenger rooms) are effectively unchanged, only split documents get corrected.
+
+2. Exact matching can structurally fail in some cases. When chunks in the same document overlap
+   by 150 characters and the same person/entity is mentioned repeatedly, GraphRAG's
+   entities.parquet/relationships.parquet generation attributes the repeated entity to only the
+   "first chunk it appears in" and omits it from the other chunks' entity_ids (presumed internal
+   behavior of the graph-merge step; reproduced consistently across 9 independent re-indexing
+   runs). Meanwhile the chunk's actual raw LLM response does contain that entity (it genuinely
+   appears in the source text). So the raw response isn't "wrong" — GraphRAG's post-hoc
+   attribution is just conservative — and for these chunks, "exact match" is relaxed to
+   "nearest (high-confidence) match" instead.
+
+2-pass matching strategy:
+  Pass 1 (strict): only accept a unique candidate whose entity set AND relationship set match
+      completely, same as before. Nearly all whole emails and unsplit messenger documents get
+      100% matched here.
+  Pass 2 (relaxed, split documents only): for text_units Pass 1 couldn't match, restricted to
+      those belonging to a document with other chunks (a split document), compute a similarity
+      score against the still-unused cached responses (entity Jaccard*0.6 + relationship
+      Jaccard*0.4) and greedily assign the highest-scoring pair above the threshold (default
+      0.75). Unsplit documents never enter the Pass 2 pool, so already-correct matches are
+      unaffected.
+
+Output format (JSONL): {"id", "text_unit_id", "input": "<chunk's actual raw text>",
+"output": "<original raw response>", "n_entities", "n_relationships", "domain", "room",
+"match_method": "exact" | "relaxed", "match_score"}.
+
+The actual SFT jsonl (with system prompt, train/val split, domain ratio) is built by
+build_llamafactory_dataset.py from this output, as a separate later step.
 """
 import argparse
 import csv

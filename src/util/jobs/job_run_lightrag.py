@@ -42,6 +42,7 @@ _EMBEDDING_DIMS = {
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
     "text-embedding-ada-002": 1536,
+    "BAAI/bge-m3": 1024,
 }
 
 from util.jobs.job_store import update_job, append_job_log, get_job
@@ -126,7 +127,10 @@ def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read().strip()
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,  # 지정 시 로컬 Qwen으로 라우팅
+    )
     try:
         response = client.chat.completions.create(
             model=os.environ.get("SUB_TASK_CHAT_MODEL", "gpt-4o-mini"),  # 첨부파일 요약 = 보조 작업
@@ -288,14 +292,24 @@ async def _lightrag_ainsert(paths, texts: list[str], ids: list[str]):
 
     # RAG_CHAT_MODEL을 바인딩한 채팅 함수. openai_complete_if_cache(model, prompt, ...) 형태라
     # model 자리만 partial로 고정하면 LightRAG가 기대하는 (prompt, system_prompt=...) 시그니처가 된다.
-    llm_model_func = partial(openai_complete_if_cache, _RAG_CHAT_MODEL, api_key=api_key)
+    llm_model_func = partial(
+        openai_complete_if_cache,
+        _RAG_CHAT_MODEL,
+        api_key=api_key,
+        base_url=os.environ.get("RAG_CHAT_API_BASE") or None,  # 지정 시 로컬 vLLM(라마)으로 라우팅
+    )
 
     # RAG_EMBEDDING_MODEL을 바인딩한 임베딩 함수. openai_embed는 이미 EmbeddingFunc로
     # 감싸져 있어서(embedding_dim=1536 고정) model만 바꿔치기하면 안 되고, .func(원본 함수)만
     # 꺼내 새 EmbeddingFunc로 다시 감싸야 한다 — 이때 embedding_dim도 모델에 맞게 같이 바꿔줌.
     embedding_func = EmbeddingFunc(
         embedding_dim=_EMBEDDING_DIMS.get(_RAG_EMBEDDING_MODEL, 1536),
-        func=partial(openai_embed.func, model=_RAG_EMBEDDING_MODEL, api_key=api_key),
+        func=partial(
+            openai_embed.func,
+            model=_RAG_EMBEDDING_MODEL,
+            api_key=api_key,
+            base_url=os.environ.get("INDEXING_EMBEDDING_API_BASE") or None,  # 로컬 bge-m3로 라우팅
+        ),
     )
 
     rag = LightRAG(

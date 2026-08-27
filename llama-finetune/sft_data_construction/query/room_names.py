@@ -5,6 +5,14 @@ room_names.py — 메신저 방 해시ID → 표시이름 매핑
 type == "CHATROOM"인 행만 골라, 그 방 안에서 가장 많이 언급된(=degree가 가장 큰, 또는
 등장 횟수가 가장 많은) ChatRoom 엔티티의 title을 그 방의 "표시 이름"으로 채택한다
 (예: msg_c2248847 → "가족방").
+
+## English summary
+room_names.py maps messenger room hash IDs to display names.
+
+Logic: for each messenger room (e.g. msg_c2248847), take only the rows with type == "CHATROOM"
+from that room's GraphRAG indexing output (entities.parquet), and adopt the title of the
+most-mentioned ChatRoom entity (largest degree, or highest occurrence count) in that room as its
+display name (e.g. msg_c2248847 -> "가족방"/"Family chat").
 """
 
 from __future__ import annotations

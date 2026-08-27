@@ -2,9 +2,9 @@
 
 이 폴더의 8개 스크립트는 local_search/global_search 태스크의 SFT 학습 데이터
 (`mailgrapher_v5_local_search_{train,val}.jsonl`, `mailgrapher_v5_global_search_{train,val}.jsonl`)를
-만드는 파이프라인입니다. 프로젝트 연구노트에 남아있는 프롬프트 조립 방식·config 값·알고리즘
+만드는 파이프라인이다. 개발 당시 분석·기록해둔 프로덕션 프롬프트 조립 방식·config 값·알고리즘
 설명을 근거로 작성했으며, 실제 학습 서버의 세부 구현(경로 규칙, 예외 처리 등)과 사소한
-차이가 있을 수 있습니다 — 자세한 내용은 저장소 루트의 `LIMITATIONS.md`를 참고하세요.
+차이가 있을 수 있다 — 자세한 내용은 저장소 루트의 `LIMITATIONS.md`를 참고한다.
 
 각 파일:
 

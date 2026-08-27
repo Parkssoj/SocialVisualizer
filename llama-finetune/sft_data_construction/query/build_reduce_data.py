@@ -1,16 +1,31 @@
 """
 build_reduce_data.py — global_search REDUCE 집계 로직 재현
 
-로직 (연구노트 원문): 모든 MAP 결과의 point를 score 내림차순 정렬(0점 제외) 후
+로직: 모든 MAP 결과의 point를 score 내림차순 정렬(0점 제외) 후
 f"----Analyst {n}----\nImportance Score: {score}\n{answer}" 형태로 포맷,
 max_data_tokens=12000(cl100k_base) 예산 내에서 이어붙이고 초과분은 드롭.
 
-검증 사실(연구노트에 명시): 메일 q0가 실제로 토큰 상한에 걸려 134개 포인트 중 18개가
+검증 사실: 메일 q0가 실제로 토큰 상한에 걸려 134개 포인트 중 18개가
 드롭되는 것까지 확인 — 프로덕션 트렁케이션 동작과 일치함이 재현으로 검증됨. 이 스크립트도
 동일하게 정렬 → 필터 → 토큰 예산 적용 순서를 따른다.
 
 REDUCE는 항상 정확히 1번만 실행됨 (federated인 메신저도 동일 — 각 방 MAP 결과를 모아 1회.
 local_search federated와 달리 REDUCE 쪽에는 별도 하드코딩 지침 블록이 붙지 않음).
+
+## English summary
+build_reduce_data.py reproduces the global_search REDUCE aggregation logic.
+
+Logic: sort all MAP-result points by score descending (excluding zero-score points), format each
+as f"----Analyst {n}----\nImportance Score: {score}\n{answer}", then concatenate within a
+max_data_tokens=12000 (cl100k_base) budget and drop whatever overflows.
+
+Verified: mail question q0 actually hits the token cap, with 18 of its 134 points dropped —
+confirming this reproduction matches production's truncation behavior exactly. This script
+follows the same sort -> filter -> apply-token-budget order.
+
+REDUCE always runs exactly once (same for federated messenger — one pass pooling every room's MAP
+results. Unlike federated local_search, REDUCE has no separate hardcoded instruction block
+appended).
 """
 
 from __future__ import annotations

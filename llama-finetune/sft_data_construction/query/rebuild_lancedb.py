@@ -11,6 +11,23 @@ ada-002 계열)으로 저장돼 있었으나, 실제 쿼리 시점에 쓰는 임
    output/lancedb_bgem3/ 경로에 새 벡터스토어 생성 (기존 lancedb는 그대로 보존)
 3. 질문도 동일 서버로 미리 임베딩해 검색 시점엔 API 재호출 없이 사용 (→ local_build_context.py의
    StubTextEmbedder가 이 사전계산 임베딩을 사용함)
+
+## English summary
+rebuild_lancedb.py regenerates the lancedb from 1536-dim (OpenAI) to 1024-dim (bge-m3).
+
+Background: the existing lancedb (mail + all 13 messenger rooms) was stored at 1536 dimensions
+(OpenAI text-embedding-3-small/ada-002 family), but the embedding model actually used at query
+time is bge-m3 (1024 dimensions), so retrieval doesn't work as-is. Solved without re-indexing, in
+3 steps:
+
+1. Extract only the description text from entities.parquet (mail 3,492 + messenger 13 rooms
+   1,348 = 4,840 total) and re-embed it in batches of 64 through the real bge-m3 vLLM embedding
+   server on the GPU box (localhost:8001).
+2. Build a new vector store at output/lancedb_bgem3/ from the 1024-dim results via
+   LanceDBVectorStore.create_index() + load_documents() (the existing lancedb is left untouched).
+3. Pre-embed the questions through the same server too, so no live API call is needed at
+   retrieval time (-> local_build_context.py's StubTextEmbedder consumes these precomputed
+   embeddings).
 """
 
 from __future__ import annotations

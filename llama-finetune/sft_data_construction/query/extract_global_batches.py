@@ -10,6 +10,20 @@ MAP: system = global_search_map.txt.format(context_data=배치, max_length=1000)
 kwarg는 조용히 무시됨. 응답 JSON은 {"points": [{"description", "score"}]} 포맷)
 
 실측: 메일 10문항×17배치 + 메신저 10문항×14배치 = 170+140 = 310건의 MAP 태스크 생성.
+
+## English summary
+extract_global_batches.py assembles the per-MAP-batch question prompts.
+
+Combines the batch texts global_context_all.py already saved (computed once per domain, fixed
+regardless of question) with the pilot questions (10 mail + 10 messenger) to produce every
+system/user prompt pair the MAP stage actually sends to the sub-agent/model.
+
+MAP: system = global_search_map.txt.format(context_data=batch, max_length=1000), user = question
+(note: max_length is never actually referenced anywhere in the prompt text — an unused .format()
+kwarg is silently ignored. Response JSON format: {"points": [{"description", "score"}]}).
+
+Measured: mail 10 questions x 17 batches + messenger 10 questions x 14 batches = 170+140 = 310
+MAP tasks generated.
 """
 
 from __future__ import annotations
@@ -18,7 +32,7 @@ import argparse
 import json
 from pathlib import Path
 
-MAP_MAX_LENGTH = 1000  # 프롬프트에 넘기지만 실제로는 참조되지 않는 파라미터 (연구노트 확인)
+MAP_MAX_LENGTH = 1000  # 프롬프트에 넘기지만 실제로는 참조되지 않는 파라미터 (프로덕션 프롬프트 소스 확인)
 
 
 def load_questions(questions_json: Path) -> list[dict]:

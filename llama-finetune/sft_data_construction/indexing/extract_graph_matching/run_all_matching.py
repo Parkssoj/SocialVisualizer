@@ -21,6 +21,17 @@ CSV 경로들은 더 이상 필수가 아니다(있어도 되고 없어도 됨 �
     sft_pairs_v2/messenger_<room>.jsonl   (방마다 하나)
     sft_pairs_v2/_unmatched/*.jsonl       (검수용)
     콘솔에 도메인별/방별 매칭률(완전일치/최근접 구분) 요약 출력
+
+## English summary
+run_all_matching.py (v2) runs build_sft_pairs.py (v2) across the full email domain plus all 13
+messenger rooms in one pass, applying the exact-match + relaxed-nearest-match 2-pass strategy for
+split documents.
+
+Assumed layout: --root points at the folder holding both the raw synthetic data and the GraphRAG
+indexing output (see the directory tree above). From v2 on, input text comes directly from
+text_units.parquet's actual chunk text rather than the CSV, so the CSV paths are no longer
+required (used only to check existence, if present). Usage and output paths are the same
+regardless of language — see above.
 """
 import argparse
 import sys
