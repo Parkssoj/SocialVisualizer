@@ -1,4 +1,4 @@
-# socialvisualizer-llama-query LoRA → 단일 모델 merge/export 설정 (확정본)
+# socialvisualizer-llama-query LoRA → 단일 모델 merge/export 설정
 model_name_or_path: meta-llama/Llama-3.1-8B-Instruct
 adapter_name_or_path: /workspace/ckpt/mailgrapher-llama-query-lora
 template: llama3

@@ -1,5 +1,4 @@
 # socialvisualizer-llama-index LoRA → 단일 모델 merge/export 설정
-# (query_merge.yaml과 동일 패턴 — GPU 서버의 실제 파일과 대조 권장)
 model_name_or_path: meta-llama/Llama-3.1-8B-Instruct
 adapter_name_or_path: /workspace/ckpt/mailgrapher-llama-v5-lora
 template: llama3
