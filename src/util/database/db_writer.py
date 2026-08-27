@@ -886,18 +886,11 @@ def save_mail_to_db(paths, update_date=None):
     from util.extract_statics import _is_friendly_tone_with_llm
 
     # 1pass: 전체 메일 파싱 + 발신자/날짜 기준 lookup 딕셔너리 빌드
-    # (메일 1건마다 어조 판별용 LLM을 순차 호출하므로 메일이 많으면 오래 걸림 — 진행 상황을
-    #  볼 수 있게 100건마다 로그를 찍는다. 화면이 멈춘 것처럼 보이는 문제 방지용, 로직 변경 없음.)
     mail_data = []
     mail_lookup = {}  # (sender_email, 'YYYY-MM-DD HH:MM') -> (mail_id, mail_date)
     seen_ids = set()
 
-    total_rows = len(df)
-    print(f"[DB] save_mail_to_db: 총 {total_rows}건 메일 파싱 시작 (건당 어조 판별 LLM 호출 포함)")
-
-    for _row_i, (_, row) in enumerate(df.iterrows(), start=1):
-        if _row_i == 1 or _row_i % 100 == 0 or _row_i == total_rows:
-            print(f"[DB] save_mail_to_db 진행: {_row_i}/{total_rows}")
+    for _, row in df.iterrows():
         text = str(row.get('text', ''))
 
         id_match = re.search(r'^\[ID\]\s*(.+)$', text, re.MULTILINE)
