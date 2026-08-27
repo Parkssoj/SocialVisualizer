@@ -34,13 +34,13 @@ const NAV_NODES = [
   {
     href: "imap-collect.html",
     icon: "bi-inbox-fill",
-    label: "데이터 업로드",
+    label: "Social data analysis",
     angle: 70,
   },
   {
     href: "graph-viz.html",
     icon: "bi-diagram-3-fill",
-    label: "지식 그래프",
+    label: "knowledge graph",
     angle: 160,
   },
   { href: "mylife.html", icon: "bi-heart-fill", label: "My Life", angle: -110 },

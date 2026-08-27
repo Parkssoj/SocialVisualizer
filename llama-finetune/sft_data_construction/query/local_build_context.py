@@ -18,6 +18,29 @@ config (mail/messenger 두 도메인 settings.yaml에서 동일하게 확인됨)
 검색 자체는 실제 API 호출이 아니라, rebuild_lancedb.py로 미리 계산해둔 bge-m3 임베딩을
 텍스트 매칭으로 조회하는 StubTextEmbedder를 사용한다 (부수 발견 2: 세션 샌드박스에서
 매번 실시간 임베딩 API를 부르는 대신, 사전 계산값을 재사용해 결과 재현성도 확보).
+
+## English summary
+local_build_context.py reconstructs the production local_search context.
+
+Purpose: a context builder that reproduces GraphRAG's actual local_search pipeline
+prompt/context — production logic, not a "plausible-looking example" — so a gold answer (the
+"실제 답변"/actual-answer column from the QA spreadsheet) can be laid on top to build SFT pairs.
+
+config (confirmed identical across both mail/messenger domains' settings.yaml):
+top_k_entities=30, top_k_relationships=30, max_context_tokens=6000, text_unit_prop=0.5,
+community_prop=0.1.
+
+- Single account (mail): calls `LocalSearchMixedContext.build_context()` directly.
+- Messenger (13 rooms, federated): reproduces `run_federated_local_search()` — calls
+  build_context() independently per room -> trims each room to a per_account_max_tokens=3000
+  budget (o200k_base tokenizer) -> concatenates as "[계정: {room display name}]\n{chunk}" ->
+  appends the hardcoded Korean multi-account handling instruction block after the system prompt,
+  verbatim.
+
+Retrieval itself isn't a live API call — it uses a StubTextEmbedder that looks up bge-m3
+embeddings pre-computed by rebuild_lancedb.py via text matching (secondary finding: reusing
+precomputed values instead of calling a live embedding API on every run also guarantees
+reproducible results in the session sandbox).
 """
 
 from __future__ import annotations

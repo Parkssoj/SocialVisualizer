@@ -294,7 +294,10 @@ def run_federated_search(message: str, original_message: str, accounts_paths: li
             "계정 이메일 주소를 정확히 그대로 옮겨 적어라."
         )
 
-        client = openai.AsyncOpenAI(api_key=os.environ.get("LLM_API_KEY"))
+        client = openai.AsyncOpenAI(
+            api_key=os.environ.get("LLM_API_KEY"),
+            base_url=os.environ.get("RAG_CHAT_API_BASE") or None,  # 지정 시 로컬 vLLM(라마)으로 라우팅
+        )
         try:
             # 여러 계정 내용을 종합하는 답변이라 계정 하나만 볼 때보다 더 길어질 수 있어 응답 길이 상한을 넉넉히 둠
             max_tokens = max(2000, 2000 * len(valid_accounts_paths))
@@ -419,7 +422,10 @@ def _classify_query_method(message: str) -> str:
 
                 질문: {message}"""
 
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,  # 지정 시 로컬 Qwen으로 라우팅
+    )
 
     res = client.chat.completions.create(
         model=os.environ.get("SUB_TASK_CHAT_MODEL", "gpt-4o-mini"),

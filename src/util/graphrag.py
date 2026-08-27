@@ -28,7 +28,7 @@ def _run_graphrag(message, resMethod, raw_message, paths, resType):
         '--root', paths.GRAPHRAG_ROOT,
         '--response-type', resType,
         '--method', resMethod,
-        '--query', message
+        message
     ]
 
     start_time = time.time()

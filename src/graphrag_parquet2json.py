@@ -48,6 +48,53 @@ def _convert(val):
  
     return val
 
+# 값이 비어있음을 나타내는 자리표시자 (extract_graph 프롬프트의 grounding rule과 동일 기준)
+# title이 이중 하나면 무조건 노이즈로 간주
+_PLACEHOLDER_TITLES = {"NONE", "NULL", "N/A", "없음", "-", ""}
+
+# relationships.parquet에서 source/target 컬럼명을 찾는다 (_build_edges와 동일 기준을 공유)
+def _rel_endpoint_cols(rel_df: pd.DataFrame) -> tuple[str, str]:
+    src_col = next((c for c in ["source", "src", "source_id"] if c in rel_df.columns), rel_df.columns[0])
+    tgt_col = next((c for c in ["target", "tgt", "target_id"] if c in rel_df.columns), rel_df.columns[1])
+    return src_col, tgt_col
+
+# 노이즈 노드/엣지 제거
+def _clean_entities_and_relationships(
+    entities_df: pd.DataFrame, rel_df: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    title_col = "title" if "title" in entities_df.columns else "name"
+
+    def _norm(v) -> str:
+        return str(v).strip().upper()
+
+    # 1) 자리표시자 이름을 가진 엔티티 제거
+    is_placeholder = entities_df[title_col].map(lambda v: _norm(v) in _PLACEHOLDER_TITLES)
+    removed_placeholder = entities_df.loc[is_placeholder, title_col].tolist()
+    entities_df = entities_df.loc[~is_placeholder].copy()
+
+    src_col, tgt_col = _rel_endpoint_cols(rel_df)
+
+    # 2) 제거된 엔티티를 참조하는 관계도 함께 제거
+    removed_norm = {_norm(t) for t in removed_placeholder}
+    if removed_norm:
+        rel_df = rel_df.loc[
+            ~(rel_df[src_col].map(_norm).isin(removed_norm) | rel_df[tgt_col].map(_norm).isin(removed_norm))
+        ].copy()
+
+    # 3) 남은 relationships 기준으로 실제 연결 여부 재계산. degree=0인 노드 제거
+    connected = set(rel_df[src_col].map(_norm)) | set(rel_df[tgt_col].map(_norm))
+    is_isolated = ~entities_df[title_col].map(lambda v: _norm(v) in connected)
+    removed_isolated = entities_df.loc[is_isolated, title_col].tolist()
+    entities_df = entities_df.loc[~is_isolated].copy()
+
+    if removed_placeholder:
+        print(f"[정제] 자리표시자 이름(NONE 등) 노드 {len(removed_placeholder)}개 제거")
+    if removed_isolated:
+        print(f"[정제] 고립 노드(연결된 엣지 없음) {len(removed_isolated)}개 제거")
+
+    return entities_df, rel_df
+
+
 # 노드 생성
 def _build_nodes(entities_df: pd.DataFrame, communities_df: pd.DataFrame | None) -> list[dict]:
  
@@ -161,7 +208,10 @@ def main():
     communities_df = None # 커뮤니티는 없을수도 있음
     if os.path.exists(paths.COMMUNITIES_PATH):
         communities_df = pd.read_parquet(paths.COMMUNITIES_PATH) # communities.parquet 에서 pandas DataFrame으로 메모리 로드
- 
+
+    # 노이즈 정제: NONE 등 자리표시자 이름 노드 + 고립 노드 제거 (시각화 JSON에만 반영, 원본 parquet은 그대로 둠)
+    entities_df, rel_df = _clean_entities_and_relationships(entities_df, rel_df)
+
     # 노드/엣지 생성
     print("노드 생성 중...")
     nodes = _build_nodes(entities_df, communities_df)    # entities → 노드 리스트

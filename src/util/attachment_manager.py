@@ -6,7 +6,7 @@ import base64
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
-import fitz  # PyMuPDF
+import pdfplumber
 from docx import Document
 import olefile
 import csv
@@ -23,10 +23,9 @@ load_dotenv("src/parquet/.env")
 def _extract_text_from_pdf(file_path):
     text = ""
     try:
-        doc = fitz.open(file_path)
-        for page in doc:
-            text += page.get_text()
-        doc.close()
+        with pdfplumber.open(file_path) as doc:
+            for page in doc.pages:
+                text += page.extract_text() or ""
     except Exception as e:
         print(f"[PDF Extract Error] {e}")
     return text

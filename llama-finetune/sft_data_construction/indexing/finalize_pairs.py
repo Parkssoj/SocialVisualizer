@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+그대로 재사용한 gold 쌍(build_pairs.py)과 예산 초과 커뮤니티용 수작업 gold
+(compose_oversized.py)를 합쳐 최종 community_reports SFT 쌍 세트를 만든다.
+
 Merges the directly-reused gold pairs (build_pairs.py) with the hand-written
 gold for oversized communities (compose_oversized.py) into the final
 community_reports SFT pair set.

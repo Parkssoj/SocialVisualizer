@@ -9,6 +9,15 @@ graphrag_engine.py._build_global_engine()과 동일한 파라미터로 맞춤:
   - community_weight_name = "occurrence weight"
   - max_context_tokens = 12000 (GlobalSearchConfig 기본값, settings.yaml에 override 없음)
   - data_max_tokens(reduce용) = 12000, map_max_length=1000, reduce_max_length=2000 (모두 기본값)
+
+## English summary
+Faithful to production: uses the real GlobalCommunityContext from the graphrag==3.1.1 library to
+reproduce the global_search MAP-stage batches (context_chunks). Parameters match
+graphrag_engine.py._build_global_engine() exactly: community_level=0 (lowest level),
+use_community_summary=False (uses full full_content text), include_community_rank=True,
+community_weight_name="occurrence weight", max_context_tokens=12000 (GlobalSearchConfig default,
+no override in settings.yaml), data_max_tokens(for reduce)=12000, map_max_length=1000,
+reduce_max_length=2000 (all defaults).
 """
 import asyncio
 import pandas as pd

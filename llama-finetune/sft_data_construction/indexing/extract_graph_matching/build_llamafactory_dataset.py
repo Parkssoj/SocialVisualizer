@@ -19,6 +19,25 @@ graphrag가 실제로 LLM에 보내는 텍스트(extract_graph.txt 렌더링본)
 이렇게 나누면 실제 인덱싱 때 모델이 받는 토큰 시퀀스(system+human 이어붙인 것)가 원본 프롬프트와
 글자 단위로 동일하면서, LLaMA-Factory의 sharegpt 학습 포맷(system 롤 지원)에도 맞는다.
 
+## English summary
+build_llamafactory_dataset.py (v2) takes sft_pairs_v2/*.jsonl (build_sft_pairs.py v2 output) and
+attaches the real extract_graph prompt (latest rendered mail/messenger version) to produce
+LLaMA-Factory training files.
+
+Follows the v3 mailgrapher_v3_lora.yaml / dataset_info.json convention:
+  - Format: **sharegpt** (conversations: [system, human, gpt]), not alpaca
+  - Files are split by domain (email / messenger), each further split into train/val
+  - Only the messenger train split is upsampled to the target ratio (--target-ratio),
+    with an "_upsampled" suffix in the filename
+
+system/human split rule: the tail of the text GraphRAG actually sends the LLM (the rendered
+extract_graph.txt) ends with "-Real Data-\nEntity_types: {entity_types}\nText: {input_text}\nOutput:".
+{entity_types} is fixed per domain, so everything up to "Entity_types: ..." is identical across
+examples -> system. Only {input_text} differs per example, so everything from "Text: ..." onward
+-> human. This keeps the token sequence the model actually sees at indexing time
+(system+human concatenated) character-for-character identical to the original prompt, while
+fitting LLaMA-Factory's sharegpt format (which supports a system role).
+
 ## 사용법
     python build_llamafactory_dataset.py \
         --sft-pairs-dir sft_pairs_v2 \

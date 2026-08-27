@@ -6,15 +6,26 @@ import { changeLanguage } from "../utils/i18n.js";
  * 예전 appHeader.js의 NAV_ITEMS와 동일한 데이터. 이 배열만 고치면
  * 메뉴 항목이 늘거나 줄어도 화면이 자동으로 갱신됩니다.
  */
-// 메뉴 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
-// Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
+// 메뉴 순서: data analysis → My People → My Time → 검색 → View knowledge graph.
+// 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외. Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
 const NAV_ITEMS = [
-  { page: "home", href: "index.html", label: "홈" },
-  { page: "imap-collect", href: "imap-collect.html", label: "데이터 업로드" },
-  { page: "mypeople", href: "mypeople.html", label: "My People" },
-  { page: "mytime", href: "mytime.html", label: "My Time" },
-  { page: "search", href: "search.html", label: "검색" },
-  { page: "graph-viz", href: "graph-viz.html", label: "지식 그래프" },
+  {
+    page: "imap-collect",
+    href: "imap-collect.html",
+    label: "Social data analysis",
+  },
+  {
+    page: "analysis-hub",
+    href: "analysis-hub.html",
+    label: "View results",
+    children: [
+      { page: "mypeople", href: "mypeople.html", label: "My People" },
+      { page: "mytime", href: "mytime.html", label: "My Time" },
+      { page: "recap", href: "recap.html", label: "Recap" },
+      { page: "search", href: "search.html", label: "Natural language search" },
+    ],
+  },
+  { page: "graph-viz", href: "graph-viz.html", label: "Knowledge graph" },
 ];
 
 /** 언어 드롭다운 데이터 — 옵션을 추가/삭제하려면 이 배열만 고치면 됨 */

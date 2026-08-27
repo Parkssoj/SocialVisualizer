@@ -5,12 +5,26 @@ build_local_sft.py — local_search 최종 SFT 페어 조립
 "정답 답변" 컬럼 가정)
 출력: mailgrapher_v5_local_search_{train,val}.jsonl (ShareGPT 3-turn 포맷)
 
-gold 답변 소스 (연구노트 원문): "실제 답변"(프로덕션이 실제로 낸 응답)을 우선 쓰고
+gold 답변 소스: "실제 답변"(프로덕션이 실제로 낸 응답)을 우선 쓰고
 비어 있으면 "정답 답변"(사람이 미리 써둔 기준 답안)으로 폴백. 실측 결과 143행 전부
 "실제 답변"이 채워져 있어 폴백은 한 건도 발생하지 않았음.
 
 train/val 분할: 메일 73 + 메신저 70 = 143문항, 도메인별 9:1 비율로 분할 후 병합·셔플
 (seed=42) → 129/14.
+
+## English summary
+build_local_sft.py assembles the final local_search SFT pairs.
+
+Input: existing QA spreadsheets (Llama_mail_QA.xlsx, Llama_messenger_QA.xlsx — assumes
+"질문"(question), "실제 답변"(actual answer), "정답 답변"(reference answer) columns).
+Output: mailgrapher_v5_local_search_{train,val}.jsonl (ShareGPT 3-turn format).
+
+Gold answer source: prefers "실제 답변" (the response production actually gave), falling back to
+"정답 답변" (a human-written reference answer) when empty. In practice all 143 rows had
+"실제 답변" filled in, so the fallback never triggered.
+
+train/val split: mail 73 + messenger 70 = 143 questions, split 9:1 per domain, then merged and
+shuffled (seed=42) -> 129/14.
 """
 
 from __future__ import annotations

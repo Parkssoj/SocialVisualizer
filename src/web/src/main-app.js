@@ -14,6 +14,9 @@ import "./js/init.js";
 import "./utils/i18n.js";
 
 import { renderHeader, renderFooter } from "./layout/appHeader.js";
+// 우측 하단 떠 있는 검색 버튼 — side-effect import라 main-app.js를 쓰는 모든 페이지에
+// 자동으로 뜬다(로그인 페이지는 main-app.js를 안 쓰므로 자연히 제외됨).
+import "./components/floatingSearch.js";
 
 /**
  * Mounts the shared header/footer for a page.

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+최종 community_reports SFT 쌍(finalize_pairs.py 결과물)을 train/val로 분할한 뒤,
+각각을 LLaMA-Factory용 ShareGPT 3-turn(system/human/gpt) JSONL로 변환한다.
+
 Splits the final community_reports SFT pairs (finalize_pairs.py output) into
 train/val, then converts each to ShareGPT 3-turn (system/human/gpt) JSONL for
 LLaMA-Factory.
@@ -68,7 +71,7 @@ def main():
     write_jsonl(train_records, train_path)
     write_jsonl(val_records, val_path)
 
-    # sanity check one record
+    # 레코드 1개 정상 여부 확인
     with open(train_path, encoding="utf-8") as f:
         rec = json.loads(f.readline())
     print()
