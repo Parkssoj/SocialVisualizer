@@ -22,7 +22,10 @@ from util.summary_image_generator import generate_mail_summary_images
 
 
 def _summarize_with_llm(text, period_label, contacts):
-    client = openai.OpenAI(api_key=os.environ.get("LLM_API_KEY"))
+    client = openai.OpenAI(
+        api_key=os.environ.get("LLM_API_KEY"),
+        base_url=os.environ.get("SUB_TASK_API_BASE") or None,  # 지정 시 로컬 Qwen으로 라우팅
+    )
     try:
         response = client.chat.completions.create(
             model=os.environ.get("SUB_TASK_CHAT_MODEL", "gpt-4o-mini"),  # 요약 대상 목록 압축 = 보조 작업

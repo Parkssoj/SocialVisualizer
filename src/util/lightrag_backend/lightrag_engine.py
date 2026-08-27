@@ -32,6 +32,7 @@ _EMBEDDING_DIMS = {
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
     "text-embedding-ada-002": 1536,
+    "BAAI/bge-m3": 1024,
 }
 
 _cache_lock = threading.Lock()
@@ -66,6 +67,7 @@ async def _build_lightrag_instance(working_dir: str, token_tracker: TokenTracker
         openai_complete_if_cache,
         _RAG_CHAT_MODEL,
         api_key=api_key,
+        base_url=os.environ.get("RAG_CHAT_API_BASE") or None,  # 지정 시 로컬 vLLM(라마)으로 라우팅
         token_tracker=token_tracker,
     )
     embedding_func = EmbeddingFunc(
@@ -74,6 +76,7 @@ async def _build_lightrag_instance(working_dir: str, token_tracker: TokenTracker
             openai_embed.func,
             model=_RAG_EMBEDDING_MODEL,
             api_key=api_key,
+            base_url=os.environ.get("INDEXING_EMBEDDING_API_BASE") or None,  # 로컬 bge-m3로 라우팅
             token_tracker=token_tracker,
         ),
     )
