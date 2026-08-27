@@ -4,7 +4,7 @@
 (`mailgrapher_v5_local_search_{train,val}.jsonl`, `mailgrapher_v5_global_search_{train,val}.jsonl`)를
 만드는 파이프라인이다. 개발 당시 분석·기록해둔 프로덕션 프롬프트 조립 방식·config 값·알고리즘
 설명을 근거로 작성했으며, 실제 학습 서버의 세부 구현(경로 규칙, 예외 처리 등)과 사소한
-차이가 있을 수 있다 — 자세한 내용은 저장소 루트의 `LIMITATIONS.md`를 참고한다.
+차이가 있을 수 있다 — 자세한 내용은 [`LIMITATIONS.md`](../../LIMITATIONS.md)를 참고한다.
 
 각 파일:
 
