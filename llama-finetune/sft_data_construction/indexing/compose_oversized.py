@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+프로덕션 토큰 예산을 초과해(build_pairs.py / survey.py 참고) 원본 gold 리포트를 그대로
+재사용할 수 없었던 커뮤니티들을 위한 수작업 community_reports gold. 아래의 모든 인용은
+cite()를 통해 실제(트리밍된) 입력 컨텍스트에 대조 검증되며, 실제로 근거가 없으면
+바로 에러를 낸다.
+
+build_pairs.py가 이 커뮤니티들에 대한 work/id_maps.json을 생성한 뒤에 실행한다.
+
 Hand-written community_reports gold for communities that exceeded the production
 token budget (see build_pairs.py / survey.py) and therefore couldn't reuse the
 original gold report directly. Every citation below is resolved against the
@@ -48,10 +55,7 @@ def cite(community, entity_titles=(), rel_pairs=()):
 
 OWNER = "HAEUN.SYNTHETIC.OWNER@GMAIL.COM"
 
-# ---------------------------------------------------------------------------
-# community 2 (level 0) -- the single largest case: 816 entities total, a broad
-# catch-all hub where nearly everything connects only to the mailbox owner.
-# ---------------------------------------------------------------------------
+# community 2 (level 0) — 816개 엔티티로 가장 큰 케이스. 대부분이 메일함 소유자 계정 하나로만 연결되는 광범위한 허브형 커뮤니티
 def report_2():
     c = 2
     f1 = cite(c, [OWNER, "95B9A6D558B5E020", "6E7C9F2544C6AA22", "ACA399DFC199448F"],
@@ -87,9 +91,7 @@ def report_2():
         "rating_explanation": "특정 주제나 결정으로 응집된 대화라기보다 한 계정을 거쳐 가는 서로 무관한 다수의 메일이 섞여 있는 클러스터이므로, 개별 메일 각각의 중요도와 무관하게 클러스터 자체의 주제적 응집도는 낮다고 판단된다."
     }
 
-# ---------------------------------------------------------------------------
-# community 87 (level 0) -- registration/scholarship + counseling scheduling hub
-# ---------------------------------------------------------------------------
+# community 87 (level 0) — 등록/장학금 안내 및 개인 상담 일정 조율 허브
 def report_87():
     c = 87
     f1 = cite(c, ["등록 및 장학금 안내", "F3F5A5724038107E", "7DEFF509D3B986F2", "6173613E46AFBAF6", "80AC76B5888BA99B"],
@@ -126,27 +128,27 @@ def report_87():
         "rating_explanation": "매 학기 반복되는 등록·장학금 절차와 실제 일정이 확정되는 개인 상담 조율이 포함되어 있어, 단순 안내를 넘어 확인이 필요한 실무적 학사 관리 성격의 클러스터로 판단된다."
     }
 
-# ---------------------------------------------------------------------------
-# communities 238 / 668 / 771 / 775 / 785 (levels 1-5) -- same underlying cluster
-# (동양대학교 관련 산학협력 프로젝트 / 과제 / 세미나·논문 / 상담 메일 허브),
-# re-labeled across the Leiden community hierarchy with only minor membership
-# differences at each level. One narrative, IDs resolved per-level.
-# ---------------------------------------------------------------------------
+# communities 238 / 668 / 771 / 775 / 785 (level 1-5) — 산학협력 프로젝트/과제/세미나·논문/상담 메일 허브인 동일 클러스터가
+# Leiden 커뮤니티 계층 구조에서 레벨마다 소속 구성원만 조금씩 달라진 채 재라벨링된 것. 하나의 내러티브를 레벨별로 ID만 다시 매칭
+# id_maps.json에는 실제 추출된 엔티티명("동양대학교")이 그대로 들어있어 cite() lookup은
+# 이 실제 이름과 맞춰야 하지만, 출력되는 리포트 텍스트에는 공개용 가상 대학명만 노출한다.
+_REAL_ORG_NAME = "동양대학교"
+_DISPLAY_ORG_NAME = "다온대학교"
+
 def report_oyang(community):
-    # Only cite entities/relationships confirmed present in ALL of {238,668,771,775,785}'s
-    # trimmed context, since this narrative is shared across that near-identical hierarchical chain.
-    has_org = "동양대학교" in id_maps[str(community)]["entities"]
+    # {238,668,771,775,785} 전체의 트리밍된 컨텍스트에 공통으로 존재가 확인된 엔티티/관계만 인용 — 이 내러티브가 그 거의 동일한 계층 체인 전체에서 공유되기 때문
+    has_org = _REAL_ORG_NAME in id_maps[str(community)]["entities"]
     f1 = cite(community, ["C8FE34FB9FCDF951", "1654BE769A685C83", "3D909D52FCA14AA4"],
               [("C8FE34FB9FCDF951", OWNER)])
     f2 = cite(community, ["CB0029397B6E4590", "49F2D6BA835E05BB", "A20753808645644D", "DE74DE2ED4BE6748"],
               [("A20753808645644D", OWNER), ("DE74DE2ED4BE6748", OWNER)])
     f3 = cite(community, ["89F0C97E86114B51", "2B8EF8A300277DD5", "E865685712E827EC"],
               [("2B8EF8A300277DD5", OWNER), ("E865685712E827EC", OWNER)])
-    org_part = cite(community, ["동양대학교"], [(OWNER, "동양대학교")]) if has_org else None
+    org_part = cite(community, [_REAL_ORG_NAME], [(OWNER, _REAL_ORG_NAME)]) if has_org else None
     f4 = cite(community, ["859FA85D4EB97C74"],
               [("859FA85D4EB97C74", OWNER)])
     org_sentence = (
-        f" 발신 계정은 동양대학교 공과대학 재료공학과 소속으로 확인된다. {org_part}"
+        f" 발신 계정은 {_DISPLAY_ORG_NAME} 공과대학 재료공학과 소속으로 확인된다. {org_part}"
         if org_part else ""
     )
     return {
