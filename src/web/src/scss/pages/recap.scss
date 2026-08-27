@@ -5,18 +5,18 @@
   background: #ffffff;
 }
 
-/* ── 히어로 배너 ── */
+/* ── 히어로 배너 ──
+   예전엔 진한 오렌지-갈색 그라디언트라 색감이 너무 강했음 — 흰 배경으로 바꾸고
+   글자색만 이 페이지의 다른 곳(사이드바, mytime 등)과 같은 톤(진갈색 본문/
+   오렌지 포인트)으로 맞춤. 흰 배경 위에선 의미 없는 점무늬 패턴도 제거. 아래
+   .rc-content가 이 배너 위로 살짝 겹쳐 올라오므로, 배너 영역이 흰 배경에서도
+   구분되도록 옅은 밑줄만 하나 둠. */
 .rc-hero {
-  background: linear-gradient(135deg, #431407 0%, #7c2d12 50%, #c2410c 100%);
+  background: #ffffff;
+  border-bottom: 1px solid #ececec;
   padding: 36px 40px 80px;
   position: relative;
   overflow: hidden;
-}
-.rc-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 .rc-hero-inner {
   position: relative;
@@ -26,26 +26,26 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #fb923c;
+  color: #f97316;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 .rc-hero-title {
   font-size: 2rem;
   font-weight: 800;
-  color: #fff;
+  color: #302522;
   margin-bottom: 6px;
   letter-spacing: -0.02em;
 }
 .rc-hero-sub {
   font-size: 0.9rem;
-  color: #fdba74;
+  color: rgba(48, 37, 34, 0.55);
   font-weight: 400;
 }
-#account-picker-mount {
-  margin-top: 15px;
-}
-/* 히어로 오른쪽: 지식그래프 보기 버튼 */
+/* 계정 선택은 사이드바가 전담하므로 account-picker-mount(및 그 스타일)는
+   없앰. */
+/* 히어로 오른쪽: View knowledge graph 버튼 — 배경이 흰색이 됐으므로 버튼도
+   흰 배경에서 묻히지 않게 옅은 오렌지 톤으로 */
 .rc-hero-graph-link {
   position: absolute;
   right: 40px;
@@ -55,24 +55,26 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fff;
+  background: #fff6ef;
   border: none;
   border-radius: 999px;
   padding: 8px 16px;
-  color: #431407;
+  color: #f97316;
   text-decoration: none;
   font-weight: 700;
   font-size: 0.82rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(48, 37, 34, 0.08);
   transition:
     transform 0.15s,
-    box-shadow 0.15s;
+    box-shadow 0.15s,
+    background 0.15s;
   white-space: nowrap;
 }
 .rc-hero-graph-link:hover {
-  color: #431407;
+  color: #ea580c;
+  background: #ffe9d6;
   text-decoration: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px rgba(48, 37, 34, 0.14);
   transform: translateY(-50%) translateX(-2px);
 }
 .rc-hero-graph-arrow {
@@ -295,10 +297,12 @@
   height: 10px;
   overflow: hidden;
 }
+// 요청 — 4~10등(랭크 클래스 없는 기본값)은 그냥 회색으로. 원래 3등이 이미
+// 회색 계열이라 겹치므로, 3등 색은 연한 갈색으로 바꿔서 구분되게 함.
 .rc-bar-fill {
   height: 100%;
   border-radius: 20px;
-  background: linear-gradient(90deg, #f97316, #c2410c);
+  background: linear-gradient(90deg, #c8c8c8, #a7a7a7);
   width: 0;
   transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -309,7 +313,7 @@
   background: linear-gradient(90deg, #a5b4fc, #818cf8);
 }
 .rc-bar-fill.rank3 {
-  background: linear-gradient(90deg, #C8C8C8, #A7A7A7);
+  background: linear-gradient(90deg, #d2b48c, #b5895f);
 }
 .rc-bar-count {
   font-size: 0.85rem;
@@ -566,7 +570,7 @@
   font-size: 2.8rem;
   font-weight: 900;
   letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #f87171, #fbbf24, #A7A7A7);
+  background: linear-gradient(135deg, #f87171, #fbbf24, #a7a7a7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

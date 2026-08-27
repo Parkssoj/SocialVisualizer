@@ -15,21 +15,20 @@
     />
     <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
-    <title>MyPeople | MailGrapher</title>
+    <title>Social Visualizer</title>
+
+    <!-- 💡 Bootstrap Icons 필수 로드 (아이콘 깨짐 방지) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
     <script type="module" src="/src/pages/mypeople.js"></script>
-    <!-- 헤더 폰트를 홈 화면(index.html)과 완전히 동일하게: Fraunces뿐 아니라
-         Geist도 같이 불러와서 헤더/본문 폰트 로딩이 페이지마다 다르지 않게 통일 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:SOFT,WONK,opsz,wght@0,0,9..144,100..900&family=Geist:wght@400;500;600&display=block"
       rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      as="style"
-      crossorigin
-      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
     />
     <link
       rel="stylesheet"
@@ -44,29 +43,26 @@
       <div class="main_container">
         <div id="app-header"></div>
 
+        <!-- 공통 사이드바 컨테이너 -->
+        <div id="app-sidebar"></div>
+
+        <!-- 메인 콘텐츠 영역 (중복 main 제거 완료) -->
         <main class="right_col" role="main">
           <div class="mp-page">
-            <!-- 헤더: 제목 + 드롭다운 (왼쪽 패널 끝 기준 정렬) -->
+            <!-- 헤더: 제목 + 드롭다운 -->
             <div class="mp-panel-header">
               <div class="mp-header-left">
                 <div class="mp-title-wrap">
                   <div class="mp-title">My <span>People</span></div>
                   <span class="mp-count" id="mp-count"></span>
-                  <!-- 메일/메신저 채널 선택 버튼 -->
-                  <div class="mp-channel-btns">
-                    <button class="mp-channel-btn active" id="mp-mail-btn" type="button">
-                      <i class="bi bi-envelope"></i>
-                      <span>메일</span>
-                    </button>
-                    <button class="mp-channel-btn" id="mp-messenger-btn" type="button">
-                      <i class="bi bi-chat-dots"></i>
-                      <span>메신저</span>
-                    </button>
-                  </div>
                 </div>
+                <!-- 메일/메신저 전환 버튼, 계정 토글, 채팅방 토글은 전부 없앰 —
+                     My Time과 동일하게 사이드바에서 메일 계정을 고르면 메일 뷰가,
+                     메신저 데이터를 고르면 메신저 뷰가 자동으로 뜬다.
+                     account-picker-mount / chatroom-picker-mount는 mypeople.js가
+                     컨테이너 없이(null) "헤드리스"로 계속 호출해 초기 계정/채팅방
+                     id만 조용히 resolve한다(화면엔 안 그려짐). -->
                 <div class="mp-header-controls">
-                  <div id="account-picker-mount"></div>
-                  <div id="chatroom-picker-mount" style="display: none"></div>
                   <button
                     class="mp-brand-filter-btn"
                     id="mp-brand-filter-btn"
@@ -103,10 +99,9 @@
               </div>
             </div>
 
-            <!-- 왼쪽+오른쪽 패널 행 -->
+            <!-- 콘텐츠 행 -->
             <div class="mp-content">
               <div class="mp-left">
-                <!-- 메일 뷰 (기본 표시) -->
                 <div class="mp-panel" id="mp-mail-view">
                   <div class="mp-graph-panel" id="mp-graph-panel">
                     <div class="mp-graph-panel-header">
@@ -168,43 +163,43 @@
                   </div>
                 </div>
 
-                <!-- 메신저 뷰: 첫 클릭 시 mypeople.js가 비동기로 내용 채움, 기본은 숨김 -->
-                <div class="mp-panel" id="mp-messenger-view" style="display: none">
+                <div
+                  class="mp-panel"
+                  id="mp-messenger-view"
+                  style="display: none"
+                >
                   <div class="mp-empty" id="mp-messenger-loading">
                     <i class="bi bi-chat-dots"></i>
                     <p>메신저 기능을 불러오는 중...</p>
                   </div>
                 </div>
 
-                <!-- 사람 디테일 패널 -->
+                <!-- 디테일 패널 -->
                 <div class="mp-detail" id="mp-detail">
                   <button class="mp-detail-close" id="mp-detail-close">
                     <i class="bi bi-x-lg"></i>
                   </button>
-
-                  <!-- 헤더: 아바타 + 이름/메일 + 탭 버튼 -->
                   <div class="mp-detail-header" style="position: relative">
                     <div class="mp-detail-pair">
                       <div class="mp-detail-self-info">
-                        <h2
-                          class="mp-detail-name"
-                          id="mp-detail-my-name"
-                        ></h2>
-                        <p
-                          class="mp-detail-email"
-                          id="mp-detail-my-email"
-                        ></p>
+                        <h2 class="mp-detail-name" id="mp-detail-my-name"></h2>
+                        <p class="mp-detail-email" id="mp-detail-my-email"></p>
                       </div>
                       <div
                         class="mp-detail-avatar mp-detail-avatar-self"
                         id="mp-detail-avatar-self"
                       ></div>
                       <div class="mp-detail-relation">
+                        <!-- 요청 — 선 위에는 관계, 선 밑에는 친밀도 설명 -->
                         <span
                           class="mp-detail-relation-label"
                           id="mp-detail-relation-label"
                         ></span>
                         <div class="mp-detail-relation-line"></div>
+                        <span
+                          class="mp-detail-affinity-label"
+                          id="mp-detail-affinity-label"
+                        ></span>
                       </div>
                       <div class="mp-detail-avatar-ring">
                         <svg
@@ -291,21 +286,22 @@
                       </div>
                     </div>
                     <div id="mp-detail-namewrap">
-                      <h2 class="mp-detail-name" id="mp-detail-name"></h2>
-                      <p class="mp-detail-email" id="mp-detail-email"></p>
+                      <div class="mp-detail-nametitle">
+                        <h2 class="mp-detail-name" id="mp-detail-name"></h2>
+                        <p class="mp-detail-email" id="mp-detail-email"></p>
+                      </div>
                       <p
                         class="mp-detail-messenger-desc"
                         id="mp-detail-messenger-desc"
                       ></p>
                     </div>
-                    <!-- 탭 미니 버튼 (경계선 바로 위 오른쪽 끝) -->
                     <div class="mp-detail-tab-group">
                       <button
                         class="mp-detail-tab-btn active-stats"
                         id="mp-tab-stats"
                         onclick="switchDetailTab('stats')"
                       >
-                        이메일 교환
+                        메일 통계
                       </button>
                       <button
                         class="mp-detail-tab-btn"
@@ -324,14 +320,12 @@
                     </div>
                   </div>
 
-                  <!-- 설명 탭 패널 -->
                   <div class="mp-detail-desc" id="mp-detail-desc">
                     <div id="mp-desc-profile-content">
                       <p class="mp-desc-profile-empty">로딩 중...</p>
                     </div>
                   </div>
 
-                  <!-- 키워드 탭 패널 -->
                   <div class="mp-detail-kw" id="mp-detail-kw">
                     <div class="mp-wc-wrap" id="mp-detail-wc">
                       <span style="color: #a0b8b0; font-size: 1rem"
@@ -340,17 +334,11 @@
                     </div>
                   </div>
 
-                  <!-- 본문: 이메일 교환 (스크롤 됨) -->
                   <div class="mp-detail-body" id="mp-detail-body-stats">
                     <div class="mp-detail-col">
                       <div
                         id="mp-echange-row"
-                        style="
-                          display: flex;
-                          gap: 16px;
-                          flex: 1;
-                          min-height: 0;
-                        "
+                        style="display: flex; gap: 16px; flex: 1; min-height: 0"
                       >
                         <div
                           id="mp-echange-chartview"
@@ -388,7 +376,8 @@
                                 style="
                                   background: none;
                                   border: none;
-                                  border-bottom: 1.5px solid #128a6e;
+                                  border-bottom: 1.5px solid
+                                    rgba(28, 28, 30, 0.16);
                                   border-radius: 0;
                                   box-shadow: none;
                                   padding: 0 0 5px;
@@ -398,7 +387,7 @@
                                   color: #1c1c1e;
                                 "
                               >
-                                이메일 교환
+                                메일 통계
                               </div>
                               <span
                                 id="mp-stats-total"
@@ -421,55 +410,11 @@
                                 align-items: center;
                                 flex-shrink: 0;
                               "
-                            >
-                              <span
-                                style="
-                                  display: flex;
-                                  align-items: center;
-                                  gap: 10px;
-                                  font-size: 1rem;
-                                  font-weight: 600;
-                                  color: #4a4640;
-                                  white-space: nowrap;
-                                  flex-shrink: 0;
-                                "
-                                ><span
-                                  style="
-                                    width: 9px;
-                                    height: 9px;
-                                    border-radius: 50%;
-                                    background: #12886e;
-                                    display: inline-block;
-                                    flex-shrink: 0;
-                                  "
-                                ></span
-                                >보낸 메일</span
-                              >
-                              <span
-                                style="
-                                  display: flex;
-                                  align-items: center;
-                                  gap: 10px;
-                                  font-size: 1rem;
-                                  font-weight: 600;
-                                  color: #4a4640;
-                                  white-space: nowrap;
-                                  flex-shrink: 0;
-                                "
-                                ><span
-                                  style="
-                                    width: 9px;
-                                    height: 9px;
-                                    border-radius: 50%;
-                                    background: #5a94e8;
-                                    display: inline-block;
-                                    flex-shrink: 0;
-                                  "
-                                ></span
-                                >받은 메일</span
-                              >
-                            </div>
+                            ></div>
                           </div>
+                          <!-- 요청 — Y축이 뭘 나타내는지 표시(My Time 일별 키워드
+                               그래프와 같은 방식) -->
+                          <div class="mp-vchart-y-title">건수</div>
                           <div class="mp-vchart-wrap">
                             <div class="mp-vchart-y" id="mp-vchart-y">
                               <span>—</span><span>—</span><span>0</span>
@@ -481,7 +426,6 @@
                             </div>
                           </div>
                         </div>
-                        <!-- 서랍: 이메일/메신저 월별 막대 클릭 시 열리는 상세 목록 (기본은 접혀있음, flex 0) -->
                         <div
                           id="mp-echange-listview"
                           style="
@@ -569,38 +513,36 @@
                   </div>
                 </div>
               </div>
-              <!-- /mp-left -->
             </div>
-            <!-- /mp-content -->
-          </div>
 
-          <!-- ════ 하단 타임라인 슬라이더 ════ -->
-          <div class="mp-timeline">
-            <div class="mp-tl-dates">
-              <span class="mp-tl-date-label" id="tl-start-lbl">—</span>
-              <span class="mp-tl-selected" id="tl-selected-text"></span>
-              <span class="mp-tl-date-label" id="tl-end-lbl">—</span>
-            </div>
-            <div class="mp-tl-track-wrap" id="tl-wrap">
-              <div class="mp-tl-track"></div>
-              <div class="mp-tl-fill" id="tl-fill"></div>
-              <input
-                type="range"
-                id="tl-min"
-                min="0"
-                max="1000"
-                value="0"
-                step="1"
-              />
-              <input
-                type="range"
-                id="tl-max"
-                min="0"
-                max="1000"
-                value="1000"
-                step="1"
-              />
-              <div class="mp-tl-ticks" id="tl-ticks"></div>
+            <!-- 타임라인 슬라이더 -->
+            <div class="mp-timeline">
+              <div class="mp-tl-dates">
+                <span class="mp-tl-date-label" id="tl-start-lbl">—</span>
+                <span class="mp-tl-selected" id="tl-selected-text"></span>
+                <span class="mp-tl-date-label" id="tl-end-lbl">—</span>
+              </div>
+              <div class="mp-tl-track-wrap" id="tl-wrap">
+                <div class="mp-tl-track"></div>
+                <div class="mp-tl-fill" id="tl-fill"></div>
+                <input
+                  type="range"
+                  id="tl-min"
+                  min="0"
+                  max="1000"
+                  value="0"
+                  step="1"
+                />
+                <input
+                  type="range"
+                  id="tl-max"
+                  min="0"
+                  max="1000"
+                  value="1000"
+                  step="1"
+                />
+                <div class="mp-tl-ticks" id="tl-ticks"></div>
+              </div>
             </div>
           </div>
         </main>

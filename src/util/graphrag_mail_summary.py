@@ -11,7 +11,10 @@ import openai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.database.db_writer import save_mail_summarize_to_db
-from util.summary_image_generator import generate_mail_summary_images
+# My Time 화면에서 기간 요약 삽화(image_url)를 더 이상 렌더링하지 않고, 이걸 만들려면
+# 로컬 FLUX 이미지 서버(port 8005)가 떠있어야 하는데 지금은 꺼져있어서 매번 생성 실패
+# 로그만 남긴다 — 안 쓰는 기능이라 호출 자체를 꺼둠 (2026-08-27).
+# from util.summary_image_generator import generate_mail_summary_images
 
 load_dotenv("src/parquet/.env")
 
@@ -170,4 +173,4 @@ def generate_mail_summaries(paths):
     print(f"[mail_summary] 저장 완료: {paths.MAIL_SUMMARIES_PATH}")
 
     save_mail_summarize_to_db(paths)
-    generate_mail_summary_images(paths)
+    # generate_mail_summary_images(paths)  # 위 import 주석 처리 사유와 동일 — 미사용 기능

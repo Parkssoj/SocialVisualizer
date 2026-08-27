@@ -1,5 +1,3 @@
-/* 헤더(로고/메뉴/로그인/번역) 스타일은 전체 사이트 공통으로 _header.scss에서 관리 */
-
 /* ── 등장 애니메이션 기본 상태 ── */
 .gw-anim {
   opacity: 0;
@@ -47,7 +45,7 @@
   display: inline-block;
 }
 .fab-dot.running {
-  background: #CDCDCD;
+  background: #cdcdcd;
   animation: dot-pulse 1.2s ease-in-out infinite;
 }
 @keyframes dot-pulse {
@@ -109,8 +107,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #F4F4F4;
-  border-bottom: 1px solid #E4E4E4;
+  background: #f4f4f4;
+  border-bottom: 1px solid #e4e4e4;
 }
 .panel-title {
   display: flex;
@@ -136,7 +134,7 @@
   color: #888;
 }
 .panel-status.done {
-  background: #EEEEEE;
+  background: #eeeeee;
   color: #545454;
 }
 .panel-status.failed {
@@ -178,7 +176,7 @@
 
 .progress-bar-wrap {
   height: 3px;
-  background: #E4E4E4;
+  background: #e4e4e4;
 }
 .progress-bar-fill {
   height: 100%;
@@ -195,13 +193,13 @@
   font-size: 12px;
   line-height: 1.7;
   scrollbar-width: thin;
-  scrollbar-color: #E4E4E4 transparent;
+  scrollbar-color: #e4e4e4 transparent;
 }
 .log-body::-webkit-scrollbar {
   width: 4px;
 }
 .log-body::-webkit-scrollbar-thumb {
-  background: #E4E4E4;
+  background: #e4e4e4;
   border-radius: 4px;
 }
 
@@ -227,7 +225,7 @@
   }
 }
 .log-ts {
-  color: #BDBDBD;
+  color: #bdbdbd;
   flex-shrink: 0;
   font-size: 11px;
   padding-top: 1px;
@@ -247,11 +245,11 @@
   height: auto;
 }
 .log-tag.running {
-  background: #EEEEEE;
-  color: #4F4F4F;
+  background: #eeeeee;
+  color: #4f4f4f;
 }
 .log-tag.done {
-  background: #EEEEEE;
+  background: #eeeeee;
   color: #545454;
 }
 .log-tag.failed {
@@ -287,7 +285,7 @@
 
 .panel-footer {
   padding: 8px 14px;
-  border-top: 1px solid #E4E4E4;
+  border-top: 1px solid #e4e4e4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -311,50 +309,42 @@
   text-decoration: underline;
 }
 
-// custom.scss가 footer{display:block}을 먼저 정의하지만, 이 파일(home.scss)이
-// 캐스케이드상 더 나중에 로드돼서 동일 명시도(태그 셀렉터)로도 알아서 이김 → !important 불필요
 footer {
   display: none;
 }
-// _green-luxury.scss의 ".right_col{padding:24px!important;background:var(--gt-body-bg)!important}"
-// 를 이겨야 해서 !important 필요 (히어로를 화면 꽉 채운 사진으로 보여줘야 하므로 패딩 0, 스크롤 숨김)
+
 .page-index .right_col {
   padding: 0 !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;
   background: #ffffff !important;
 }
 body,
 html {
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
-/* ══ Intelligence Orbit — 홈 히어로 (레이어드 이미지 에셋 합성) ══ */
-// 홈 화면은 위쪽의 ".page-index .right_col { padding: 0 !important; }"가
-// _header.scss의 ".right_col { padding-top: ... }"를 덮어써서 무효화시키기 때문에,
-// 헤더와 히어로 사이 간격은 오직 이 padding-top 값 하나로만 결정됨(다른 페이지처럼
-// right_col의 padding-top을 고쳐도 홈 화면에는 반영 안 됨) — top_nav의 top/min-height를
-// 바꾸면 "헤더 높이 + top + 24px" 공식으로 이 값도 같이 맞춰야 함.
-// top_nav의 top/min-height가 100px/3px에서 58px/15px로 바뀐 뒤에도 이 값이 옛날 공식
-// (127px) 그대로 남아있던 걸 발견해서 새 공식(58+15+24=97px)으로 같이 맞춤
+/* ══ [2컬럼 레이아웃 : 수직 정렬 하강 및 타이틀 커스텀] ══ */
 .gw-orbit-hero {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column; // 위: 텍스트(gw-orbit-left), 아래: 미리보기 카드 가로 정렬(gw-hero-previews)
-  align-items: center; // 텍스트/카드 묶음 모두 가로 중앙 정렬
-  justify-content: flex-start; // 아래쪽에 남는 공간을 밀어내지 않고 내용 전체를 위로 붙임
-  gap: clamp(28px, 5vh, 48px); // 텍스트↔카드 간격도 화면 높이에 비례 — 짧은 화면에서도 최소 28px는 보장
-  height: 100vh;
-  // custom.scss의 ".right_col > div:first-child { padding-top: 10px }"가
-  // (0,2,1) 명시도로 이 규칙의 (0,1,0)보다 높아서 padding-top만 10px로 눌려있었음
-  // (히어로가 .right_col의 첫 번째 자식 div라 이 범용 규칙에 걸림) → !important로 이김
-  // 상단 여백을 고정 130px에서 화면 높이 비례(clamp)로 바꿔서 텍스트 블록 전체를 위로
-  // 당기고, 그만큼 아래 카드와의 간격(gap)도 벌어지게 함 — 반응형으로 항상 붙지 않게
-  padding: clamp(40px, 10vh, 90px) 6vw 60px !important;
-  overflow: hidden;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important; /* ⭐ 좌/우 수직 가운데 맞춰 내림 ⭐ */
+  justify-content: space-between !important;
+  gap: 40px !important;
+  // 오른쪽 미리보기 카드를 더 키우면서도 전체가 화면에 들어오도록 컨테이너 자체를 넓힘
+  max-width: 1480px !important;
+  margin: 0 auto !important;
+  min-height: calc(100vh - 80px); /* 화면 전체에 대해 가운데 위치 조율 */
+  // 왼쪽 문구를 더 왼쪽으로 보내달라는 요청 — 왼쪽 여백을 더 줄여서 문구
+  // 블록 전체를 왼쪽으로 더 당김(예전 20px에서 재요청으로 0으로).
+  // 요청 — 아래쪽 여백이 너무 커서(60px) 미리보기 카드가 세로로 길어졌을 때
+  // 화면 높이를 넘겨 스크롤이 생기고 밑이 잘렸음 → 32px로 줄임(위쪽 80px은
+  // 고정 헤더(73px) 밑에서 겹치지 않게 하는 최소 여백이라 그대로 유지).
+  padding: 80px 40px 32px 0 !important;
+  box-sizing: border-box !important;
 }
 
-/* 풀블리드 배경 — hero-bg 사진 한 장에 구체·궤도링·스파클·글로우가 전부 합성되어 있음 */
 .gw-layer {
   position: absolute;
   inset: 0;
@@ -365,9 +355,6 @@ html {
   z-index: 0;
 }
 
-/* ── 하단 지구본 horizon — 원(지구본) 전체 높이의 위쪽 1/3만 보이도록 잘라서
-   화면 아래에 가로로 넓게 걸쳐있는 느낌을 줌. GlobeLive 자체는 정사각형(aspect-square)이라
-   inner를 뷰포트 너비로 채우면 높이도 똑같이 커지고, 바깥 belt가 그 위쪽 1/3만 남기고 잘라냄. */
 .gw-globe-belt {
   position: absolute;
   left: 0;
@@ -382,131 +369,147 @@ html {
 .gw-globe-belt-inner {
   position: absolute;
   top: 0;
-  left: 73%; // 중앙(50%)에서 오른쪽으로 절반 정도 이동 — 필요하면 이 %만 조절하면 됨
+  left: 73%;
   transform: translateX(-50%);
   width: 100vw;
   max-width: 1260px;
 }
 
-/* 지구본(gw-globe-belt) 바로 위에 고정으로 떠있는 서비스 로고 궤도.
-   가로 위치는 지구본과 같은 73%로 맞추고, 세로는 지구본 벨트 높이(33vw, 최대 420px)
-   바로 위 지점에 살짝 띄움. */
 .gw-skills-orbit {
   position: absolute;
   left: 73%;
   bottom: calc(min(33vw, 420px) - 120px);
   transform: translateX(-50%);
-  z-index: 6; // .gw-trusted(4)·.gw-orbit-left(4)보다 위로 — 가운데 로고 노드가 뒤 배경/다른 영역에 안 묻히게
-  pointer-events: none; // 컨테이너 자체는 클릭 통과, 안쪽 로고 원들만 아래에서 다시 켜줌
+  z-index: 6;
+  pointer-events: none;
 }
 .gw-skills-orbit * {
-  pointer-events: auto; // 로고 hover 시 라벨 툴팁 보이게
+  pointer-events: auto;
 }
 
+/* ── [왼쪽 영역] 문구 정렬 및 위치 하강 ── */
 .gw-orbit-left {
   position: relative;
   z-index: 4;
-  flex: 0 0 auto;
-  max-width: 800px;
-  text-align: center; // 전체 텍스트 블록 가운데 정렬
+  flex: 1 1 44% !important;
+  // 한 줄로 표시되는 설명 문구를 넉넉히 담을 수 있도록 폭을 넓힘 — 제목을
+  // 줄바꿈 없이 한 줄로 표시하도록 바꾸면서(아래 .gw-hero-headline 참고)
+  // 720px로는 살짝 부족해 폭을 더 넉넉히 늘림.
+  max-width: 820px;
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  // 요청 — 문구가 너무 아래로 내려가 있어서 다시 위로. 부모(.gw-orbit-hero)가
+  // 이미 align-items:center로 좌/우를 같은 높이 기준 정가운데에 맞춰주므로,
+  // 여기서 따로 margin-top으로 더 내릴 필요가 없음(예전엔 오른쪽 카드가
+  // justify-content:flex-end로 아래에 붙어있어서 균형 맞추려 내렸었는데,
+  // 오른쪽도 이번에 center로 되돌려서 더 이상 필요 없음).
+  // 요청 — 아주 살짝만 더 내려달라는 재요청. 정렬 방식은 그대로 두고 숫자만 조정.
+  margin-top: 10px !important;
 }
 .gw-hero-eyebrow {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   font-family:
     "Geist",
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: #6b6b6b;
   letter-spacing: 0.04em;
-  text-align: center;
+  text-align: left !important;
 }
+
+/* ⭐ 1. Social Visualizer 타이틀 훨씬 더 크게 확대 ⭐ */
 .gw-hero-headline {
-  // custom.scss의 "body .right_col h1:not([class*=display-])" 전역 규칙이
-  // margin/font-weight/font-size/line-height를 40px 고정으로 눌러버려서 그 4개만 !important로 이김.
-  // font-family/color는 그 전역 규칙이 애초에 안 건드리는 속성이라 !important 불필요.
-  margin: 0 0 24px !important;
+  margin: 0 0 28px !important;
   font-family:
     "Pretendard",
     "Inter",
     -apple-system,
     sans-serif;
   font-style: normal;
-  font-weight: 700 !important;
-  font-size: clamp(2.1rem, 4vw, 4rem) !important;
-  line-height: 1.28 !important;
-  letter-spacing: normal;
-  color: #3C3C3C;
-  text-align: center;
-  white-space: nowrap; // <br>로 준 줄바꿈 외에는 자동 줄바꿈 안 되도록
+  font-weight: 800 !important;
+  // "Social Visualizer"를 좀 더 크게 키워달라는 요청 — clamp 상/하한을 함께 올림
+  font-size: clamp(
+    3.4rem,
+    5.6vw,
+    5.6rem
+  ) !important; /* 메인 타이틀 크기 확장 */
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em;
+  color: #262626;
+  text-align: left !important;
+  // 요청 — "Social Visualizer"가 줄바꿈 없이 항상 한 줄로 보이도록. 좁은
+  // 화면(모바일)에서는 아래 @media (max-width: 900px)에서 다시 normal로
+  // 풀어서 화면 밖으로 잘리지 않게 함.
+  white-space: nowrap !important;
 }
+
 .gw-hero-headline-muted {
-  color: #696969; // 위 두 줄(#3C3C3C)이랑 폰트/굵기는 동일, 색만 더 옅은 올리브 톤
+  color: #696969;
 }
-// shadcnspace "illuminated-hero" 데모의 SVG 글로우 필터(#glow-4, HeroOrbit.jsx에 정의)를
-// 헤드라인 텍스트에 적용. 필터 자체가 이미 따뜻한 골드/앰버 톤이라 사이트 색감이랑 잘 맞음 —
-// 글자 색은 그대로 두고 필터만 얹어서 은은한 광채가 도는 느낌만 빌려옴.
+
 .gw-hero-headline-glow {
-  // 글자 자체를 밝은 톤으로 바꿔야 필터의 광채가 실제로 "빛나는" 느낌으로 보임
-  // (원래 진한 올리브색 그대로면 글로우가 그냥 흐릿한 그림자처럼만 보임)
   color: #fbf0d9 !important;
   filter: url(#glow-4);
 }
+
+/* ⭐ 2. 서브 문구 한 줄 고정(요청) ⭐ */
 .gw-hero-desc {
-  margin: 0 auto 28px;
-  max-width: 640px; // 540px였을 때 <br/> 뒤 문장이 폭이 좁아서 다시 줄바꿈되며 "시각화합니다."만 혼자 떨어져 나갔음 — 코드상 <br/>로 나눈 두 줄 그대로 렌더링되도록 넓힘
+  margin: 0 0 32px !important;
+  max-width: none !important; /* 한 줄로 이어지도록 폭 제한을 없앰 */
+  font-family:
+    "Geist",
+    "Inter",
+    -apple-system,
+    sans-serif;
+  font-size: 1.08rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: #555555;
+  text-align: left !important;
+  white-space: nowrap !important; /* 항상 한 줄로 표시 */
+}
+
+.gw-hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 22px;
+  margin-bottom: 8px;
+}
+
+.gw-hero-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  border-radius: 999px;
+  background: #fb923c;
+  color: #ffffff !important;
   font-family:
     "Geist",
     "Inter",
     -apple-system,
     sans-serif;
   font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.7;
-  color: #696969; // 흰 배경용 — 톤 다운된 올리브 그레이
-  text-align: center;
-}
-
-.gw-hero-cta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 22px;
-  margin-bottom: 8px; // 아래 미리보기 카드 줄과 최소한의 여유를 둠(붙지 않도록)
-}
-// 이 두 CTA는 <a> 태그라 _green-luxury.scss의 전역
-// "a { color: var(--gt-link-color) !important; text-decoration: none !important; }"
-// 를 이겨야 해서 color/text-decoration에 !important 필요. 같은 이유로 그 파일의
-// "a:hover { color: var(--gt-link-hover) !important; }"(태그+가상클래스라 명시도가 더 높음)가
-// hover 시에도 이겨버려서 마우스를 올리면 글자색이 초록으로 튀는 버그가 있었음 →
-// 각 CTA에 :hover 전용 규칙을 명시도(클래스+가상클래스)로 추가해서 고정.
-.gw-hero-cta-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  // 화면 크기에 비례해서 커지고/작아지되(clamp) 최소~최대 폭을 둬서 너무
-  // 커지거나 작아지지 않게 함 — 기존보다 살짝 작게 상한을 낮춤
-  padding: clamp(10px, 0.9vw, 13px) clamp(20px, 1.8vw, 24px);
-  border-radius: 999px;
-  background: #fb923c; // 데이터 업로드 페이지 아이콘과 동일한 오렌지
-  color: #ffffff !important;
-  font-family:
-    "Geist",
-    "Inter",
-    -apple-system,
-    sans-serif;
-  font-size: clamp(0.82rem, 0.6vw + 0.68rem, 0.94rem);
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none !important;
-  box-shadow: none;
-  transition: transform 0.2s;
+  box-shadow: 0 6px 20px rgba(251, 146, 60, 0.38);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .gw-hero-cta-primary:hover {
   color: #ffffff !important;
   transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(251, 146, 60, 0.48);
 }
+
 .gw-hero-cta-secondary {
   font-family:
     "Geist",
@@ -515,7 +518,7 @@ html {
     sans-serif;
   font-size: 1rem;
   font-weight: 500;
-  color: #b8853a !important; // 흰 배경에서도 대비가 나오도록 톤을 낮춘 Warm Gold
+  color: #b8853a !important;
   text-decoration: none !important;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
@@ -525,43 +528,66 @@ html {
   border-color: #b8853a;
 }
 
-/* ── 히어로 오른쪽: My People / My Time 미리보기 카드 ──
-   실제 페이지(mypeople.html/mytime.html)를 iframe으로 그대로 불러와 축소 표시.
-   고정된 화면처럼 보이면 되고(hover 전엔 정적), hover 시에만 오버레이가 떠서
-   각 페이지로 이동. */
+/* ── [오른쪽 영역] 미리보기 카드 : 세로 1줄 및 위치 하강 ── */
 .gw-hero-previews {
   position: relative;
   z-index: 4;
-  flex: 1 1 auto; // 남은 세로 공간을 이 줄이 갖도록 해서 아래로 밀려 잘리지 않게 함
-  min-height: 0; // flex 자식이 내용 크기로 오버플로우하지 않도록
-  align-self: stretch; // 부모 폭(가로 전체)만큼 차지해서 카드 줄을 하단에 가로로 정렬
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
+  flex: 1 1 56% !important;
+  display: flex !important;
+  flex-direction: column !important; /* 세로 1줄 고정 */
+  align-items: flex-end !important; /* 오른쪽 수평 정렬 */
+  // 요청 — 카드를 일부러 아래로 붙이던 것(flex-end)과 그 상단 여백(padding-top:50)이
+  // 왼쪽 문구를 억지로 더 내리는 원인이자, 카드가 세로로 길어졌을 때 화면 아래로
+  // 넘쳐서 스크롤/잘림이 생기는 원인이었음 → 왼쪽과 똑같이 가운데 정렬로 되돌림.
+  justify-content: center !important;
+  gap: 22px !important;
+  width: 100% !important;
+  // 요청 — 문구는 그대로 두고 카드 2개만 아주 살짝 더 아래로.
+  margin-top: 14px !important;
 }
-// 카드 폭을 한 곳(--pv-w)에서만 정의하고 프레임/아이프레임 배율도 같은 값을 참조 —
-// 실제 페이지 원본 크기(1600×1020, 비율 80:51)를 유지한 채로 화면 폭/높이 중
-// 더 좁은 쪽에 맞춰 축소되므로 어떤 화면에서도 카드가 세로로 잘리지 않음.
+
+/* 오른쪽 두 미리보기 카드를 더 크게 키워달라는 요청 — max-width를 500px→660px로 확장
+   ⭐ 두 미리보기 창의 "비율" 조절 지점 — 카드 2장(My People / My Time) ⭐
+   요청 — 스크롤 없이 항상 한 화면(뷰포트) 안에 다 들어와야 함. aspect-ratio만으로
+   높이를 정하면 화면이 낮을 때(카드가 세로로 긴 비율일수록) 두 카드 높이 합이
+   뷰포트를 넘어서 스크롤이 생기고 아래가 잘림 — 그래서 max-height를 뷰포트 높이(vh)
+   기준으로 같이 걸어서, 화면이 아무리 작아도 "카드 2장 + 사이 간격(22px) + 위/아래
+   여백(.gw-orbit-hero의 padding 80+32=112px, .gw-hero-previews의 margin-top 14px)"이
+   항상 100vh 안에 맞도록 상한을 둠.
+   (계산: 2*H + 22 = 100vh-112-14  →  H = 50vh - 74px. max-height가 실제로 이 상한에
+   걸리면 이미지가 object-fit:cover라 찌그러짐 없이 위아래만 살짝 더 잘려 보임.) */
 .gw-preview-card {
-  --pv-w: clamp(260px, min(36vw, 70vh), 680px); // 70vh 상한은 카드 비율(0.6375) 적용 시 세로 약 44.6vh — 하단 여백만큼 최대한 채우되 넘치지 않도록 계산한 값
   display: block;
-  width: var(--pv-w);
-  aspect-ratio: 1600 / 1020; // 실제 페이지 비율 고정
+  width: 100% !important;
+  max-width: 660px !important;
+  max-height: calc(50vh - 74px);
+  aspect-ratio: 1600 / 1020;
   border-radius: 16px;
   overflow: hidden;
   position: relative;
   text-decoration: none !important;
-  box-shadow: 0 10px 30px rgba(48, 37, 34, 0.18);
+  box-shadow: 0 12px 32px rgba(48, 37, 34, 0.16);
   transition:
     transform 0.25s,
     box-shadow 0.25s;
 }
+
+.gw-preview-card--static {
+  // 요청(이전) — 가로:세로를 1903:927(≈2.05:1)에서 1903:1150(≈1.65:1)으로 올렸다가
+  // 스크롤 문제로 1903:1000(≈1.9:1)으로 낮췄음. 요청(이번) — 카드 높이를 조금만 더
+  // 키워달라는 재요청으로 1903:1060(≈1.8:1)으로 살짝 다시 올림 + 바로 위
+  // .gw-preview-card의 max-height가 최종 안전장치 역할(화면이 작으면 이 비율보다
+  // 더 낮아질 수 있음 — 그래도 스크롤은 안 생김).
+  aspect-ratio: 1903 / 1100;
+  width: 100% !important;
+  max-width: 660px !important;
+}
+
 .gw-preview-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(48, 37, 34, 0.26);
+  box-shadow: 0 18px 42px rgba(48, 37, 34, 0.24);
 }
+
 .gw-preview-frame {
   position: relative;
   width: 100%;
@@ -569,6 +595,7 @@ html {
   overflow: hidden;
   background: #fffefc;
 }
+
 .gw-preview-frame iframe {
   position: absolute;
   top: 0;
@@ -577,11 +604,18 @@ html {
   height: 1020px;
   border: none;
   transform-origin: top left;
-  // 카드 폭(--pv-w)과 원본 iframe 폭(1600px)의 비율만큼 축소 — 카드 폭이 반응형으로
-  // 바뀌어도 항상 카드에 꽉 차게 맞춰짐 (같은 length 단위끼리 나누면 배율(숫자)이 됨)
-  transform: scale(calc(var(--pv-w) / 1600px));
+  transform: scale(0.312);
   pointer-events: none;
 }
+
+.gw-preview-static-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #fffefc;
+}
+
 .gw-preview-overlay {
   position: absolute;
   inset: 0;
@@ -608,46 +642,32 @@ html {
   opacity: 1;
 }
 
-/* ── 하단 "지원 메일 서비스" 영역 ── */
+/* ── 하단 지원 메일 서비스 ── */
 .gw-trusted {
-  position: absolute;
-  left: 50%;
-  bottom: 5%;
-  transform: translateX(-50%);
+  position: relative;
   z-index: 4;
-  text-align: center;
-}
-// .gw-anim.visible { transform: translateY(0) } 이 클래스 2개짜리 규칙이
-// .gw-trusted 클래스 1개짜리 규칙보다 명시도가 높아서 translateX(-50%)를 통째로
-// 덮어써버림(transform은 속성 하나라 나중에 이긴 규칙이 전부 가져감, 합쳐지지 않음) →
-// 그래서 중앙정렬이 무시되고 있었음. .gw-trusted 쪽에서 두 transform을 합쳐서 명시도를 이김.
-.gw-trusted.gw-anim {
-  transform: translateX(-50%) translateY(28px);
-}
-.gw-trusted.gw-anim.visible {
-  transform: translateX(-50%) translateY(0);
+  margin-top: 24px;
+  text-align: left;
 }
 .gw-trusted-label {
-  margin: 0 0 14px;
-  font-size: 1rem;
-  color: #696969; // 흰 배경용
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: #696969;
   letter-spacing: 0.06em;
 }
 .gw-trusted-logos {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 32px;
+  justify-content: flex-start;
+  gap: 24px;
 }
 .gw-trusted-logo {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #3C3C3C; // 흰 배경용
-  letter-spacing: 0.02em;
+  color: #3c3c3c;
   opacity: 0.55;
 }
 
-/* ── 궤도 노드 앵커 — 배경 사진 속 구체/링 위치에 맞춰 4개 메뉴를 배치하는 투명 컨테이너 ── */
 .gw-orbit-right {
   position: absolute;
   inset: 0;
@@ -655,90 +675,31 @@ html {
   pointer-events: none;
 }
 
+/* 반응형 (모바일) */
 @media (max-width: 900px) {
-  // 데스크톱은 히어로를 100vh 안에 딱 맞춰 넣으려고 body/html/.right_col을 스크롤
-  // 자체가 안 되게 잠갔는데(overflow:hidden), 모바일은 세로로 다 쌓이면서 100vh를
-  // 넘기기 쉬워서 그대로 두면 CTA 버튼 같은 아래쪽 내용이 아예 안 보이게 잘림 →
-  // 모바일에서만 다시 스크롤 가능하게 풀어줌
-  body,
-  html {
-    overflow-y: auto;
-  }
-  .page-index .right_col {
-    overflow-y: auto !important;
-  }
   .gw-orbit-hero {
-    flex-direction: column;
-    justify-content: center;
-    gap: 26px;
-    // 위 데스크톱 규칙과 같은 이유로 !important 필요 (custom.scss의
-    // ".right_col > div:first-child" 규칙이 padding-top만 10px로 덮어씀)
-    padding: 124px 20px 48px !important;
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
+    flex-direction: column !important;
+    padding: 60px 20px !important;
   }
   .gw-orbit-left {
-    max-width: 100%;
-    text-align: center;
+    align-items: center !important;
+    text-align: center !important;
   }
-  .gw-hero-eyebrow,
+  .gw-hero-headline,
+  .gw-hero-desc,
+  .gw-hero-eyebrow {
+    text-align: center !important;
+  }
   .gw-hero-headline,
   .gw-hero-desc {
-    text-align: center;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .gw-hero-headline {
-    // 데스크톱 clamp 최솟값(2.9rem)이 좁은 화면에서 "Social Visualizer"를
-    // nowrap과 함께 화면 밖으로 넘치게 만들어서, 모바일 전용으로 최솟값을 낮춤
-    font-size: clamp(2rem, 8vw, 3.4rem) !important;
-  }
-  .gw-hero-desc {
-    // 데스크톱은 한 줄 고정(nowrap)이지만 모바일 폭에선 그대로 두면 잘리기만 하므로
-    // 자동 줄바꿈으로 되돌리고, 최대 폭도 화면에 맞게 제한
-    white-space: normal;
-    max-width: 100%;
+    // 좁은 화면에서는 한 줄 고정을 풀어 잘리지 않고 자연스럽게 줄바꿈되게 함
+    white-space: normal !important;
+    max-width: 100% !important;
   }
   .gw-hero-cta {
-    justify-content: center;
-  }
-  .gw-trusted {
-    position: static;
-    transform: none;
-    margin-top: 20px;
-  }
-  .gw-trusted-logos {
-    flex-wrap: wrap;
-    row-gap: 10px;
-  }
-  // 지구본은 화면 중앙 하단으로 옮겨서 장식으로만 남기고, 오비팅 스킬 궤도는
-  // 실측해보니 축소·재배치를 해도 원 지름이 커서 가운데 정렬된 헤드라인/설명
-  // 텍스트와 겹쳐 글자를 가려버리므로(z-index가 텍스트보다 위) 이 폭부터는 숨김
-  .gw-globe-belt {
-    height: 42vw;
-  }
-  .gw-globe-belt-inner {
-    left: 50%;
-  }
-  .gw-skills-orbit {
-    display: none;
+    justify-content: center !important;
   }
   .gw-hero-previews {
-    flex-direction: row;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 560px) {
-  .gw-hero-headline {
-    font-size: clamp(1.7rem, 10vw, 2.6rem) !important;
-  }
-  .gw-hero-desc {
-    font-size: 15px;
-  }
-  .gw-globe-belt {
-    height: 55vw;
-    max-height: 240px;
+    align-items: center !important;
   }
 }

@@ -10,6 +10,11 @@
  *   storageKey: 마지막 선택값을 저장할 localStorage 키. 메일과 카카오가 서로 다른 "마지막 선택"을
  *   기억하도록 도메인마다 별도 키를 쓴다 (기본값은 기존 메일 동작과 100% 동일).
  */
+/** 화면에 보여줄 계정 라벨을 반환 — 항상 실제 계정 id 그대로. */
+export function displayAccountLabel(userId) {
+  return userId;
+}
+
 export async function initAccountPicker(container, onChange, options = {}) {
   const { domain = 'mail', storageKey = 'gw_user_id' } = options;
   injectStyle();
@@ -60,7 +65,7 @@ export async function initAccountPicker(container, onChange, options = {}) {
         accounts.forEach(acc => {
           const opt = document.createElement('option');
           opt.value = acc.user_id;
-          const label = nameById[acc.user_id] || acc.user_id;
+          const label = nameById[acc.user_id] || displayAccountLabel(acc.user_id);
           opt.textContent = label + (acc.indexed ? '' : ' (인덱싱 중)');
           if (acc.user_id === effective) opt.selected = true;
           select.appendChild(opt);

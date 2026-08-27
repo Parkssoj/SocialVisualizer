@@ -15,10 +15,15 @@
     />
     <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
-    <title>Recap | MailGrapher</title>
+    <title>Social Visualizer</title>
+
+    <!-- 💡 Bootstrap Icons 필수 로드 -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
     <script type="module" src="/src/pages/recap.js"></script>
-    <!-- 헤더 폰트를 홈 화면(index.html)과 완전히 동일하게: Fraunces뿐 아니라
-         Geist도 같이 불러와서 헤더/본문 폰트 로딩이 페이지마다 다르지 않게 통일 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -38,7 +43,10 @@
       <div class="main_container">
         <div id="app-header"></div>
 
-        <!-- ── Page Content ── -->
+        <!-- 공통 사이드바 컨테이너 -->
+        <div id="app-sidebar"></div>
+
+        <!-- 메인 콘텐츠 영역 (중복 main 태그 제거) -->
         <main
           class="right_col"
           role="main"
@@ -52,10 +60,12 @@
               <div class="rc-hero-sub" id="rcHeroSub">
                 내 메일함 통계 한눈에 보기
               </div>
-              <div id="account-picker-mount"></div>
+              <!-- 계정 선택은 사이드바가 전담 — account-picker-mount는 없앴고
+                   recap.js는 컨테이너 없이(null) "헤드리스"로 계속 호출해
+                   초기 계정 id만 조용히 resolve한다(화면엔 안 그려짐). -->
             </div>
             <a href="graph-viz.html" class="rc-hero-graph-link">
-              <span>지식그래프 보기</span>
+              <span>knowledge graph</span>
               <span class="rc-hero-graph-arrow">→</span>
             </a>
           </div>
@@ -124,7 +134,6 @@
                 </div>
               </div>
             </div>
-            <!-- ── 1행 끝 ── -->
 
             <!-- ── 2열 그리드 시작 ── -->
             <div class="rc-grid2">
@@ -206,9 +215,8 @@
                 </div>
               </div>
             </div>
-            <!-- ── 2열 그리드 끝 ── -->
 
-            <!-- ── 3행: 동기화 + 만족도 ── -->
+            <!-- ── 3행: 동기화 ── -->
             <div class="rc-grid2">
               <!-- 메일 동기화 통계 -->
               <div class="rc-card rc-sync-card">
@@ -254,58 +262,7 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Olive 만족도 -->
-              <!--
-              <div class="rc-card">
-                <div class="rc-card-header">
-                  <div class="rc-card-title">
-                    <div class="rc-card-title-icon" style="background:#fef9ec;">⭐</div>
-                    Olive 사용자 만족도
-                  </div>
-                </div>
-                <div id="rcRatingLoading" class="rc-loading">
-                  <div class="rc-spinner"></div> 만족도 불러오는 중…
-                </div>
-                <div id="rcRatingError" class="rc-error" style="display:none;"></div>
-                <div id="rcRatingContent" style="display:none;">
-                  <div class="rc-gauge-wrap">
-                    <svg class="rc-gauge-svg" viewBox="0 0 200 120">
-                      <defs>
-                        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stop-color="#f87171"/>
-                          <stop offset="50%" stop-color="#fbbf24"/>
-                          <stop offset="100%" stop-color="#4ade80"/>
-                        </linearGradient>
-                      </defs>
-                      <path d="M 20 100 A 80 80 0 0 1 180 100"
-                        fill="none" stroke="#f0f0f6" stroke-width="16" stroke-linecap="round"/>
-                      <path id="rcGaugeFill"
-                        d="M 20 100 A 80 80 0 0 1 180 100"
-                        fill="none" stroke-width="16" stroke-linecap="round"
-                        stroke="url(#gaugeGrad)"
-                        stroke-dasharray="251.3"
-                        stroke-dashoffset="251.3"
-                        style="transition: stroke-dashoffset 1.4s cubic-bezier(0.22,1,0.36,1);"/>
-                      <circle cx="20"  cy="100" r="3.5" fill="#cbd5e1"/>
-                      <circle cx="100" cy="20"  r="3.5" fill="#cbd5e1"/>
-                      <circle cx="180" cy="100" r="3.5" fill="#cbd5e1"/>
-                      <text x="13"  y="116" font-size="9" fill="#94a3b8" font-weight="700">0</text>
-                      <text x="93"  y="14"  font-size="9" fill="#94a3b8" font-weight="700">50</text>
-                      <text x="172" y="116" font-size="9" fill="#94a3b8" font-weight="700">100</text>
-                    </svg>
-                    <div class="rc-gauge-center">
-                      <div class="rc-gauge-num" id="rcGaugeNum">0</div>
-                      <div class="rc-gauge-sub">/ 100점</div>
-                      <div class="rc-gauge-label" id="rcGaugeLabel">만족도</div>
-                    </div>
-                  </div>
-                  <div class="rc-gauge-stars" id="rcGaugeStars"></div>
-                </div>
-              </div>
-              -->
             </div>
-            <!-- ── 3행 끝 ── -->
           </div>
         </main>
 

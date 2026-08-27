@@ -56,6 +56,10 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   const recentTagsEl = document.getElementById(ids.recentTags);
   const clearRecentEl = document.getElementById(ids.clearRecent);
   const resultEl = document.getElementById(ids.resultContainer);
+  // showResult()가 검색할 때마다 새로 붙이는 resize 리스너 — 매번 새로 만든 걸
+  // 이전 것 위에 그냥 쌓으면 검색을 반복할수록 리스너가 계속 늘어나므로, 여기
+  // 컨트롤러 스코프에 하나만 들고 있다가 새로 붙이기 전에 먼저 떼어낸다.
+  let currentResizeHandler = null;
 
   function getRecents() {
     try { return JSON.parse(localStorage.getItem(recentKey)) || []; } catch { return []; }
@@ -103,28 +107,198 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
       <div class="gw-loading"><div class="gw-spinner"></div><span>${loadingText}</span></div>
     `;
   }
-  function showResult(q, text, sourceIds) {
-    let sourceHtml = '';
-    if (sourceIds && sourceIds.length > 0) {
-      // source_ids는 {id, account} 객체 배열. 항목 하나당 칩 하나씩 만들면 같은 계정이 중복으로 잔뜩 나오므로,
-      // "이 답변이 어느 계정/대화방 데이터에서 나왔는지"가 핵심이니 계정별로 묶어서 칩 하나씩만 보여준다.
-      const countByAccount = new Map();
-      sourceIds.forEach(src => {
-        const account = (typeof src === 'string' ? null : src.account) || '알 수 없음';
-        countByAccount.set(account, (countByAccount.get(account) || 0) + 1);
+  // 요청 — 답변의 근거가 된 메일 하나하나에 "근거메일 보기" 버튼을 왼쪽에 붙여서, 누르면
+  // 그 메일 본문을 오른쪽 패널에 바로 보여준다. /mail-body-by-ids가 documents.parquet에서
+  // 메일 하나의 본문을 읽어오는 라우터(메일 도메인 전용 — 메신저 쪽엔 이 라우터가 없음).
+  async function loadSourceMail(btn, detailPanel) {
+    const mailId = btn.dataset.mailId;
+    const account = btn.dataset.account;
+    resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    detailPanel.innerHTML = `
+      <div class="gw-mail-detail-loading"><div class="gw-spinner"></div><span>메일을 불러오는 중...</span></div>
+    `;
+    try {
+      const res = await fetch(`${FLASK_URL}/mail-body-by-ids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account, mail_id: mailId }),
       });
-      const items = Array.from(countByAccount.entries()).map(([account, count]) =>
-        `<span class="gw-source-btn gw-source-btn-plain">
-          <i class="${emptyIcon}"></i> ${escapeHtml(account)}${count > 1 ? `<span class="gw-source-count">${count}</span>` : ''}
-        </span>`
-      ).join('');
-      sourceHtml = `<div class="gw-source-emails"><div class="gw-source-label">근거 계정</div><div class="gw-source-btns">${items}</div></div>`;
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        detailPanel.innerHTML = `<div class="gw-mail-detail-empty">메일을 불러오지 못했습니다: ${escapeHtml(data.error || '알 수 없는 오류')}</div>`;
+        return;
+      }
+      detailPanel.innerHTML = `
+        <div class="gw-mail-detail-subject">${escapeHtml(data.subject || '(제목 없음)')}</div>
+        <div class="gw-mail-detail-meta">
+          <div><strong>날짜</strong> ${escapeHtml(data.date || '-')}</div>
+          <div><strong>발신</strong> ${escapeHtml(data.sender || '-')}</div>
+          <div><strong>수신</strong> ${escapeHtml(data.receiver || '-')}</div>
+        </div>
+        <div class="gw-mail-detail-body">${escapeHtml(data.body || '(본문 없음)')}</div>
+      `;
+    } catch (e) {
+      detailPanel.innerHTML = `<div class="gw-mail-detail-empty">서버에 연결할 수 없습니다.</div>`;
     }
+  }
+
+  // 요청 — 하드코딩을 걷어내면서 실제 GraphRAG 응답엔 "이 근거메일이 어느 줄의
+  // 근거인지"(lineMatch)가 없어져서, 버튼이 전부 답변 아래 목록으로만 떨어지고
+  // 있었다. 대신 근거메일들의 "제목"만 서버에서 받아와서, 그 제목(또는 제목의
+  // 핵심 단어)이 실제로 언급된 답변 줄을 찾아 그 줄에 버튼을 붙인다 — 자동으로
+  // "직접 메일을 찾은 것과 매핑"되도록 한다. 제목이 어느 줄에도 안 걸리면(요약
+  // 과정에서 제목이 그대로 안 남았을 수 있음) 기존처럼 답변 아래 목록에 남긴다.
+  async function fetchSubjectsByRefs(refs) {
+    if (!refs.length) return {};
+    try {
+      const res = await fetch(`${FLASK_URL}/mail-subjects-by-ids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refs: refs.map(r => ({ id: r.id, account: r.account })) }),
+      });
+      if (!res.ok) return {};
+      const data = await res.json();
+      return data.subjects || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  // 답변 줄 하나에 제목이 "언급됐다"고 볼 수 있는지 판단한다. 요약된 답변은 보통
+  // 제목을 그대로 인용하지 않고 "OO 메일은 ~"처럼 살짝 바꿔 쓰므로, 제목 전체가
+  // 그대로 포함된 줄을 먼저 찾고, 없으면 제목의 첫 단어(한글/영문/숫자만 남기고
+  // 2글자 이상)만이라도 포함된 줄을 찾는다.
+  function findLineIdxBySubject(lines, subject) {
+    const cleaned = String(subject || '').trim();
+    if (!cleaned) return -1;
+    let idx = lines.findIndex(line => line.includes(cleaned));
+    if (idx !== -1) return idx;
+    const firstWord = cleaned.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/)[0];
+    if (firstWord && firstWord.length >= 2) {
+      idx = lines.findIndex(line => line.includes(firstWord));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  async function showResult(q, text, sourceIds) {
+    let sourceHtml = '';
+    // 요청 — "근거 계정" 표시 안 함(주석처리, 로직은 그대로 남겨둠).
+    // if (sourceIds && sourceIds.length > 0) {
+    //   // source_ids는 {id, account} 객체 배열. 항목 하나당 칩 하나씩 만들면 같은 계정이 중복으로 잔뜩 나오므로,
+    //   // "이 답변이 어느 계정/대화방 데이터에서 나왔는지"가 핵심이니 계정별로 묶어서 칩 하나씩만 보여준다.
+    //   const countByAccount = new Map();
+    //   sourceIds.forEach(src => {
+    //     const account = (typeof src === 'string' ? null : src.account) || '알 수 없음';
+    //     countByAccount.set(account, (countByAccount.get(account) || 0) + 1);
+    //   });
+    //   const items = Array.from(countByAccount.entries()).map(([account, count]) =>
+    //     `<span class="gw-source-btn gw-source-btn-plain">
+    //       <i class="${emptyIcon}"></i> ${escapeHtml(account)}${count > 1 ? `<span class="gw-source-count">${count}</span>` : ''}
+    //     </span>`
+    //   ).join('');
+    //   sourceHtml = `<div class="gw-source-emails"><div class="gw-source-label">근거 계정</div><div class="gw-source-btns">${items}</div></div>`;
+    // }
+
+    // 요청 — "근거메일 보기": 메일 탭에서만, source_ids의 각 mail id마다 버튼 하나씩(중복 id 제거).
+    const uniqueMailRefs = [];
+    if (domain === 'mail' && sourceIds && sourceIds.length > 0) {
+      const seenIds = new Set();
+      sourceIds.forEach(src => {
+        const id = typeof src === 'string' ? src : (src && src.id);
+        const account = typeof src === 'string' ? null : (src && src.account);
+        if (!id || seenIds.has(id)) return;
+        seenIds.add(id);
+        uniqueMailRefs.push({ id, account });
+      });
+    }
+
+    // 근거메일들의 제목을 서버에서 받아와, 그 제목이 실제로 언급된 답변 줄을 찾는다
+    // (findLineIdxBySubject 참고) — "근거메일 보기" 버튼은 그 메일이 근거인 줄
+    // 바로 오른쪽에만 붙인다. 요청 — 어느 줄에도 안 걸리는 것들을 예전처럼 답변
+    // 아래 목록으로 따로 모아 보여주던 걸 없앴다(그 목록 UI 자체가 불필요하다는
+    // 피드백) — 매칭이 안 되면 그 근거메일은 그냥 버튼 없이 넘어간다.
+    const subjectsById = await fetchSubjectsByRefs(uniqueMailRefs);
+    const lines = String(text || '').split('\n');
+    const inlineRefsByLineIdx = new Map();
+    uniqueMailRefs.forEach(ref => {
+      const subject = subjectsById[ref.id] || '';
+      const lineIdx = findLineIdxBySubject(lines, subject);
+      if (lineIdx === -1) return;
+      if (!inlineRefsByLineIdx.has(lineIdx)) inlineRefsByLineIdx.set(lineIdx, []);
+      inlineRefsByLineIdx.get(lineIdx).push(ref);
+    });
+    const hasSourceMails = inlineRefsByLineIdx.size > 0;
+
+    const answerHtml = lines.map((line, idx) => {
+      const inlineRefs = inlineRefsByLineIdx.get(idx);
+      if (inlineRefs) {
+        const btnsHtml = inlineRefs.map(ref => `
+          <button class="gw-view-source-mail-btn" data-mail-id="${escapeAttr(ref.id)}" data-account="${escapeAttr(ref.account || '')}">근거메일 보기</button>
+        `).join('');
+        return `<div class="gw-answer-line-with-source"><span class="gw-answer-line-text">${escapeHtml(line)}</span>${btnsHtml}</div>`;
+      }
+      return `<div class="gw-answer-line">${line ? escapeHtml(line) : '&nbsp;'}</div>`;
+    }).join('');
+
+    // 요청 — 버튼을 누르기 전엔 오른쪽에 아무 창도 없다가(폭 0, 완전히 안 보임),
+    // "근거메일 보기"를 누르는 순간에만 오른쪽에서 서랍(drawer)처럼 튀어나오도록 한다.
+    // gw-answer-frame을 flex row로 두고, gw-answer-main(답변 카드, flex:1)과
+    // gw-mail-drawer(flex:0 0 auto, 평소 width:0)를 나란히 둔다 — 서랍이 열리면
+    // width가 380px로 늘어나면서 실제 레이아웃 공간을 차지하므로, 답변 카드가 그만큼
+    // 자연히 왼쪽으로 밀려 줄어든다(겹쳐서 버튼을 가리는 오버레이가 아님). flex
+    // align-items가 stretch(기본값)라 서랍 높이는 항상 답변 카드와 위/아래 선이
+    // 정확히 일치한다. 서랍 오른쪽 위의 × 토글로 다시 접어 넣는다.
     resultEl.innerHTML = `
       <div class="gw-query-label">검색어: <strong>${escapeHtml(q)}</strong></div>
-      <div class="gw-result-card">${escapeHtml(text)}</div>
-      ${sourceHtml}
+      <div class="gw-answer-frame">
+        <div class="gw-answer-main">
+          <div class="gw-result-card">${answerHtml}</div>
+          ${sourceHtml}
+        </div>
+        ${hasSourceMails ? `
+          <div class="gw-mail-drawer" id="gw-mail-drawer">
+            <button type="button" class="gw-mail-drawer-close" title="닫기"><i class="fas fa-times"></i></button>
+            <div class="gw-mail-detail-panel">
+              <div class="gw-mail-detail-empty">왼쪽의 "근거메일 보기"를 누르면 여기에 메일 본문이 표시됩니다.</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
     `;
+
+    if (hasSourceMails) {
+      const drawer = resultEl.querySelector('#gw-mail-drawer');
+      const answerMain = resultEl.querySelector('.gw-answer-main');
+      const detailPanel = drawer.querySelector('.gw-mail-detail-panel');
+      const closeBtn = drawer.querySelector('.gw-mail-drawer-close');
+
+      // 요청 — 서랍은 항상 답변 카드와 같은 높이로 늘어나되(위아래 선 일치),
+      // 그 안에 표시되는 메일 본문이 그보다 길어도 서랍 자체가 카드보다 더
+      // 커지지 않고 내부에서만 스크롤되도록, 서랍의 최대 높이를 답변 카드의
+      // 실제 렌더링 높이로 캡(cap)한다(overflow-y: auto는 scss에 이미 있음).
+      function syncDrawerHeight() {
+        if (!answerMain) return;
+        drawer.style.maxHeight = answerMain.getBoundingClientRect().height + 'px';
+      }
+      syncDrawerHeight();
+      if (currentResizeHandler) window.removeEventListener('resize', currentResizeHandler);
+      currentResizeHandler = syncDrawerHeight;
+      window.addEventListener('resize', currentResizeHandler);
+
+      resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          loadSourceMail(btn, detailPanel);
+          drawer.classList.add('is-open');
+        });
+      });
+      closeBtn.addEventListener('click', () => {
+        drawer.classList.remove('is-open');
+        resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(b => b.classList.remove('active'));
+      });
+    }
   }
   function showError(q, msg) {
     resultEl.innerHTML = `
@@ -137,6 +311,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     showLoading(q);
     saveRecent(q);
     renderRecents();
+
     const userId = getUserId();
     try {
       const res = await fetch(`${FLASK_URL}/run-query-async`, {

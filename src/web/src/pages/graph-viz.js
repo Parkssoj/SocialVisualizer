@@ -17,6 +17,14 @@ if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdP
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
+// My People/My Time/Recap이 공유하는 'gw_user_id'와는 별도의 저장키를 써서,
+// 이 페이지에서 고른 계정이 다른 페이지의 계정 선택에 영향을 주지 않게 한다.
+// URL에 gmail_id가 명시된 경우엔 그걸 그대로 우선한다.
+var GRAPH_MAIL_STORAGE_KEY = 'gw_graph_mail_user_id';
+if (gmailIdParam) {
+  localStorage.setItem(GRAPH_MAIL_STORAGE_KEY, decodeURIComponent(gmailIdParam));
+}
+
 const profileNameEl = document.getElementById('google-profile-name');
 if (profileNameEl) profileNameEl.textContent = name;
 
@@ -69,7 +77,7 @@ function loadDomain(domain) {
   document.getElementById('domain-btn-message').classList.toggle('active', domain === 'messenger');
   document.getElementById('domain-btn-message').setAttribute('aria-selected', String(domain === 'messenger'));
 
-  var storageKey = domain === 'mail' ? 'gw_user_id' : 'gw_message_room_id';
+  var storageKey = domain === 'mail' ? GRAPH_MAIL_STORAGE_KEY : 'gw_message_room_id';
   return initAccountPicker(document.getElementById('account-picker-mount'), loadGraphData, { domain, storageKey })
     .then(function(effectiveUserId) { return loadGraphData(effectiveUserId); });
 }

@@ -7,14 +7,26 @@
 
 // Header.jsx(React, index.html 전용)와 동일하게 유지해야 함 — React 버전은
 // 홈에서만, 이 vanilla JS 버전은 나머지 페이지에서 사용됨.
-// 메뉴 순서: 홈 → 데이터 업로드 → My People → My Time → 검색 → 지식 그래프.
+// 메뉴 순서: 데이터 분석하기 → My People → My Time → 검색 → View knowledge graph.
+// 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외.
 const NAV_ITEMS = [
-  { page: "home", href: "index.html", label: "홈" },
-  { page: "imap-collect", href: "imap-collect.html", label: "데이터 업로드" },
-  { page: "mypeople", href: "mypeople.html", label: "My People" },
-  { page: "mytime", href: "mytime.html", label: "My Time" },
-  { page: "search", href: "search.html", label: "검색" },
-  { page: "graph-viz", href: "graph-viz.html", label: "지식 그래프" },
+  {
+    page: "imap-collect",
+    href: "imap-collect.html",
+    label: "Social data analysis",
+  },
+  {
+    page: "analysis-hub",
+    href: "analysis-hub.html",
+    label: "View results",
+    children: [
+      { page: "mypeople", href: "mypeople.html", label: "My People" },
+      { page: "mytime", href: "mytime.html", label: "My Time" },
+      { page: "recap", href: "recap.html", label: "Recap" },
+      { page: "search", href: "search.html", label: "Natural language search" },
+    ],
+  },
+  { page: "graph-viz", href: "graph-viz.html", label: "Knowledge graph" },
 ];
 
 export function renderHeader(activePage) {
