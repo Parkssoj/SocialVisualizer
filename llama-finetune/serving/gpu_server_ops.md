@@ -1,9 +1,9 @@
 # GPU 서버 서비스 운영 치트시트
 
-SocialVisualizer 개발 과정에서 사용한 GPU 서버의 모델 서비스 구성과 재기동, 로그 확인 방법을 정리한 문서입니다.
+SocialVisualizer 개발 과정에서 사용한 GPU 서버의 모델 서비스 구성과 재기동, 로그 확인 방법을 정리한 문서다.
 
-> **주의:** 이 문서는 프로젝트의 개발 GPU 서버 환경을 기준으로 작성되었습니다.
-> GPU 번호, 서버 경로, 가상환경 경로, 포트 및 tmux 세션 이름은 다른 환경에서 그대로 사용할 수 없으며 필요에 따라 수정해야 합니다.
+> **주의:** 이 문서는 프로젝트의 개발 GPU 서버 환경을 기준으로 작성됐다.
+> GPU 번호, 서버 경로, 가상환경 경로, 포트 및 tmux 세션 이름은 다른 환경에서 그대로 사용할 수 없으며 필요에 따라 수정해야 한다.
 
 ## 서비스 목록
 
@@ -39,7 +39,7 @@ source ~/venvs/socialvisualizer-llama-venv/bin/activate
 
 ### 1. Index 모델
 
-GPU2에서 인덱싱용 파인튜닝 모델을 실행합니다.
+GPU2에서 인덱싱용 파인튜닝 모델을 실행한다.
 
 ```bash
 tmux new -s socialvisualizer-v5-serve
@@ -59,7 +59,7 @@ CUDA_VISIBLE_DEVICES=2 vllm serve /workspace/models/socialvisualizer-llama-v5-me
 
 ### 2. BGE-M3 임베딩 서버
 
-GPU3에서 임베딩 모델을 실행합니다.
+GPU3에서 임베딩 모델을 실행한다.
 
 ```bash
 tmux new -s vllm-embed
@@ -78,7 +78,7 @@ CUDA_VISIBLE_DEVICES=3 vllm serve BAAI/bge-m3 \
 
 ### 3. Qwen2.5-7B-Instruct
 
-GPU3에서 서브태스크용 모델을 실행합니다.
+GPU3에서 서브태스크용 모델을 실행한다.
 
 ```bash
 tmux new -s vllm-llama
@@ -96,7 +96,7 @@ CUDA_VISIBLE_DEVICES=3 vllm serve Qwen/Qwen2.5-7B-Instruct \
 
 ### 4. FLUX 이미지 생성 서버
 
-GPU3에서 이미지/아바타 생성 서버를 실행합니다.
+GPU3에서 이미지/아바타 생성 서버를 실행한다.
 
 ```bash
 tmux new -s flux-server
@@ -110,7 +110,7 @@ CUDA_VISIBLE_DEVICES=3 python flux_server.py
 
 ### 5. Query 모델
 
-GPU3에서 질의응답용 파인튜닝 모델을 실행합니다.
+GPU3에서 질의응답용 파인튜닝 모델을 실행한다.
 
 ```bash
 tmux new -s socialvisualizer-query-serve
@@ -130,27 +130,27 @@ CUDA_VISIBLE_DEVICES=3 vllm serve /workspace/models/socialvisualizer-llama-query
 
 ## 모델명과 SocialVisualizer 설정
 
-`--served-model-name`은 SocialVisualizer에서 사용하는 모델명과 일치하도록 설정했습니다.
+`--served-model-name`은 SocialVisualizer에서 사용하는 모델명과 일치하도록 설정했다.
 
 ```text
 socialvisualizer-llama-index
 socialvisualizer-llama-query
 ```
 
-SocialVisualizer의 `.env`에서는 다음과 같이 지정합니다.
+SocialVisualizer의 `.env`에서는 다음과 같이 지정한다.
 
 ```env
 INDEXING_CHAT_MODEL=socialvisualizer-llama-index
 RAG_CHAT_MODEL=socialvisualizer-llama-query
 ```
 
-모델 서버의 주소나 포트를 변경한 경우 애플리케이션의 endpoint 설정도 함께 확인해야 합니다.
+모델 서버의 주소나 포트를 변경한 경우 애플리케이션의 endpoint 설정도 함께 확인해야 한다.
 
 ## 로그 확인
 
 ### tmux 세션 접속
 
-실행 중인 서비스의 터미널에 접속하려면 다음 명령을 사용합니다.
+실행 중인 서비스의 터미널에 접속하려면 다음 명령을 사용한다.
 
 ```bash
 tmux attach -t <세션명>
@@ -162,7 +162,7 @@ tmux attach -t <세션명>
 tmux attach -t socialvisualizer-v5-serve
 ```
 
-tmux에서 빠져나올 때는 서비스를 종료하지 않고 다음 키 조합을 사용합니다.
+tmux에서 빠져나올 때는 서비스를 종료하지 않고 다음 키 조합을 사용한다.
 
 ```text
 Ctrl+B → D
@@ -182,23 +182,23 @@ tmux capture-pane -t <세션명> -p -S -200
 tmux capture-pane -t socialvisualizer-v5-serve -p -S -200
 ```
 
-`-S -200`은 최근 200줄을 확인하는 설정입니다.
+`-S -200`은 최근 200줄을 확인하는 설정이다.
 
 ## 서비스 확인
 
-현재 실행 중인 tmux 세션을 확인합니다.
+현재 실행 중인 tmux 세션을 확인한다.
 
 ```bash
 tmux ls
 ```
 
-GPU 사용 현황은 다음 명령으로 확인할 수 있습니다.
+GPU 사용 현황은 다음 명령으로 확인할 수 있다.
 
 ```bash
 nvidia-smi
 ```
 
-서비스가 정상적으로 실행되지 않는 경우 다음 항목을 확인합니다.
+서비스가 정상적으로 실행되지 않는 경우 다음 항목을 확인한다.
 
 1. 해당 GPU의 메모리가 충분한지 확인
 2. 포트가 다른 프로세스에서 사용 중인지 확인
@@ -209,7 +209,7 @@ nvidia-smi
 
 ## 환경에 맞게 수정해야 하는 항목
 
-이 문서의 명령을 다른 GPU 서버에서 사용하는 경우 다음 항목을 수정해야 합니다.
+이 문서의 명령을 다른 GPU 서버에서 사용하는 경우 다음 항목을 수정해야 한다.
 
 | 항목 | 개발 서버 설정 | 다른 환경에서 |
 |---|---|---|
@@ -221,5 +221,5 @@ nvidia-smi
 | 포트 | 8001~8004 | 사용 가능한 포트로 변경 |
 | tmux 세션 | 문서의 세션명 | 필요에 따라 변경 |
 
-> 본 문서는 개발 환경의 운영 기록을 보존하기 위한 문서입니다.
-> 일반적인 모델 설치 및 서빙 방법은 상위 디렉터리의 `README.md`를 참고하세요.
+> 본 문서는 개발 환경의 운영 기록을 보존하기 위한 문서다.
+> 일반적인 모델 설치 및 서빙 방법은 상위 디렉터리의 `README.md`를 참고한다.
