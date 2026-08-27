@@ -16,7 +16,7 @@ SocialVisualizer의 그래프 인덱싱 및 질의응답에 사용되는 Llama �
 | `index` | `extract_graph`, `community_reports` | `socialvisualizer-llama-index` | 8002 |
 | `query` | `local_search`, `global_search` | `socialvisualizer-llama-query` | 8004 |
 
-### 두 개의 LoRA Adapter를 사용하는 이유
+### ▸ 두 개의 LoRA Adapter를 사용하는 이유
 
 인덱싱과 질의응답은 요구되는 출력 형태가 다르다.
 
@@ -35,7 +35,7 @@ SocialVisualizer의 그래프 인덱싱 및 질의응답에 사용되는 Llama �
 
 모든 SFT 학습 데이터는 오프라인 단계에서 자체 생성한 합성(가상) 데이터로 구성했다.
 
-### 데이터 구성
+### ▸ 데이터 구성
 
 | Adapter | 태스크 | 데이터 규모 |
 |---|---|---:|
@@ -46,7 +46,7 @@ SocialVisualizer의 그래프 인덱싱 및 질의응답에 사용되는 Llama �
 | `query` | `global_search` | 330건 |
 | `query` | 합계 | 473건 |
 
-### 데이터 도메인
+### ▸ 데이터 도메인
 
 - 메일 도메인
   - 세미나
@@ -55,13 +55,13 @@ SocialVisualizer의 그래프 인덱싱 및 질의응답에 사용되는 Llama �
   - 실험실
   - 장학금 등 대학원생의 일상을 소재로 한 가상 메일 데이터
 - 메신저 도메인
-  - 캡스톤 프로젝트 등의 가상 팀 대화 데이터
+  - 캡스톤 프로젝트 등의 가상 팀 대화 데이터 (총 13개 채팅방)
 
 합성 데이터 생성 단계에서는 Claude/GPT 계열 LLM을 활용했다.
 
 원천 데이터는 실존 인물이 아닌 가상의 인물·메일함·채팅방으로 생성했으며, 실제 개인 데이터는 포함하지 않았다.
 
-### 데이터 가공
+### ▸ 데이터 가공
 
 GraphRAG 프로덕션에서 실제 사용하는 프롬프트 템플릿을 재사용하여 각 태스크의 instruction-output 쌍을 구성한 뒤, LLaMA-Factory 학습을 위한 ShareGPT 3-turn 형식으로 변환했다.
 
@@ -75,13 +75,13 @@ GraphRAG 프로덕션에서 실제 사용하는 프롬프트 템플릿을 재사
 
 파인튜닝 결과물은 LoRA Adapter 형태로 공개한다.
 
-### Base Model
+### ▸ Base Model
 
 `meta-llama/Llama-3.1-8B-Instruct`
 
 Base Model은 Meta의 Llama 라이선스 및 Hugging Face 접근 정책에 따라 별도로 준비해야 한다.
 
-### LoRA Adapters
+### ▸ LoRA Adapters
 
 | Adapter | Hugging Face Repository |
 |---|---|
@@ -100,7 +100,7 @@ Base Model과 LoRA Adapter를 결합하여 사용할 수 있으며, 본 프로�
 
 파인튜닝 및 모델 서빙에는 NVIDIA GPU 환경을 권장한다.
 
-### 주요 소프트웨어
+### ▸ 주요 소프트웨어
 
 본 프로젝트의 모델 학습 및 서빙 개발 환경에서는 다음 버전을 사용했다.
 
@@ -116,7 +116,7 @@ Base Model과 LoRA Adapter를 결합하여 사용할 수 있으며, 본 프로�
 
 Python 버전을 포함해 전체 의존성의 버전 및 라이선스 정보는 프로젝트의 SBOM 문서를 참고.
 
-### GPU
+### ▸ GPU
 
 Llama 3.1 8B 모델의 파인튜닝 및 서빙에는 충분한 GPU VRAM이 필요하다
 
@@ -226,7 +226,7 @@ extract_graph   community_reports   local_search    global_search
 
 공개된 Adapter를 사용하는 대신 새로운 데이터로 모델을 다시 학습하려는 경우 다음 과정을 수행할 수 있다.
 
-### Index Adapter
+### ▸ Index Adapter
 
 ```text
 학습 데이터
@@ -254,7 +254,7 @@ training_configs/index_lora.yaml
 training_configs/index_merge.yaml
 ```
 
-### Query Adapter
+### ▸ Query Adapter
 
 ```text
 원본 데이터 및 GraphRAG 결과
@@ -355,9 +355,9 @@ llama-finetune/
     └── gpu_server_ops.md
 ```
 
-## 10. 평가
+## 10. QA 데이터 세트
 
-`eval/` 디렉터리에는 합성 데이터를 기반으로 작성한 QA 평가셋을 제공한다.
+`eval/` 디렉터리에는 합성 데이터를 기반으로 작성한 QA 세트를 제공한다.
 
 ```text
 eval/
@@ -365,7 +365,7 @@ eval/
 └── Llama_messenger_QA.xlsx
 ```
 
-메일과 메신저 도메인에 대해 파인튜닝 모델의 질의응답 성능을 확인할 수 있다.
+이 QA 세트는 `query` adapter의 `local_search` SFT 학습 데이터를 만드는 데 사용한 원본으로(`sft_data_construction/query/build_local_sft.py` 참고), 143문항 전체가 train(129)/val(14)로 분할되어 학습 과정에 직접 사용됐다. 따라서 완전히 분리된 held-out 평가셋은 아니며, 질문·정답 형식과 프로덕션 응답 스타일을 확인하는 참고 자료로 제공한다.
 
 ## 11. 제한사항 및 재현성
 
@@ -396,7 +396,7 @@ eval/
 
 본 프로젝트에서 사용하는 모델 및 소프트웨어의 라이선스는 각각의 원본 라이선스를 따른다.
 
-### 주요 모델 및 라이브러리
+### ▸ 주요 모델 및 라이브러리
 
 | 구성 요소 | 버전 | 라이선스 |
 |---|---|---|
