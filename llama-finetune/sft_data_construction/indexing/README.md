@@ -20,7 +20,7 @@
 버그를 찾고 고친 기록"이라 성격이 다르고, 이미 프로젝트 연구노트
 (`v5_indexing_research_note.md`, 4장 "v5 모델로 재인덱싱 중 발견된 문제들" 및 7장
 "적용된 패치 스크립트 목록")에 원인·수정 내용·전후 수치가 상세히 문서화되어 있습니다.
-그 패치들은 이미 MailGrapher 앱 본체의 인덱싱 코드에 반영되어 있습니다.
+그 패치들은 이미 SocialVisualizer 앱 본체의 인덱싱 코드에 반영되어 있습니다.
 
 요약만 남기면: Bug A(`frequency_penalty` 오염으로 relationship 포맷 92.5% 붕괴 → 분리),
 Bug B(청크 경계 단어 파편이 ChatRoom으로 오인 → `LineAwareTokenChunker` 도입), Bug C(학습
