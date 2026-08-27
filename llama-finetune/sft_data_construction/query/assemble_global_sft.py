@@ -12,6 +12,22 @@ MAP + REDUCE를 합쳐 ShareGPT 포맷 SFT 페어로 조립한다.
 
 train/val 분할: [mail_map, msg_map, mail_reduce, msg_reduce] 4개 그룹별 층화 9:1 분할 후
 병합·셔플(seed=43), REDUCE 그룹은 표본이 적어 각 그룹 최소 val 2개를 보장 → 295/35.
+
+## English summary
+assemble_global_sft.py assembles the final global_search SFT pairs, combining MAP + REDUCE into
+ShareGPT-format SFT pairs.
+
+- MAP (310 pairs): system = global_search_map.txt.format(context_data=batch, max_length=1000),
+  user = question, gpt = the actual response JSON {"points": [...]} verbatim (kept under the key
+  name production actually stores, "description" — _parse_search_response() only renames it to
+  "answer" internally for REDUCE processing; SFT gold keeps production's original "description"
+  key).
+- REDUCE (20 pairs): system = global_search_reduce.txt.format(report_data=..., response_type,
+  max_length=2000), user = question, gpt = final answer text.
+
+train/val split: stratified 9:1 split within each of the 4 groups
+[mail_map, msg_map, mail_reduce, msg_reduce], then merged and shuffled (seed=43). The REDUCE
+groups are small, so each is guaranteed at least 2 val examples -> 295/35 overall.
 """
 
 from __future__ import annotations

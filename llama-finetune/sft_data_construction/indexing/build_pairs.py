@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 """
+토큰 예산 내에 들어오는 커뮤니티는 프로덕션 gold 리포트를 그대로 재사용해
+community_reports SFT 쌍을 만든다. 예산을 초과하는 커뮤니티는 oversized_cases.json에
+기록해 수작업 gold 작성(compose_oversized.py 참고) 대상으로 넘긴다.
+
 Builds community_reports SFT pairs directly from production gold reports for
 communities within the token budget. Communities that exceed the budget are
 written to oversized_cases.json for hand-written gold (see compose_oversized.py).
@@ -21,8 +25,8 @@ ROOMS = [
 MAX_INPUT_TOKENS = 5500
 MAX_REPORT_LENGTH = 2000  # community_reports.max_length in settings.j2
 
-# Rendered production prompts live in the main app repo, two levels above this
-# folder (llama-finetune/sft_data_construction/indexing/ -> repo root -> parquet_template).
+# 실제 렌더링된 프로덕션 프롬프트는 메인 앱 레포에, 이 폴더 기준 2단계 상위 경로에 있다
+# (llama-finetune/sft_data_construction/indexing/ -> 레포 루트 -> parquet_template).
 DEFAULT_PROMPTS_DIR = Path(__file__).resolve().parents[3] / "parquet_template" / "rendered"
 
 

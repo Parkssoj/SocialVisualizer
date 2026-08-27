@@ -1,7 +1,7 @@
 """
 global_context_all.py — global_search MAP 배치 사전 계산
 
-핵심 발견 (연구노트 원문): `GlobalCommunityContext.build_context()`의 `query` 인자는
+핵심 발견: `GlobalCommunityContext.build_context()`의 `query` 인자는
 `dynamic_community_selection`이 설정된 경우에만 배치 구성에 영향을 주는데, 이 앱은 이
 옵션을 안 쓴다. `GlobalCommunityContext.__init__`의 `random_state` 기본값이 86으로
 고정돼 있어서, 같은 도메인/방이면 MAP 배치 구성(어떤 community report가 어떤 배치에
@@ -15,6 +15,24 @@ community_weight_name="occurrence weight", community_level=0
 
 실측 배치 수: 메일 도메인(238개 level-0 커뮤니티) → 17개 배치, 메신저 도메인(13개 방)
 → 총 14개 배치(12개 방은 각 1배치, msg_1422f5f2만 2배치).
+
+## English summary
+global_context_all.py pre-computes the global_search MAP batches.
+
+Key finding: `GlobalCommunityContext.build_context()`'s `query` argument only affects batch
+composition when `dynamic_community_selection` is configured, which this app doesn't use.
+`GlobalCommunityContext.__init__`'s `random_state` default is fixed at 86, so for a given
+domain/room the MAP batch composition (which community report lands in which batch) is confirmed
+by the source code to be identical across every question. That means the batch set only needs to
+be built once per domain and reused across all pilot questions — this script is that one-time
+build step.
+
+config: max_context_tokens=12000, data_max_tokens=12000, map_max_length=1000,
+reduce_max_length=2000, use_community_summary=False, include_community_rank=True,
+community_weight_name="occurrence weight", community_level=0.
+
+Measured batch counts: mail domain (238 level-0 communities) -> 17 batches; messenger domain (13
+rooms) -> 14 batches total (12 rooms get 1 batch each, only msg_1422f5f2 gets 2).
 """
 
 from __future__ import annotations

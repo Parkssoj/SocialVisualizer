@@ -1,4 +1,13 @@
 """
+GraphRAG의 community_reports 입력 컨텍스트를 충실히 재구성한 모듈로,
+graphrag/index/operations/summarize_communities/graph_context/{context_builder,sort_context}.py와
+graphrag/index/workflows/create_community_reports.py (_prep_nodes/_prep_edges/explode_communities)를
+그대로 따른다.
+
+메일 도메인과 13개 방 메신저 도메인(Llama_mail_output / Llama_messenger_output)의 GraphRAG
+산출물로부터 community_reports 태스크용 SFT 학습 쌍(입력 컨텍스트 ↔ gold full_content_json)을
+재구성하는 데 쓰인다.
+
 Faithful reconstruction of GraphRAG's community_reports input context,
 mirroring graphrag/index/operations/summarize_communities/graph_context/{context_builder,sort_context}.py
 and graphrag/index/workflows/create_community_reports.py (_prep_nodes/_prep_edges/explode_communities).
@@ -12,11 +21,10 @@ import os
 import re
 import pandas as pd
 
-# No network access to download a real BPE tokenizer here, so use a rough proxy:
-# each CJK/Hangul character ~= 1 token (close to real BPE behavior for Korean),
-# other text tokenized by whitespace-splitting with ~1 token/word.
-# This is only used to decide which communities are anomalously large and need
-# careful (trimmed / hand-written) treatment -- not for exact production parity.
+# 실제 BPE 토크나이저를 받아올 네트워크 접근이 없어 근사치로 대체: CJK/한글 문자는
+# 1글자 ≈ 1토큰(한국어 BPE 동작과 유사), 그 외 텍스트는 공백 기준 분리로 1단어 ≈ 1토큰으로 계산.
+# 이 값은 어떤 커뮤니티가 비정상적으로 커서 별도 처리(트리밍/수작업)가 필요한지 판단하는
+# 용도로만 쓰이며, 프로덕션과 정확히 일치시키기 위한 값은 아니다.
 _CJK_RE = re.compile(r"[ㄱ-힝一-鿿]")
 
 def num_tokens(s: str) -> int:
@@ -27,7 +35,7 @@ def num_tokens(s: str) -> int:
     words = non_cjk.split()
     return len(cjk_chars) + len(words)
 
-# ---- faithful port of graphrag's context building ----
+# faithful port of graphrag's context building
 
 def prep_nodes(entities: pd.DataFrame) -> pd.DataFrame:
     df = entities.copy()
@@ -108,7 +116,7 @@ def build_local_contexts(entities: pd.DataFrame, relationships: pd.DataFrame, co
         nodes_set = set(level_nodes["title"])
         level_edges = edges[edges["source"].isin(nodes_set) & edges["target"].isin(nodes_set)]
 
-        # group edge_details by node (source or target) - first occurrence, mirroring the pandas groupby.agg("first") in context_builder.py
+        # edge_details를 노드(source 또는 target) 기준으로 그룹핑해 첫 값만 취함 — context_builder.py의 pandas groupby.agg("first")와 동일한 방식
         edge_by_source = level_edges.groupby("source")["edge_details"].first()
         edge_by_target = level_edges.groupby("target")["edge_details"].first()
 
@@ -116,9 +124,9 @@ def build_local_contexts(entities: pd.DataFrame, relationships: pd.DataFrame, co
             all_context = []
             for _, row in grp.iterrows():
                 title = row["title"]
-                # mirrors production: combine_first(source_edge, target_edge) then list(x.dropna())
-                # i.e. AT MOST ONE edge_details dict is attached per node (a real quirk of this
-                # graphrag version's context builder -- faithfully replicated here)
+                # 프로덕션과 동일: combine_first(source_edge, target_edge) 후 list(x.dropna())
+                # 즉 노드 하나당 edge_details 딕셔너리가 최대 1개만 붙음 — 이 graphrag 버전의
+                # context builder가 갖는 실제 특성이며, 여기서도 동일하게 재현함
                 ed = edge_by_source.get(title)
                 if ed is None:
                     ed = edge_by_target.get(title)
