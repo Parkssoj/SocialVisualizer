@@ -30,6 +30,15 @@ function escapeHtml(str) {
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// 라마 응답이 " - " 불릿 외의 형식(번호 목록, 콜론 나열 등)으로 실제 줄바꿈(\n) 없이
+// 한 줄로 나오는 경우가 아직 있어서(백엔드의 strip_ids_for_display는 " - " 불릿만
+// 처리함), 그 외의 경우를 대비해 "문장이 끝나는 지점"마다 줄바꿈을 넣는 안전망을
+// 프론트에서도 한 번 더 둔다. 이미 줄바꿈이 있는 답변에는 사실상 영향 없음.
+function formatAnswer(text) {
+  return String(text || '')
+    .replace(/([다요])\.\s+/g, '$1.\n')
+    .trim();
+}
 
 async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
   for (let i = 0; i < maxTries; i++) {
@@ -221,7 +230,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     // 아래 목록으로 따로 모아 보여주던 걸 없앴다(그 목록 UI 자체가 불필요하다는
     // 피드백) — 매칭이 안 되면 그 근거메일은 그냥 버튼 없이 넘어간다.
     const subjectsById = await fetchSubjectsByRefs(uniqueMailRefs);
-    const lines = String(text || '').split('\n');
+    const lines = formatAnswer(text).split('\n');
     const inlineRefsByLineIdx = new Map();
     uniqueMailRefs.forEach(ref => {
       const subject = subjectsById[ref.id] || '';
