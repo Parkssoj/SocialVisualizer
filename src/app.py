@@ -65,7 +65,7 @@ if RAG_ENGINE == "lightrag":
 elif RAG_ENGINE == "graphrag":
     from util.graphrag_date_query import run_date_range_query
 
-from util.user_path import UserPaths, list_accounts, list_indexed_user_ids
+from util.user_path import UserPaths, list_accounts, list_indexed_user_ids, set_account_room_name
 from util.database.db_reader import (
     get_mail_stats,
     get_keyword_stats,
@@ -865,6 +865,14 @@ def init_storage():
 <p>설정 중... 자동으로 이동합니다.</p>
 </body></html>""", 200, {{'Content-Type': 'text/html; charset=utf-8'}}
 
+# 브라우저가 페이지를 열 때마다 자동으로 GET /favicon.ico를 요청하는데(HTML에서
+# 명시적으로 안 걸어도 브라우저 기본 동작), 루트 경로용 라우트가 하나도 없어서 이게
+# 계속 404로 서버 로그에 찍혔다 — dist 루트에 favicon.ico를 두고 여기서 서빙한다.
+@app.route('/favicon.ico')
+def favicon():
+    dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist')
+    return send_from_directory(dist_dir, 'favicon.ico')
+
 # 엔드포인트: GET /dashboard/
 @app.route('/dashboard/', defaults={'path': 'production/index.html'})
 @app.route('/dashboard/<path:path>')
@@ -872,7 +880,15 @@ def dashboard(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist')
     if not path.startswith('production/') and path.endswith('.html'):
         path = 'production/' + path
-    return send_from_directory(dist_dir, path)
+    response = send_from_directory(dist_dir, path)
+    if path.endswith('.html'):
+        # recap.html 등 페이지 HTML은 파일명에 내용 해시가 안 붙어있어서(js/*.js와
+        # 다름), 코드를 새로 빌드해서 배포해도 브라우저가 예전 HTML을 캐시하고
+        # 있으면 그 안에 적힌 예전 JS 파일명을 계속 참조해 강력 새로고침을 해도
+        # 반영이 안 보이는 문제가 있었다 — HTML 응답은 아예 캐시를 못 하게 막는다.
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 @app.route('/assets/<path:path>')
 def static_assets(path):
@@ -1632,6 +1648,39 @@ def send_mail_body_by_ids():
 
     return jsonify({"id": mail_id, "account": account, **body})
 
+@app.route("/mail-subjects-by-ids", methods=["POST"])
+def send_mail_subjects_by_ids():
+    """검색 결과 화면에서 "근거메일 보기" 버튼을 답변의 어느 줄에 붙일지 프론트가
+    판단할 수 있도록, 여러 근거메일의 제목만 한 번에 모아서 돌려준다. 예전엔 이
+    매핑을 lineMatch라는 문자열로 직접 하드코딩해뒀었는데(비용 지불 관련 메일
+    시연용), 하드코딩을 걷어내면서 실제 GraphRAG 응답에는 그 정보가 없어 버튼이
+    전부 답변 아래 목록으로만 떨어졌다 — 대신 여기서 제목을 받아와 프론트가 답변
+    텍스트에 그 제목이 언급된 줄을 찾아 옆에 버튼을 붙이도록 한다.
+    /mail-body-by-ids(본문 전체)와 달리 제목만 필요하므로, refs를 계정별로 묶어
+    계정당 한 번씩만 documents.parquet을 읽는다. refs: [{id, account}, ...] —
+    계정이 서로 다를 수 있음(연합 검색 결과)."""
+    data = request.json or {}
+    refs = data.get("refs") or []
+
+    ids_by_account = {}
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        mail_id = (ref.get("id") or "").strip()
+        account = (ref.get("account") or "").strip()
+        if not mail_id or not account:
+            continue
+        ids_by_account.setdefault(account, set()).add(mail_id)
+
+    subjects = {}
+    for account, mail_ids in ids_by_account.items():
+        paths = UserPaths(BASE_DIR, account, "mail")
+        bodies = get_mail_bodies_by_ids(paths, mail_ids)
+        for mail_id, body in bodies.items():
+            subjects[mail_id] = body.get("subject", "")
+
+    return jsonify({"subjects": subjects})
+
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
     data = request.json or {}
@@ -1973,6 +2022,14 @@ def message_upload():
 
     room_name = room_name_input or guess_room_name(raw_text, filename_hint or "카카오톡 대화")
     room_id = build_room_id(room_name)
+
+    # 요청 — 인덱싱이 끝나기 전에도(chatroom DB 테이블에 이름이 들어가기 전에도)
+    # 방금 업로드한 이 방 이름을 사이드바/피커에 바로 보여줄 수 있게, account.json에
+    # 미리 저장해둔다(chatroom_reader.list_indexed_chatrooms/get_chatroom_name이 사용).
+    try:
+        set_account_room_name(UserPaths(BASE_DIR, room_id, "messenger"), room_name)
+    except Exception as e:
+        print(f"[WARN] set_account_room_name 실패(치명적이지 않음): {e}")
 
     job_id = str(uuid.uuid4())[:8]
     create_job(job_id, job_type="message_upload")

@@ -10,24 +10,13 @@
  *   storageKey: 마지막 선택값을 저장할 localStorage 키. 메일과 카카오가 서로 다른 "마지막 선택"을
  *   기억하도록 도메인마다 별도 키를 쓴다 (기본값은 기존 메일 동작과 100% 동일).
  */
-// 시연 영상 녹화용 — 실제 이메일이 화면에 노출되지 않도록 표시 텍스트만 임시로
-// 바꿔치기한다. 실제 계정 식별자(user_id)는 그대로 03yeah03@gmail.com을 쓰므로
-// API 호출/DB 매칭에는 전혀 영향 없음(화면 표시 전용). 필요 없어지면 이 한 줄만
-// 지우면 원래대로 돌아온다.
-const DISPLAY_EMAIL_OVERRIDES = {
-  "03yeah03@gmail.com": "3924ewa@gmail.com",
-  // 요청 — 지식그래프에서 이 계정 이름이 이상하게(엉뚱한 아이클라우드 주소로)
-  // 나와서, 원래 아이디 03yeeun03@naver.com 그대로 보이도록 오버라이드 제거.
-  "324dfan@naver.com": "moonlight_haru@icloud.com",
-};
-
-/** 화면에 보여줄 계정 라벨을 반환 — 오버라이드가 있으면 그걸, 없으면 원래 id 그대로. */
+/** 화면에 보여줄 계정 라벨을 반환 — 항상 실제 계정 id 그대로. */
 export function displayAccountLabel(userId) {
-  return DISPLAY_EMAIL_OVERRIDES[userId] || userId;
+  return userId;
 }
 
 export async function initAccountPicker(container, onChange, options = {}) {
-  const { domain = 'mail', storageKey = 'gw_user_id', showRealEmail = false, hideIndexingBadge = false, labelOverrides = null } = options;
+  const { domain = 'mail', storageKey = 'gw_user_id' } = options;
   injectStyle();
 
   const current = localStorage.getItem(storageKey) || '';
@@ -76,10 +65,8 @@ export async function initAccountPicker(container, onChange, options = {}) {
         accounts.forEach(acc => {
           const opt = document.createElement('option');
           opt.value = acc.user_id;
-          const label = nameById[acc.user_id]
-            || (labelOverrides && labelOverrides[acc.user_id])
-            || (showRealEmail ? acc.user_id : displayAccountLabel(acc.user_id));
-          opt.textContent = label + (acc.indexed || hideIndexingBadge ? '' : ' (인덱싱 중)');
+          const label = nameById[acc.user_id] || displayAccountLabel(acc.user_id);
+          opt.textContent = label + (acc.indexed ? '' : ' (인덱싱 중)');
           if (acc.user_id === effective) opt.selected = true;
           select.appendChild(opt);
         });

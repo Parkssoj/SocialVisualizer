@@ -78,21 +78,14 @@ class GlobalStore {
         indexed: !!acc.indexed,
       }));
 
-      // 요청 — DB/실제 데이터는 절대 안 건드리고 "화면에 뜨는 순서"만 조정.
-      // 03yeah03@gmail.com이 항상 맨 위에 오도록(그래야 appSidebar.js가 기본으로
-      // 골라주는 mails[0]도 자동으로 이 계정이 됨). 나머지 계정들 순서는 그대로.
-      const PINNED_MAIL_FIRST = "03yeah03@gmail.com";
-      mails.sort((a, b) => {
-        if (a.id === PINNED_MAIL_FIRST) return -1;
-        if (b.id === PINNED_MAIL_FIRST) return 1;
-        return 0;
-      });
-
       const chatrooms = (roomsData.data && roomsData.data.chatrooms) || [];
       const rooms = chatrooms.map((r) => ({
         id: r.chatroom_id,
         label: r.chatroom_name || r.chatroom_id,
-        indexed: true,
+        // 예전엔 항상 true로 고정돼 있었음(그땐 list_indexed_chatrooms가 완료된 방만
+        // 돌려줬으니 항상 맞는 값이었음) — 이제 인덱싱 중인 방도 같이 내려오므로
+        // 서버가 준 실제 값을 그대로 써야 사이드바 "생성 중" 배지가 맞게 뜬다.
+        indexed: r.indexed !== false,
       }));
 
       // DB 데이터로 스토어 상태 갱신
@@ -103,11 +96,24 @@ class GlobalStore {
   }
 
   setCollectedLists(mails = [], rooms = []) {
+    // 인덱싱 상태를 주기적으로 다시 불러올 때(filterSync.js의 폴링) 목록 내용이
+    // 실제로는 그대로인데도 매번 gwStoreStateChanged를 쏘면, 이 이벤트를 듣는
+    // 페이지들이 "사용자가 계정을 바꿨다"고 착각하고 데이터를 계속 처음부터 다시
+    // 불러온다(화면이 몇 초마다 "불러오는 중..."으로 되돌아가는 버그). 실제로
+    // 목록 내용이 달라졌을 때만 이벤트를 쏘도록 비교한다.
+    const nextMailsJson = JSON.stringify(mails);
+    const nextRoomsJson = JSON.stringify(rooms);
+    const changed =
+      nextMailsJson !== JSON.stringify(this.state.collectedMails) ||
+      nextRoomsJson !== JSON.stringify(this.state.collectedRooms);
+
     this.state.collectedMails = mails;
     this.state.collectedRooms = rooms;
 
-    localStorage.setItem(STORAGE_KEYS.MAILS_LIST, JSON.stringify(mails));
-    localStorage.setItem(STORAGE_KEYS.ROOMS_LIST, JSON.stringify(rooms));
+    localStorage.setItem(STORAGE_KEYS.MAILS_LIST, nextMailsJson);
+    localStorage.setItem(STORAGE_KEYS.ROOMS_LIST, nextRoomsJson);
+
+    if (!changed) return;
 
     window.dispatchEvent(
       new CustomEvent("gwStoreStateChanged", {
@@ -123,20 +129,49 @@ class GlobalStore {
     };
   }
 
-  setFilter(type, value) {
-    if (type === "mail") {
-      this.state.selectedMail = value;
-      this.state.selectedRoom = null;
-      localStorage.setItem(STORAGE_KEYS.MAIL, value || "");
-      localStorage.setItem(LEGACY_KEYS.MAIL, value || ""); // 페이지 상단 계정 토글과 동기화
+  // 메일/메신저 선택을 하나의 트랜잭션으로 원자적으로 갱신한다.
+  //
+  // 예전엔 "메일 선택 → 메신저 해제"를 store.setFilter("room", null) 직후
+  // store.setFilter("mail", value) 이렇게 두 번 연달아 호출하는 방식이었다.
+  // setFilter는 호출될 때마다 무조건 gwStoreStateChanged를 동기적으로 쐈기
+  // 때문에, 그 두 호출 "사이"에 mail도 room도 없는 중간 상태가 실제로 한 번
+  // 발생했고 그 상태로도 이벤트가 나갔다. filterSync.js가 이 이벤트 리스너를
+  // (초기 이벤트를 놓치지 않기 위해) refreshSidebarList()보다 먼저 등록해두면서,
+  // 이 중간 상태 이벤트가 리스너를 통해 refreshSidebarList()를 다시 부르고,
+  // 그 안에서 "선택값이 둘 다 없다"고 판단해 또 같은 두 단계 setFilter를
+  // 반복하며 재진입(reentrant)했다 — 이게 Recap에서 카드 하나 클릭했는데
+  // /mail-stats 등 5개 API가 10번 넘게 중복 호출되던 진짜 원인이었다.
+  //
+  // 이제 mail/room 값을 한 번에 같이 넘겨서 중간 상태 자체가 생기지 않게
+  // 하고, 실제로 값이 바뀌었을 때만(변화 없으면 재호출돼도 무시) 이벤트를
+  // 딱 한 번만 쏘도록 한다.
+  applySelection(mail, room) {
+    const nextMail = mail || null;
+    const nextRoom = room || null;
+    const changed =
+      nextMail !== (this.state.selectedMail || null) ||
+      nextRoom !== (this.state.selectedRoom || null);
+
+    this.state.selectedMail = nextMail;
+    this.state.selectedRoom = nextRoom;
+
+    if (nextMail) {
+      localStorage.setItem(STORAGE_KEYS.MAIL, nextMail);
+      localStorage.setItem(LEGACY_KEYS.MAIL, nextMail); // 페이지 상단 계정 토글과 동기화
       localStorage.removeItem(STORAGE_KEYS.ROOM);
-    } else if (type === "room") {
-      this.state.selectedRoom = value;
-      this.state.selectedMail = null;
-      localStorage.setItem(STORAGE_KEYS.ROOM, value || "");
-      localStorage.setItem(LEGACY_KEYS.ROOM, value || ""); // 페이지 상단 채팅방 토글과 동기화
+    } else if (nextRoom) {
+      localStorage.setItem(STORAGE_KEYS.ROOM, nextRoom);
+      localStorage.setItem(LEGACY_KEYS.ROOM, nextRoom); // 페이지 상단 채팅방 토글과 동기화
       localStorage.removeItem(STORAGE_KEYS.MAIL);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.MAIL);
+      localStorage.removeItem(STORAGE_KEYS.ROOM);
     }
+
+    // 값이 실제로 안 바뀌었으면(같은 항목을 다시 클릭했거나, 위에서 설명한
+    // 재진입 상황) 굳이 이벤트를 또 쏘지 않는다 — 이게 재귀적 중복 호출을
+    // 막는 마지막 안전장치.
+    if (!changed) return;
 
     // 요청 — 03yeah03@gmail.com을 누르면(또는 기본 선택되면) 화면 데이터가
     // 바로 뜨도록. 예전엔 클릭할 때마다 300ms 지연 후에야 페이지가 데이터를
@@ -149,6 +184,16 @@ class GlobalStore {
         detail: this.getFilterState(),
       }),
     );
+  }
+
+  // 기존 호출부(appSidebar.js 등)와의 호환을 위해 남겨둔 래퍼 — 내부적으로는
+  // applySelection()으로 위임해서 항상 원자적으로 처리된다.
+  setFilter(type, value) {
+    if (type === "mail") {
+      this.applySelection(value, null);
+    } else if (type === "room") {
+      this.applySelection(null, value);
+    }
   }
 
   getCollectedLists() {

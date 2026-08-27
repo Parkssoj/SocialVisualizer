@@ -5,16 +5,17 @@
 
 import calendar
 import json
+import os
 from config.db import get_db_connection
 from util.database.chatroom_db_writer import get_latest_chatroom
 from util.user_path import list_accounts, UserPaths
 
 
 def list_indexed_chatrooms(base_dir: str, start_date: str = None, end_date: str = None):
-    """인덱싱된 messenger 계정(msg_xxx = 단톡방 1개)마다 방 이름·메시지 수·참여자 수·전체
+    """messenger 계정(msg_xxx = 단톡방 1개)마다 방 이름·메시지 수·참여자 수·전체
     참여자 이름(메시지 많은 순, 카드 아바타를 참여자 수만큼 분할한 이니셜로 채우는 용도)을
-    모아 반환. 메신저 탭의 "단톡방 목록" 화면에서 사용 (아직 인덱싱 중/DB에 chatroom
-    레코드가 없는 계정은 목록에서 제외).
+    모아 반환. 메신저 탭의 "단톡방 목록" 화면에서 사용. 아직 인덱싱 중인 방도 메일과
+    동일하게 목록에 포함하고(indexed: False), 프런트가 "생성 중" 배지로 표시한다.
 
     start_date/end_date를 주면(타임슬라이더로 기간이 선택된 경우) 전체 기간 대신 그 기간의
     message_block/participant 집계로 message_count/participant_count/top_participants를
@@ -24,9 +25,27 @@ def list_indexed_chatrooms(base_dir: str, start_date: str = None, end_date: str 
     try:
         rooms = []
         for acc in list_accounts(base_dir, "messenger"):
-            if not acc["indexed"]:
-                continue
             chatroom_id = acc["user_id"]
+
+            # 요청 — 메일처럼 아직 인덱싱 중인 방도 목록에 넣고 "생성 중" 배지로 보여준다
+            # (예전엔 여기서 통째로 skip해서 완료 전까진 사이드바 어디에도 안 보였음).
+            # chatroom_name은 DB에 아직 없지만, 업로드 시점에 사용자가 입력/추측한 이름을
+            # account.json에 저장해뒀으므로(list_accounts의 room_name) 그걸 먼저 쓰고,
+            # 그마저 없으면 chatroom_id로 폴백한다. 기간 필터가 걸린 조회(타임슬라이더)는
+            # 어차피 집계할 메시지가 없으므로 그 경우에만 계속 제외한다.
+            if not acc["indexed"]:
+                if start_date and end_date:
+                    continue
+                rooms.append({
+                    "chatroom_id": chatroom_id,
+                    "chatroom_name": acc.get("room_name"),
+                    "message_count": 0,
+                    "participant_count": 0,
+                    "top_participants": [],
+                    "indexed": False,
+                })
+                continue
+
             latest = get_latest_chatroom(chatroom_id)
             if not latest:
                 continue
@@ -112,6 +131,7 @@ def list_indexed_chatrooms(base_dir: str, start_date: str = None, end_date: str 
                 "message_count": message_count,
                 "participant_count": int(participant_count or 0),
                 "top_participants": top_participants,
+                "indexed": True,
             })
         return rooms
     finally:
@@ -159,12 +179,28 @@ def get_messenger_date_range(base_dir: str):
         conn.close()
 
 
+def _room_name_from_account_meta(chatroom_id: str):
+    """DB에 아직 이름이 없는(인덱싱 전) 방을 위해, 업로드 시점에 account.json에
+    저장해둔 room_name을 읽어본다(user_path.set_account_room_name 참고). 실패하면 None."""
+    try:
+        from config.settings import BASE_DIR
+        from util.user_path import UserPaths
+        paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
+        if not os.path.exists(paths.ACCOUNT_META_PATH):
+            return None
+        with open(paths.ACCOUNT_META_PATH, "r", encoding="utf-8") as f:
+            return (json.load(f).get("room_name") or "").strip() or None
+    except Exception:
+        return None
+
+
 def get_chatroom_name(chatroom_id: str):
     """chatroom_id 하나로 chatroom_name만 조회. 프론트가 목록 화면을 거치지 않고
-    chatroom_id만 들고 있을 때 방 이름을 해석하는 용도. 인덱싱된 적 없으면 None."""
+    chatroom_id만 들고 있을 때 방 이름을 해석하는 용도. 인덱싱 전이라 DB에 아직
+    없으면, 업로드 시점에 저장해둔 이름(account.json)으로 폴백한다."""
     latest = get_latest_chatroom(chatroom_id)
     if not latest:
-        return None
+        return _room_name_from_account_meta(chatroom_id)
     index_date, user_id = latest["index_date"], latest["user_id"]
 
     conn = get_db_connection()
@@ -179,7 +215,7 @@ def get_chatroom_name(chatroom_id: str):
             (chatroom_id, index_date, user_id),
         )
         row = cursor.fetchone()
-        return row["chatroom_name"] if row else None
+        return row["chatroom_name"] if row else _room_name_from_account_meta(chatroom_id)
     finally:
         cursor.close()
         conn.close()

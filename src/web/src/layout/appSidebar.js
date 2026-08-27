@@ -118,15 +118,18 @@ export function refreshSidebarList() {
   const isRoomValid = !!currentRoom && rooms.some((r) => r.id === currentRoom);
 
   if (!isMailValid && !isRoomValid) {
+    // setFilter("mail", ...)/setFilter("room", ...) 호출 하나가 내부적으로
+    // 반대쪽을 알아서 null 처리하므로(globalStore.js의 applySelection 참고),
+    // 굳이 반대쪽을 미리 null로 지우는 별도 호출을 먼저 할 필요가 없다 — 예전엔
+    // 이 두 호출 "사이"에 mail/room이 둘 다 없는 중간 상태가 실제로 발생해서
+    // gwStoreStateChanged 리스너가 재진입하며 API가 중복 호출되는 원인이 됐다.
     if (mails.length > 0) {
       currentMail = mails[0].id;
       currentRoom = null;
-      store.setFilter("room", null);
       store.setFilter("mail", currentMail);
     } else if (rooms.length > 0) {
       currentRoom = rooms[0].id;
       currentMail = null;
-      store.setFilter("mail", null);
       store.setFilter("room", currentRoom);
     }
   } else {
@@ -140,12 +143,11 @@ export function refreshSidebarList() {
       : mails
           .map((m) => {
             const isActive = !currentRoom && m.id === currentMail;
-            // 요청 — 데이터 선택 목록에 뜨던 "인덱싱 중" 배지를 제거(하드코딩 중이라
-            // 노출할 필요 없는 내부 상태였음).
             return `
               <li class="gws-item ${isActive ? "is-active" : ""}" data-type="mail" data-value="${escapeAttr(m.id)}" title="${escapeAttr(m.label)}">
                 <span class="gws-item-icon"><i class="bi bi-envelope-fill"></i></span>
                 <span class="gws-item-text">${escapeHtml(m.label)}</span>
+                ${m.indexed ? "" : '<span class="gws-item-badge">(생성 중)</span>'}
               </li>`;
           })
           .join("");
@@ -160,6 +162,7 @@ export function refreshSidebarList() {
               <li class="gws-item ${isActive ? "is-active" : ""}" data-type="room" data-value="${escapeAttr(r.id)}" title="${escapeAttr(r.label)}">
                 <span class="gws-item-icon"><i class="bi bi-chat-dots-fill"></i></span>
                 <span class="gws-item-text">${escapeHtml(r.label)}</span>
+                ${r.indexed ? "" : '<span class="gws-item-badge">(생성 중)</span>'}
               </li>`;
           })
           .join("");
@@ -198,11 +201,11 @@ function bindSidebarEvents() {
       const type = item.getAttribute("data-type");
       const value = item.getAttribute("data-value");
 
+      // 위 refreshSidebarList()의 기본값 보정 분기와 같은 이유로, 클릭 한 번에
+      // setFilter를 한 번만 부른다(반대쪽은 store가 알아서 null 처리).
       if (type === "mail") {
-        store.setFilter("room", null);
         store.setFilter("mail", value);
       } else if (type === "room") {
-        store.setFilter("mail", null);
         store.setFilter("room", value);
       }
 

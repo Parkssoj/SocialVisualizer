@@ -44,148 +44,6 @@ async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
   onError('응답 시간이 초과되었습니다. 다시 시도해주세요.');
 }
 
-// 요청 — "비용 지불 관련 메일 있어?" 하드코딩(메일 탭 전용, GPU 없이도 시연 가능하도록).
-// 답변 본문은 그대로 두고, 일단은(GPU 재인덱싱 전까지는) 9개 불릿 전부에 "근거메일 보기"
-// 버튼을 붙인다 — 실제 계정에 존재가 확인된 4건은 실제 메일 id를, 나머지 5건(Amazon Pay
-// Balance/TVING/KG이니시스/카드 결제 주문 내역/Apple App Store Gift Card)은 하드코딩
-// 전용 가짜 id를 붙이고, 본문도 HARDCODED_MAIL_BODIES에 하드코딩해서 보여준다.
-const HARDCODED_MAIL_QA = [
-  {
-    match: (q) => q.includes('비용') && q.includes('메일'),
-    answer:
-      '네, 비용 지불 관련 메일이 있습니다.\n\n' +
-      '- 전기요금 청구서 도착 메일은 이번 달 전기요금 청구서 도착 사실을 알리는 내용입니다.\n' +
-      '- 신용카드 발급 완료 메일은 신청한 신용카드 발급 완료를 안내하며, 두 건 모두 결제/청구 관련 내용입니다.\n' +
-      '- Amazon Pay Balance 결제 완료 안내 메일은 결제가 성공적으로 완료되었다는 내용입니다.\n' +
-      '- 넷플릭스 결제 안내 메일은 넷플릭스 구독료 결제 완료를 안내합니다.\n' +
-      '- TVING 정기결제 완료결과 메일은 정기결제 완료와 결제 정보, 청약 철회 및 환불 안내를 전달합니다.\n' +
-      '- KG이니시스 결제확인 메일은 (주)이벤터스에서 이루어진 결제 내역을 안내합니다.\n' +
-      '- 카드 결제 주문 내역 안내 메일은 카드 결제 주문 내역과 배송 안내를 전달합니다.\n' +
-      '- Apple App Store Gift Card 결제 메일은 Amazon Pay Balance 사용과 결제 성공을 알립니다.\n' +
-      '- 이사 견적서를 첨부해 문의 답변을 전달하는 메일은 이사 견적서를 안내하고 비용 관련 내용을 전달합니다.',
-    // 요청 — "근거메일 보기" 버튼을 답변 목록 아래가 아니라, 그 메일이 근거인 불릿 줄
-    // 바로 왼쪽에 붙인다. lineMatch는 그 불릿 줄에서만 나오는 고유한 부분 문자열이라
-    // 렌더링할 때 이 문자열이 포함된 줄에 버튼을 붙인다(showResult 참고).
-    sourceIds: [
-      { id: 'CAH6sPfZ-foFWK3cA0O6JsQqCrUHd0MDG3kJkZRFJDsOYq0ii3A@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '전기요금 청구서 도착 메일은' },
-      { id: 'CAH6sPfYSKxOQQtFgET=dE-tN2wqom0sWHeeyR1xPUi1Ka+JG4Q@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '신용카드 발급 완료 메일은' },
-      { id: 'CAH6sPfZ=8CAGN8ucA0wJy=Nhsfrtp3aGLLi19ghUmnSAK6Qdpw@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '신용카드 발급 완료 메일은' },
-      { id: 'CAH6sPfaOV2XuCFgYpCaw1Q=x1L7-To8fbjKK7-iv+UJqLDLsmQ@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '넷플릭스 결제 안내 메일은' },
-      { id: 'CAH6sPfY21ViT0ZRr+ci2kL4q5QuQgnobaATFGkGDme4trFEudA@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '이사 견적서를 첨부해 문의 답변을 전달하는 메일은' },
-      { id: 'hardcoded-amazonpay-001@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: 'Amazon Pay Balance 결제 완료 안내 메일은' },
-      { id: 'hardcoded-tving-001@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: 'TVING 정기결제 완료결과 메일은' },
-      { id: 'hardcoded-kginicis-001@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: 'KG이니시스 결제확인 메일은' },
-      { id: 'hardcoded-cardorder-001@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: '카드 결제 주문 내역 안내 메일은' },
-      { id: 'hardcoded-applegift-001@mail.gmail.com', account: '03yeah03@gmail.com', lineMatch: 'Apple App Store Gift Card 결제 메일은' },
-    ],
-  },
-];
-
-function findHardcodedMailAnswer(domain, q) {
-  if (domain !== 'mail') return null;
-  const hit = HARDCODED_MAIL_QA.find(item => item.match(q));
-  return hit || null;
-}
-
-// 요청 — 실제 메일 id 4건은 실제 수집된 메일(latest.txt)엔 있지만, GPU 재인덱싱을 아직
-// 못 해서 documents.parquet(실제 /mail-body-by-ids가 읽는 곳)엔 없는 상태 — 그래서 버튼을
-// 누르면 서버 요청이 "메일을 찾을 수 없습니다"로 실패한다. 재인덱싱 전까지는 그 4건과,
-// 근거메일이 실제로 확인되지 않은 나머지 5건(hardcoded-* id) 모두 원문을 여기 하드코딩해서
-// 버튼을 누르면 서버 요청 없이 바로 오른쪽에 표시되게 한다. 재인덱싱 이후엔 실제 4건은
-// 이 하드코딩 없이도 실제 라우터로 그대로 동작하니 이 맵은 그대로 둬도 무방하다
-// (우선순위만 하드코딩이 앞섬).
-const HARDCODED_MAIL_BODIES = {
-  'CAH6sPfZ-foFWK3cA0O6JsQqCrUHd0MDG3kJkZRFJDsOYq0ii3A@mail.gmail.com': {
-    subject: '전기요금 청구서 도착',
-    date: '2026-07-11',
-    sender: '2계정 <03yeah03@gmail.com>',
-    receiver: '<beauty777033@gmail.com>',
-    body:
-      '안녕하세요, 고객님.\n\n' +
-      '이번 달 전기요금 청구서가 도착하여 안내드립니다.\n\n' +
-      '▶ 청구 정보\n' +
-      '- 청구월: 2026년 7월분\n' +
-      '- 사용기간: 2026.06.11 ~ 2026.07.10\n' +
-      '- 계약전력: 3kW (주택용 저압)\n' +
-      '- 사용전력량: 312kWh\n\n' +
-      '▶ 요금 내역\n' +
-      '- 전력량요금: 48,760원\n' +
-      '- 기후환경요금: 6,240원\n' +
-      '- 연료비조정액: -1,870원\n' +
-      '- 부가가치세: 5,313원\n' +
-      '- 전력산업기반기금: 1,960원\n' +
-      '- 청구금액 합계: 62,403원\n\n' +
-      '▶ 납부 안내\n' +
-      '- 납부기한: 2026.07.25\n' +
-      '- 납부방법: 자동이체(국민은행 ****-**-1234)\n\n' +
-      '자세한 내역은 한전 ON 앱 또는 홈페이지에서 확인하실 수 있습니다.\n' +
-      '감사합니다.',
-  },
-  'CAH6sPfYSKxOQQtFgET=dE-tN2wqom0sWHeeyR1xPUi1Ka+JG4Q@mail.gmail.com': {
-    subject: '신용카드 발급 완료',
-    date: '2026-06-03',
-    sender: '2계정 <03yeah03@gmail.com>',
-    receiver: '<beauty777033@gmail.com>',
-    body: '신청하신 신용카드가 발급되었습니다.',
-  },
-  'CAH6sPfZ=8CAGN8ucA0wJy=Nhsfrtp3aGLLi19ghUmnSAK6Qdpw@mail.gmail.com': {
-    subject: '신용카드 발급 완료',
-    date: '2026-06-03',
-    sender: '2계정 <03yeah03@gmail.com>',
-    receiver: '<beauty777033@gmail.com>',
-    body: '신청하신 신용카드가 발급되었습니다.',
-  },
-  'CAH6sPfaOV2XuCFgYpCaw1Q=x1L7-To8fbjKK7-iv+UJqLDLsmQ@mail.gmail.com': {
-    subject: '넷플릭스 결제 안내',
-    date: '2026-08-05',
-    sender: '2계정 <03yeah03@gmail.com>',
-    receiver: '<beauty777033@gmail.com>',
-    body: '이번 달 구독료가 결제되었습니다.',
-  },
-  'CAH6sPfY21ViT0ZRr+ci2kL4q5QuQgnobaATFGkGDme4trFEudA@mail.gmail.com': {
-    subject: '이사 견적 문의 답변',
-    date: '2026-07-22',
-    sender: '2계정 <03yeah03@gmail.com>',
-    receiver: '<beauty777033@gmail.com>',
-    body: '요청하신 이사 견적서를 첨부합니다.',
-  },
-  'hardcoded-amazonpay-001@mail.gmail.com': {
-    subject: '결제 완료 안내',
-    date: '2026-08-01',
-    sender: 'Amazon Pay <no-reply@amazonpay.com>',
-    receiver: '<03yeah03@gmail.com>',
-    body: '결제가 성공적으로 완료되었습니다. 이용해 주셔서 감사합니다.',
-  },
-  'hardcoded-tving-001@mail.gmail.com': {
-    subject: '정기결제 완료결과 안내',
-    date: '2026-08-03',
-    sender: 'TVING <noreply@tving.com>',
-    receiver: '<03yeah03@gmail.com>',
-    body: '정기결제가 완료되었습니다. 결제 정보 및 청약 철회·환불 안내는 아래를 참고해 주세요.',
-  },
-  'hardcoded-kginicis-001@mail.gmail.com': {
-    subject: '결제확인 안내',
-    date: '2026-07-15',
-    sender: 'KG이니시스 <noreply@kginicis.com>',
-    receiver: '<03yeah03@gmail.com>',
-    body: '(주)이벤터스에서 이루어진 결제가 확인되었습니다.',
-  },
-  'hardcoded-cardorder-001@mail.gmail.com': {
-    subject: '카드 결제 주문 내역 안내',
-    date: '2026-07-28',
-    sender: '쇼핑몰 <order@shop.com>',
-    receiver: '<03yeah03@gmail.com>',
-    body: '카드 결제가 완료된 주문 내역과 배송 안내입니다.',
-  },
-  'hardcoded-applegift-001@mail.gmail.com': {
-    subject: 'Apple App Store Gift Card 결제 완료',
-    date: '2026-08-10',
-    sender: 'Apple <no_reply@email.apple.com>',
-    receiver: '<03yeah03@gmail.com>',
-    body: 'Amazon Pay Balance를 사용하여 결제가 성공적으로 완료되었습니다.',
-  },
-};
-
 // ══════════════════════════════════════
 // 검색 컨트롤러 — 메일/메시지(카카오) 탭이 각자 독립된 입력창·최근검색·결과영역·domain을 갖도록
 // 같은 로직을 재사용 가능한 형태로 묶음. 두 탭은 서로 다른 GraphRAG 도메인("mail"/"messenger")을
@@ -198,6 +56,10 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   const recentTagsEl = document.getElementById(ids.recentTags);
   const clearRecentEl = document.getElementById(ids.clearRecent);
   const resultEl = document.getElementById(ids.resultContainer);
+  // showResult()가 검색할 때마다 새로 붙이는 resize 리스너 — 매번 새로 만든 걸
+  // 이전 것 위에 그냥 쌓으면 검색을 반복할수록 리스너가 계속 늘어나므로, 여기
+  // 컨트롤러 스코프에 하나만 들고 있다가 새로 붙이기 전에 먼저 떼어낸다.
+  let currentResizeHandler = null;
 
   function getRecents() {
     try { return JSON.parse(localStorage.getItem(recentKey)) || []; } catch { return []; }
@@ -254,20 +116,6 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    const hardcodedBody = HARDCODED_MAIL_BODIES[mailId];
-    if (hardcodedBody) {
-      detailPanel.innerHTML = `
-        <div class="gw-mail-detail-subject">${escapeHtml(hardcodedBody.subject)}</div>
-        <div class="gw-mail-detail-meta">
-          <div><strong>날짜</strong> ${escapeHtml(hardcodedBody.date || '-')}</div>
-          <div><strong>발신</strong> ${escapeHtml(hardcodedBody.sender)}</div>
-          <div><strong>수신</strong> ${escapeHtml(hardcodedBody.receiver)}</div>
-        </div>
-        <div class="gw-mail-detail-body">${escapeHtml(hardcodedBody.body)}</div>
-      `;
-      return;
-    }
-
     detailPanel.innerHTML = `
       <div class="gw-mail-detail-loading"><div class="gw-spinner"></div><span>메일을 불러오는 중...</span></div>
     `;
@@ -296,7 +144,46 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     }
   }
 
-  function showResult(q, text, sourceIds) {
+  // 요청 — 하드코딩을 걷어내면서 실제 GraphRAG 응답엔 "이 근거메일이 어느 줄의
+  // 근거인지"(lineMatch)가 없어져서, 버튼이 전부 답변 아래 목록으로만 떨어지고
+  // 있었다. 대신 근거메일들의 "제목"만 서버에서 받아와서, 그 제목(또는 제목의
+  // 핵심 단어)이 실제로 언급된 답변 줄을 찾아 그 줄에 버튼을 붙인다 — 자동으로
+  // "직접 메일을 찾은 것과 매핑"되도록 한다. 제목이 어느 줄에도 안 걸리면(요약
+  // 과정에서 제목이 그대로 안 남았을 수 있음) 기존처럼 답변 아래 목록에 남긴다.
+  async function fetchSubjectsByRefs(refs) {
+    if (!refs.length) return {};
+    try {
+      const res = await fetch(`${FLASK_URL}/mail-subjects-by-ids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refs: refs.map(r => ({ id: r.id, account: r.account })) }),
+      });
+      if (!res.ok) return {};
+      const data = await res.json();
+      return data.subjects || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  // 답변 줄 하나에 제목이 "언급됐다"고 볼 수 있는지 판단한다. 요약된 답변은 보통
+  // 제목을 그대로 인용하지 않고 "OO 메일은 ~"처럼 살짝 바꿔 쓰므로, 제목 전체가
+  // 그대로 포함된 줄을 먼저 찾고, 없으면 제목의 첫 단어(한글/영문/숫자만 남기고
+  // 2글자 이상)만이라도 포함된 줄을 찾는다.
+  function findLineIdxBySubject(lines, subject) {
+    const cleaned = String(subject || '').trim();
+    if (!cleaned) return -1;
+    let idx = lines.findIndex(line => line.includes(cleaned));
+    if (idx !== -1) return idx;
+    const firstWord = cleaned.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/)[0];
+    if (firstWord && firstWord.length >= 2) {
+      idx = lines.findIndex(line => line.includes(firstWord));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  async function showResult(q, text, sourceIds) {
     let sourceHtml = '';
     // 요청 — "근거 계정" 표시 안 함(주석처리, 로직은 그대로 남겨둠).
     // if (sourceIds && sourceIds.length > 0) {
@@ -322,27 +209,28 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
       sourceIds.forEach(src => {
         const id = typeof src === 'string' ? src : (src && src.id);
         const account = typeof src === 'string' ? null : (src && src.account);
-        const lineMatch = typeof src === 'string' ? null : (src && src.lineMatch);
         if (!id || seenIds.has(id)) return;
         seenIds.add(id);
-        uniqueMailRefs.push({ id, account, lineMatch });
+        uniqueMailRefs.push({ id, account });
       });
     }
-    const hasSourceMails = uniqueMailRefs.length > 0;
 
-    // 요청 — "근거메일 보기" 버튼을 답변 아래 목록이 아니라, 그 메일이 근거인 불릿 줄
-    // 바로 왼쪽에 붙인다. lineMatch가 있고 그 문자열이 실제로 어느 줄에 포함되면 그 줄에
-    // 인라인으로 붙이고, lineMatch가 없거나 어느 줄에도 안 걸리면(실제 GraphRAG 답변처럼
-    // 줄 단위 매칭 정보가 없는 경우) 기존처럼 답변 아래 목록에 남긴다.
+    // 근거메일들의 제목을 서버에서 받아와, 그 제목이 실제로 언급된 답변 줄을 찾는다
+    // (findLineIdxBySubject 참고) — "근거메일 보기" 버튼은 그 메일이 근거인 줄
+    // 바로 오른쪽에만 붙인다. 요청 — 어느 줄에도 안 걸리는 것들을 예전처럼 답변
+    // 아래 목록으로 따로 모아 보여주던 걸 없앴다(그 목록 UI 자체가 불필요하다는
+    // 피드백) — 매칭이 안 되면 그 근거메일은 그냥 버튼 없이 넘어간다.
+    const subjectsById = await fetchSubjectsByRefs(uniqueMailRefs);
     const lines = String(text || '').split('\n');
     const inlineRefsByLineIdx = new Map();
-    const listRefs = [];
     uniqueMailRefs.forEach(ref => {
-      const lineIdx = ref.lineMatch ? lines.findIndex(line => line.includes(ref.lineMatch)) : -1;
-      if (lineIdx === -1) { listRefs.push(ref); return; }
+      const subject = subjectsById[ref.id] || '';
+      const lineIdx = findLineIdxBySubject(lines, subject);
+      if (lineIdx === -1) return;
       if (!inlineRefsByLineIdx.has(lineIdx)) inlineRefsByLineIdx.set(lineIdx, []);
       inlineRefsByLineIdx.get(lineIdx).push(ref);
     });
+    const hasSourceMails = inlineRefsByLineIdx.size > 0;
 
     const answerHtml = lines.map((line, idx) => {
       const inlineRefs = inlineRefsByLineIdx.get(idx);
@@ -354,18 +242,6 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
       }
       return `<div class="gw-answer-line">${line ? escapeHtml(line) : '&nbsp;'}</div>`;
     }).join('');
-
-    const sourceMailHtml = listRefs.length > 0 ? `
-      <div class="gw-source-mail-list">
-        <div class="gw-source-label">근거메일</div>
-        ${listRefs.map((ref, i) => `
-          <div class="gw-source-mail-item">
-            <button class="gw-view-source-mail-btn" data-mail-id="${escapeAttr(ref.id)}" data-account="${escapeAttr(ref.account || '')}">근거메일 보기</button>
-            <span class="gw-source-mail-label">메일 ${i + 1}${ref.account ? ` · ${escapeHtml(ref.account)}` : ''}</span>
-          </div>
-        `).join('')}
-      </div>
-    ` : '';
 
     // 요청 — 버튼을 누르기 전엔 오른쪽에 아무 창도 없다가(폭 0, 완전히 안 보임),
     // "근거메일 보기"를 누르는 순간에만 오른쪽에서 서랍(drawer)처럼 튀어나오도록 한다.
@@ -381,7 +257,6 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
         <div class="gw-answer-main">
           <div class="gw-result-card">${answerHtml}</div>
           ${sourceHtml}
-          ${sourceMailHtml}
         </div>
         ${hasSourceMails ? `
           <div class="gw-mail-drawer" id="gw-mail-drawer">
@@ -396,8 +271,23 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
 
     if (hasSourceMails) {
       const drawer = resultEl.querySelector('#gw-mail-drawer');
+      const answerMain = resultEl.querySelector('.gw-answer-main');
       const detailPanel = drawer.querySelector('.gw-mail-detail-panel');
       const closeBtn = drawer.querySelector('.gw-mail-drawer-close');
+
+      // 요청 — 서랍은 항상 답변 카드와 같은 높이로 늘어나되(위아래 선 일치),
+      // 그 안에 표시되는 메일 본문이 그보다 길어도 서랍 자체가 카드보다 더
+      // 커지지 않고 내부에서만 스크롤되도록, 서랍의 최대 높이를 답변 카드의
+      // 실제 렌더링 높이로 캡(cap)한다(overflow-y: auto는 scss에 이미 있음).
+      function syncDrawerHeight() {
+        if (!answerMain) return;
+        drawer.style.maxHeight = answerMain.getBoundingClientRect().height + 'px';
+      }
+      syncDrawerHeight();
+      if (currentResizeHandler) window.removeEventListener('resize', currentResizeHandler);
+      currentResizeHandler = syncDrawerHeight;
+      window.addEventListener('resize', currentResizeHandler);
+
       resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           loadSourceMail(btn, detailPanel);
@@ -421,12 +311,6 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     showLoading(q);
     saveRecent(q);
     renderRecents();
-
-    const hardcoded = findHardcodedMailAnswer(domain, q);
-    if (hardcoded) {
-      setTimeout(() => showResult(q, hardcoded.answer, hardcoded.sourceIds), 900);
-      return;
-    }
 
     const userId = getUserId();
     try {

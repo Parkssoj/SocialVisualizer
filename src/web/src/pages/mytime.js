@@ -14,13 +14,18 @@ bootstrapApp("mytime");
 document.addEventListener("DOMContentLoaded", () => {
   // 사이드바 렌더링 + 계정/채팅방 목록 조회는 initGlobalFilter가 전부 처리한다.
   initGlobalFilter((filterState, meta) => {
-    // 초기 호출(isInitial)은 이미 아래 userIdPromise/chatroomIdPromise 흐름이
-    // 처리 중이므로 무시. 사이드바(또는 상단 계정 토글)에서 실제로 선택이 바뀐
-    // 경우에만 반응한다. 예전엔 여기서 location.reload()를 호출했는데, 그러면
-    // 사이드바를 포함한 전체 DOM이 통째로 다시 그려져서 "사이드바가 닫혔다가
-    // 다시 펼쳐지는" 것처럼 보였다 — 지금은 initMail()/loadMtMessengerData()를
-    // 직접 다시 불러서 사이드바는 그대로 둔 채 콘텐츠만 새로고침한다.
-    if (meta && meta.isInitial) return;
+    // 예전엔 여기서 { isInitial: true } 콜백(=페이지가 열릴 때 사이드바가 실제로
+    // 뭘 선택하고 있는지 알려주는 첫 신호)을 무시했다 — 대신 아래 userIdPromise가
+    // 채널 구분 없이 무조건 메일 데이터를 불러오는 걸로 초기 렌더링을 처리한다고
+    // 가정했는데, 그러면 사이드바가 메신저 방을 고른 채로 열려도 메일 화면이 뜨는
+    // 경우가 생겼다(어느 비동기 흐름이 먼저 끝나느냐는 순전히 타이밍 문제였음).
+    // 지금은 filterSync.js가 사이드바의 실제 선택 상태를 무조건 한 번은 확실히
+    // 전달해주므로, isInitial 여부와 상관없이 항상 그 상태를 그대로 반영한다 —
+    // 페이지는 무조건 사이드바가 고른 채널만 그린다. 예전엔 선택이 바뀔 때
+    // location.reload()를 호출했는데, 그러면 사이드바를 포함한 전체 DOM이 통째로
+    // 다시 그려져서 "사이드바가 닫혔다가 다시 펼쳐지는" 것처럼 보였다 — 지금은
+    // initMail()/loadMtMessengerData()를 직접 다시 불러서 사이드바는 그대로 둔 채
+    // 콘텐츠만 새로고침한다.
     if (filterState.mail) {
       setMtChannel("mail");
       initMail(filterState.mail);
@@ -37,7 +42,10 @@ const userIdPromise = initAccountPicker(
   document.getElementById("account-picker-mount"),
   (selectedMail) => {
     if (selectedMail) {
-      store.setFilter("room", null);
+      // setFilter("mail", ...) 한 번이면 반대쪽(room)은 store가 알아서 null
+      // 처리한다(globalStore.js의 applySelection 참고) — room을 먼저 null로
+      // 지우는 별도 호출을 두면 그 사이에 중간(둘 다 없음) 상태가 생겨서
+      // 리스너가 재진입하는 원인이 된다.
       store.setFilter("mail", selectedMail);
       refreshSidebarList();
     }
@@ -518,16 +526,9 @@ function createTimeline(ids) {
     FIRST_NUM = monthToNum(ALL_KEYS[0]);
     const LAST_NUM = monthToNum(ALL_KEYS[ALL_KEYS.length - 1]);
     TOTAL = LAST_NUM - FIRST_NUM || 1;
-    // 요청 — 기본으로 뜨는 연도가 맨 앞쪽(예: 2020년)이던 걸 2026년도로. 예전엔
-    // centerIdx를 항상 맨 앞쪽 인덱스(2)로 고정해서, 아래 pinDefaultLast()가 오른쪽
-    // 패널엔 최신(2026) 데이터를 채워놓는 것과 달리 타임라인 슬라이더/연도 점은
-    // 여전히 맨 처음 연도에 맞춰진 채로 어긋나 보였다 — 2026년의 마지막 달(없으면
-    // 데이터상 가장 최근 달)로 맞춰서 슬라이더와 오른쪽 패널이 항상 같은 연도를
-    // 보여주게 함.
-    const keys2026 = ALL_KEYS.filter((k) => k.startsWith("2026-"));
-    centerIdx = keys2026.length
-      ? ALL_KEYS.indexOf(keys2026[keys2026.length - 1])
-      : ALL_KEYS.length - 1;
+    // 타임라인 슬라이더/연도 점의 기본 위치를 아래 pinDefaultLast()가 채우는
+    // 오른쪽 패널(최신 데이터)과 맞춰서, 항상 데이터상 가장 최근 달을 가리키게 한다.
+    centerIdx = ALL_KEYS.length - 1;
 
     buildPointer();
     render();
@@ -956,38 +957,48 @@ async function initMail(gmailId) {
     YEAR_DATA,
     "아직 생성된 요약이 없습니다. 데이터 분석하기를 먼저 실행해주세요.",
   );
-
-  async function initSelfAvatar() {
-    if (!gmailId) return;
-    // "My" 프로필 박스는 없앴지만, 전체 타임라인 위를 이동하는 작은 "나" 커서
-    // 아이콘(pointerCursor/msgPointerCursor)에는 계속 내 아바타를 써준다.
-    const applyAvatar = (url) => {
-      if (!url) return;
-      const cursorEl = document.getElementById("pointerCursor");
-      const msgCursorEl = document.getElementById("msgPointerCursor");
-      if (cursorEl) cursorEl.innerHTML = `<img src="${url}" alt="나">`;
-      if (msgCursorEl) msgCursorEl.innerHTML = `<img src="${url}" alt="나">`;
-    };
-    try {
-      const cache = await postJSON("/self-avatar", { user_id: gmailId });
-      if (cache.url) {
-        applyAvatar(cache.url);
-        return;
-      }
-      const myName = sessionStorage.getItem("gw_user_name") || "나";
-      const gen = await postJSON("/generate-self-avatar", {
-        user_id: gmailId,
-        name: myName,
-      });
-      if (gen.url) applyAvatar(gen.url);
-    } catch (e) {
-      console.error("내 아바타 로드 오류:", e);
-    }
-  }
-  initSelfAvatar();
 }
 
-userIdPromise.then((gmailId) => initMail(gmailId || ""));
+// "My" 프로필 박스는 없앴지만, 전체 타임라인 위를 이동하는 작은 "나" 커서
+// 아이콘(pointerCursor/msgPointerCursor)에는 계속 내 아바타를 써준다. 메일/메신저
+// 어느 채널로 페이지가 열리든 커서는 둘 다 화면에 있을 수 있으므로, 예전처럼
+// initMail() 안에 묶어두지 않고 채널과 무관하게 한 번만 독립적으로 불러온다
+// (예전엔 initMail이 무조건 페이지 로드 시 한 번 불려서 부수효과로 이게 됐었는데,
+// 사이드바가 메신저를 고른 채로 열리면 initMail 자체가 이제 안 불리기 때문).
+async function initSelfAvatar(gmailId) {
+  if (!gmailId) return;
+  const applyAvatar = (url) => {
+    if (!url) return;
+    const cursorEl = document.getElementById("pointerCursor");
+    const msgCursorEl = document.getElementById("msgPointerCursor");
+    if (cursorEl) cursorEl.innerHTML = `<img src="${url}" alt="나">`;
+    if (msgCursorEl) msgCursorEl.innerHTML = `<img src="${url}" alt="나">`;
+  };
+  try {
+    const cache = await postJSON("/self-avatar", { user_id: gmailId });
+    if (cache.url) {
+      applyAvatar(cache.url);
+      return;
+    }
+    const myName = sessionStorage.getItem("gw_user_name") || "나";
+    const gen = await postJSON("/generate-self-avatar", {
+      user_id: gmailId,
+      name: myName,
+    });
+    if (gen.url) applyAvatar(gen.url);
+  } catch (e) {
+    console.error("내 아바타 로드 오류:", e);
+  }
+}
+
+// 예전엔 여기서 채널과 상관없이 무조건 initMail(gmailId)을 불러서, 사이드바가
+// 메신저를 고른 채로 페이지가 열려도 메일 데이터를 불러와 채우는 게 실제
+// 원인이었다(그 상태에서 위 filterSync.js의 isInitial 스킵 버그까지 겹치면
+// setMtChannel("messenger")가 아예 안 불려서, 기본 표시 채널인 메일 화면에
+// 그 메일 데이터가 그대로 보였다). initMail()은 이제 DOMContentLoaded 콜백에서
+// filterState.mail이 실제로 선택된 경우에만 부르고, 여기서는 채널과 무관한
+// 자기 아바타만 독립적으로 불러온다.
+userIdPromise.then((gmailId) => initSelfAvatar(gmailId || ""));
 
 /* ══════════════════════ 메신저 뷰 ══════════════════════ */
 const msgKwPanel = createKeywordPanel(

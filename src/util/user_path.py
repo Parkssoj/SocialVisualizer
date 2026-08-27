@@ -148,6 +148,30 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
+# 요청 — 메신저(카카오) 업로드 시 사용자가 이미 입력/추측된 방 이름을 알고 있는데,
+# 인덱싱이 끝나야만(chatroom DB 테이블에 이름이 들어가야만) 화면에 이름이 보였다.
+# 인덱싱 중에도 업로드 시점에 알고 있던 이름을 그대로 보여줄 수 있도록, account.json에
+# room_name도 같이 저장해둔다 (list_accounts/list_indexed_chatrooms/get_chatroom_name이
+# 인덱싱 전엔 이 값을 폴백으로 사용).
+def set_account_room_name(paths: "UserPaths", room_name: str):
+    if not room_name:
+        return
+    try:
+        os.makedirs(paths.USER_ROOT, exist_ok=True)
+        meta = {}
+        if os.path.exists(paths.ACCOUNT_META_PATH):
+            try:
+                with open(paths.ACCOUNT_META_PATH, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                meta = {}
+        meta["user_id"] = paths.USER_ID
+        meta["room_name"] = room_name
+        with open(paths.ACCOUNT_META_PATH, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False)
+    except OSError:
+        pass
+
 # 계정 하나의 인덱싱 완료 여부를 RAG_ENGINE에 맞는 방식으로 판단한다.
 # app.py의 _index_ready()와 같은 분기지만, user_path.py가 app.py를 import할 수 없어서
 # (순환 참조) 여기 따로 둔다. RAG_ENGINE이 바뀌어도 이 함수만 보면 되도록 모아뒀다.
@@ -210,10 +234,13 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
 
             meta_path = os.path.join(dir_path, ACCOUNT_META_FILENAME)
             user_id = None
+            room_name = None
             if os.path.exists(meta_path):
                 try:
                     with open(meta_path, "r", encoding="utf-8") as f:
-                        user_id = (json.load(f).get("user_id") or "").strip()
+                        meta = json.load(f)
+                        user_id = (meta.get("user_id") or "").strip()
+                        room_name = (meta.get("room_name") or "").strip() or None
                 except (OSError, json.JSONDecodeError):
                     user_id = None
 
@@ -227,6 +254,9 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
                 "user_id": user_id,
                 "indexed": _account_indexed(paths),
                 "indexed_at": _account_indexed_at(paths),
+                # 메신저(카카오) 업로드 시점에 저장해둔 방 이름 — 인덱싱 전엔 chatroom
+                # DB 테이블에 이름이 없으므로, 있으면 이걸 폴백으로 쓴다(list_indexed_chatrooms 참고).
+                "room_name": room_name,
             })
 
     # 가장 최근에 인덱싱된 계정이 맨 앞에 오도록 정렬 — 사이드바 기본 선택값이

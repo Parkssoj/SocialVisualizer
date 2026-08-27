@@ -17,20 +17,10 @@ if (gmailIdParam) localStorage.setItem('gw_user_id', decodeURIComponent(gmailIdP
 const flaskUrlParam = params.get('flask_url');
 if (flaskUrlParam) localStorage.setItem('gw_flask_url', decodeURIComponent(flaskUrlParam));
 
-// 요청 — 지식그래프 페이지를 열었을 때 03yeah03@gmail.com 계정의 그래프가 기본으로
-// 먼저 뜨도록. My People/My Time/Recap이 공유하는 'gw_user_id'와는 별도의 저장키를
-// 써서, 이 페이지의 기본 선택이 다른 페이지의 계정 표시에 영향을 주지 않게 한다.
+// My People/My Time/Recap이 공유하는 'gw_user_id'와는 별도의 저장키를 써서,
+// 이 페이지에서 고른 계정이 다른 페이지의 계정 선택에 영향을 주지 않게 한다.
 // URL에 gmail_id가 명시된 경우엔 그걸 그대로 우선한다.
 var GRAPH_MAIL_STORAGE_KEY = 'gw_graph_mail_user_id';
-var DEFAULT_GRAPH_MAIL_USER_ID = '03yeah03@gmail.com';
-
-// 요청 — 계정 토글에 표시되는 이름은 03yeah03@gmail.com ↔ 03yeeun03@naver.com을
-// 서로 맞바꿔서 보여준다(실제 그래프 데이터를 불러오는 user_id 값 자체는 그대로이고
-// 드롭다운 라벨 텍스트만 바뀜).
-var GRAPH_LABEL_OVERRIDES = {
-  '03yeah03@gmail.com': '03yeeun03@naver.com',
-  '03yeeun03@naver.com': '03yeah03@gmail.com',
-};
 if (gmailIdParam) {
   localStorage.setItem(GRAPH_MAIL_STORAGE_KEY, decodeURIComponent(gmailIdParam));
 }
@@ -88,7 +78,7 @@ function loadDomain(domain) {
   document.getElementById('domain-btn-message').setAttribute('aria-selected', String(domain === 'messenger'));
 
   var storageKey = domain === 'mail' ? GRAPH_MAIL_STORAGE_KEY : 'gw_message_room_id';
-  return initAccountPicker(document.getElementById('account-picker-mount'), loadGraphData, { domain, storageKey, showRealEmail: true, hideIndexingBadge: true, labelOverrides: GRAPH_LABEL_OVERRIDES })
+  return initAccountPicker(document.getElementById('account-picker-mount'), loadGraphData, { domain, storageKey })
     .then(function(effectiveUserId) { return loadGraphData(effectiveUserId); });
 }
 
@@ -96,10 +86,5 @@ document.getElementById('domain-btn-mail').addEventListener('click', function() 
 document.getElementById('domain-btn-message').addEventListener('click', function() { loadDomain('messenger'); });
 
 window.addEventListener('load', function() {
-  if (!gmailIdParam) {
-    // 페이지를 새로 열 때마다(이전 세션에서 다른 계정을 골랐었더라도) 항상
-    // 03yeah03@gmail.com 그래프가 먼저 뜨도록 매 로드마다 기본값으로 되돌린다.
-    localStorage.setItem(GRAPH_MAIL_STORAGE_KEY, DEFAULT_GRAPH_MAIL_USER_ID);
-  }
   loadDomain('mail');
 });

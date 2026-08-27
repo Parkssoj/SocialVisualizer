@@ -706,11 +706,41 @@ function guessMessageRoomNameClient(text, fallback) {
   return fallback;
 }
 
+// 카카오톡 대화 내보내기 .txt가 UTF-8이 아니라 EUC-KR/CP949(윈도우 구버전 카카오톡에서
+// 흔함)로 저장돼 있으면, UTF-8로 그냥 읽었을 때 "년/월/일/오전/오후" 같은 날짜 표시가
+// 전부 깨진 문자로 나와서 파서 정규식이 단 한 줄도 못 잡고 "저장 0개"로 끝나버린다.
+// ArrayBuffer로 읽어서 UTF-8을 먼저 엄격 모드로 시도하고, 실패하거나(잘못된 바이트) 디코딩은
+// 됐는데 정작 "카카오톡 대화"/날짜 패턴이 하나도 안 보이면 EUC-KR로 다시 디코딩해본다.
+function decodeMessageFileBuffer(buf) {
+  let utf8Text = null;
+  try {
+    utf8Text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch (e) {
+    utf8Text = null;
+  }
+
+  const looksParseable = (text) =>
+    /카카오톡\s*대화|\d{4}년\s*\d{1,2}월\s*\d{1,2}일|\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\./.test(
+      text,
+    );
+
+  if (utf8Text && looksParseable(utf8Text)) return utf8Text;
+
+  try {
+    const eucKrText = new TextDecoder("euc-kr").decode(buf);
+    if (looksParseable(eucKrText)) return eucKrText;
+  } catch (e) {
+    // euc-kr 디코딩도 실패하면 그냥 아래에서 utf8Text(또는 빈 문자열)로 폴백
+  }
+
+  return utf8Text || "";
+}
+
 function handleMessageFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
-    messageFileText = reader.result;
+    messageFileText = decodeMessageFileBuffer(reader.result);
     const nameEl = document.getElementById("message-file-name");
     nameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
     nameEl.style.display = "";
@@ -723,7 +753,7 @@ function handleMessageFile(file) {
       );
     }
   };
-  reader.readAsText(file, "utf-8");
+  reader.readAsArrayBuffer(file);
 }
 
 const messageDropzone = document.getElementById("message-dropzone");

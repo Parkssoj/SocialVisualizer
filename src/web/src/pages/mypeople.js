@@ -79,14 +79,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // (그 안에서 renderAppSidebar도 호출하므로 여기서 다시 부르지 않음 — 두 번
   // 그리면 토글 버튼에 이벤트가 매번 새로 붙으면서 깜빡였다).
   initGlobalFilter((filterState, meta) => {
-    // 초기 호출(isInitial)은 이미 userIdPromise/chatroomIdPromise 흐름이 처리 중이므로
-    // 무시하고, 사이드바(또는 상단 계정 토글)에서 실제로 선택이 바뀐 경우에만 반응한다.
-    // 새로고침(location.reload) 대신 currentMailId/selectedChatroomId를 갱신하고
-    // 해당 데이터만 다시 불러와서 다시 그린다 — 새로고침을 하면 페이지 전체가
-    // 잠깐 하얗게 사라졌다 다시 뜨면서 사이드바도 닫혔다 열리는 것처럼 보였는데,
-    // 이제는 사이드바는 화면에 계속 그대로 떠 있고 카드/타임라인만 바뀐다.
-    if (meta && meta.isInitial) return;
-
+    // 예전엔 여기서 { isInitial: true } 콜백(=페이지가 막 열렸을 때 사이드바가
+    // 실제로 뭘 골랐는지 알려주는 호출)을 무시했다 — "그건 이미 userIdPromise/
+    // chatroomIdPromise 흐름이 처리해준다"고 가정했기 때문인데, 그 흐름은 메일
+    // 계정만 자동으로 채널 구분 없이 불러오는 별도 경로라 사이드바가 메신저 방을
+    // 고른 상태로 열려도 메일 데이터가 뜨는 원인이 됐다(두 비동기 흐름 중 뭐가
+    // 먼저 끝나느냐는 순전히 타이밍). 지금은 filterSync.js가 사이드바 상태를
+    // 무조건 한 번은 확실히 전달해주므로, isInitial 여부와 상관없이 항상 그
+    // 상태를 그대로 반영한다 — 페이지는 무조건 사이드바가 고른 채널만 그린다.
     if (filterState.mail) {
       currentMailId = filterState.mail;
       avatarGenStarted = false; // 새 계정 기준으로 아바타 생성도 다시 돌게
@@ -240,14 +240,6 @@ const BRAND_DISPLAY_NAMES = new Set([
   "마이크로소프트",
   "microsoft 365",
   "xbox",
-  // 요청 — 광고 제거 토글에서 이 시연용 브랜드 계정들도 같이 걸러지도록 추가
-  "무신사",
-  "예스24",
-  "쿠팡",
-  "올리브영",
-  "클래스유",
-  "배달의민족",
-  "네이버",
   "neo4j",
   "the neo4j team",
   "facebook",
@@ -460,7 +452,6 @@ function fmtShort(ms) {
 }
 
 let allPeople = [];
-let fakeTestPeriodStats = {};
 let globalFirst = 0,
   globalLast = 0;
 let selMin = 0,
@@ -631,7 +622,6 @@ async function fetchPeriodStats() {
       });
     }
     periodStats = newStats;
-    Object.assign(periodStats, fakeTestPeriodStats);
     periodStatsLoaded = true;
   } catch (e) {
     console.error("fetchPeriodStats 오류:", e);
@@ -881,13 +871,6 @@ function updateFill() {
   }
 }
 
-// 요청 — 시연 시작 시 타임슬라이더 시작 지점을 2017.01.04로. 왼쪽 경계 라벨
-// (tl-start-lbl, 마찬가지로 2017.01.04로 하드코딩)과 정확히 일치시켜야 "선택된
-// 기간" 텍스트에 다른 날짜(예: 2017.02.05)가 안 뜬다.
-// 버그 수정 — new Date(year, month, day)의 month는 0부터 시작(0=1월)이라
-// new Date(2017, 1, 4)는 실제로 2월 4일이었음. 1월 4일을 만들려면 month에 0을 써야 함.
-const TL_DEFAULT_START_MS = new Date(2017, 0, 4).getTime();
-
 function initTimeline(firstMs, lastMs) {
   globalFirst = firstMs;
   globalLast = lastMs;
@@ -896,21 +879,12 @@ function initTimeline(firstMs, lastMs) {
 
   const inMin = document.getElementById("tl-min");
   const inMax = document.getElementById("tl-max");
-  const defaultStartMs = Math.min(
-    Math.max(TL_DEFAULT_START_MS, firstMs),
-    lastMs,
-  );
-  const defaultStartVal =
-    firstMs < lastMs ? msToVal(defaultStartMs) : 0;
-  inMin.value = Math.max(0, Math.min(1000, defaultStartVal));
+  inMin.value = 0;
   inMax.value = 1000;
   selMin = valToMs(+inMin.value);
   selMax = lastMs;
 
-  // 요청 — 03yeah03@gmail.com 타임라인 시작 라벨을 실제 데이터 시작일(2017.01.07)
-  // 대신 2017.01.04로 표시(화면 표시만 바꾼 것, 슬라이더 계산/실제 데이터는 그대로).
-  document.getElementById("tl-start-lbl").textContent =
-    currentChannel === "mail" ? "2017.01.04" : fmtDate(firstMs);
+  document.getElementById("tl-start-lbl").textContent = fmtDate(firstMs);
   document.getElementById("tl-end-lbl").textContent = fmtDate(lastMs);
 
   buildTicks(firstMs, lastMs);
@@ -1434,47 +1408,13 @@ async function openChatroom(chatroomId, chatroomName) {
   await fetchAndRenderChatroomPeople(moodPromise);
 }
 
-// 요청 — "IT 공과대학" 방 참여자 이름을 화면 표시만 바꿔치기(실제 참여자
-// 식별자/데이터는 그대로 두고, 사람 이름이 나오는 자리마다 이걸로 감싸서 씀).
-const IT_ROOM_NAME = "IT 공과대학";
-const IT_ROOM_NAME_OVERRIDES = {
-  "김동현": "이현우",
-  "성진": "진성",
-  "소윤": "은희",
-  "유승준": "전도빈",
-  "이예빈": "이예나",
-  "준호": "호준",
-};
 function applyRoomNameOverride(chatroomName, name) {
-  if (chatroomName === IT_ROOM_NAME && IT_ROOM_NAME_OVERRIDES[name]) {
-    return IT_ROOM_NAME_OVERRIDES[name];
-  }
   return name;
 }
 
-// 요청 — "3학년 4반 고등학교" 단톡방 김도현 상세보기의 "참여 패턴" 설명이 우리
-// UI(참여 패턴/자주 하는 이야기/말투로 나뉜 키:값 카드)를 안 쓰고 그냥 글자만
-// 나와서, 고등학교 동창 모임다운 내용으로 새로 써서 같은 형식으로 하드코딩.
-// 방 이름은 실제 표시값이 "3학년 4반 고등학교"/"...단톡방" 등으로 정확히 뭔지
-// 확실하지 않을 수 있어 includes로 느슨하게 매칭.
-const MESSENGER_DESC_OVERRIDES = {
-  "김도현": {
-    room: "3학년 4반 고등학교",
-    description:
-      "참여 패턴: 활발히 참여합니다.\n" +
-      "자주 하는 이야기: 근황, 취업, 동창회 약속 같은 친구들 사는 이야기를 자주 나눕니다.\n" +
-      "말투: 반말로 편하게 얘기하며, 이모티콘도 자주 사용합니다.",
-  },
-};
 function applyMessengerDescriptionOverride(chatroomName, person) {
-  const ov = MESSENGER_DESC_OVERRIDES[person && person.name];
-  if (ov && (chatroomName || "").includes(ov.room)) return ov.description;
   return person ? person.description : null;
 }
-
-// 요청 — 김도현 상세보기를 처음 열었을 때는 메신저 통계가 최신 달(오른쪽 끝) 대신
-// 맨 처음 달(왼쪽 끝)부터 보이도록.
-const MESSENGER_STATS_SCROLL_LEFT_PEOPLE = new Set(["김도현"]);
 
 async function fetchAndRenderChatroomPeople(moodPromise) {
   // 버그 수정 — 아래 fetch/await가 진행되는 사이 사용자가 다른 방을 누르거나 메일로
@@ -1897,14 +1837,8 @@ function renderMessengerBarChart(data) {
   // 바꿔서 기간이 길어도(2020~2026년) 라벨이 겹치지 않게 한다.
   chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
-  // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다(요청) — 다만 김도현은
-  // 처음 열었을 때 맨 처음 달(왼쪽 끝, 고2 시절부터 시작하는 서사)부터 보이도록 예외.
-  const scrollToStart =
-    currentMessengerPerson &&
-    MESSENGER_STATS_SCROLL_LEFT_PEOPLE.has(currentMessengerPerson.name);
-  const target = scrollToStart
-    ? data.monthly[0]
-    : data.monthly[data.monthly.length - 1];
+  // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다.
+  const target = data.monthly[data.monthly.length - 1];
   const targetGroup = chartArea.querySelector(
     `.mp-vchart-group[data-month="${target.month}"]`,
   );
