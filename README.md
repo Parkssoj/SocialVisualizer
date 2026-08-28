@@ -3,7 +3,7 @@
 
 ---
 
-## 🎬 Video
+## 🎬 시연 영상
 
 <a href="https://youtu.be/RDueDD39eTI?si=E3ReXJa3mdewYrBK">
     <img width="60%" alt="video-thumbnail" src="./docs/images/video-thumbnail.png">
@@ -12,17 +12,26 @@
 
 ---
 
-## 📚 Guides
-Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참고하세요.
+## 📚 가이드
+| 목적 | 문서 |
+|------|------|
+| 설치 · 실행 · 확장 | [docs/SETUP.md](docs/SETUP.md) |
+| 프로젝트 라이선스 | [LICENSE](LICENSE) — MIT |
+| 사용 오픈소스 목록 (SBOM) | [docs/SBOM.csv](docs/SBOM.csv) |
+
 
 ---
 
 ## 📋 목차
 
+[시스템 소개](#-시스템-소개) · [아키텍처](#-시스템-구성-및-아키텍쳐) · [주요 기능](#-시스템-주요-기능) · [기대효과](#-기대효과-및-활용-분야) · [차별성 및 혁신성](#-차별성-및-혁신성) · [개발 환경](#-개발-환경)
+
+
 ---
 
 ## 💡 시스템 소개
 ### 1. 개발 배경
+
 사람들은 일상과 업무 속에서 <b>방대한 규모의 소셜 데이터(메일·메신저 등)를 축적</b>한다. 이러한 <b>소셜 데이터</b>에는 단순한 대화 내용뿐만 아니라 <b>사람 간 관계, 사건, 시간에 따른 변화 등 개인의 사회적 행적</b>을 보여주는 다양한 정보가 포함되어 있다. 이를 활용해 인간관계·사건 변화 등을 추적하거나 지능적으로 분석하고자 하는 수요가 존재한다.<br>
 
 현재는 소셜 서비스에서의 <b>단순 검색</b> 또는 <b>대화형 LLM을 통한 질의나 분석</b>이 보편적이다. 이러한 방식의 문제점은 다음과 같다.
@@ -37,11 +46,12 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 ---
 
 ### 2. 개발 목표
+
 메일·메신저·회의록·통화녹음 등 유형과 관계없이 <b>어떤 소셜 데이터</b>라도 <b>문맥 분석이 가능한 지식 그래프</b>로 구축하고, 개인이나 조직의 관심사, <b>인물·시간 관계</b> 등을 세밀하게 분석하여 <b>시각화</b>하는 오픈소스 플랫폼을 개발한다.
 
 ---
 
-## 🏗️ 시스템 구성 및 아키텍쳐
+## 🧱 시스템 구성 및 아키텍쳐
 
 <img width=100% alt="system-architecture" src="./docs/images/system-architecture.png"><br>
 
@@ -57,7 +67,7 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 
  ◼ <u><b>오픈소스 AI 서버</b></u>: 기능별로 역할을 분담해 모델 구성
 
- <details>
+<details>
 <summary><b>AI 모델 상세</b></summary>
 
 | 구분 | 모델 | 용도 | 라이선스 |
@@ -129,6 +139,7 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 ---
 
 ## 🚀 기대효과 및 활용 분야
+
 - <b>방대한 소셜 데이터</b>에 담긴 과거/현재의 <b>인간관계·시간의 흐름·활동 파악</b>용으로 활용
 - 개인이나 조직에서 사건·범죄 등의 <b>특수한 이벤트 추적용</b>으로 활용
 - 개인이나 조직에서 <b>사건의 흐름을 시간·인물별로 파악</b>하는 도구로 수정 및 확장 가능
@@ -137,6 +148,7 @@ Social Visualizer 실행하거나 (수정/확장)하려면 다음 문서를 참�
 ---
 
 ## 💎 차별성 및 혁신성
+
 Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LLM으로는 다루기 어려웠던, <b>대량의 소셜 데이터</b>에 축적된 <b>사회활동 기록의 맥락을 분석</b>한다는 점에서 큰 의의를 가진다. 주요 차별성과 혁신성은 다음과 같다.
 
 ◼ <b><u>방대한 소셜 데이터의 맥락 파악에 용이한 방법 제시/구축/실용성 증명</u></b><br>
@@ -168,10 +180,24 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 ![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white)
 ![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white)
 ![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![CSS](https://img.shields.io/badge/CSS-1572B6?logo=css3&logoColor=white)
 
 ## ⚙️ 개발 도구 및 라이브러리
+![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white)
+![LanceDB](https://img.shields.io/badge/LanceDB-25A0A0?logoColor=white)
+![NetworkX](https://img.shields.io/badge/NetworkX-2C7BB6?logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
+![Apache Arrow](https://img.shields.io/badge/Apache_Arrow-1A1A2E?logo=apachearrow&logoColor=white)
+![spaCy](https://img.shields.io/badge/spaCy-09A3D5?logo=spacy&logoColor=white)
+![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
+![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-4B8BBE?logoColor=white)
+![python-docx](https://img.shields.io/badge/python--docx-2B579A?logoColor=white)
+![Pillow](https://img.shields.io/badge/Pillow-3776AB?logoColor=white)
+
 
 ---
 
