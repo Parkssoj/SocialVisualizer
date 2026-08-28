@@ -1,5 +1,5 @@
 # _Social Visualizer_
-소셜 데이터를 지식 그래프로 구조화하여, 인물 간 관계와 시간의 흐름을 분석·시각화하고 자연어 검색이 가능한 오픈소스 플랫폼
+> 소셜 데이터를 지식 그래프로 구조화하여, 인물 간 관계와 시간의 흐름을 분석·시각화하고 자연어 검색이 가능한 오픈소스 플랫폼
 
 ---
 
@@ -7,24 +7,29 @@
 
 <a href="https://youtu.be/RDueDD39eTI?si=E3ReXJa3mdewYrBK">
     <img width="60%" alt="video-thumbnail" src="./docs/images/video-thumbnail.png">
-    <div>👉 시연영상 보러가기</div>
+    <div>👉 시연 영상 보러 가기</div>
 </a>
 
 ---
 
 ## 📚 가이드
-| 목적 | 문서 |
-|------|------|
-| 설치 · 실행 · 확장 | [docs/SETUP.md](docs/SETUP.md) |
-| 프로젝트 라이선스 | [LICENSE](LICENSE) — MIT |
-| 사용 오픈소스 목록 (SBOM) | [docs/SBOM.csv](docs/SBOM.csv) |
 
+<table>
+  <tr><td>설치 · 실행 · 확장</td><td><a href="EXECUTE.md">EXECUTE</a></td></tr>
+  <tr><td>라이선스</td><td><a href="LICENSE">LICENSE</a> · <a href="LICENSE_3rd.md">THIRD PARTY</a></td></tr>
+  <tr><td>SW 자재명세서</td><td><a href="SBOM.csv">SBOM</a></td></tr>
+</table>
 
 ---
 
 ## 📋 목차
 
-[시스템 소개](#-시스템-소개) · [아키텍처](#-시스템-구성-및-아키텍쳐) · [주요 기능](#-시스템-주요-기능) · [기대효과](#-기대효과-및-활용-분야) · [차별성 및 혁신성](#-차별성-및-혁신성) · [개발 환경](#-개발-환경)
+- [시스템 소개](#-시스템-소개)
+- [시스템 구성 및 아키텍쳐](#-시스템-구성-및-아키텍쳐)
+- [시스템 주요 기능](#-시스템-주요-기능)
+- [기대효과 및 활용 분야](#-기대효과-및-활용-분야)
+- [차별성 및 혁신성](#-차별성-및-혁신성)
+- [기술 스택](#-기술-스택)
 
 
 ---
@@ -47,15 +52,15 @@
 
 ### 2. 개발 목표
 
-메일·메신저·회의록·통화녹음 등 유형과 관계없이 <b>어떤 소셜 데이터</b>라도 <b>문맥 분석이 가능한 지식 그래프</b>로 구축하고, 개인이나 조직의 관심사, <b>인물·시간 관계</b> 등을 세밀하게 분석하여 <b>시각화</b>하는 오픈소스 플랫폼을 개발한다.
+메일·메신저·회의록·통화 녹음 등 유형과 관계없이 <b>어떤 소셜 데이터</b>라도 <b>문맥 분석이 가능한 지식 그래프</b>로 구축하고, 개인이나 조직의 관심사, <b>인물·시간 관계</b> 등을 세밀하게 분석하여 <b>시각화</b>하는 오픈소스 플랫폼을 개발한다.
 
 ---
 
 ## 🧱 시스템 구성 및 아키텍쳐
 
-<img width=100% alt="system-architecture" src="./docs/images/system-architecture.png"><br>
+<img width="100%"alt="system-architecture" src="./docs/images/system-architecture.png"><br>
 
- ◼ <u><b>Social Visualizer 서버</u></b>
+ ◼ <u><b>Social Visualizer 서버</b></u>
 - <b>데이터 수집 모듈</b>: IMAP 프로토콜로 메일 수집. 파일 업로드 방식으로 메신저 수집
 - <b>데이터 전처리 모듈</b>: 정제·정렬·첨부파일 텍스트 추출 등 원문 소셜 데이터 전처리
 - <b>지식 그래프 생성 모듈</b>: 인물·관계·사건 등의 엔티티·관계 추출. GraphRAG/LightRAG 중 선택 가능하도록 모듈화
@@ -95,7 +100,6 @@
 ---
 
 ## ✨ 시스템 주요 기능
-### 1. 핵심 기능 및 특징
 
 ◼ <b><u>My People: 인물 간 관계 분석</u></b>
 
@@ -105,7 +109,7 @@
 - <b>아바타 프로필 생성</b>: 인물별 주요 특성 기반으로 프로필 이미지 생성
 - <b>인물 상세 정보</b>: 소통량·관계·주요 주제·키워드 등 인물별 상세 분석 결과 확인
 
-<img width="70%" alt="mypeople" src="./docs/images/mypeople.png">
+<img width="70%"alt="mypeople" src="./docs/images/mypeople.png">
 
 ---
 
@@ -114,7 +118,7 @@
 - <b>주요 사건 하이라이트</b>: 월/연별 주요 사건을 추출하여 핵심 활동과 변화 요약
 - <b>기간별 사건 분석</b>: 타임슬라이더로 설정한 기간의 주된 활동·주제·키워드·주요 연락처·일별 키워드 언급 횟수 등 시각화
 
-<img width="100%" alt="mytime" src="./docs/images/mytime.png">
+<img width="100%"alt="mytime" src="./docs/images/mytime.png">
 
 ---
 
@@ -125,14 +129,14 @@
 - <b>주요 키워드</b>: 반복적으로 등장한 핵심 키워드 가시화
 - <b>친밀도</b>: 전체 인물에 대한 친밀도 분석 및 시각화
 
-<img width="70%" alt="recap" src="./docs/images/recap.png">
+<img width="70%"alt="recap" src="./docs/images/recap.png">
 
 ---
 
 ◼ <b><u>자연어 검색</u></b>
 
-- <b>문맥 기반 탐색: 키워드에 한정되지 않고 자연어 질의를 통한 소셜 데이터 탐색
-- <b>플로팅 검색: 상단의 플로팅 아이콘을 통해 화면 이동 없이 어디에서든 질의 가능
+- <b>문맥 기반 탐색</b>: 키워드에 한정되지 않고 자연어 질의를 통한 소셜 데이터 탐색
+- <b>플로팅 검색</b>: 상단의 플로팅 아이콘을 통해 화면 이동 없이 어디에서든 질의 가능
 
 <img width="90%" alt="search" src="./docs/images/search.png">
 
@@ -171,17 +175,19 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 
 ---
 
-## ⚙️ 개발 환경
+## ⚙️ 기술 스택
+
+### 개발 환경
 ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
 
-## ⚙️ 개발 언어
+### 개발 언어
 ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white)
 ![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white)
 ![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
 
-## ⚙️ 개발 도구 및 라이브러리
+### 개발 도구 및 라이브러리
 ![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white)
@@ -194,10 +200,6 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 ![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
-![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-4B8BBE?logoColor=white)
-![python-docx](https://img.shields.io/badge/python--docx-2B579A?logoColor=white)
-![Pillow](https://img.shields.io/badge/Pillow-3776AB?logoColor=white)
-
 
 ---
 
