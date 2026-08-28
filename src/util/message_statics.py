@@ -1,9 +1,4 @@
 # src/util/message_statics.py
-#
-# extract_statics.py의 메신저(카카오톡) 버전. text_units.parquet에 저장된 메시지 블록을
-# 파싱해서 chatroom_people/message_keyword용 중간 JSON을 만든다 (mail 쪽의
-# mail_contact_stats.json / mail_keyword_stats.json과 동일한 역할).
-
 import os
 import re
 import json
@@ -19,7 +14,7 @@ client = OpenAI(
     base_url=os.getenv("SUB_TASK_API_BASE") or None,
 )
 
-# build_message_blocks()가 쓰는 대화 내용 줄 포맷과 정확히 대응:
+# build_message_blocks()가 쓰는 대화 내용 줄 포맷과 대응:
 #   "HH:MM 발신자: 메시지"          -> sender/text
 #   "HH:MM [알림] 메시지"           -> sys_text (입장/퇴장 등 시스템 메시지)
 _MSG_LINE_RE = re.compile(
@@ -27,9 +22,7 @@ _MSG_LINE_RE = re.compile(
 )
 
 
-# text_units.parquet의 모든 row를 훑어서 메시지 블록 단위로 파싱한다.
-# save_mail_to_db와 동일하게 [ID] 헤더가 있는 첫 청크만 사용(GraphRAG 청크 분할로 같은
-# 블록이 여러 row로 쪼개질 수 있음 — 헤더는 항상 첫 청크에 함께 있으므로 이 방식으로 충분).
+# documents.parquet을 훑어 대화 블록 하나당 dict(block_id/방이름/날짜/참여자/messages)로 파싱한 리스트를 반환한다
 def _parse_message_blocks_from_parquet(paths) -> list[dict]:
     import pandas as pd
 
@@ -98,7 +91,7 @@ def _parse_message_blocks_from_parquet(paths) -> list[dict]:
     return blocks
 
 
-# LLM으로 대화 블록 전체의 어조 판별 (message_block.llm_tone)
+# 하루치 대화 텍스트를 LLM에 넘겨 어조를 friendly / not_friendly로 판별한다
 def _classify_message_tone_with_llm(text: str) -> str:
     if not text.strip():
         return "not_friendly"
@@ -137,7 +130,7 @@ def _classify_message_tone_with_llm(text: str) -> str:
     return "friendly" if answer == "friendly" else "not_friendly"
 
 
-# 참여자별 "언제 무슨 메시지를 보냈는지" 이력을 저장 (chatroom_people.description 생성용 원본 데이터)
+# 참여자별 메시지 이력(시간·내용)을 JSON으로 저장한다 (프로필 생성용 원본 데이터, rewrite/append)
 def _save_chatroom_people_messages(paths, mode: str = "rewrite"):
     blocks = _parse_message_blocks_from_parquet(paths)
 
@@ -177,8 +170,7 @@ def _save_chatroom_people_messages(paths, mode: str = "rewrite"):
     print(f"[MSG_STATS] ({mode}) 참여자 {len(people)}명 메시지 이력 저장 완료 → {paths.CHATROOM_PEOPLE_MESSAGES_PATH}")
 
 
-# chatroom_people_messages.json(참여자별 메시지 리스트) 합산
-# 시스템 메시지는 JSON에 안 들어가므로 자동 제외
+# chatroom_people_messages.json의 전체 메시지 수를 합산해 반환한다 (시스템 메시지 제외)
 def count_total_messages(paths) -> int:
     if not os.path.exists(paths.CHATROOM_PEOPLE_MESSAGES_PATH):
         return 0
@@ -187,7 +179,7 @@ def count_total_messages(paths) -> int:
     return sum(len(messages) for messages in people.values())
 
 
-# 참여자별 메시지 이력(시간 포함)을 근거로 LLM 프로필 문장 생성 (DB 저장은 호출자가 담당)
+# 참여자별 메시지 이력을 LLM에 넘겨 {이름: 프로필 문장} dict를 생성한다 (DB 저장은 호출자 담당)
 def generate_chatroom_people_descriptions(paths) -> dict:
     if not os.path.exists(paths.CHATROOM_PEOPLE_MESSAGES_PATH):
         print("[MSG_PROFILES] 참여자 메시지 이력 없음 → 프로필 생성 건너뜀")
@@ -200,6 +192,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
 
     MAX_MESSAGES_FOR_PROMPT = 80
 
+    # 참여자 한 명의 최근 메시지 이력으로 프로필 생성 프롬프트를 만든다
     def _build_prompt(name, messages):
         ordered = sorted(messages, key=lambda m: m["datetime"])
         sample = ordered[-MAX_MESSAGES_FOR_PROMPT:]
@@ -213,6 +206,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
 자주 하는 이야기: <주로 어떤 주제/내용의 메시지를 보내는지 한 문장으로>
 말투: <반말/존댓말, 이모티콘 사용 등 말투 특징을 한 문장으로>""".strip()
 
+    # 참여자 한 명의 프로필을 LLM으로 생성해 (이름, 설명)을 반환한다
     def _call_llm(name, messages):
         try:
             prompt = _build_prompt(name, messages)
@@ -247,7 +241,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
     return descriptions
 
 
-# 참여자별·블록별 키워드 언급 횟수 저장 (message_keyword용 중간 JSON)
+# 블록마다 참여자별 메시지에서 LLM 키워드를 뽑아 언급 횟수를 집계해 JSON으로 저장한다 (rewrite/append)
 def _save_message_keyword_stats(paths, mode: str = "rewrite"):
     from util.extract_statics import extract_keywords_with_llm
 
@@ -278,9 +272,8 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
             body = "\n".join(texts).strip()
             if not body:
                 continue
-            # extract_keywords_with_llm은 "이날 주요 키워드가 뭔지"만 중복 없이 뽑아준다 —
-            # 실제 언급 횟수는 이 사람이 이 블록에서 보낸 메시지 원문에서 직접 센다
-            # (조사가 붙어도 "나무를"/"나무가"처럼 부분 문자열로 그대로 들어있어 count()로 잡힘).
+
+            # 실제 키워드 언급 횟수는 이 사람이 이 블록에서 보낸 메시지 원문에서 직접 센다
             keywords = extract_keywords_with_llm(body)
             for kw in keywords:
                 occurrence = sum(text.count(kw) for text in texts)
@@ -305,6 +298,7 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
     print(f"[MSG_KEYWORD] ({mode}) 키워드 {len(keyword_stats)}개 저장 완료 → {paths.MESSAGE_KEYWORDS_PATH}")
 
 
+# 참여자 메시지 이력 저장과 키워드 통계 저장을 병렬로 실행하는 메신저 통계 파이프라인
 def _extract_message_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     # 서로 다른 출력 파일(people/keywords)에 쓰고 순서 의존성이 없어 병렬 실행

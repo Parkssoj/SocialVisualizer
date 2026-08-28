@@ -24,16 +24,17 @@ from graphrag.query.structured_search.global_search.search import GlobalSearch #
 from graphrag_llm.tokenizer import create_tokenizer # v3: Tokenizer 객체 생성 팩토리
 from graphrag_llm.config import TokenizerConfig
 
-# OpenAI API를 직접 호출하도록 만든 커스텀 클래스 (api_base 지정 시 로컬 vLLM으로 라우팅)
+# GraphRAG 검색 엔진이 쓰는 채팅 모델 어댑터 — OpenAI(호환) API를 직접 호출하며 토큰 사용량을 누적한다
 class DirectOpenAIChatModel:
+    # 비동기 OpenAI 클라이언트를 만들고 모델명·토큰 카운터를 초기화한다 (api_base 지정 시 로컬 vLLM으로 라우팅)
     def __init__(self, api_key: str, model: str, api_base: str | None = None):
         self._client = openai.AsyncOpenAI(api_key=api_key, base_url=api_base) if api_base else openai.AsyncOpenAI(api_key=api_key) # 비동기 OpenAI(호환) 클라이언트
         self._model = model # 사용할 모델명
         self._input_tokens = 0
         self._output_tokens = 0
 
+    # 누적된 토큰 사용량을 반환하고 카운터를 0으로 초기화한다
     def consume_usage(self) -> dict:
-        """누적된 토큰 사용량을 반환하고 초기화한다."""
         result = {
             "model_name": self._model,
             "input_tokens": self._input_tokens,
@@ -43,7 +44,7 @@ class DirectOpenAIChatModel:
         self._output_tokens = 0
         return result
 
-    # v3: LocalSearch/GlobalSearch가 공통으로 호출하는 유일한 메서드
+    # LocalSearch/GlobalSearch가 호출하는 채팅 완성 진입점 — 응답의 토큰 사용량을 누적한다
     async def completion_async(self, *, messages, stream: bool = False, **kwargs):
         params = dict(kwargs)
         # graphrag_llm 전용 키워드(OpenAI API에는 없음) → OpenAI JSON mode로 변환
@@ -64,6 +65,7 @@ class DirectOpenAIChatModel:
             self._output_tokens += response.usage.completion_tokens
         return response
 
+    # 스트리밍 채팅 완성을 청크 단위로 yield하며 토큰 사용량을 누적한다
     async def _stream_completion(self, messages, params: dict) -> AsyncGenerator:
         stream = await self._client.chat.completions.create(
             model=self._model,
@@ -79,13 +81,14 @@ class DirectOpenAIChatModel:
             if chunk.choices:
                 yield chunk
 
-# OpenAI 호환 임베딩 API를 직접 호출하도록 만든 커스텀 클래스 (api_base 지정 시 로컬 vLLM으로 라우팅)
+# GraphRAG 컨텍스트 빌더가 쓰는 임베딩 어댑터 — OpenAI(호환) 임베딩 API를 직접 호출한다
 class DirectOpenAIEmbedder:
+    # 동기 OpenAI 클라이언트와 임베딩 모델명을 초기화한다 (api_base 지정 시 로컬 vLLM으로 라우팅)
     def __init__(self, api_key: str, model: str, api_base: str | None = None):
         self._client = openai.OpenAI(api_key=api_key, base_url=api_base) if api_base else openai.OpenAI(api_key=api_key) # 동기 OpenAI(호환) 클라이언트
         self._model = model # 사용할 임베딩 모델명
 
-    # v3: LocalSearchMixedContext가 text_embedder.embedding(input=[...]).first_embedding 형태로 호출함
+    # 입력 문자열 리스트를 임베딩해 _EmbeddingResponse로 감싸 반환한다
     def embedding(self, *, input: list[str], **kwargs) -> "_EmbeddingResponse":
         response = self._client.embeddings.create(
             input=input,
@@ -94,15 +97,18 @@ class DirectOpenAIEmbedder:
         return _EmbeddingResponse([d.embedding for d in response.data])
 
 
+# graphrag_llm의 LLMEmbeddingResponse를 흉내 내는 래퍼 (.embeddings / .first_embedding 속성만 제공)
 class _EmbeddingResponse:
-    """graphrag_llm의 LLMEmbeddingResponse 흉내: .first_embedding / .embeddings 속성만 있으면 됨"""
+    # 임베딩 벡터 리스트를 보관한다
     def __init__(self, embeddings: list[list[float]]):
         self._embeddings = embeddings
 
+    # 전체 임베딩 벡터 리스트를 반환한다
     @property
     def embeddings(self) -> list[list[float]]:
         return self._embeddings
 
+    # 첫 번째 임베딩 벡터를 반환한다 (없으면 빈 리스트)
     @property
     def first_embedding(self) -> list[float]:
         return self._embeddings[0] if self._embeddings else []
@@ -110,12 +116,12 @@ class _EmbeddingResponse:
 # 유저별 엔진 캐시
 _engine_cache: dict = {}
 
-# entities.parquet 마지막 수정시간 (전체 갱신이나 update 하면 entities.parquet 파일이 수정되니 캐시된 mtime과 비교해서 인덱싱 갱신 여부 감지)
+# entities.parquet의 마지막 수정 시각을 반환한다 (없으면 0.0) — 인덱스 갱신 감지용
 def _get_output_mtime(output_dir: str) -> float:
     p = os.path.join(output_dir, "entities.parquet")
     return os.path.getmtime(p) if os.path.exists(p) else 0.0
 
-#LocalSearch엔진 처음부터 빌드. (유저별 첫 요청이나 인덱싱 갱신시에만 호출)
+# parquet과 lancedb를 읽어 LocalSearch 엔진과 채팅 모델을 새로 조립해 반환한다
 def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearch, "DirectOpenAIChatModel"]:
     import pandas as pd
     lancedb_uri = os.path.join(output_dir, "lancedb")
@@ -206,6 +212,7 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
     )
     return engine, model
 
+# parquet(엔티티·커뮤니티·리포트)을 읽어 GlobalSearch 엔진과 채팅 모델을 새로 조립해 반환한다
 def _build_global_engine(output_dir: str, graphrag_root: str) -> tuple[GlobalSearch, "DirectOpenAIChatModel"]:
     import pandas as pd
     config = load_config(Path(graphrag_root))
@@ -269,7 +276,7 @@ def _build_global_engine(output_dir: str, graphrag_root: str) -> tuple[GlobalSea
     )
     return engine, model
 
-# 유저별 캐시된 엔진 반환
+# 유저별로 캐시된 (LocalSearch, GlobalSearch) 엔진을 반환한다 (캐시 미스·인덱스 갱신 시 새로 빌드)
 def get_engines(user_id: str, output_dir: str, graphrag_root: str) -> tuple[LocalSearch, GlobalSearch]:
     mtime = _get_output_mtime(output_dir)
 
@@ -298,8 +305,8 @@ def get_engines(user_id: str, output_dir: str, graphrag_root: str) -> tuple[Loca
         return local_engine, global_engine
 
 
+# 지정한 method(local/global) 엔진의 누적 토큰 사용량을 반환하고 초기화한다
 def get_and_reset_usage(user_id: str, method: str) -> dict:
-    """검색 완료 후 해당 엔진의 누적 토큰 사용량을 반환하고 초기화한다."""
     with _cache_lock:
         cached = _engine_cache.get(user_id)
         if not cached:
