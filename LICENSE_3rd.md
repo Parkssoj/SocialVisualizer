@@ -1,7 +1,7 @@
 # 서드파티 라이선스 (Third-Party Licenses)
 
 Social Visualizer 자체 코드는 [MIT License](LICENSE)를 따릅니다. 단, 일부 서드파티 라이브러리는 해당 라이브러리의 개별 라이선스가 적용되며, 세부 내역은 다음과 같습니다.<br>
-전체 구성요소 목록 및 용도는 [SBOM](docs/SBOM.csv) 문서를 참고하세요.
+전체 구성요소 목록 및 용도는 [SBOM](SBOM.csv) 문서를 참고하세요.
 
 ---
 
