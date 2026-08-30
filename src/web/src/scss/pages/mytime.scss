@@ -1,3 +1,9 @@
+/*
+ * "My Time" 페이지 전용 스타일 — 타임라인 슬라이더/키워드 패널 레이아웃, 스크롤을 안쪽 패널로 고정하는 fixed-layout 패턴(My People과 동일).
+ *
+ * Styles for the "My Time" page — the timeline slider/keyword panel layout, using the same
+ * fixed-layout pattern as My People to keep scrolling inside the inner panels.
+ */
 // mytime.html 전용 스타일 (기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외)
 
 // 요청 — "My People" 문구가 있는 위치만큼 정확하게 "My Time" 문구도 올리고,

@@ -1,8 +1,10 @@
 /**
- * 공통 상단 헤더/네비게이션. 기존에 페이지마다 복붙되어 있던
- * 사이드바(3종) + 상단바(2종)를 대체하는 단일 소스.
- * `<div id="app-header"></div>` 자리표시자를 가진 페이지에서
- * renderHeader(activePage)를 호출해 마운트한다.
+ * 공통 상단 헤더/네비게이션(바닐라 JS). 페이지마다 복붙되던 헤더 HTML을 대체하는 단일 소스로, `<div id="app-header">` 자리표시자에
+ * renderHeader(activePage)를 호출해 마운트한다. 홈 화면만 React 버전(Header.jsx)을 쓰고 나머지 페이지는 이 파일을 쓴다.
+ *
+ * Shared top header/nav (vanilla JS), the single source replacing header HTML that used to be
+ * copy-pasted per page. Mounts into a `<div id="app-header">` placeholder via
+ * renderHeader(activePage); only the home page uses the React version (Header.jsx) instead.
  */
 
 // Header.jsx(React, index.html 전용)와 동일하게 유지해야 함 — React 버전은
@@ -29,6 +31,7 @@ const NAV_ITEMS = [
   { page: "graph-viz", href: "graph-viz.html", label: "Knowledge graph" },
 ];
 
+// 네비게이션 HTML을 통째로 생성해 #app-header에 주입
 export function renderHeader(activePage) {
   const mountPoint = document.getElementById("app-header");
   if (!mountPoint) return;
@@ -88,6 +91,7 @@ export function renderHeader(activePage) {
   `;
 }
 
+// 푸터 HTML을 #app-footer에 주입
 export function renderFooter(brand = "MailGrapher") {
   const mountPoint = document.getElementById("app-footer");
   if (!mountPoint) return;

@@ -1,15 +1,20 @@
 /**
- * Modern DOM Utilities - jQuery-free DOM manipulation
- * Provides a consistent API for DOM operations across the codebase
+ * jQuery 없이 쓰는 DOM 조작 유틸 모음(select/class/style/content/애니메이션 등). window/global에도 노출되며, 실제로는 select,
+ * selectAll, on, find, closest, hasClass, addClass, removeClass 정도만 코드베이스 전반에서 쓰이고 나머지 메서드는 현재 호출부가
+ * 없다.
+ *
+ * jQuery-free DOM utility collection (selection/class/style/content/animation helpers), exposed on
+ * window/global; in practice only select, selectAll, on, find, closest, hasClass, addClass and
+ * removeClass are actually called anywhere in the codebase today.
  */
 
 const DOM = {
-  // Basic selection
+  // 요소 선택
   select: selector => document.querySelector(selector),
   selectAll: selector => [...document.querySelectorAll(selector)],
   exists: selector => document.querySelector(selector) !== null,
 
-  // Event handling
+  // 이벤트 바인딩
   on: (element, event, handler) => element.addEventListener(event, handler),
   off: (element, event, handler) => element.removeEventListener(event, handler),
   trigger: (element, event, data = {}) => {
@@ -17,7 +22,7 @@ const DOM = {
     element.dispatchEvent(customEvent);
   },
 
-  // DOM traversal
+  // DOM 탐색
   find: (element, selector) => element.querySelector(selector),
   findAll: (element, selector) => [...element.querySelectorAll(selector)],
   closest: (element, selector) => element.closest(selector),
@@ -25,13 +30,13 @@ const DOM = {
   children: element => [...element.children],
   siblings: element => [...element.parentElement.children].filter(el => el !== element),
 
-  // Class manipulation
+  // 클래스 조작
   hasClass: (element, className) => element.classList.contains(className),
   addClass: (element, className) => element.classList.add(className),
   removeClass: (element, className) => element.classList.remove(className),
   toggleClass: (element, className) => element.classList.toggle(className),
 
-  // Style manipulation
+  // 스타일 조작 (get/set 겸용)
   css: (element, property, value) => {
     if (typeof property === 'object') {
       // Set multiple styles: DOM.css(el, {color: 'red', fontSize: '14px'})
@@ -47,7 +52,7 @@ const DOM = {
     }
   },
 
-  // Dimensions
+  // 크기 측정
   width: element => element.offsetWidth,
   height: element => element.offsetHeight,
   outerWidth: element => {
@@ -65,7 +70,7 @@ const DOM = {
     );
   },
 
-  // Content manipulation
+  // 콘텐츠 get/set
   html: (element, content) => {
     if (content !== undefined) {
       element.innerHTML = content;
@@ -88,7 +93,7 @@ const DOM = {
     }
   },
 
-  // Attributes
+  // 속성 get/set
   attr: (element, name, value) => {
     if (value !== undefined) {
       element.setAttribute(name, value);
@@ -106,7 +111,7 @@ const DOM = {
     }
   },
 
-  // DOM manipulation
+  // 요소 삽입/삭제
   append: (parent, child) => {
     if (typeof child === 'string') {
       parent.insertAdjacentHTML('beforeend', child);
@@ -138,7 +143,7 @@ const DOM = {
   remove: element => element.remove(),
   clone: (element, deep = true) => element.cloneNode(deep),
 
-  // Visibility
+  // 표시/숨김
   show: element => {
     element.style.display = '';
   },
@@ -149,7 +154,7 @@ const DOM = {
     element.style.display = element.style.display === 'none' ? '' : 'none';
   },
 
-  // Animations (jQuery-like slide effects)
+  // 슬라이드/페이드 애니메이션 (jQuery 스타일)
   // NOTE: For new code, prefer using Bootstrap 5's Collapse component:
   //   - Add 'collapse' class to element
   //   - Use data-bs-toggle="collapse" on trigger
@@ -229,7 +234,7 @@ const DOM = {
     }, duration);
   },
 
-  // Ready state
+  // DOMContentLoaded 이후 실행 보장
   ready: callback => {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', callback);
@@ -238,7 +243,7 @@ const DOM = {
     }
   },
 
-  // Position and offset
+  // 위치/오프셋
   offset: element => {
     const rect = element.getBoundingClientRect();
     return {
@@ -254,7 +259,7 @@ const DOM = {
     };
   },
 
-  // Scroll
+  // 스크롤 위치 get/set
   scrollTop: (element, value) => {
     if (value !== undefined) {
       element.scrollTop = value;
@@ -272,7 +277,7 @@ const DOM = {
   }
 };
 
-// Make it available globally
+// 전역에도 노출 (레거시 코드/콘솔 디버깅용)
 window.DOM = DOM;
 globalThis.DOM = DOM;
 

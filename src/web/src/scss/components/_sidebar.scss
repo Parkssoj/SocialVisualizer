@@ -1,3 +1,9 @@
+/*
+ * 좌측 필터 사이드바(메일 계정/메신저 선택) 스타일 — "gws-" 접두사로 레거시 admin 템플릿 클래스와의 충돌을 피한다. 사이드바 폭 CSS 변수의 단일 소스이기도 하다.
+ *
+ * Styles for the left filter sidebar (mail/messenger picker) — uses a "gws-" prefix to avoid clashing
+ * with legacy admin-template classes, and is the single source for the sidebar-width CSS variable.
+ */
 // _sidebar.scss — 필터 사이드바(메일 계정 / 메신저 데이터 선택).
 // 흰 배경(#ffffff) + 오렌지 포인트. 클래스는 전부 "gws-"(Graph Web Sidebar)
 // 접두사 — 사이트 전역 레거시 규칙(custom.scss의 옛 관리자 템플릿 .sidebar-header

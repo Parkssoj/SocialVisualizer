@@ -1,12 +1,14 @@
 /**
- * Modern SmartResize - jQuery-free version
- * Debounced resize event handler for better performance
+ * jQuery 없이 구현한 디바운스 리사이즈 핸들러. window.smartResize로 노출되어 여러 곳에서 resize 콜백을 등록/해제할 수 있게 한다.
+ *
+ * jQuery-free debounced window-resize handler, exposed as window.smartResize so multiple callers can
+ * register/unregister resize callbacks.
  */
 
 // Import development logger
 import logger from '../../utils/logger.js';
 
-// Debounce function to limit resize event frequency
+// 지정한 대기시간(wait) 동안 호출이 더 없을 때만 func을 실행하는 디바운스 함수
 function debounce(func, wait = 250, immediate = false) {
   let timeout;
   return function executedFunction(...args) {
@@ -25,7 +27,7 @@ function debounce(func, wait = 250, immediate = false) {
   };
 }
 
-// Smart resize functionality
+// 핸들러 등록/해제를 관리하는 리사이즈 매니저
 const smartResize = {
   handlers: new Set(),
 

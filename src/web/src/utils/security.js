@@ -1,12 +1,13 @@
 // Security utilities for XSS prevention
+/**
+ * DOMPurify 기반 XSS 방지 유틸 모음 — HTML/텍스트 정화 및 안전한 innerHTML 대입 함수 제공, 레거시 코드를 위해 window 전역에도 노출한다.
+ *
+ * DOMPurify-based XSS-prevention helpers — sanitizes HTML/text and provides a safe innerHTML setter;
+ * also exposed on window for legacy code.
+ */
 import DOMPurify from 'dompurify';
 
-/**
- * Sanitizes HTML content to prevent XSS attacks
- * @param {string} html - The HTML content to sanitize
- * @param {Object} options - DOMPurify configuration options
- * @returns {string} - Sanitized HTML
- */
+// 허용 태그/속성을 화이트리스트로 제한해 HTML을 정화
 export function sanitizeHtml(html, options = {}) {
   if (!html || typeof html !== 'string') {
     return '';
@@ -37,11 +38,7 @@ export function sanitizeHtml(html, options = {}) {
   return DOMPurify.sanitize(html, config);
 }
 
-/**
- * Sanitizes text content (removes all HTML tags)
- * @param {string} text - The text to sanitize
- * @returns {string} - Plain text without HTML
- */
+// 모든 HTML 태그를 제거하고 순수 텍스트만 반환
 export function sanitizeText(text) {
   if (!text || typeof text !== 'string') {
     return '';
@@ -53,12 +50,7 @@ export function sanitizeText(text) {
   return div.textContent || div.innerText || '';
 }
 
-/**
- * Creates a safe innerHTML setter that automatically sanitizes content
- * @param {HTMLElement} element - The element to set innerHTML on
- * @param {string} html - The HTML content to set
- * @param {Object} options - DOMPurify configuration options
- */
+// 정화된 HTML을 곧바로 innerHTML에 대입하는 편의 함수
 export function setSafeInnerHTML(element, html, options = {}) {
   if (!element || !html) {
     return;
@@ -67,9 +59,7 @@ export function setSafeInnerHTML(element, html, options = {}) {
   element.innerHTML = sanitizeHtml(html, options);
 }
 
-/**
- * Make security utilities available globally for legacy code
- */
+// 레거시 코드가 window.sanitizeHtml 등으로 바로 쓸 수 있도록 전역에도 노출
 if (typeof window !== 'undefined') {
   window.sanitizeHtml = sanitizeHtml;
   window.sanitizeText = sanitizeText;

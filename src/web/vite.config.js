@@ -1,3 +1,11 @@
+/**
+ * Vite 빌드 설정 — production/*.html 9개를 각각 별도 진입점으로 빌드하는 멀티페이지 앱 구성, React/Tailwind 플러그인, 청크
+ * 분리(vendor-core/d3/react), 개발 서버의 백엔드(80번 포트) API 프록시 목록을 정의한다.
+ *
+ * Vite build config — sets up a multi-page app with 9 separate production/*.html entry points, the
+ * React/Tailwind plugins, vendor chunk splitting, and the dev server's proxy list to the backend on
+ * port 80.
+ */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";

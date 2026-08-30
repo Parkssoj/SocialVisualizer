@@ -1,3 +1,11 @@
+/**
+ * 자연어 검색 페이지(search.html) 진입점. 메일/메신저 각각 GraphRAG 질의(/run-query-async → /job-status 폴링)를 실행하는 검색 컨트롤러
+ * 두 개를 만들고, 최근 검색어와 근거 메일 보기 기능까지 함께 제공한다.
+ *
+ * Entry point for the natural-language search page. Builds two search controllers (mail, messenger)
+ * that run GraphRAG queries (/run-query-async, polled via /job-status), plus recent-search history and
+ * a "view source mail" drawer.
+ */
 import { bootstrapApp } from '../main-app.js';
 import { getApiBase } from '../utils/apiBase.js';
 import '../scss/pages/search.scss';
@@ -24,9 +32,11 @@ if (profileNameEl) profileNameEl.textContent = name;
 window.currentUserName = name;
 
 // ── 공통 유틸 ──
+// XSS 방지용 최소 HTML 이스케이프
 function escapeHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+// XSS 방지용 최소 속성값 이스케이프
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -40,6 +50,7 @@ function formatAnswer(text) {
     .trim();
 }
 
+// jobId 처리 상태를 폴링하다 완료/실패 시 콜백 호출
 async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
   for (let i = 0; i < maxTries; i++) {
     await new Promise(r => setTimeout(r, interval));
@@ -58,6 +69,7 @@ async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
 // 같은 로직을 재사용 가능한 형태로 묶음. 두 탭은 서로 다른 GraphRAG 도메인("mail"/"messenger")을
 // 대상으로 완전히 독립적으로 검색한다.
 // ══════════════════════════════════════
+// 메일/메신저 도메인 하나에 대한 검색창 전체(입력→질의→폴링→결과 렌더링→근거 메일 보기)를 만드는 팩토리
 function createSearchController({ domain, recentKey, ids, getUserId, loadingText, emptyIcon }) {
   const inputEl = document.getElementById(ids.input);
   const btnEl = document.getElementById(ids.btn);
@@ -70,21 +82,26 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   // 컨트롤러 스코프에 하나만 들고 있다가 새로 붙이기 전에 먼저 떼어낸다.
   let currentResizeHandler = null;
 
+  // 최근 검색어 목록을 localStorage에서 읽기
   function getRecents() {
     try { return JSON.parse(localStorage.getItem(recentKey)) || []; } catch { return []; }
   }
+  // 최근 검색어에 추가(중복 제거, 최대 8개 유지)
   function saveRecent(q) {
     let recents = getRecents().filter(r => r !== q);
     recents.unshift(q);
     if (recents.length > 8) recents = recents.slice(0, 8);
     localStorage.setItem(recentKey, JSON.stringify(recents));
   }
+  // 최근 검색어 하나 삭제
   function removeRecent(q) {
     localStorage.setItem(recentKey, JSON.stringify(getRecents().filter(r => r !== q)));
     renderRecents();
   }
+  // 최근 검색어 전체 삭제
   function clearRecents() { localStorage.removeItem(recentKey); renderRecents(); }
 
+  // 최근 검색어 태그 목록 렌더링 및 클릭/삭제 이벤트 바인딩
   function renderRecents() {
     const recents = getRecents();
     if (recents.length === 0) { recentBarEl.style.display = 'none'; return; }
@@ -110,6 +127,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   clearRecentEl.addEventListener('click', clearRecents);
   renderRecents();
 
+  // 검색 중 로딩 스피너 표시
   function showLoading(q) {
     resultEl.innerHTML = `
       <div class="gw-query-label">검색어: <strong>${escapeHtml(q)}</strong></div>
@@ -119,6 +137,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   // 요청 — 답변의 근거가 된 메일 하나하나에 "근거메일 보기" 버튼을 왼쪽에 붙여서, 누르면
   // 그 메일 본문을 오른쪽 패널에 바로 보여준다. /mail-body-by-ids가 documents.parquet에서
   // 메일 하나의 본문을 읽어오는 라우터(메일 도메인 전용 — 메신저 쪽엔 이 라우터가 없음).
+  // "근거메일 보기" 버튼 클릭 시 /mail-body-by-ids로 해당 메일 본문을 불러와 상세 패널에 표시
   async function loadSourceMail(btn, detailPanel) {
     const mailId = btn.dataset.mailId;
     const account = btn.dataset.account;
@@ -159,6 +178,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   // 핵심 단어)이 실제로 언급된 답변 줄을 찾아 그 줄에 버튼을 붙인다 — 자동으로
   // "직접 메일을 찾은 것과 매핑"되도록 한다. 제목이 어느 줄에도 안 걸리면(요약
   // 과정에서 제목이 그대로 안 남았을 수 있음) 기존처럼 답변 아래 목록에 남긴다.
+  // 근거로 인용된 메일 id 목록의 제목을 조회
   async function fetchSubjectsByRefs(refs) {
     if (!refs.length) return {};
     try {
@@ -179,6 +199,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   // 제목을 그대로 인용하지 않고 "OO 메일은 ~"처럼 살짝 바꿔 쓰므로, 제목 전체가
   // 그대로 포함된 줄을 먼저 찾고, 없으면 제목의 첫 단어(한글/영문/숫자만 남기고
   // 2글자 이상)만이라도 포함된 줄을 찾는다.
+  // 답변 텍스트에서 특정 메일 제목이 언급된 줄의 위치를 찾기
   function findLineIdxBySubject(lines, subject) {
     const cleaned = String(subject || '').trim();
     if (!cleaned) return -1;
@@ -192,6 +213,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     return -1;
   }
 
+  // 검색 결과(답변 + 근거 메일 링크)를 결과 영역에 렌더링
   async function showResult(q, text, sourceIds) {
     let sourceHtml = '';
     // 요청 — "근거 계정" 표시 안 함(주석처리, 로직은 그대로 남겨둠).
@@ -288,6 +310,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
       // 그 안에 표시되는 메일 본문이 그보다 길어도 서랍 자체가 카드보다 더
       // 커지지 않고 내부에서만 스크롤되도록, 서랍의 최대 높이를 답변 카드의
       // 실제 렌더링 높이로 캡(cap)한다(overflow-y: auto는 scss에 이미 있음).
+      // 근거 메일 상세 드로어 높이를 결과 영역 높이에 맞춰 동기화
       function syncDrawerHeight() {
         if (!answerMain) return;
         drawer.style.maxHeight = answerMain.getBoundingClientRect().height + 'px';
@@ -309,6 +332,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
       });
     }
   }
+  // 검색 실패 시 에러 메시지 표시
   function showError(q, msg) {
     resultEl.innerHTML = `
       <div class="gw-query-label">검색어: <strong>${escapeHtml(q)}</strong></div>
@@ -316,6 +340,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     `;
   }
 
+  // 검색어로 /run-query-async 요청 후 pollJob으로 완료를 기다려 결과를 렌더링
   async function runSearch(q) {
     showLoading(q);
     saveRecent(q);
@@ -336,6 +361,7 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
     }
   }
 
+  // 입력창 값으로 검색 실행 + 최근 검색어에 저장
   function doSearch() {
     const q = inputEl.value.trim();
     if (!q) return;
@@ -385,6 +411,7 @@ if (urlQuery && urlQuery.trim()) {
 // ══════════════════════════════════════
 // 메일 / 메시지 탭 전환
 // ══════════════════════════════════════
+// 메일/메신저 검색 탭 전환 UI 처리
 function switchTab(tab) {
   const isMail = tab === 'mail';
   document.getElementById('tab-btn-mail').classList.toggle('active', isMail);

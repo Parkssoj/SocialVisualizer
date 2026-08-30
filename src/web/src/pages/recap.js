@@ -1,3 +1,11 @@
+/**
+ * "Recap" 페이지 진입점 — 선택된 메일 계정의 발신자/키워드/친밀도/동기화/만족도 통계를 백엔드 여러 API에서 병렬로 받아와 카드형 UI로 렌더링한다. 사이드바 선택이
+ * 빠르게 바뀌어도 항상 "가장 최근 클릭"의 결과만 반영되도록 세대(generation) 번호로 경쟁 상태를 방지한다.
+ *
+ * Entry point for the "Recap" page — fetches sender/keyword/affinity/sync/rating stats for the
+ * selected mail account in parallel and renders them as cards. Uses a generation counter to guard
+ * against race conditions when the sidebar selection changes quickly.
+ */
 /* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/recap.scss";
@@ -187,6 +195,7 @@ async function loadRecapData(gmailId, generation) {
   renderRecapResults(results, generation);
 }
 
+// Promise.allSettled로 모은 5개 API 결과를 각 섹션 렌더 함수에 나눠 전달
 function renderRecapResults(
   [mailStatsResult, keywordResult, affinityResult, syncResult, ratingResult],
   generation,
@@ -303,6 +312,7 @@ const userIdPromise = initAccountPicker(
   },
 );
 
+// XSS 방지용 최소 HTML 이스케이프
 function esc(s) {
   return String(s || "")
     .replace(/&/g, "&amp;")
@@ -311,6 +321,7 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+// 아바타에 표시할 이니셜(이름 앞글자 1~2자) 추출
 function initials(nameStr) {
   const parts = nameStr.trim().split(/\s+/);
   return parts.length >= 2
@@ -430,6 +441,7 @@ function renderMailStats(data, field, ids, tag, unit) {
   );
 }
 
+// 발신자 통계를 renderMailStats로 위임 렌더링
 function renderSenderStats(data) {
   renderMailStats(
     data,
@@ -475,6 +487,7 @@ const WC_COLORS = [
   "#565656",
 ];
 
+// 상위 키워드 태그 클라우드 렌더링
 function renderKeywordStats(data) {
   const keywords = (data.keywords || [])
     .slice()
@@ -760,6 +773,7 @@ function renderRatingStats(data) {
   if (contentEl) contentEl.style.display = "";
 }
 
+// user_id를 POST 바디에 담아 통계 API 호출 (공통 헬퍼)
 async function postStat(endpoint, gmailId) {
   const res = await fetch(endpoint, {
     method: "POST",

@@ -1,3 +1,9 @@
+/**
+ * 히어로 배경용 컴포넌트. 원래는 "Bloom Field" 메쉬 그라데이션 배경이었으나 흰 배경으로 보이도록 현재는 내용이 통째로 주석 처리되어 있어 빈 div만 렌더링한다.
+ *
+ * Hero background component. Originally rendered a "Bloom Field" mesh gradient, but that markup is
+ * currently commented out to show a plain white background, so it renders an empty div.
+ */
 export const Component = () => {
   return (
     <div className="absolute inset-0 -z-10 h-full w-full bg-white">

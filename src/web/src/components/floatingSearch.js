@@ -1,12 +1,15 @@
 // floatingSearch.js
-//
-// 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업. search.html(search.js)과 완전히
-// 같은 검색(메일/메신저 GraphRAG 질의 → /run-query-async → /job-status 폴링)을
-// 그대로 재사용해서, 어느 페이지에서든 실제 검색 페이지와 동일한 결과를 즉시 볼 수 있게 한다.
-// main-app.js에서 side-effect import되므로, main-app.js를 쓰는 모든 페이지(로그인 페이지
-// 제외)에 자동으로 뜬다 — 페이지마다 따로 붙일 필요 없음.
+/**
+ * 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업. search.js와 동일한 GraphRAG 질의 (/run-query-async → /job-status 폴링)를 재사용해
+ * 어느 페이지에서든 같은 검색 결과를 즉시 보여준다. main-app.js에서 side-effect import되어 로그인 페이지를 제외한 모든 페이지에 자동으로 뜬다.
+ *
+ * Floating search button + popup shown on every page. Reuses the same GraphRAG query flow as search.js
+ * (/run-query-async then polling /job-status) so results match the dedicated search page. Auto-mounted
+ * on every page but login via a side-effect import in main-app.js.
+ */
 import { getApiBase } from "../utils/apiBase.js";
 
+// XSS 방지용 최소 HTML 이스케이프
 function escapeHtml(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -14,12 +17,14 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+// XSS 방지용 최소 속성값 이스케이프
 function escapeAttr(str) {
   return String(str || "")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
+// jobId의 처리 상태를 일정 간격으로 폴링하다 완료/실패 시 콜백 호출(최대 maxTries회)
 async function pollJob(
   FLASK_URL,
   jobId,
@@ -75,6 +80,7 @@ const TABS = [
 // search.html처럼 메일/메신저 탭이 입력창·최근검색·결과영역을 각자 독립적으로 갖는다
 // (하나를 공유하면 두 탭의 이벤트 리스너가 같은 input/버튼에 겹쳐 붙어서 검색이
 // 동시에 두 번 실행되는 문제가 생김 — 그래서 탭마다 완전히 별도의 서브패널을 둔다).
+// 검색 팝업(탭 + 입력창 + 결과 영역)의 HTML 마크업 문자열 생성
 function buildPanelHtml() {
   const tabBtns = TABS.map(
     (t, i) => `
@@ -105,6 +111,7 @@ function buildPanelHtml() {
   `;
 }
 
+// 검색창 하나(메일/메신저 탭)의 입력 제출, 질의 요청, 폴링, 결과 렌더링을 담당하는 컨트롤러 생성
 function createTabController(tab, root, FLASK_URL) {
   const panelEl = root.querySelector(
     `.gwfs-tab-panel[data-tab-panel="${tab.key}"]`,
@@ -260,6 +267,7 @@ function createTabController(tab, root, FLASK_URL) {
   return { inputEl, placeholder: tab.placeholder };
 }
 
+// 플로팅 버튼 + 팝업 DOM을 body에 주입하고 열기/닫기, 탭 전환 이벤트를 바인딩
 function mountFloatingSearch() {
   // login.html처럼 헤더 자체가 없는 페이지에서는 검색 대상 데이터도 없으므로 스킵.
   // (main-app.js를 안 쓰는 페이지는 애초에 이 모듈이 로드되지 않음)

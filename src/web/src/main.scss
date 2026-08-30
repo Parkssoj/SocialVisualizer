@@ -1,3 +1,9 @@
+/*
+ * 전체 스타일 진입점 — Bootstrap, 변수/색상 테마, 커스텀·럭셔리 그린 디자인, 헤더/플로팅 검색 스타일, 아이콘 폰트를 한 곳에서 불러와 합친다.
+ *
+ * Global stylesheet entry point — pulls in Bootstrap, variables/color themes, the custom and "luxury
+ * green" design layers, header/floating-search styles, and icon fonts.
+ */
 // SCSS files using @use (must come first)
 @use "bootstrap/scss/bootstrap";
 

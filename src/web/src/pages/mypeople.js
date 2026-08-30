@@ -1,3 +1,12 @@
+/**
+ * "My People" 페이지 진입점 — 메일 상대방과 메신저 채팅방 참여자를 친밀도/이름/횟수 등으로 정렬된 카드로 보여주고, 카드를 클릭하면 교환 통계·설명·키워드·관계·미니
+ * 지식그래프를 담은 상세 패널을 연다. 사이드바에서 계정/채팅방을 바꾸면 새로고침 없이 다시 그린다.
+ *
+ * Entry point for the "My People" page — shows mail contacts and messenger chatroom participants as
+ * cards sorted by affinity/name/count, and opens a detail panel (exchange stats, description,
+ * keywords, relationships, mini knowledge graph) on click. Switching the sidebar's account/chatroom
+ * re-renders without a page refresh.
+ */
 /* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/mypeople.scss";
@@ -117,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
          객체에 병합된 이메일 전체 목록(_groupEmails)을 붙여둔다 — 상세보기/통계 조회 시
          이 배열을 써서 모든 주소의 메일을 합쳐서 보여준다(personEmails() 참고). */
 
+// 브랜드/발신전용 계정을 표시이름 기준으로 대표 1개 카드로 병합
 function groupByEntityName(list) {
   const seen = new Map();
   list.forEach((p) => {
@@ -141,6 +151,7 @@ function groupByEntityName(list) {
 
 /* 카드/상세보기에서 실제로 조회 대상이 될 이메일 목록. 브랜드 통합 카드면 병합된 전체
      주소를, 아니면 자기 자신의 이메일 하나만 반환한다. */
+// 카드가 대표하는 실제 조회 대상 이메일 목록 반환(병합 카드면 전체, 아니면 자기 자신)
 function personEmails(person) {
   if (person && Array.isArray(person._groupEmails) && person._groupEmails.length) {
     return person._groupEmails;
@@ -149,11 +160,13 @@ function personEmails(person) {
 }
 
 /* email → 숫자 맵(sentStatsMap 등)에서, 통합 카드면 병합된 모든 주소의 값을 합산한다. */
+// email→숫자 맵에서 병합 카드의 모든 주소 값을 합산
 function sumMap(map, person) {
   return personEmails(person).reduce((s, e) => s + (map[e] || 0), 0);
 }
 
 /* periodStats(email → {sent, received})에서 통합 카드의 전체 주소분을 합산한다. */
+// 병합 카드의 모든 주소에 대한 기간별 송수신 통계 합산
 function sumPeriodStats(person) {
   return personEmails(person).reduce(
     (acc, e) => {
@@ -174,9 +187,11 @@ function sumPeriodStats(person) {
 // (메일·메신저 사람 카드가 전부 이 함수 하나를 공유하므로 두 패널이
 // 자동으로 통일된 크기로 맞춰진다.)
 const NAME_FONT_SCALE = 0.8;
+// NAME_FONT_SCALE 비율을 적용한 clamp() CSS 값 문자열 생성
 function scaledClamp(minRem, midCqw, maxRem) {
   return `clamp(${(minRem * NAME_FONT_SCALE).toFixed(3)}rem, ${(midCqw * NAME_FONT_SCALE).toFixed(3)}cqw, ${(maxRem * NAME_FONT_SCALE).toFixed(3)}rem)`;
 }
+// 이름 길이·언어(한글/영문)에 따라 카드에 표시할 폰트 크기 결정
 function nameFontSize(name) {
   const len = (name || "").length;
   const isKorean = /[가-힣]/.test(name || "");
@@ -269,14 +284,17 @@ const BRAND_DISPLAY_NAMES = new Set([
   "notion",
 ]);
 
+// 이메일 로컬파트가 noreply류 발신전용 키워드를 포함하는지 판별
 function isGenericLocalPart(local) {
   const l = (local || "").toLowerCase();
   return GENERIC_LOCAL_KEYWORDS.some((k) => l.includes(k));
 }
+// 표시 이름이 알려진 브랜드 목록에 속하는지 판별
 function isBrandDisplayName(name) {
   return BRAND_DISPLAY_NAMES.has((name || "").trim().toLowerCase());
 }
 
+// 로고 이미지의 실제 내용 영역을 감지해 여백만큼 확대(최대 1.15배)해 꽉 차 보이게 함
 function autoFitBrandLogo(img) {
   try {
     const w = img.naturalWidth,
@@ -328,18 +346,21 @@ function autoFitBrandLogo(img) {
     img.style.transform = `scale(${scale.toFixed(2)})`;
   } catch (e) {}
 }
+// 로고 이미지 로드 완료 시 autoFitBrandLogo 적용
 function setupBrandLogo(img) {
   if (!img) return;
   if (img.complete && img.naturalWidth) autoFitBrandLogo(img);
   else
     img.addEventListener("load", () => autoFitBrandLogo(img), { once: true });
 }
+// 발신자가 브랜드/발신전용 계정인지 종합 판별(로컬파트 또는 표시이름 기준)
 function isBrandSender(p) {
   if (!p.email) return false;
   const [local] = p.email.split("@");
   return isGenericLocalPart(local) || isBrandDisplayName(p.name);
 }
 
+// 카드에 표시할 이름 결정 — 지정된 이름 우선, 없으면 도메인/로컬파트에서 유추
 function resolveDisplayName(p) {
   if (!p.email) return p.name && p.name.trim() ? p.name.trim() : "(알 수 없음)";
   const [local, domain] = p.email.split("@");
@@ -356,6 +377,7 @@ function resolveDisplayName(p) {
 
 const AFFINITY_HUE = 158;
 
+// 친밀도 구간 하나의 색상 팔레트(그라디언트/그림자/텍스트색) 생성
 function tierColor(hue, sat, lightHi, lightLo) {
   const hueLight = hue + 9;
   const hueDark = hue - 7;
@@ -381,6 +403,7 @@ const AFFINITY_TIERS = [
   { min: 0.15, sat: 23, lightHi: 94, lightLo: 86 },
   { min: -Infinity, sat: 7, lightHi: 98, lightLo: 93 },
 ];
+// 친밀도 값(0~1)에 해당하는 구간의 색상 팔레트 조회
 function affinityColor(aff) {
   const raw = aff ?? -1;
   const tier = AFFINITY_TIERS.find((tr) => raw >= tr.min);
@@ -397,16 +420,19 @@ const AFFINITY_LABEL_TIERS = [
   { min: 20, label: "친밀하지 않은 관계" },
   { min: -Infinity, label: "무관한 관계" },
 ];
+// 친밀도 퍼센트를 5단계 한글 라벨로 변환
 function affinityLabelFromPct(pct) {
   const tier = AFFINITY_LABEL_TIERS.find((tr) => pct >= tr.min);
   return tier.label;
 }
+// 친밀도 값(0~1)을 5단계 한글 라벨로 변환
 function affinityLabel(aff) {
   return affinityLabelFromPct(Math.round((aff ?? 0) * 100));
 }
 
 /* ── 단톡방 분위기 점수(0~100) → 말로 풀어쓴 라벨 ──
    mood_score는 높을수록 사적·친밀한 분위기라는 스펙에 맞춰 5단계로 나눔. */
+// 단톡방 분위기 점수(0~100)를 5단계 한글 라벨로 변환
 function moodLabel(score) {
   if (score == null) return null;
   if (score >= 80) return "매우 사적이고 친밀한 분위기";
@@ -415,6 +441,7 @@ function moodLabel(score) {
   if (score >= 20) return "다소 사무적인 분위기";
   return "격식 있고 사무적인 분위기";
 }
+// 단톡방 분위기 점수를 이모지로 변환
 function moodEmoji(score) {
   if (score == null) return "";
   if (score >= 80) return "💛";
@@ -424,6 +451,7 @@ function moodEmoji(score) {
   return "🧾";
 }
 
+// 아바타에 표시할 이니셜 추출(한글은 성 1자, 영문은 이니셜 최대 2자)
 function initials(name) {
   const t = (name || "").trim();
   if (!t) return "?";
@@ -436,9 +464,11 @@ function initials(name) {
     .toUpperCase();
 }
 
+// 날짜 문자열을 epoch ms로 변환
 function dateToMs(str) {
   return new Date(str).getTime();
 }
+// epoch ms를 "YYYY.MM.DD"로 포맷
 function fmtDate(ms) {
   const d = new Date(ms);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
@@ -531,6 +561,7 @@ let currentMessengerPerson = null;
 let currentMessengerDrawerMonth = null;
 let currentMessengerDayList = [];
 
+// 선택 기간 내 사람별 발신 메일 수 조회 → sentStatsMap
 async function fetchSentStats() {
   const gmailId = await getCurrentMailId();
   try {
@@ -555,6 +586,7 @@ async function fetchSentStats() {
   }
 }
 
+// 선택 기간 내 사람별 수신 메일 수 조회 → receivedStatsMap
 async function fetchReceivedStats() {
   const gmailId = await getCurrentMailId();
   try {
@@ -579,6 +611,7 @@ async function fetchReceivedStats() {
   }
 }
 
+// 선택 기간의 송수신 통계를 한 번에 조회해 periodStats에 채우고 카드 렌더링
 async function fetchPeriodStats() {
   // getCurrentMailId()는 계정을 바꾼 뒤 새로고침 없이 새 계정 기준으로 다시
   // 불러올 수 있게 해주는 최신 방식(userIdPromise 직접 참조는 계정 전환 후에도
@@ -631,6 +664,7 @@ async function fetchPeriodStats() {
   }
 }
 
+// 각 카드에 기간별 송수신 합계 뱃지를 갱신
 function updateCardBadges() {
   document.querySelectorAll(".mp-card").forEach((card) => {
     const ps = periodStats[(card.dataset.email || "").toLowerCase()] || {};
@@ -804,13 +838,16 @@ function renderAffinityBands(list, cardHtml) {
 
 let timelineListenersAttached = false;
 
+// epoch ms를 타임슬라이더 값(0~1000)으로 변환
 function msToVal(ms) {
   return Math.round(((ms - globalFirst) / (globalLast - globalFirst)) * 1000);
 }
+// 타임슬라이더 값(0~1000)을 epoch ms로 역변환
 function valToMs(v) {
   return globalFirst + (v / 1000) * (globalLast - globalFirst);
 }
 
+// 타임슬라이더 드래그 시 채움 바/선택 기간 텍스트 갱신 + 채널별 데이터 재조회(디바운스)
 function updateFill() {
   const inMin = document.getElementById("tl-min");
   const inMax = document.getElementById("tl-max");
@@ -871,6 +908,7 @@ function updateFill() {
   }
 }
 
+// 전체 기간(firstMs~lastMs)으로 타임슬라이더 초기화
 function initTimeline(firstMs, lastMs) {
   globalFirst = firstMs;
   globalLast = lastMs;
@@ -904,6 +942,7 @@ function initTimeline(firstMs, lastMs) {
   updateFill();
 }
 
+// 타임슬라이더 아래 날짜 눈금을 겹치지 않는 간격으로 계산해 렌더링
 function buildTicks(firstMs, lastMs) {
   const ticks = document.getElementById("tl-ticks");
   ticks.innerHTML = "";
@@ -1087,6 +1126,7 @@ async function startAvatarGeneration() {
   }
 }
 
+// "나" 프로필의 이름/이메일 표시 및 아바타 로드(캐시 없으면 생성 요청)
 async function initMyAvatar() {
   const gmailId = await getCurrentMailId();
   const myNameEl = document.getElementById("mp-detail-my-name");
@@ -1129,6 +1169,7 @@ async function initMyAvatar() {
   }
 }
 
+// 상세 패널의 "나" 아바타 이미지를 최신 myAvatarUrl로 갱신
 function refreshSelfAvatarEl() {
   const el = document.getElementById("mp-detail-avatar-self");
   if (!el || !myAvatarUrl) return;
@@ -1158,6 +1199,7 @@ const PEOPLE_SORT_OPTIONS = [
   { value: "count", label: "채팅횟수" },
 ];
 
+// 정렬 옵션 배열로 드롭다운 메뉴 항목 HTML 생성
 function sortMenuHtml(options, currentMode) {
   return options
     .map(
@@ -1166,18 +1208,21 @@ function sortMenuHtml(options, currentMode) {
     )
     .join("");
 }
+// 정렬 드롭다운을 메일용 옵션으로 갱신
 function refreshSortMenuForMail() {
   ddMenu.innerHTML = sortMenuHtml(MAIL_SORT_OPTIONS, sortMode);
   ddLabel.textContent = MAIL_SORT_OPTIONS.find(
     (o) => o.value === sortMode,
   ).label;
 }
+// 정렬 드롭다운을 채팅방 목록용 옵션으로 갱신
 function refreshSortMenuForRooms() {
   ddMenu.innerHTML = sortMenuHtml(ROOM_SORT_OPTIONS, roomSortMode);
   ddLabel.textContent = ROOM_SORT_OPTIONS.find(
     (o) => o.value === roomSortMode,
   ).label;
 }
+// 정렬 드롭다운을 채팅방 참여자용 옵션으로 갱신
 function refreshSortMenuForPeople() {
   ddMenu.innerHTML = sortMenuHtml(PEOPLE_SORT_OPTIONS, peopleSortMode);
   ddLabel.textContent = PEOPLE_SORT_OPTIONS.find(
@@ -1185,6 +1230,7 @@ function refreshSortMenuForPeople() {
   ).label;
 }
 
+// 선택 기간 동안 채팅방의 평균 분위기 점수 조회(기간별 캐시)
 async function fetchRoomMoodScore(chatroomId) {
   const startDate = msToDateStr(selMin);
   const endDate = msToDateStr(selMax);
@@ -1217,6 +1263,7 @@ async function fetchRoomMoodScore(chatroomId) {
   return score;
 }
 
+// roomSortMode에 따라 채팅방 목록 정렬(분위기 정렬은 비동기로 점수 조회 후 정렬)
 async function getSortedRooms() {
   const list = [...messengerChatrooms];
   if (roomSortMode === "name") {
@@ -1233,6 +1280,7 @@ async function getSortedRooms() {
   return list;
 }
 
+// peopleSortMode(이름/채팅횟수)에 따라 참여자 목록 정렬
 function sortPeopleList(list) {
   const copy = [...list];
   if (peopleSortMode === "count") {
@@ -1243,6 +1291,7 @@ function sortPeopleList(list) {
   return copy;
 }
 
+// 메일/메신저 뷰 전환 — 해당 뷰 표시, 정렬 메뉴/타임라인을 그 채널 기준으로 갱신
 function setChannel(channel) {
   const isMail = channel === "mail";
   currentChannel = channel;
@@ -1274,6 +1323,7 @@ async function openSelectedChatroomFromSidebar() {
   await openChatroom(selectedChatroomId, room ? room.label : selectedChatroomId);
 }
 
+// 선택 기간에 해당하는 채팅방 목록 조회
 async function fetchMessengerChatroomsForRange() {
   try {
     const res = await fetch("/messenger-chatrooms", {
@@ -1291,6 +1341,7 @@ async function fetchMessengerChatroomsForRange() {
   }
 }
 
+// 메신저 뷰 최초 진입 — 채팅방 목록을 불러와 그리드로 렌더링
 async function loadMessengerView() {
   messengerView.innerHTML = `
     <div class="mp-empty">
@@ -1302,11 +1353,13 @@ async function loadMessengerView() {
   await renderChatroomGrid();
 }
 
+// 기간 변경 시 채팅방 목록을 다시 불러와 그리드를 갱신
 async function refreshMessengerRoomsForRange() {
   await fetchMessengerChatroomsForRange();
   await renderChatroomGrid();
 }
 
+// 채팅방 카드의 아바타를 참여자 이니셜 격자 형태로 생성
 function buildRoomAvatarHtml(room) {
   const names = room.top_participants || [];
   if (!names.length) return `<i class="bi bi-chat-dots-fill"></i>`;
@@ -1408,10 +1461,12 @@ async function openChatroom(chatroomId, chatroomName) {
   await fetchAndRenderChatroomPeople(moodPromise);
 }
 
+// 채팅방 이름 표시 오버라이드 훅(현재는 그대로 통과)
 function applyRoomNameOverride(chatroomName, name) {
   return name;
 }
 
+// 참여자 설명 표시 오버라이드 훅(현재는 person.description 그대로 통과)
 function applyMessengerDescriptionOverride(chatroomName, person) {
   return person ? person.description : null;
 }
@@ -1445,6 +1500,7 @@ async function fetchAndRenderChatroomPeople(moodPromise) {
   renderChatroomPeople(currentChatroomName, sortPeopleList(people), moodScore);
 }
 
+// 채팅방 참여자 카드 그리드 + 방 분위기 헤더 렌더링
 function renderChatroomPeople(chatroomName, people, moodScore) {
   currentChatroomPeople = people;
   // 버그 수정 — 메신저 방 참여자 화면에서도 "My People" 옆 명수가 메일 쪽
@@ -1607,6 +1663,7 @@ let descCache = null;
 let relationshipsCache = null;
 let relationshipsCacheUserId = null;
 
+// 메일 관계 라벨(가족/친구 등) 목록 조회(계정별 캐시)
 async function loadRelationships(gmailId) {
   if (relationshipsCache && relationshipsCacheUserId === gmailId) {
     return relationshipsCache;
@@ -1630,6 +1687,7 @@ async function loadRelationships(gmailId) {
   return relationshipsCache || [];
 }
 
+// 관계 목록에서 특정 이메일의 관계 라벨 조회
 function findRelationLabel(relationships, personEmail) {
   const email = (personEmail || "").toLowerCase();
   const match = relationships.find(
@@ -1638,10 +1696,12 @@ function findRelationLabel(relationships, personEmail) {
   return match ? match.relation_label : null;
 }
 
+// epoch ms를 API 요청용 "YYYY-MM-DD" 문자열로 변환
 function msToDateStr(ms) {
   return new Date(ms).toISOString().split("T")[0];
 }
 
+// 계정 전체 키워드 통계 조회(1회 캐시)
 async function loadKeywords(gmailId) {
   if (kwCache) return kwCache;
   try {
@@ -1658,6 +1718,7 @@ async function loadKeywords(gmailId) {
   return kwCache || [];
 }
 
+// 사람별 설명(person-descriptions) 조회(1회 캐시)
 async function loadDescriptions(gmailId) {
   if (descCache) return descCache;
   try {
@@ -1674,6 +1735,7 @@ async function loadDescriptions(gmailId) {
   return descCache || [];
 }
 
+// 상세 패널에 해당 사람의 설명 텍스트 렌더링
 function renderDescription(person, descriptions) {
   const personEmail = typeof person === "string" ? person : person.email || "";
   const el = document.getElementById("mp-desc-profile-content");
@@ -1720,6 +1782,7 @@ function groupMonthsByYear(monthly) {
   return groups;
 }
 
+// 메일 월별 송수신 막대그래프 렌더링(연도별 그룹, 최신 달 자동 오픈)
 function renderBarChart(data) {
   const chartArea = document.getElementById("mp-chart");
   const totalEl = document.getElementById("mp-stats-total");
@@ -1792,6 +1855,7 @@ function renderBarChart(data) {
   }
 }
 
+// 메신저 월별 메시지 수 막대그래프 렌더링(연도별 그룹, 최신 달 자동 오픈)
 function renderMessengerBarChart(data) {
   const chartArea = document.getElementById("mp-chart");
   const totalEl = document.getElementById("mp-stats-total");
@@ -1923,11 +1987,13 @@ document.getElementById("mp-chart").addEventListener("click", (e) => {
   }
 });
 
+// "YYYY-MM"을 "YYYY년 M월"로 포맷
 function fmtMonthLabel(month) {
   const [y, m] = month.split("-");
   return `${y}년 ${parseInt(m)}월`;
 }
 
+// 메일 날짜시간 문자열을 "D일 HH:MM"으로 포맷
 function fmtEmailDateTime(dateStr) {
   const [datePart, timePart] = (dateStr || "").split(" ");
   const day = parseInt((datePart || "").split("-")[2], 10) || "";
@@ -1935,6 +2001,7 @@ function fmtEmailDateTime(dateStr) {
   return `${day}일 ${time}`;
 }
 
+// 선택된 달의 일별 메일 교환 건수 목록 렌더링
 function renderMailDayList(days) {
   const listEl = document.getElementById("mp-echange-list-body");
   if (!days.length) {
@@ -1953,6 +2020,7 @@ function renderMailDayList(days) {
     .join("");
 }
 
+// 특정 사람과의 월별 교환 드로어를 열고 그 달의 일별 목록을 조회
 async function openEmailDrawer(month, sentCount, recvCount) {
   activeDrawerMonth = month;
   const person = currentDetailPerson;
@@ -2009,6 +2077,7 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   }
 }
 
+// 특정 날짜에 주고받은 메일 목록을 조회해 드로어에 표시
 async function openMailDayChat(date) {
   currentMailDrawerDate = date;
   const person = currentDetailPerson;
@@ -2049,6 +2118,7 @@ async function openMailDayChat(date) {
   }
 }
 
+// 특정 날짜의 메일 목록(보낸/받은 태그 포함)을 렌더링
 function renderMailDayEmailList(emails) {
   const listEl = document.getElementById("mp-echange-list-body");
   const backBtn = `<button class="mp-back-btn" type="button" id="mp-day-back-btn"><i class="bi bi-arrow-left"></i> 날짜 목록</button>`;
@@ -2072,6 +2142,7 @@ function renderMailDayEmailList(emails) {
   listEl.innerHTML = `${backBtn}<div class="mp-chatline-list">${rowsHtml}</div>`;
 }
 
+// 메일 한 통의 본문 상세를 렌더링
 function renderMailEmailDetail(email) {
   const listEl = document.getElementById("mp-echange-list-body");
   const backBtn = `<button class="mp-back-btn" type="button" id="mp-email-back-btn"><i class="bi bi-arrow-left"></i> 메일 목록</button>`;
@@ -2088,6 +2159,7 @@ function renderMailEmailDetail(email) {
   listEl.innerHTML = `${backBtn}<div class="mp-chatline-list">${cardsHtml}</div>`;
 }
 
+// 교환 상세 드로어를 닫고 차트 영역을 원래 너비로 복원
 function closeEmailDrawer() {
   const chartview = document.getElementById("mp-echange-chartview");
   const listview = document.getElementById("mp-echange-listview");
@@ -2103,11 +2175,13 @@ function closeEmailDrawer() {
     .forEach((g) => g.classList.remove("active"));
 }
 
+// "YYYY-MM-DD"를 "YYYY년 M월 D일"로 포맷
 function fmtDayLabel(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;
 }
 
+// 특정 참여자와의 월별 메신저 교환 드로어를 열고 그 달의 일별 목록을 조회
 async function openMessengerDayList(month) {
   currentMessengerDrawerMonth = month;
   const person = currentMessengerPerson;
@@ -2157,6 +2231,7 @@ async function openMessengerDayList(month) {
   }
 }
 
+// 선택된 달의 일별 메신저 교환 건수 목록 렌더링
 function renderMessengerDayList(days) {
   const listEl = document.getElementById("mp-echange-list-body");
   if (!days.length) {
@@ -2175,6 +2250,7 @@ function renderMessengerDayList(days) {
     .join("");
 }
 
+// 특정 날짜의 채팅방 대화 전체를 조회해 드로어에 표시
 async function openMessengerDayChat(date) {
   const listEl = document.getElementById("mp-echange-list-body");
   document.getElementById("mp-echange-list-title").textContent =
@@ -2200,6 +2276,7 @@ async function openMessengerDayChat(date) {
   }
 }
 
+// 특정 날짜의 채팅 로그 렌더링(선택된 참여자 발언은 강조 표시)
 function renderMessengerDayChat(messages) {
   const listEl = document.getElementById("mp-echange-list-body");
   const backBtn = `<button class="mp-back-btn" type="button" id="mp-day-back-btn"><i class="bi bi-arrow-left"></i> 날짜 목록</button>`;
@@ -2257,6 +2334,7 @@ document
     }
   });
 
+// 키워드 목록을 빈도 기반 폰트 크기의 워드클라우드로 렌더링
 function renderWordCloud(keywords, targetId) {
   const wrap = document.getElementById(targetId || "mp-detail-wc");
   if (!keywords || !keywords.length) {
@@ -2284,6 +2362,7 @@ function renderWordCloud(keywords, targetId) {
   });
 }
 
+// XSS 방지용 최소 HTML 이스케이프
 function esc(s) {
   return String(s || "")
     .replace(/&/g, "&amp;")
@@ -2292,6 +2371,7 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+// 상세 패널의 통계/설명/키워드 탭 전환
 function switchDetailTab(tab) {
   const statsBody = document.getElementById("mp-detail-body-stats");
   const descBody = document.getElementById("mp-detail-desc");
@@ -2348,6 +2428,7 @@ function mergeKeywordLists(lists) {
   return [...byWord.values()];
 }
 
+// 선택 기간 기준으로 상세 패널의 교환 통계·키워드를 다시 조회해 차트/워드클라우드 갱신
 async function refreshDetailStats(person) {
   const gmailId = await getCurrentMailId();
 
@@ -2428,6 +2509,7 @@ function setStatsLegend(mode) {
   }
 }
 
+// 메일 상대방 카드 클릭 시 상세 패널을 열고 관계/설명/통계를 채움
 async function openDetail(person, rowIndex) {
   const gmailId = await getCurrentMailId();
   const detailDisplayName = resolveDisplayName(person);
@@ -2530,6 +2612,7 @@ async function openDetail(person, rowIndex) {
   await refreshDetailStats(person);
 }
 
+// 메신저 참여자 카드 클릭 시 상세 패널을 메신저 모드로 열고 통계를 채움
 async function openMessengerDetail(person) {
   closeEmailDrawer();
 
@@ -2635,6 +2718,7 @@ async function openMessengerDetail(person) {
   await refreshMessengerDetailStats(person);
 }
 
+// 선택 기간 기준으로 메신저 상세 패널의 교환 통계·키워드를 다시 조회해 갱신
 async function refreshMessengerDetailStats(person) {
   document.getElementById("mp-chart").innerHTML =
     '<span style="color:#a0b8b0;font-size:0.82rem;">로딩 중...</span>';
@@ -2697,6 +2781,7 @@ let _graphData = null;
 let _graphD3Ready = false;
 let _graphFullRendered = false;
 
+// 지식그래프 렌더링에 필요한 d3와 graph-render.js를 동적으로 로드(1회만)
 function _loadGraphScripts() {
   return new Promise((resolve, reject) => {
     if (_graphD3Ready) {
@@ -2720,6 +2805,7 @@ function _loadGraphScripts() {
   });
 }
 
+// /graph-data를 조회해 그래프 데이터를 캐시하고 반환(최초 1회만 호출)
 async function _ensureGraphData() {
   if (_graphData) return _graphData;
   await _loadGraphScripts();
@@ -2729,6 +2815,7 @@ async function _ensureGraphData() {
   return _graphData;
 }
 
+// 사람 상세 패널 안의 미니 지식그래프 프리뷰를 d3 force-simulation으로 렌더링
 function _renderMiniGraph(svgEl, data) {
   if (!data || !data.nodes || !data.nodes.length || !window.d3) return;
   const rect = svgEl.getBoundingClientRect();
@@ -2824,6 +2911,7 @@ function _renderMiniGraph(svgEl, data) {
   });
 
   let _fitted = false;
+  // 시뮬레이션 노드들이 뷰포트에 꽉 차 보이도록 확대/이동(줌) 값을 한 번 계산
   function fitMini() {
     if (_fitted) return;
     _fitted = true;
@@ -2856,6 +2944,7 @@ function _renderMiniGraph(svgEl, data) {
   });
 }
 
+// 상세 패널의 미니 그래프 영역을 초기화하고 렌더링
 async function _initMiniGraph() {
   try {
     const data = await _ensureGraphData();
@@ -2864,6 +2953,7 @@ async function _initMiniGraph() {
   } catch (e) {}
 }
 
+// 전체 지식그래프 패널을 열고 닫기(최초로 열 때만 실제 그래프를 렌더링)
 async function toggleGraphView() {
   const panel = document.getElementById("mp-graph-panel");
   const isOpen = panel.classList.contains("open");

@@ -5,6 +5,9 @@
  * 여백/폰트/리스트 스타일을 전부 초기화해버려서 사이트 전체가 깨진다.
  * 새로 붙이는 shadcn 컴포넌트는 border-box 등을 이미 Bootstrap reboot에서 상속받으므로
  * preflight 없이도 정상 동작한다.
+ *
+ * Tailwind entry point for shadcn/ui — imports only theme+utilities (not the full preflight reset)
+ * so it doesn't clobber the existing Bootstrap/Gentelella pages' spacing/fonts/list styles.
  */
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);

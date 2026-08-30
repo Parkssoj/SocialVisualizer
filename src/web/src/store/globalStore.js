@@ -1,5 +1,14 @@
 // src/store/globalStore.js
 
+/**
+ * 선택된 메일/채팅방 필터와 수집된 계정·채팅방 목록을 관리하는 전역 스토어(싱글턴). 백엔드 /accounts, /messenger-chatrooms를 호출해 목록을 갱신하고,
+ * 선택 상태가 실제로 바뀔 때만 gwStoreStateChanged 이벤트를 쏴서 사이드바/각 페이지를 동기화한다.
+ *
+ * Singleton global store for the selected mail/room filter and the fetched account/chatroom lists.
+ * Refreshes lists via the backend's /accounts and /messenger-chatrooms, and fires a
+ * gwStoreStateChanged event only when the selection actually changes.
+ */
+
 const STORAGE_KEYS = {
   MAIL: "gw_selected_mail",
   ROOM: "gw_selected_room",

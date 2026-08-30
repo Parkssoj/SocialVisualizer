@@ -1,3 +1,11 @@
+/**
+ * 지식그래프 시각화(graph-viz.html) 진입점. 메일/메신저 계정을 고르면 /graph-data를 불러와 외부 graph-render.js(d3 기반)로 그래프를 그리고,
+ * 계정/도메인 전환 시 새로고침 없이 다시 그린다.
+ *
+ * Entry point for the knowledge-graph page. Fetches /graph-data for the selected mail/messenger
+ * account and renders it with the external d3-based graph-render.js, re-rendering in place when the
+ * account or domain changes.
+ */
 import { bootstrapApp } from '../main-app.js';
 import { initAccountPicker } from '../features/accountPicker.js';
 import '../scss/pages/graph-viz.scss';
@@ -28,7 +36,7 @@ if (gmailIdParam) {
 const profileNameEl = document.getElementById('google-profile-name');
 if (profileNameEl) profileNameEl.textContent = name;
 
-// 그래프 로드
+// 외부 <script> 태그를 동적으로 로드하고 완료되면 resolve하는 헬퍼
 function _loadScript(src) {
   return new Promise(function(resolve, reject) {
     var s = document.createElement('script');
@@ -45,6 +53,7 @@ var rendererReady = _loadScript('https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0
 // 계정/도메인 전환 시에도 페이지 새로고침 없이 이 함수만 다시 호출해 그 자리에서 다시 그린다.
 var currentDomain = 'mail';
 
+// userId(+ currentDomain)로 그래프 데이터를 조회해 #graph SVG에 렌더링
 function loadGraphData(userId) {
   var svg = document.getElementById('graph');
   if (!userId) {
@@ -70,6 +79,7 @@ function loadGraphData(userId) {
 
 // 메일/메신저 토글에 맞춰 계정 선택기를 그 도메인 목록으로 다시 초기화하고 그래프를 새로 불러온다.
 // 메일과 카카오는 "마지막 선택"을 서로 다른 localStorage 키에 각자 기억한다.
+// 메일/메신저 도메인 전환 — 토글 버튼 상태 갱신, 해당 도메인 계정 선택기 재초기화, 그래프 재조회
 function loadDomain(domain) {
   currentDomain = domain;
   document.getElementById('domain-btn-mail').classList.toggle('active', domain === 'mail');

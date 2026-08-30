@@ -1,14 +1,14 @@
 /**
+ * 메일/메신저 계정을 선택하는 드롭다운 위젯. GET /accounts로 인덱싱된 계정 목록을 받아 <select>를 그려주고, 선택된 user_id(또는 chatroom_id)를
+ * localStorage에 저장 후 반환한다.
+ *
+ * Account/chatroom picker dropdown — fetches indexed accounts via GET /accounts, renders a <select>,
+ * and persists the chosen user_id/chatroom_id to localStorage.
+ */
+/**
  * 계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정(또는 카카오 대화방) 목록을 가져와
  * container 안에 <select>를 렌더링하고, 확정된 user_id를 반환한다.
  * (해당 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
- *
- * @param {HTMLElement|null} container
- * @param {(userId: string) => void} [onChange] 전달하면 계정 변경 시 새로고침 대신 이 콜백을 호출한다
- *   (예: Graph Viz처럼 페이지 새로고침 없이 그 자리에서 다시 그려야 하는 경우).
- * @param {{domain?: string, storageKey?: string}} [options] domain: /accounts에 넘길 도메인("mail"/"messenger").
- *   storageKey: 마지막 선택값을 저장할 localStorage 키. 메일과 카카오가 서로 다른 "마지막 선택"을
- *   기억하도록 도메인마다 별도 키를 쓴다 (기본값은 기존 메일 동작과 100% 동일).
  */
 /** 화면에 보여줄 계정 라벨을 반환 — 항상 실제 계정 id 그대로. */
 export function displayAccountLabel(userId) {
@@ -108,6 +108,7 @@ async function fetchChatroomName(chatroomId) {
   }
 }
 
+// 계정 선택 드롭다운 전용 스타일을 한 번만 <head>에 주입
 function injectStyle() {
   if (document.getElementById('gw-account-picker-style')) return;
   const style = document.createElement('style');

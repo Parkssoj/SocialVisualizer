@@ -1,3 +1,11 @@
+/**
+ * 홈 화면 전용 React 헤더 — 상단 네비게이션(NAV_ITEMS)과 언어 드롭다운(현재 UI는 주석 처리돼 비활성 상태)을 렌더링한다. 다른 페이지들은 이 대신
+ * appHeader.js(vanilla JS) 버전을 쓴다.
+ *
+ * React header used only on the home page — renders the top nav (NAV_ITEMS) and a language dropdown
+ * (currently commented out/disabled). Every other page uses the vanilla-JS appHeader.js version
+ * instead.
+ */
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { changeLanguage } from "../utils/i18n.js";
@@ -35,6 +43,7 @@ const LANG_OPTIONS = [
   { code: "ja", label: "🇯🇵 日本語", short: "JA" },
 ];
 
+// 메뉴 항목 하나를 렌더링 — children이 있으면 드롭다운 그룹으로 표시
 function NavItem({ item, activePage }) {
   if (item.children) {
     const groupActive =
@@ -76,6 +85,7 @@ function NavItem({ item, activePage }) {
   );
 }
 
+// 상단 헤더 전체(로고 + 네비게이션 + 언어 드롭다운) 렌더링
 export default function Header({ activePage }) {
   // 현재 언어 — 이 state가 바뀌면 아래 <span id="current-lang">가 자동으로 갱신됨
   const [lang, setLang] = useState("ko");

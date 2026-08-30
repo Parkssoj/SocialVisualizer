@@ -1,3 +1,8 @@
+/*
+ * "분석 결과 보기" 허브 페이지 전용 스타일 — 카드 그리드를 화면 높이에 맞춰 세로 중앙 정렬.
+ *
+ * Styles for the "view results" hub page — vertically centers the card grid to the viewport height.
+ */
 /* ── 공통 레이아웃 ──
    예전엔 .gw-hub-grid에 margin-top: 110px 고정값을 줘서 헤더 밑에서부터 항상
    같은 거리만큼 내려온 자리에 그리드가 놓였다. 그래서 창이 넓고 높을 때는

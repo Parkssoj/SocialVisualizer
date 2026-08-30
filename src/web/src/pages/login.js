@@ -1,7 +1,14 @@
+/**
+ * 로그인/회원가입 카드 전환, 비밀번호 표시 토글, 폼 제출 처리. 실제 OAuth 연동 전 단계라 제출 시 그냥 홈으로 이동만 시키는 디자인 목업 단계 로직이다.
+ *
+ * Handles the login/register card switch, password-visibility toggle, and form submits. No real OAuth
+ * yet — submitting either form just redirects to the home page (design mockup stage).
+ */
 import '../main.scss';
 import '../utils/security.js';
 import '../scss/pages/login.scss';
 
+// DOM 로드 후 로그인 페이지의 모든 인터랙션(폼 전환/비밀번호 토글/제출)을 바인딩
 document.addEventListener('DOMContentLoaded', function () {
   const loginCard = document.getElementById('loginCard');
   const registerCard = document.getElementById('registerCard');

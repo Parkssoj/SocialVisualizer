@@ -1,3 +1,11 @@
+/**
+ * 홈 화면 히어로 섹션 — 헤드라인/설명/CTA와 My People·My Time 미리보기 카드, 배경 그리드, 글로우 SVG 필터를 렌더링한다. 미리보기는 정적 이미지(기본) 또는
+ * 실제 페이지를 담은 축소 iframe 중 하나로 전환 가능하다(USE_STATIC_HERO_PREVIEWS).
+ *
+ * Home page hero section — renders the headline/description/CTA, My People & My Time preview cards,
+ * background grid, and a glow SVG filter. Previews can switch between static images (default) and a
+ * scaled-down live iframe of the actual page (USE_STATIC_HERO_PREVIEWS).
+ */
 import { useEffect } from "react";
 import { Component as HeroGridBackground } from "./ui/background-snippets.tsx";
 
@@ -15,6 +23,7 @@ const FRAME_H = 1020;
    되돌리려면 이 값을 false로만 바꾸면 된다 — 원본 iframe 코드는 그대로 남아있음. */
 const USE_STATIC_HERO_PREVIEWS = true;
 
+// 실제 페이지를 iframe으로 불러와 CSS로 축소해 보여주는 라이브 미리보기 카드
 function PagePreviewFrame({ src }) {
   return (
     <div className="gw-preview-frame">
@@ -29,6 +38,7 @@ function PagePreviewFrame({ src }) {
   );
 }
 
+// 히어로 전체(헤드라인 + 글로우 필터 + 미리보기 카드) 렌더링
 export default function HeroOrbit() {
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
   // 실제로 DOM에 존재하는 시점에 안전하게 .visible 클래스를 붙일 수 있음

@@ -1,3 +1,9 @@
+/*
+ * 공통 헤더(appHeader.js/Header.jsx) 스타일 — 상단 고정 네비게이션 바와, 사이드바 제거에 따른 레이아웃 오프셋 보정을 한 곳에 모았다.
+ *
+ * Styles for the shared header (appHeader.js/Header.jsx) — the fixed top nav bar and layout offset
+ * fixes now that the old sidebar is gone.
+ */
 // 공통 헤더(src/layout/appHeader.js)용 스타일.
 // 기존에 페이지마다 미세하게 다르게 복붙되어 있던 .gw-top-links 관련 규칙을 한 곳으로 통합.
 

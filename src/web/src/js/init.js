@@ -1,7 +1,10 @@
 /**
- * Modern Init.js - jQuery Eliminated
- * This is the new, modernized version of init.js with all jQuery dependencies removed
- * Only contains functionality that hasn't been moved to separate modules
+ * jQuery를 걷어낸 공통 UI 초기화 모듈 — 날짜 선택기, 패널 접기/펼치기, 프로그레스바, 폼 검증, 탭/아코디언, 모달, 드래그앤드롭, 검색 필터, 단축키, 헤더 스크롤
+ * 그림자 등을 DOMContentLoaded 시점에 한 번에 초기화한다.
+ *
+ * jQuery-free shared UI initializer — sets up date pickers, panel collapse, progress bars, form
+ * validation, tabs/accordions, modals, drag-and-drop, search filtering, keyboard shortcuts, and the
+ * header scroll shadow, all on DOMContentLoaded.
  */
 
 // Import canonical DOM utilities
@@ -403,14 +406,6 @@ function initializeKeyboardShortcuts() {
  * 나타나도록 함 (_header.scss의 .top_nav.gw-header-scrolled 참고). 홈(React Header.jsx)/
  * 다른 페이지(appHeader.js) 둘 다 마운트 후에는 결국 같은 .top_nav 요소를 쓰므로,
  * scroll 이벤트마다 lazy하게 querySelector로 찾아서 여기 한 곳에서만 처리하면 됨.
- *
- * 페이지마다 실제로 스크롤되는 대상이 다름 — 홈 화면은 window 자체가 스크롤되지만,
- * recap 등 .right_col에 overflow-y:auto가 붙은 페이지는 document.body가 스크롤됨
- * (실측: window.scrollY는 0으로 고정, document.body.scrollTop만 변함). scroll 이벤트는
- * 기본적으로 버블링되지 않으므로, window/document에 { capture: true }로 등록해서
- * body 등 하위 요소에서 발생한 scroll 이벤트도 캡처 단계에서 잡아냄. 그리고 어느 쪽이
- * 실제로 스크롤됐는지 몰라도 되도록 window/documentElement/body 스크롤 값을 순서대로
- * fallback 하는 getScrollTop()으로 항상 "현재 스크롤 위치"를 정확히 읽어옴.
  */
 function initializeHeaderScrollShadow() {
   const SCROLL_THRESHOLD = 4;

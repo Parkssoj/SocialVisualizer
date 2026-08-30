@@ -1,3 +1,11 @@
+/**
+ * "My Time" 페이지 진입점 — 메일/메신저 각각에 대해 월·연도별 타임라인 슬라이더와 우측 키워드 패널을 만들어 연결한다. 사이드바에서 계정/채팅방을 바꾸면 새로고침 없이
+ * 해당 타임라인·키워드 데이터만 다시 불러온다.
+ *
+ * Entry point for the "My Time" page — builds a month/year timeline slider plus a keyword panel for
+ * both mail and messenger channels. Switching the sidebar's account/chatroom reloads only that
+ * channel's timeline and keyword data, without a page refresh.
+ */
 /* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/mytime.scss";
@@ -68,6 +76,7 @@ chatroomIdPromise.then((id) => {
 });
 
 /* ── 공통 fetch 헬퍼 ── */
+// JSON POST 요청 공통 헬퍼
 async function postJSON(url, body) {
   const res = await fetch(url, {
     method: "POST",
@@ -80,6 +89,7 @@ async function postJSON(url, body) {
 
 /* ── 공용 툴팁(주요 연락처 설명 / 키워드 언급자) ── */
 let mtTooltipEl = null;
+// 공용 툴팁 엘리먼트를 최초 1회 생성해 body에 붙이고 재사용
 function ensureTooltip() {
   if (mtTooltipEl) return mtTooltipEl;
   mtTooltipEl = document.createElement("div");
@@ -87,6 +97,7 @@ function ensureTooltip() {
   document.body.appendChild(mtTooltipEl);
   return mtTooltipEl;
 }
+// XSS 방지용 최소 HTML 이스케이프
 function escHtml(s) {
   return String(s || "")
     .replace(/&/g, "&amp;")
@@ -103,6 +114,7 @@ function formatContactDesc(text) {
   });
   return html.replace(/^(<br>)+/, "");
 }
+// anchorEl 위치를 기준으로 공용 툴팁을 표시(placement로 위/아래 결정)
 function showTooltip(anchorEl, html, placement = "top") {
   const t = ensureTooltip();
   t.innerHTML = html;
@@ -122,11 +134,14 @@ function showTooltip(anchorEl, html, placement = "top") {
   }
   requestAnimationFrame(() => t.classList.add("show"));
 }
+// 공용 툴팁 숨김
 function hideTooltip() {
   if (mtTooltipEl) mtTooltipEl.classList.remove("show");
 }
 
 /* ── 타임라인 컨트롤러 ── */
+// 좌측 월/연도 슬라이더 타임라인 전체(렌더링, 포인터/커서, 기간 고정, 데이터 주입)를
+// 관리하는 컨트롤러 팩토리 — 메일/메신저 화면이 각자 하나씩 만들어 쓴다.
 function createTimeline(ids) {
   let MONTH_DATA = {};
   let YEAR_DATA = {};
@@ -146,13 +161,16 @@ function createTimeline(ids) {
   // 모아서 보여준다(getWindowKeys 참고) — 그래서 여기엔 year 값만 남는다.
   const WIN = { year: 5 };
 
+  // "YYYY-MM" 키를 정렬/거리 계산용 정수(연*12+월)로 변환
   function monthToNum(k) {
     const [y, m] = k.split("-").map(Number);
     return y * 12 + m;
   }
+  // 월 키를 전체 기간 대비 위치(0~1 비율)로 변환
   function monthToPct(k) {
     return (monthToNum(k) - FIRST_NUM) / TOTAL;
   }
+  // 연도를 전체 기간 대비 위치(0~1 비율)로 변환
   function yearToPct(y) {
     return (Number(y) * 12 + 1 - FIRST_NUM) / TOTAL;
   }
@@ -165,6 +183,7 @@ function createTimeline(ids) {
   // 버튼 자체가 트랙의 양 끝(0%/100%)에 오도록 인셋을 없앰(트랙 좌우
   // 패딩이 이미 있어서 원이 잘리지 않는다).
   const YEAR_DOT_INSET = 0;
+  // 연도 점들을 실제 시간 간격이 아닌 균등 간격으로 배치하기 위한 인덱스 기반 위치 계산
   function yearIdxPct(i) {
     if (YEAR_KEYS.length <= 1) return 0.5;
     const clamped = Math.max(0, Math.min(YEAR_KEYS.length - 1, i));
@@ -191,6 +210,7 @@ function createTimeline(ids) {
     return YEAR_KEYS.slice(start, start + win);
   }
 
+  // 현재 모드/윈도우에 맞는 기간 열(점+라벨)을 다시 그리고 이벤트를 바인딩
   function render() {
     const keys = getWindowKeys();
     const data = mode === "month" ? MONTH_DATA : YEAR_DATA;
@@ -243,6 +263,7 @@ function createTimeline(ids) {
     updatePointerWindow();
   }
 
+  // 특정 기간 열에 대한 요약/주요 연락처 패널을 표시
   function showPanel(col, key, d) {
     document
       .getElementById(ids.track)
@@ -333,6 +354,7 @@ function createTimeline(ids) {
     pinKey(col, key, d);
   }
 
+  // 하단 연도 포인터 트랙(점들 + 커서 + 활성 구간 바)을 새로 생성
   function buildPointer() {
     const pointerTrack = document.getElementById(ids.pointerTrack);
     pointerTrack.querySelectorAll(".mt-pm").forEach((el) => el.remove());
@@ -447,6 +469,7 @@ function createTimeline(ids) {
     }
   }
 
+  // 현재 선택된 기간에 맞춰 포인터 커서(나 아바타) 위치를 갱신
   function updatePointerCursor() {
     const keys = mode === "month" ? ALL_KEYS : YEAR_KEYS;
     const k = keys[Math.max(0, Math.min(keys.length - 1, centerIdx))];
@@ -467,6 +490,7 @@ function createTimeline(ids) {
     updateYearDotSelection();
   }
 
+  // 지금 화면에 보이는 기간 범위를 포인터 트랙 위 활성 구간 바로 표시
   function updatePointerWindow() {
     const wKeys = getWindowKeys();
     if (!wKeys.length) return;
@@ -511,6 +535,7 @@ function createTimeline(ids) {
     render();
   });
 
+  // 새 계정/채팅방의 월별·연도별 데이터를 주입하고 타임라인을 초기 상태로 다시 그림
   function setData(monthData, yearData, emptyMessage) {
     MONTH_DATA = monthData || {};
     YEAR_DATA = yearData || {};
@@ -538,6 +563,7 @@ function createTimeline(ids) {
     return true;
   }
 
+  // 월별/연도별 보기 모드 전환
   function setMode(m) {
     mode = m;
     centerIdx = mode === "month" ? Math.min(3, ALL_KEYS.length - 1) : 0;
@@ -554,6 +580,7 @@ function createTimeline(ids) {
    ids: { body, hint, backBtn } — DOM id 문자열
    api: { monthlyUrl, dailyUrl, mentionersUrl, idField } — 메일/메신저별로 다른
         엔드포인트·요청 필드명(user_id vs chatroom_id)을 여기서 갈아끼운다. */
+// 우측 "월별 키워드" 패널 전체(목록 보기 ↔ 일별 그래프 보기 전환 포함)를 관리하는 컨트롤러 팩토리
 function createKeywordPanel(ids, api) {
   let idValue = "";
   let monthlyMap = {};
@@ -578,6 +605,7 @@ function createKeywordPanel(ids, api) {
       mode === "year" ? `${key}년 키워드` : `${key.slice(0, 4)}년 ${key.slice(5)}월 키워드`;
   }
 
+  // "YYYY-MM" 월의 마지막 날짜(일 수) 계산
   function daysInMonth(key) {
     const [y, m] = key.split("-").map(Number);
     return new Date(y, m, 0).getDate();
@@ -611,6 +639,7 @@ function createKeywordPanel(ids, api) {
     }
   }
 
+  // 키워드 패널을 빈 상태 메시지로 표시
   function renderEmpty(msg) {
     if (hintEl()) hintEl().textContent = "";
     if (bodyEl())
@@ -618,6 +647,7 @@ function createKeywordPanel(ids, api) {
         `<div class="mt-empty"><i class="bi bi-chat-square-text"></i><p>${escHtml(msg)}</p></div>`;
   }
 
+  // 현재 선택된 기간의 키워드 랭킹 목록을 렌더링(연도 보기는 그 해 전체 합산)
   function renderList() {
     view = "list";
     currentKeyword = null;
@@ -691,6 +721,7 @@ function createKeywordPanel(ids, api) {
     );
   }
 
+  // 특정 키워드의 해당 월 일별 언급 횟수를 막대그래프로 렌더링
   async function showDaily(word) {
     if (!currentMonthKey || !bodyEl()) return;
     view = "daily";
@@ -815,6 +846,7 @@ function createKeywordPanel(ids, api) {
     bodyEl().appendChild(wrap);
   }
 
+  // 막대 hover 시 그 날짜에 해당 키워드를 언급한 사람 목록을 캐시 조회/조회 후 툴팁으로 표시
   async function showMentioners(anchorEl, date, word) {
     const cacheKey = `${date}|${word}`;
     if (mentionersCache[cacheKey]) {
@@ -836,6 +868,7 @@ function createKeywordPanel(ids, api) {
     }
   }
 
+  // 언급자 목록 데이터를 툴팁 HTML로 그려서 표시
   function renderMentionersTooltip(anchorEl, data) {
     if (!data.length) {
       showTooltip(
@@ -904,6 +937,7 @@ async function loadMailDescriptions(gmailId) {
     console.error("person-descriptions 오류:", e);
   }
 }
+// person-descriptions 캐시에서 contactId로 설명을 조회
 function mailContactLookup(contactId) {
   const found = mailDescCache.find(
     (d) =>
@@ -1025,6 +1059,7 @@ async function loadMsgPeople(chatroomId) {
     console.error("chatroom-people 오류:", e);
   }
 }
+// chatroom-people 캐시에서 참여자 id/이름으로 설명을 조회
 function msgContactLookup(contactId) {
   const found = msgPeopleCache.find(
     (p) => p.participant_id === contactId || p.name === contactId,
@@ -1049,6 +1084,7 @@ const msgTimeline = createTimeline({
   contactLookup: msgContactLookup,
 });
 
+// 요약 배열을 기간(summary_period) 키의 맵으로 변환
 function summariesToMap(summaries) {
   const map = {};
   (summaries || []).forEach((s) => {
@@ -1061,6 +1097,7 @@ function summariesToMap(summaries) {
   return map;
 }
 
+// 채팅방의 월별/연도별 요약을 조회해 기간별 맵으로 반환
 async function fetchChatroomSummaries(chatroomId, unit) {
   const j = await postJSON("/chatroom-summaries", {
     chatroom_id: chatroomId,
@@ -1124,6 +1161,7 @@ function updateSharedRangeBadge(text) {
   if (el) el.textContent = text || "";
 }
 
+// 메일/메신저 뷰 전환 — 해당 뷰만 보이게 하고 공유 기간 뱃지를 그 채널 타임라인 값으로 갱신
 function setMtChannel(channel) {
   mtActiveChannel = channel;
   const isMail = channel === "mail";

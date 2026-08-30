@@ -1,9 +1,18 @@
+/**
+ * "소셜 데이터 분석" 수집 페이지 진입점 — IMAP 메일 수집과 카카오톡 대화 업로드 두 흐름을 다룬다. 수집 요청 후 SSE(/indexing-stream)로 진행상황을 실시간
+ * 수신하고, 페이지를 벗어나도 이어서 볼 수 있도록 진행 중인 job을 localStorage에 남긴다.
+ *
+ * Entry point for the social-data collection page — handles both IMAP mail collection and KakaoTalk
+ * chat-export upload. Tracks progress in real time via SSE (/indexing-stream) and persists in-flight
+ * jobs to localStorage so they survive a page revisit.
+ */
 import { bootstrapApp } from "../main-app.js";
 import { getApiBase } from "../utils/apiBase.js";
 import "../scss/pages/imap-collect.scss";
 
 bootstrapApp("imap-collect");
 
+// 로그 줄에 붙일 현재 시각(HH:MM:SS) 문자열
 function now() {
   return new Date().toLocaleTimeString("ko-KR", {
     hour: "2-digit",
@@ -284,6 +293,7 @@ function jobAddLog(panelEl, msg, type = "") {
   body.scrollTop = body.scrollHeight;
 }
 
+// job 패널의 상태 배지(색상/점/텍스트)를 갱신
 function jobSetStatus(panelEl, status, label) {
   const badge = panelEl.querySelector(".job-status-badge");
   const dot = panelEl.querySelector(".job-status-dot");
@@ -293,6 +303,7 @@ function jobSetStatus(panelEl, status, label) {
   text.textContent = label;
 }
 
+// job 패널의 진행률 바 갱신
 function jobSetProgress(panelEl, pct) {
   panelEl.querySelector(".job-progress-bar").style.width = pct + "%";
 }
@@ -736,6 +747,7 @@ function decodeMessageFileBuffer(buf) {
   return utf8Text || "";
 }
 
+// 선택/드롭된 카카오톡 대화 .txt 파일을 읽어 디코딩하고 방 이름을 추정해 입력칸에 채움
 function handleMessageFile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -776,6 +788,7 @@ messageDropzone.addEventListener("drop", (e) => {
   if (file) handleMessageFile(file);
 });
 
+// 카카오톡 대화 텍스트를 /message-upload로 전송하고 job 패널을 만들어 진행상황 추적 시작
 async function startMessageUpload() {
   const flaskUrl = getApiBase();
   const roomName = document.getElementById("message-room-name").value.trim();

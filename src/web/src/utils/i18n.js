@@ -1,3 +1,10 @@
+/**
+ * i18next 초기화 및 다국어(ko/en/ja) 전환, data-i18n-* 속성을 가진 DOM 요소에 번역을 적용하는 모듈. 언어 스위처 UI와 홈 인사말 갱신까지 담당하며
+ * 로드 즉시 자동 실행된다.
+ *
+ * Initializes i18next for ko/en/ja, applies translations to elements carrying data-i18n-* attributes,
+ * and drives the language switcher UI and home greeting; runs itself on load.
+ */
 import i18next from 'i18next';
 import ko from '../i18n/ko.json';
 import en from '../i18n/en.json';
@@ -14,7 +21,7 @@ function detectLang() {
   return SUPPORTED.includes(browser) ? browser : 'ko';
 }
 
-// i18next 초기화
+// i18next 초기화 (모듈 로드 시 즉시 실행되는 top-level await)
 await i18next.init({
   lng: detectLang(),
   fallbackLng: 'ko',

@@ -1,4 +1,11 @@
 import { store } from "../store/globalStore.js";
+/**
+ * My People/My Time/Recap 등에서 공용으로 쓰는 좌측 사이드바(메일 계정·메신저 채팅방 선택 목록). globalStore와 연동해 선택 상태를 반영하고,
+ * 접기/펼치기 및 목록 클릭 이벤트를 처리한다.
+ *
+ * Shared left sidebar (mail account / messenger chatroom picker) used by My People, My Time, Recap,
+ * etc. Syncs selection with the global store and handles collapse toggle and item clicks.
+ */
 
 // 완전히 새로 그린 사이드바(디자인/클래스 전부 새로 작성 — 예전 클래스명과 절대
 // 안 겹치도록 "gws-" 접두사 사용. 예전엔 이름이 흔한 .sidebar-header 같은 걸 써서
@@ -82,6 +89,7 @@ export function renderAppSidebar(containerId = "app-sidebar") {
   refreshSidebarList();
 }
 
+// XSS 방지용 최소 HTML 이스케이프 (텍스트 노드용)
 function escapeHtml(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -89,12 +97,14 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+// XSS 방지용 최소 속성값 이스케이프 (title/data-value 등)
 function escapeAttr(str) {
   return String(str || "")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
+// 스토어의 최신 목록/선택 상태를 읽어 메일·메신저 목록 HTML을 다시 그리고 기본 선택값을 보정
 export function refreshSidebarList() {
   const mailListEl = document.getElementById("sidebar-mail-list");
   const msgListEl = document.getElementById("sidebar-msg-list");
@@ -195,6 +205,7 @@ function syncViewButton(targetType) {
   }
 }
 
+// 목록 항목 클릭 시 스토어에 선택값을 반영하고 사이드바를 다시 그림
 function bindSidebarEvents() {
   document.querySelectorAll(".gws-item").forEach((item) => {
     item.onclick = () => {
