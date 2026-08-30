@@ -1,10 +1,10 @@
 # GraphRAG 전용 파일
 # GraphRAG의 entities/relationships/communities parquet을 그래프 시각화용 json으로 변환한다. job_run_graphrag.py가 이 파일을 subprocess로 실행한다 (paths.GRAPH_BUILD_SCRIPT).
-# LightRAG는 이 변환기를 쓰지 않는다
+# LightRAG는 이 변환기를 쓰지 않는다.
 
 # GraphRAG-specific script
 # Converts GraphRAG's entities/relationships/communities parquet files into JSON for graph visualization. Run as a subprocess by job_run_graphrag.py
-# LightRAG does not use this converter
+# LightRAG does not use this converter.
 
 import pandas as pd
 import json
