@@ -1,102 +1,12 @@
-# 설치 및 실행 가이드
-
-## 📝 To-do list
-- [ ] Python 3.11·Node.js·MySQL 서버 준비
-- [ ] 가상환경 생성 및 활성화
-- [ ] 의존성 설치
-- [ ]
-- [ ]
-[ ]
-
-## 사전 준비
-
-- Python 3.11
-- Node.js
-- MySQL 서버
+# LightRAG 사용 가이드
 
 ---
 
-## 환경 설정
+## LightRAG 기능 켜기
 
-1. 레포지토리 fork 후 clone
-2. 가상환경 생성 및 활성화
-
-```bash
-python -m venv socialvisualizer-venv
-
-# Mac/Linux
-source socialvisualizer-venv/Scripts/activate
-
-# Windows
-socialvisualizer-venv\Scripts\activate
-```
-
-3. 의존성 설치
-
-가상환경 활성화한 상태로 루트 디렉터리에서 실행
-
-```bash
-pip install -r requirements.txt
-```
+SocialVisualizer는 기본적으로 GraphRAG로 동작한다. 인덱싱/질의 엔진을 LightRAG로 바꾸고 싶을 때만 아래를 추가로 진행하면 된다. 진행하지 않으면 GraphRAG 그대로 동작하니 건너뛰어도 무방하다.
 
 ---
-
-## 환경변수 설정
-
-1. .env 파일 작성
-환경변수 예시 파일 `src\parquet\.env.example`의 파일명을 `.env`로 변경한다.
-
-2. DB 비밀번호 설정 
-your_password를 실제 사용할 비밀번호로 교체한다.
-```text
-DB_PASSWORD=your_password
-```
-
----
-
-## MySQL DB 생성
-
-MySQL에 접속해 빈 데이터베이스를 생성한다. 테이블은 앱 실행 시 자동으로 생성되므로 별도의 스키마 파일을 실행할 필요는 없다.
-
-```sql
-CREATE DATABASE social_visualizer_db;
-```
-
-DB의 이름은 `.env`의 `DB_NAME` 값과 일치해야 한다.
-
----
-
-## 프론트엔드 빌드
-
-```bash
-cd src/web
-npm install
-npm run build
-```
-
----
-
-## 서버 실행
-
-```bash
-cd SocialVisualizer
-python src/app.py
-```
-
-
-
-
-
-
-
-
-
----
-
-## LightRAG 기능 켜기 (선택)
-
-SocialVisualizer는 기본적으로 GraphRAG로 동작한다. 인덱싱/질의 엔진을 LightRAG로 바꾸고 싶을 때만
-아래를 추가로 진행하면 된다 — 안 하면 GraphRAG 그대로 동작하니 건너뛰어도 무방하다.
 
 ### 1. LightRAG 클론
 
@@ -112,6 +22,8 @@ LightRAG는 pip 패키지로 설치하지 않고 소스를 그대로 클론해�
 git clone https://github.com/HKUDS/LightRAG.git
 ```
 
+---
+
 ### 2. LightRAG 엔진 전환
 
 `src/config/settings.py`의 `RAG_ENGINE` 값을 바꾼다.
@@ -120,7 +32,11 @@ git clone https://github.com/HKUDS/LightRAG.git
 RAG_ENGINE = "lightrag"   # 기본값은 "graphrag"
 ```
 
+---
+
 ## RAG 사용자 편의/프롬프트 설정
+
+---
 
 ### 1. 사용자 편의 설정 (인덱싱/질의/통계 추출)
 
@@ -136,11 +52,15 @@ RAG_ENGINE = "lightrag"   # 기본값은 "graphrag"
 
 - `src/util/extract_statics.py` — 통계 추출 (GraphRAG/LightRAG 공용)
 
+---
+
 ### 2. 프롬프트 설정
 
 프롬프트를 수정하거나 설계해서 사용하고 싶다면 다음과 같은 프롬프트 내용을 참고해라.
 
 LightRAG는 라이브러리 내 기본 프롬프트를 사용하고 있으니, 프롬프트를 수정하여 사용하는 것을 권장한다.
+
+---
 
 #### 2-1. LightRAG 프롬프트
 
@@ -164,15 +84,21 @@ GraphRAG는 인덱싱과 질의(LocalSearch/GlobalSearch) 프롬프트를 프로
 - 메일 요약 프롬프트 — `lightrag_mail_summary.py`의 `system 메시지`
 - 날짜 범위 질의 답변 프롬프트 — `lightrag_date_query.py`의 `run_date_range_query()` 안 `messages=[...]`의 `system 메시지`
 
+---
+
 ## 다른 RAG 엔진을 붙이고 싶을 때
 
 GraphRAG/LightRAG 두 엔진이 비슷한 패턴으로 설계되어 있으니, 세 번째 엔진(예: 다른 RAG 프레임워크)도 같은 패턴을 따라가면 된다.
 아래 순서를 참고해라.
 
+---
+
 ### 1. 엔진 이름 등록
 
 `src/config/settings.py`의 `SUPPORTED_RAG_ENGINES`에 새 엔진 이름을 추가한다(안 하면 앱 시작 시
 ValueError로 막힌다).
+
+---
 
 ### 2. 전용 패키지 만들기
 
@@ -190,6 +116,8 @@ ValueError로 막힌다).
 - `<엔진명>_progress.py` — 인덱싱 진행률 표시
 - `<엔진명>_loop.py` —
 
+---
+
 ### 3. 인덱싱 job 작성
 
 `src/util/jobs/job_run_<엔진명>.py`를 만들고 `job_run_lightrag.py`/`job_run_graphrag.py`와 같은
@@ -201,6 +129,8 @@ ValueError로 막힌다).
 - `build_graph_json`
   함수 이름을 동일하게 작성하면 app.py는 `RAG_ENGINE` 값에 따라 import 경로만 바꿔서 그대로 재사용할 수 있다.
 
+---
+
 ### 4. 경로 세그먼트 추가
 
 `src/util/user_path.py`에 새로운 엔진 전용 작업 디렉터리 경로를 추가한다
@@ -209,6 +139,8 @@ ValueError로 막힌다).
 - `GRAPH_JSON_PATH`/ `LIGHTRAG_GRAPH_JSON_PATH`처럼 `<엔진명>_GRAPH_JSON_PATH`
   `_account_indexed()` 함수에도 `elif RAG_ENGINE == "<엔진명>":` 분기를 추가한다 (안 하면
   새 엔진으로 인덱싱해도 계정 목록에 "인덱싱 안 됨"으로 표시됨).
+
+---
 
 ### 5. `app.py`에 분기 추가
 
@@ -222,6 +154,8 @@ ValueError로 막힌다).
 - `/graph-data` 라우트 — 그래프 JSON 경로 선택
 - `/upload-attachments` 라우트, `util/attachment_manager.py` — 첨부파일 반영 업데이트 함수 선택
 
+---
+
 ### 6. DB 저장은 대부분 그대로 재사용 가능
 
 `src/util/database/db_writer.py`의 `save_query_to_db`, `save_mail_summarize_to_db` 등은 엔진에
@@ -230,11 +164,17 @@ ValueError로 막힌다).
 `extract_graph` 등)를 하드코딩하고 있어서 GraphRAG 전용이다 — 새 엔진에서 인덱싱 비용/통계를
 집계하고 싶다면 이 함수의 엔진별 버전을 따로 만들어야 한다.
 
+---
+
 ### 7. 프롬프트
 
 위 섹션 중 `RAG 사용자 편의/프롬프트 설정`의 2번 `프롬프트 설정`을 참고해라.
 
+---
+
 ## LightRAG 자체 웹 UI 따로 띄우기 (선택)
+
+---
 
 ### 1. uv 설치
 
@@ -263,6 +203,8 @@ uv --version
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
 
+---
+
 ### 2. 전용 가상환경(`lightrag-venv`) 생성 + 의존성 설치
 
 `socialvisualizer-venv`와 별도로 `lightrag-venv`를 하나 더 만든다(uv가 자체적으로 관리하는 전용 가상환경).
@@ -282,11 +224,15 @@ uv sync --extra test --extra offline
 echo 'export UV_PROJECT_ENVIRONMENT=lightrag-venv' >> ~/.bashrc
 ```
 
+---
+
 ### 3. 가상환경 활성화
 
 ```bash
 source lightrag-venv/Scripts/activate
 ```
+
+---
 
 ### 4. 웹 UI 빌드
 
@@ -303,11 +249,16 @@ bun run build
 cd ..
 ```
 
+---
+
 ### 5. 설정 파일(.env) 생성
 
 ```bash
 cp env.example .env
 ```
+
+---
+
 
 ### 6. 서버 실행
 

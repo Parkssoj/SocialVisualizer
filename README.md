@@ -15,9 +15,9 @@
 ## 📚 가이드
 
 <table>
-  <tr><td>설치 · 실행</td><td><a href="EXECUTE.md">EXECUTE</a></td></tr>
+  <tr><td>설치 · 실행</td><td><a href="docs/EXECUTE.md">EXECUTE</a></td></tr>
   <tr><td>라이선스</td><td><a href="LICENSE">LICENSE</a> · <a href="LICENSE_3rd.md">THIRD PARTY</a></td></tr>
-  <tr><td>SW 자재명세서</td><td><a href="SBOM.csv">SBOM</a></td></tr>
+  <tr><td>SW 자재명세서</td><td><a href="docs/SBOM.csv">SBOM</a></td></tr>
 </table>
 
 ---
@@ -129,7 +129,7 @@
 - <b>주요 키워드</b>: 반복적으로 등장한 핵심 키워드 가시화
 - <b>친밀도</b>: 전체 인물에 대한 친밀도 분석 및 시각화
 
-<img width="70%"alt="recap" src="./docs/images/recap.png">
+<img width="70%" alt="recap" src="./docs/images/recap.png">
 
 ---
 
@@ -153,53 +153,38 @@
 
 ## 💎 차별성 및 혁신성
 
-Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LLM으로는 다루기 어려웠던, <b>대량의 소셜 데이터</b>에 축적된 <b>사회활동 기록의 맥락을 분석</b>한다는 점에서 큰 의의를 가진다. 주요 차별성과 혁신성은 다음과 같다.
+Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LLM으로는 다루기 어려웠던, <b>대량의 소셜 데이터</b>에 축적된 <b>사회활동 기록의 맥락을 분석</b>한다는 점에서 큰 의의를 가진다. 주요 차별성과 혁신성은 다음과 같다.<br><br>
 
 ◼ <b><u>방대한 소셜 데이터의 맥락 파악에 용이한 방법 제시/구축/실용성 증명</u></b><br>
-&nbsp;&nbsp;<b>대규모의 소셜 데이터</b>를 관계·시간 중심으로 재구성하여, 정보 간 연결 관계를 따라 <b>맥락을 파악</b>하는 방법을 제시하였다. 이는 하나의 문서나 특정 키워드에 대한 답을 찾는 것을 넘어, <b>관련된 인물·관계·사건·시간 정보를 연결한</b>다. Gmail·Naver·iCloud의 메일과 3MB~8GB 규모의 카카오톡 데이터로 검증하고, 실사용 가능한 수준임을 증명하였다.
+&nbsp;&nbsp;<b>대규모의 소셜 데이터</b>를 관계·시간 중심으로 재구성하여, 정보 간 연결 관계를 따라 <b>맥락을 파악</b>하는 방법을 제시하였다. 이는 하나의 문서나 특정 키워드에 대한 답을 찾는 것을 넘어, <b>관련된 인물·관계·사건·시간 정보를 연결한</b>다. Gmail·Naver·iCloud의 메일과 3MB~8GB 규모의 카카오톡 데이터로 검증하고, 실사용 가능한 수준임을 증명하였다.<br><br>
 
 ◼ <b><u>높은 직관성과 다양성을 가진 관계·시간의 시각화</u></b><br>
-&nbsp;&nbsp;<b>복잡한 관계가 얽힌 소셜 데이터</b>를 그래프·타임슬라이더 등 다양한 시각적 요소로 표현하여 한눈에 파악할 수 있도록 한다. 텍스트로 풀어 설명하는 기존의 LLM과 달리, Social Visualizer는 주요 관계 및 변화의 흐름을 <b>직관적으로 이해</b>하게 한다.
+&nbsp;&nbsp;<b>복잡한 관계가 얽힌 소셜 데이터</b>를 그래프·타임슬라이더 등 다양한 시각적 요소로 표현하여 한눈에 파악할 수 있도록 한다. 텍스트로 풀어 설명하는 기존의 LLM과 달리, Social Visualizer는 주요 관계 및 변화의 흐름을 <b>직관적으로 이해</b>하게 한다.<br><br>
 
 ◼ <b><u>자연어 검색 정확도 93%를 달성하여 우수한 검색 성능 입증</u></b><br>
-&nbsp;&nbsp;평균 검색 정확도 93%, 평균 응답 시간 5.4초를 달성하였다. 이는 지식 그래프 기반 맥락 탐색이 <b>대규모 소셜 데이터에서 높은 검색 성능</b>을 보임을 의미한다.
+&nbsp;&nbsp;평균 검색 정확도 93%, 평균 응답 시간 5.4초를 달성하였다. 이는 지식 그래프 기반 맥락 탐색이 <b>대규모 소셜 데이터에서 높은 검색 성능</b>을 보임을 의미한다.<br><br>
 
 ◼ <b><u>자체 Llama 파인튜닝으로 상용 API 수준의 지식 그래프 생성·질의응답 성능 달성</u></b><br>
-&nbsp;&nbsp;오픈웨이트 Llama를 고도로 파인튜닝하여, <b>상용 API 없이도</b> 지식 그래프 생성 및 자연어 질의응답을 수행한다. <b>과금 없이 상용 수준의 성능</b>을 달성하였으며, 외부 서버로 데이터를 보낼 필요가 없어 <b>개인정보 유출 우려를 근본적으로 차단</b>하였다.
+&nbsp;&nbsp;오픈웨이트 Llama를 고도로 파인튜닝하여, <b>상용 API 없이도</b> 지식 그래프 생성 및 자연어 질의응답을 수행한다. <b>과금 없이 상용 수준의 성능</b>을 달성하였으며, 외부 서버로 데이터를 보낼 필요가 없어 <b>개인정보 유출 우려를 근본적으로 차단</b>하였다.<br><br>
 
 ◼ <b><u>서로 다른 형식의 소셜 데이터를 공통 체계로 구조화하는 방법 제시/구현</u></b><br>
-&nbsp;&nbsp;메일·메신저 등 <b>서로 다른 형식과 구조</b>를 가진 소셜 데이터를 <b>공통 체계로 구조화</b>한다.  회의록·통화 녹음 등 새로운 유형의 소셜 데이터를 추가하여도, 해당 유형에 맞는 처리 모듈만 구현하면 된다. 이러한 방식은 <b>분석·검색의 대상을 손쉽게 확장</b>할 수 있게 한다.
+&nbsp;&nbsp;메일·메신저 등 <b>서로 다른 형식과 구조</b>를 가진 소셜 데이터를 <b>공통 체계로 구조화</b>한다.  회의록·통화 녹음 등 새로운 유형의 소셜 데이터를 추가하여도, 해당 유형에 맞는 처리 모듈만 구현하면 된다. 이러한 방식은 <b>분석·검색의 대상을 손쉽게 확장</b>할 수 있게 한다.<br><br>
 
 ◼ <b><u>높은 확장성과 이식성을 갖춘 오픈소스 소프트웨어 구조</u></b><br>
 &nbsp;&nbsp;지식 그래프 모듈화를 통해 목적·용도에 맞게 지식 그래프 생성 모듈을 쉽게 <b>교체·확장</b>할 수 있다. 앞서 언급한 바와 같이 소셜 데이터 유형의 확장도 용이하다. 이러한 모듈화된 구조를 기반으로, 본 시스템은 <b>누구나 자유롭게 수정·확장·이식·재구성</b>할 수 있는 유연한 오픈소스 소프트웨어 구조를 갖는다.
 
 ---
 
-## ⚙️ 기술 스택
+## 🧰 기술 스택
 
 ### 개발 환경
 ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
 
 ### 개발 언어
-![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
-![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white)
-![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white)
-![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black) ![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white) ![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white) ![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
 
 ### 개발 도구 및 라이브러리
-![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white)
-![LanceDB](https://img.shields.io/badge/LanceDB-25A0A0?logoColor=white)
-![NetworkX](https://img.shields.io/badge/NetworkX-2C7BB6?logoColor=white)
-![pandas](https://img.shields.io/badge/pandas-150458?logo=pandas&logoColor=white)
-![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
-![Apache Arrow](https://img.shields.io/badge/Apache_Arrow-1A1A2E?logo=apachearrow&logoColor=white)
-![spaCy](https://img.shields.io/badge/spaCy-09A3D5?logo=spacy&logoColor=white)
-![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
-![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white) ![LanceDB](https://img.shields.io/badge/LanceDB-25A0A0?logoColor=white) ![NetworkX](https://img.shields.io/badge/NetworkX-2C7BB6?logoColor=white) ![pandas](https://img.shields.io/badge/pandas-150458?logo=pandas&logoColor=white) ![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white) ![Apache Arrow](https://img.shields.io/badge/Apache_Arrow-1A1A2E?logo=apachearrow&logoColor=white) ![spaCy](https://img.shields.io/badge/spaCy-09A3D5?logo=spacy&logoColor=white) ![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
 
 ---
 
