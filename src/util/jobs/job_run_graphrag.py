@@ -1,3 +1,7 @@
+# 메일·카카오톡 원본을 정제한 뒤 GraphRAG 인덱싱을 실행하고, parquet 후처리·그래프 JSON 변환·DB 통계·요약·아바타 생성까지 하나의 백그라운드 잡으로 묶어 돌리는 GraphRAG 인덱싱 파이프라인 진입점.
+
+# Entry point of the GraphRAG indexing pipeline: cleans raw mail/KakaoTalk data, runs GraphRAG indexing, then chains parquet post-processing, graph-JSON conversion, DB stats, summaries, and avatar generation into a single background job.
+
 import time
 import os
 import sys

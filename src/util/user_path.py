@@ -1,3 +1,7 @@
+# 계정(도메인+user_id)별로 원본 데이터·GraphRAG 산출물·이미지 등 모든 파일 경로를 한곳에서 계산하고, 계정 메타 파일과 인덱싱된 계정 목록을 관리한다.
+
+# Centralizes computation of every data/output/image file path for each account (domain + user_id), and manages account metadata files and the list of indexed accounts.
+
 import re,os
 import json
 import shutil

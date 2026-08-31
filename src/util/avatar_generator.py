@@ -1,3 +1,7 @@
+# 인물 이름·관계 힌트·회사 도메인 등을 바탕으로 FLUX 이미지 서버(또는 회사 로고)를 호출해 인물/본인/채팅방 참여자 아바타를 생성하고 person_avatars.json 캐시에 저장한다.
+
+# Generates avatars for people, the user, and chatroom participants by calling the FLUX image server (or fetching company logos) based on names, relationship hints, and company domains, caching the results in person_avatars.json.
+
 import os
 import io
 import re

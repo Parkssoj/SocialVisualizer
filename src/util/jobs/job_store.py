@@ -1,4 +1,7 @@
-# src\util\jobs\job_store.py
+# 인덱싱·질의·업데이트 등 모든 비동기 작업의 상태·진행률·로그·결과를 프로세스 메모리에 딕셔너리로 보관하고 스레드 안전하게 등록/갱신/조회한다 (서버 재시작 시 소멸, 영속성 없음).
+
+# Keeps the status, progress, logs, and result of every async job (indexing/query/update) in an in-process dictionary with thread-safe create/update/read access (lost on server restart, no persistence).
+
 import threading
 import time
 

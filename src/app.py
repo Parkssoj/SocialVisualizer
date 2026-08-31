@@ -1,4 +1,7 @@
-# src/app.py
+# MailGrapher 백엔드 Flask 서버. 채팅/질의 잡, 메일·카카오톡 업로드와 인덱싱 파이프라인 실행, SSE 진행 스트림, 통계·관계·요약·아바타 조회 등 프론트엔드가 쓰는 모든 REST 엔드포인트를 제공한다.
+
+# MailGrapher backend Flask server: exposes every REST endpoint the frontend uses — chat/query jobs, mail/KakaoTalk upload and indexing-pipeline runs, the SSE progress stream, and stats/relationship/summary/avatar lookups.
+
 import datetime
 import os
 import re
