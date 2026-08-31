@@ -18,7 +18,7 @@ const FRAME_H = 1020;
 
 /* 히어로 미리보기 카드를 "실제 페이지 iframe 축소판" 대신 미리 찍어둔 정적 이미지로
    보여줄지 여부. true면 아래 My People/My Time 카드에 public/images/hero/의
-   MyPeople.png, My Time.png를 그대로 띄운다. 원래대로(iframe 라이브 미리보기)
+   MyPeople.png, MyTime.png를 그대로 띄운다. 원래대로(iframe 라이브 미리보기)
    되돌리려면 이 값을 false로만 바꾸면 된다 — 원본 iframe 코드는 그대로 남아있음. */
 const USE_STATIC_HERO_PREVIEWS = true;
 
@@ -257,7 +257,7 @@ export default function HeroOrbit() {
         >
           {USE_STATIC_HERO_PREVIEWS ? (
             <img
-              src="/images/hero/My%20Time.png"
+              src="/images/hero/MyTime.png"
               alt="My Time"
               className="gw-preview-static-img"
             />
