@@ -7,7 +7,6 @@
  * scaled-down live iframe of the actual page (USE_STATIC_HERO_PREVIEWS).
  */
 import { useEffect } from "react";
-import { Component as HeroGridBackground } from "./ui/background-snippets.tsx";
 
 /* 미니 프리뷰 카드 — 실제 페이지(mypeople.html/mytime.html)를 iframe으로 그대로
    불러온 뒤 CSS transform: scale로 축소해서 보여준다(캡처 이미지 아님, 진짜 화면).
@@ -51,8 +50,6 @@ export default function HeroOrbit() {
 
   return (
     <div className="gw-orbit-hero">
-      <HeroGridBackground />
-
       <div className="gw-orbit-left">
         <h1
           className="gw-hero-headline gw-anim"
