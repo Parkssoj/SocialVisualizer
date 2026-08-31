@@ -1,8 +1,4 @@
 # src/util/message_summary.py
-#
-# graphrag_mail_summary.py의 메신저 버전. text_units.parquet에서 재구성한 대화 블록을
-# 월별/연별로 묶어 LLM 요약을 만들고 message_summarize 테이블에 저장한다.
-
 import os
 import json
 import datetime
@@ -19,6 +15,7 @@ from util.database.chatroom_db_writer import save_message_summarize_to_db
 load_dotenv("src/parquet/.env")
 
 
+# 대화 목록을 LLM에 넘겨 해당 기간 요약과 관련 참여자 목록을 JSON으로 받아온다
 def _summarize_with_llm(text, period_label, contacts):
     client = openai.OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
@@ -57,6 +54,7 @@ def _summarize_with_llm(text, period_label, contacts):
         return {"summary": "", "contacts": []}
 
 
+# 대화 블록을 월별/연별로 묶어 LLM 요약을 만들고 JSON 저장 및 message_summarize 테이블 저장까지 수행한다
 def generate_message_summaries(paths):
     blocks = _parse_message_blocks_from_parquet(paths)
     if not blocks:
@@ -103,15 +101,18 @@ def generate_message_summaries(paths):
         monthly_groups.setdefault(e["month"], []).append(e)
         yearly_groups.setdefault(e["year"], []).append(e)
 
+    # 그룹의 대화들을 날짜별로 합쳐 LLM 입력 텍스트로 만든다
     def _build_text(group):
         return "\n\n".join(f"날짜: {e['date'].strftime('%Y-%m-%d')}\n{e['text']}" for e in group)
 
+    # 그룹 내 모든 대화의 참여자 이름을 정렬된 리스트로 모은다
     def _collect_contacts(group):
         names = set()
         for e in group:
             names |= e["contacts"]
         return sorted(names)
 
+    # 기간 그룹 하나를 LLM 요약해 (kind, period, 요약결과)를 반환한다
     def _summarize_group(kind, period, group):
         print(f"[message_summary] {kind} 요약 중: {period} ({len(group)}개 블록)")
         return kind, period, _summarize_with_llm(_build_text(group), period, _collect_contacts(group))
