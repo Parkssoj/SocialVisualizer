@@ -337,11 +337,6 @@ def recompute_all_message_moods(paths):
         conn.close()
 
     for chatroom_id in chatroom_ids:
-        # user_id가 chatroom마다 다른 게 아니라 DB의 user 테이블 전역 값 하나를 공유하므로
-        # (get_or_create_user_id 참고), 위 쿼리는 사실상 "이 컴퓨터에서 이제껏 인덱싱된 적
-        # 있는 모든 채팅방"을 반환한다. 사용자가 폴더를 직접 지워 없앤 옛 채팅방까지
-        # UserPaths()를 만들면 그 생성자의 account.json 저장 부작용으로 폴더가 되살아나므로,
-        # 폴더가 실제로 남아있는 채팅방만 대상으로 한다.
         if chatroom_id != paths.USER_ID:
             room_dir = os.path.join(BASE_DIR, "user_data", "messenger", chatroom_id)
             if not os.path.isdir(room_dir):
