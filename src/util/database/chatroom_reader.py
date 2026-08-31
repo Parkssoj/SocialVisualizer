@@ -214,7 +214,7 @@ def get_chatroom_people(chatroom_id: str):
     try:
         cursor.execute(
             """
-            SELECT participant_id, chatroom_people_name AS name, message_count, description
+            SELECT participant_id, chatroom_people_name AS name, message_count, description, short_bio
             FROM chatroom_people
             WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
             ORDER BY message_count DESC
@@ -232,6 +232,7 @@ def get_chatroom_people(chatroom_id: str):
             "name": row["name"],
             "message_count": int(row["message_count"] or 0),
             "description": row["description"],
+            "short_bio": row["short_bio"],
         }
         for row in rows
     ]

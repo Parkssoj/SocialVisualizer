@@ -650,7 +650,7 @@ def get_person_descriptions(user_id: str) -> list:
     try:
         # person_account_id로 alias: 프론트/avatar_generator가 기대하는 기존 API 응답 키 유지
         cursor.execute("""
-            SELECT person_mail_account_id AS person_account_id, person_name, description, relation_label
+            SELECT person_mail_account_id AS person_account_id, person_name, description, relation_label, short_bio
             FROM person
             WHERE user_mail_account_id = %s AND index_date = %s
               AND description IS NOT NULL AND description != ''
@@ -659,6 +659,42 @@ def get_person_descriptions(user_id: str) -> list:
     finally:
         cursor.close()
         conn.close()
+
+
+# 최신 인덱싱 기준 이 계정 연락처 전체를 person 테이블 전 컬럼으로 반환한다 (프론트 연락처 목록용)
+def get_mail_people(user_id: str):
+    latest_account = get_latest_mail_account(user_id)
+    if not latest_account:
+        return None
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT person_mail_account_id, person_name, receive_mails, send_mails,
+                   friendly_mails, description, relation_label, short_bio
+            FROM person
+            WHERE user_mail_account_id = %s AND index_date = %s
+            ORDER BY (receive_mails + send_mails) DESC
+        """, (latest_account["user_mail_account_id"], latest_account["index_date"]))
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [
+        {
+            "person_account_id": row["person_mail_account_id"],
+            "person_name": row["person_name"],
+            "receive_mails": int(row["receive_mails"] or 0),
+            "send_mails": int(row["send_mails"] or 0),
+            "friendly_mails": int(row["friendly_mails"] or 0),
+            "description": row["description"],
+            "relation_label": row["relation_label"],
+            "short_bio": row["short_bio"],
+        }
+        for row in rows
+    ]
 
 
 # 최신 인덱싱 기준 이 계정 연락처 전체(이메일+이름)를 반환한다 (아바타 일괄 생성용 경량 조회)
@@ -700,3 +736,58 @@ def get_mail_relationships(user_id: str) -> list:
     finally:
         cursor.close()
         conn.close()
+
+
+# 최신 인덱싱 기준 계정의 연/월별 LLM 요약을 주요 연락처(이메일→description/short_bio 포함)와 함께 반환한다
+def get_mail_summaries(user_id: str, summarize_unit: str):
+    latest_account = get_latest_mail_account(user_id)
+    if not latest_account:
+        return None
+    user_mail_account_id = latest_account["user_mail_account_id"]
+    update_date           = latest_account["index_date"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT summary_period, summarized_context, contacts
+            FROM mail_summarize
+            WHERE user_mail_account_id = %s AND index_date = %s AND summarize_unit = %s
+            ORDER BY summary_period
+            """,
+            (user_mail_account_id, update_date, summarize_unit),
+        )
+        rows = cursor.fetchall()
+
+        cursor.execute(
+            """
+            SELECT person_mail_account_id, person_name, description, short_bio
+            FROM person
+            WHERE user_mail_account_id = %s AND index_date = %s
+            """,
+            (user_mail_account_id, update_date),
+        )
+        people_map = {row["person_mail_account_id"]: row for row in cursor.fetchall()}
+    finally:
+        cursor.close()
+        conn.close()
+
+    result = []
+    for row in rows:
+        contacts = row["contacts"]
+        contacts = json.loads(contacts) if isinstance(contacts, str) else (contacts or [])
+        result.append({
+            "summary_period": row["summary_period"],
+            "summarized_context": row["summarized_context"],
+            "contacts": [
+                {
+                    "person_account_id": email,
+                    "person_name": people_map.get(email, {}).get("person_name"),
+                    "description": people_map.get(email, {}).get("description"),
+                    "short_bio": people_map.get(email, {}).get("short_bio"),
+                }
+                for email in contacts
+            ],
+        })
+    return result
