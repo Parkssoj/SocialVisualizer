@@ -121,13 +121,17 @@ from util.database.db_writer import (
 from util.database.chatroom_reader import (
     list_indexed_chatrooms,
     get_messenger_date_range,
+    get_chatroom_sync_stats,
     get_chatroom_name,
     get_chatroom_people,
     get_chatroom_people_stats,
     get_chatroom_relationships,
+    get_chatroom_relationship_stats,
     get_chatroom_person_detail,
     get_chatroom_mood,
     get_chatroom_keywords_by_person,
+    get_chatroom_keyword_stats,
+    get_chatroom_monthly_message_stats,
     get_chatroom_keyword_monthly_stats,
     get_chatroom_keyword_daily_stats,
     get_chatroom_keyword_mentioners,
@@ -1204,6 +1208,20 @@ def send_messenger_chatrooms():
 def send_messenger_date_range():
     return jsonify({"data": get_messenger_date_range(BASE_DIR)})
 
+# 채팅방의 가장 최근 인덱싱 메시지 수·소요 시간·날짜를 반환한다
+@app.route("/chatroom-sync-stats", methods=["POST"])
+def send_chatroom_sync_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": get_chatroom_sync_stats(chatroom_id),
+    })
+
 # chatroom_id로 방 이름을 반환한다
 @app.route("/chatroom-name", methods=["POST"])
 def send_chatroom_name():
@@ -1242,6 +1260,24 @@ def send_chatroom_people():
     return jsonify({
         "chatroom_id": chatroom_id,
         "data": {"people": people},
+    })
+
+# 채팅방에 실제 저장된 사람-사람 관계를 relation_label별 개수·순위로 반환한다
+@app.route("/chatroom-relationship-stats", methods=["POST"])
+def send_chatroom_relationship_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_relationship_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
     })
 
 # 지정 기간에 활동한 참여자들 사이의 사람-사람 관계 목록을 반환한다
@@ -1365,6 +1401,42 @@ def send_chatroom_keywords_by_person():
         "data": {
             "keywords": keywords,
         },
+    })
+
+# 채팅방 전체(모든 참여자·전체 기간 합산)의 키워드별 총 언급 수를 순위(내림차순)로 반환한다
+@app.route("/chatroom-keyword-stats", methods=["POST"])
+def send_chatroom_keyword_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_keyword_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
+    })
+
+# 채팅방 전체의 월별 메시지 수(송수신 횟수)를 반환한다
+@app.route("/chatroom-monthly-message-stats", methods=["POST"])
+def send_chatroom_monthly_message_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_monthly_message_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": {"monthly": stats},
     })
 
 # 채팅방 전체(모든 참여자 합산)의 월별 키워드 목록·언급 수를 반환한다
