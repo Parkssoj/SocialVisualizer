@@ -66,8 +66,6 @@ export default defineConfig({
       input: {
         // 홈
         home: "production/index.html",
-        // My Life 랜딩
-        mylife: "production/mylife.html",
         // 시간 타임라인
         mytime: "production/mytime.html",
         // 나의 사람들
@@ -81,8 +79,6 @@ export default defineConfig({
         // IMAP Data analysis
         imap_collect: "production/imap-collect.html",
         analysis_hub: "production/analysis-hub.html",
-        // 로그인 (디자인만, OAuth 연동은 후속 작업)
-        login: "production/login.html",
       },
     },
     minify: "terser",
