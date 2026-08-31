@@ -304,7 +304,26 @@ def get_chatroom_relationships(paths, active_names: set) -> list:
         cursor.close()
         conn.close()
 
-    return [row for row in rows if row["source"] in active_names and row["target"] in active_names]
+    # LLM이 관계를 감지 못 한 쌍은 DB에 엣지 자체가 없어서, 그런 사람은 관계 목록에서
+    # 통째로 빠져버린다. 참여자 관점에서 항상 (전체 참여자-1)명이 보이도록, active_names
+    # 전원에 대해 가능한 모든 쌍을 만들고 엣지 없는 쌍은 "채팅방 참여자" 플레이스홀더로 채운다.
+    existing = {
+        (row["source"], row["target"]): row
+        for row in rows
+        if row["source"] in active_names and row["target"] in active_names
+    }
+
+    names = sorted(active_names)
+    result = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            result.append(existing.get((a, b)) or {
+                "source": a,
+                "target": b,
+                "relation_label": "채팅방 참여자",
+                "description": None,
+            })
+    return result
 
 
 # 채팅방 참여자 명단(participant_id 지정 시 그 한 명)의 프로필 설명과 기간 내 메시지 수를 반환한다 (기간 0건도 포함)
