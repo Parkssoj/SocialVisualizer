@@ -18,6 +18,7 @@ _MAX_MAILS_CONFIG = {
 # 들쭉날쭉해지므로, 이 패턴이 있으면 해시 부분만 폴더명으로 쓴다(짧고 항상 일관된 길이).
 _MSG_ROOM_ID_RE = re.compile(r"\[msg_([0-9a-f]{8})\]\s*$")
 
+# user_id(이메일 또는 방 이름)를 파일시스템에 안전한 폴더명으로 변환한다
 def _mail_to_dir_name(user_id: str) -> str:
     m = _MSG_ROOM_ID_RE.search(user_id)
     if m:
@@ -29,7 +30,9 @@ def _mail_to_dir_name(user_id: str) -> str:
     s = re.sub(r"[^a-z0-9_]", "_", s)
     return s
 
+# 한 계정(도메인+user_id)의 모든 데이터/산출물 파일 경로를 한곳에 모아 계산·보관하는 클래스
 class UserPaths:
+    # base_dir/도메인/user_id 기준으로 모든 하위 경로 속성을 계산하고 계정 메타 파일을 보장한다
     def __init__(self, base_dir: str, user_id: str, domain: str):
         self.BASE_DIR = base_dir
         self.USER_ID = user_id
@@ -133,11 +136,7 @@ class UserPaths:
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
         _ensure_account_meta(self)
 
-# 원본 user_id를 메타 파일로 남겨서 나중에 폴더명(디렉터리 sanitize로 인해 원본 문자열이
-# 손실됨)만으로도 실제 계정 목록을 복원할 수 있게 한다. (/accounts 엔드포인트에서 사용)
-# 계정 폴더가 아직 없어도(=최초 업로드 시점) 여기서 바로 만든다 — 폴더가 생긴 뒤에야 메타를
-# 쓰면, 한글처럼 sanitize로 원본이 복구 불가능하게 뭉개지는 이름은 영영 복구할 기회가 없다
-# (영문 이메일 계정은 우연히 역추정이 가능해서 이 버그가 가려져 있었을 뿐임).
+# 계정 폴더에 원본 user_id를 담은 account.json이 없으면 새로 만든다 (sanitize된 폴더명으로부터 복원용)
 def _ensure_account_meta(paths: "UserPaths"):
     if os.path.exists(paths.ACCOUNT_META_PATH):
         return
@@ -148,11 +147,7 @@ def _ensure_account_meta(paths: "UserPaths"):
     except OSError:
         pass
 
-# 요청 — 메신저(카카오) 업로드 시 사용자가 이미 입력/추측된 방 이름을 알고 있는데,
-# 인덱싱이 끝나야만(chatroom DB 테이블에 이름이 들어가야만) 화면에 이름이 보였다.
-# 인덱싱 중에도 업로드 시점에 알고 있던 이름을 그대로 보여줄 수 있도록, account.json에
-# room_name도 같이 저장해둔다 (list_accounts/list_indexed_chatrooms/get_chatroom_name이
-# 인덱싱 전엔 이 값을 폴백으로 사용).
+# 업로드 시점에 알고 있는 채팅방 이름을 account.json의 room_name에 저장한다 (인덱싱 전 표시용 폴백)
 def set_account_room_name(paths: "UserPaths", room_name: str):
     if not room_name:
         return
@@ -172,9 +167,7 @@ def set_account_room_name(paths: "UserPaths", room_name: str):
     except OSError:
         pass
 
-# 계정 하나의 인덱싱 완료 여부를 RAG_ENGINE에 맞는 방식으로 판단한다.
-# app.py의 _index_ready()와 같은 분기지만, user_path.py가 app.py를 import할 수 없어서
-# (순환 참조) 여기 따로 둔다. RAG_ENGINE이 바뀌어도 이 함수만 보면 되도록 모아뒀다.
+# 계정 하나의 인덱싱 완료 여부를 현재 RAG_ENGINE에 맞는 방식으로 판단한다
 def _account_indexed(paths) -> bool:
     from config.settings import RAG_ENGINE
     if RAG_ENGINE == "lightrag":
@@ -185,9 +178,7 @@ def _account_indexed(paths) -> bool:
         return _is_index_ready(paths)
     return False
 
-# path 아래 파일들 중 가장 최근 수정 시각(mtime)을 재귀적으로 찾는다. 인덱싱이
-# 끝날 때마다 이 디렉터리 밑 파일들이 새로 쓰이므로, "마지막으로 인덱싱된 시각"의
-# 근사치로 쓴다. 디렉터리가 아예 없으면(=아직 한 번도 인덱싱 안 됨) 0.
+# path 아래 모든 파일의 가장 최근 수정 시각(mtime)을 재귀적으로 찾는다 (없으면 0.0)
 def _dir_max_mtime(path: str) -> float:
     if not os.path.isdir(path):
         return 0.0
@@ -205,11 +196,7 @@ def _dir_max_mtime(path: str) -> float:
         pass
     return latest
 
-# 계정 하나의 "가장 최근 인덱싱 시각" 근사치를 구한다. 인덱싱 완료 시각을 별도
-# 필드로 기록해두는 곳이 없어서, 인덱싱 산출물이 쌓이는 디렉터리(LightRAG output /
-# GraphRAG root) 안 파일들의 최신 mtime을 대신 쓴다 — 인덱싱이 돌 때마다 이 폴더
-# 밑 파일들이 새로 쓰이기 때문에 근사치로는 충분하다. (사이드바 "최근 인덱싱된
-# 계정 기본 선택" 기능에서 사용 — list_accounts()가 이 값으로 정렬한다.)
+# 계정 하나의 "가장 최근 인덱싱 시각" 근사치를 인덱싱 산출물 디렉터리의 최신 mtime으로 구한다
 def _account_indexed_at(paths) -> float:
     from config.settings import RAG_ENGINE
     if RAG_ENGINE == "lightrag":
@@ -218,9 +205,7 @@ def _account_indexed_at(paths) -> float:
         return _dir_max_mtime(paths.GRAPHRAG_ROOT)
     return 0.0
 
-# user_data/{domain} 디렉터리를 훑어서 (user_id, 인덱싱 완료 여부) 목록을 반환.
-# domain 파라미터는 카카오 등 다른 도메인 지원을 위한 것 — 아래에서 _account_indexed()를
-# 통해 RAG_ENGINE에 맞는 방식으로 인덱싱 여부를 판단한다(엔진별 분기는 여기 없음, 위 함수에 모여있음).
+# user_data/{domain} 디렉터리를 훑어 각 계정의 user_id·인덱싱 여부·시각·방 이름을 담은 목록을 반환한다 (최근 인덱싱순 정렬)
 def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
     user_data_dir = os.path.join(base_dir, "user_data", domain)
     accounts = []
@@ -268,11 +253,11 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
 
     return accounts
 
-# 인덱싱까지 완료된 계정의 user_id만 반환 (연합 검색 대상 계정 목록으로 사용)
+# 인덱싱까지 완료된 계정의 user_id만 리스트로 반환한다 (연합 검색 대상 목록)
 def list_indexed_user_ids(base_dir: str, domain: str = "mail") -> list[str]:
     return [a["user_id"] for a in list_accounts(base_dir, domain) if a["indexed"]]
 
-# 도메인별 공용 settings.yaml, prompts를 사용자 parquet 폴더에 복사
+# 도메인별 공용 settings.yaml과 prompts를 사용자 GraphRAG 폴더에 최신본으로 복사한다
 def user_graphrag_init(paths):
     domain = paths.DOMAIN
 

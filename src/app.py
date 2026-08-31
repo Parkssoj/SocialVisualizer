@@ -156,9 +156,7 @@ from util.graphrag import (
 )
 from util.graphrag_query import _classify_query_method
 
-# _is_index_ready(GraphRAG, output/stats.json 존재 여부)와 lightrag_engine.is_index_ready
-# (LightRAG, graphml 파일 존재 여부) 중 RAG_ENGINE에 맞는 쪽을 골라서 판단하는 공용 헬퍼.
-# append 전환 판단(/upload)과 첨부파일 처리 게이트(/upload-attachments)가 이걸 같이 쓴다.
+# 현재 RAG_ENGINE에 맞는 방식으로 이 계정의 인덱싱 완료 여부를 반환한다
 def _index_ready(paths) -> bool:
     if RAG_ENGINE == "lightrag":
         from util.lightrag_backend.lightrag_engine import is_index_ready
@@ -215,7 +213,7 @@ if hasattr(sys.stderr, "reconfigure"):
 # def _extract_source_mail_ids(answer: str) -> list:
 #     return list(set(re.findall(r'ID:\s*([0-9A-Fa-f]{16})', answer)))
 
-# 엔드포인트: POST /run-query-async
+# 질의를 백그라운드 잡으로 등록하고 jobId를 즉시 반환한다 (날짜 범위 → 연합 RAG 검색 순으로 시도)
 @app.route('/run-query-async', methods=['POST'])
 def run_query_async():
     data = request.json or {}
@@ -246,7 +244,8 @@ def run_query_async():
     create_job(job_id, job_type="query")
     update_job(job_id, status="pending", result=None, resType=resType)
 
-    def _worker():  # 백그라운드 스레드에서 실행되는 실제 작업 함수
+    # 백그라운드 스레드에서 실제 질의를 수행하고 job 상태를 갱신한다
+    def _worker():
         try:
             env = os.environ.copy()
             env["USER_ID"] = user_id
@@ -335,7 +334,7 @@ def run_query_async():
     threading.Thread(target=_worker, daemon=True).start()
     return jsonify({"jobId": job_id})
 
-# 엔드포인트: GET /job-status/<job_id>
+# job_id로 잡의 상태·진행률·결과(text 또는 calendar JSON)·근거 메일 ID를 반환한다
 @app.route('/job-status/<job_id>', methods=['GET'])
 def job_status(job_id):
     job = get_job(job_id)
@@ -357,13 +356,12 @@ def job_status(job_id):
         "source_ids": job.get("source_ids") or [],
     })
 
-# 엔드포인트: GET /indexing-stream (SSE)
-# 브라우저가 연결을 유지하면 서버가 인덱싱 progress/완료/실패 이벤트를 즉시 push
-# 15초마다 keepalive 전송 (연결 유지용)
+# 인덱싱 progress/완료/실패 이벤트를 SSE로 실시간 push한다 (15초마다 keepalive)
 @app.route("/indexing-stream", methods=["GET"])
 def indexing_stream():
     q = subscribe()
 
+    # 구독 큐에서 이벤트를 꺼내 SSE 형식으로 스트리밍한다
     @stream_with_context
     def generate():
         try:
@@ -384,10 +382,9 @@ def indexing_stream():
                         "ngrok-skip-browser-warning": "true",
                     })
 
-# 엔드포인트: GET /indexing-history
+# 최근 job 상태 목록(최대 20개, 최신순)을 반환한다 (페이지 로드 시 이전 상태 복원용)
 @app.route("/indexing-history", methods=["GET"])
 def indexing_history():
-    """최근 job 상태 목록 반환 (페이지 로드 시 이전 상태 복원용)"""
     all_jobs = get_all_jobs()
     # 최신순 정렬, 최대 20개
     sorted_jobs = sorted(all_jobs.values(), key=lambda j: j.get("created_at", 0), reverse=True)[:20]
@@ -401,7 +398,7 @@ def indexing_history():
         })
     return jsonify(events)
 
-# 엔드포인트: POST /run-query (동기 버전)
+# 질의를 동기로 처리해 답변을 바로 반환한다 (단일 계정, 연합/날짜 검색 없음)
 @app.route('/run-query', methods=['POST'])
 def run_query():
     data = request.json or {}
@@ -435,9 +432,7 @@ def run_query():
 
     return jsonify({'result': answer})
 
-# 수집한 첨부파일을 메인 인덱싱이 시작되기 *전에* 텍스트 추출·요약해서 mail_latest.txt에
-# 병합해둔다. 그러면 CSV 빌드(_build_mail_csv)와 GraphRAG 인덱싱이 첨부 내용까지 포함한 채로
-# 한 번에 돈다.
+# 미처리 첨부파일의 텍스트를 추출·요약해 mail_latest.txt에 병합하고 처리 완료로 기록한다 (인덱싱 시작 전에 실행)
 def _extract_and_merge_attachments(paths, attachments, user_id):
     unprocessed = filter_unprocessed_attachments(user_id, attachments)
     if not unprocessed:
@@ -475,8 +470,7 @@ def _extract_and_merge_attachments(paths, attachments, user_id):
 
     mark_attachments_as_processed(user_id, unprocessed)
 
-# 엔드포인트: POST /upload
-# mail_id 기반 중복 블록 체크: rewrite/append 관계없이 항상 적용
+# 메일/대화 텍스트를 받아 mail_latest.txt에 누적(rewrite/append, mail_id 중복 체크)하고 인덱싱 파이프라인을 시작한다
 @app.route("/upload", methods=["POST"])
 def upload():
     # 1) 데이터 수신
@@ -790,7 +784,7 @@ def upload():
         "failed_attachments": failed_attachments,
     })
 
-# 엔드포인트: GET /graph-data
+# 이 계정의 그래프 시각화용 JSON(nodes/edges)을 반환한다 (엔진별 경로에서 읽고 없으면 빈 그래프)
 @app.route("/graph-data", methods=["GET", "OPTIONS"])
 def graph_data():
     if request.method == "OPTIONS":
@@ -825,7 +819,7 @@ def graph_data():
         print(f"[GRAPH-DATA] 에러: {e}")
         return jsonify({"nodes": [], "edges": [], "error": str(e)}), 500
 
-# 엔드포인트: GET /graph-view
+# 그래프 시각화용 정적 HTML(graph_view.html)을 서빙한다
 @app.route("/graph-view", methods=["GET"])
 def graph_view():
     return send_from_directory(
@@ -833,7 +827,7 @@ def graph_view():
         "graph_view.html"
     )
 
-# 공유 그래프 렌더링 함수
+# 그래프 렌더링 공용 스크립트(graph-render.js)를 서빙한다
 @app.route('/graph-render.js')
 def graph_render_js():
     return send_from_directory(
@@ -841,7 +835,7 @@ def graph_render_js():
         "graph-render.js"
     )
 
-# 엔드포인트: GET /index-status
+# 이 계정의 인덱싱 완료 여부를 {indexed: bool}로 반환한다
 @app.route("/index-status", methods=["GET"])
 def index_status():
     user_id = (request.args.get("user_id") or "").strip().lower()
@@ -850,7 +844,7 @@ def index_status():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"indexed": _index_ready(paths)})
 
-# 엔드포인트: GET /init  — localStorage에 flask_url 자동 저장 후 대시보드로 이동
+# 현재 서버 URL을 localStorage에 저장하는 스크립트를 내려주고 대시보드로 리다이렉트한다
 @app.route('/init')
 def init_storage():
     from flask import request as _req
@@ -864,15 +858,13 @@ def init_storage():
 <p>설정 중... 자동으로 이동합니다.</p>
 </body></html>""", 200, {{'Content-Type': 'text/html; charset=utf-8'}}
 
-# 브라우저가 페이지를 열 때마다 자동으로 GET /favicon.ico를 요청하는데(HTML에서
-# 명시적으로 안 걸어도 브라우저 기본 동작), 루트 경로용 라우트가 하나도 없어서 이게
-# 계속 404로 서버 로그에 찍혔다 — dist 루트에 favicon.ico를 두고 여기서 서빙한다.
+# dist 루트의 favicon.ico를 서빙한다 (브라우저 기본 요청의 404 로그 방지)
 @app.route('/favicon.ico')
 def favicon():
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist')
     return send_from_directory(dist_dir, 'favicon.ico')
 
-# 엔드포인트: GET /dashboard/
+# 빌드된 웹앱(dist) 파일을 서빙한다 (HTML은 캐시 금지 헤더 부착)
 @app.route('/dashboard/', defaults={'path': 'production/index.html'})
 @app.route('/dashboard/<path:path>')
 def dashboard(path):
@@ -889,27 +881,31 @@ def dashboard(path):
         response.headers["Pragma"] = "no-cache"
     return response
 
+# dist/assets 정적 파일을 서빙한다
 @app.route('/assets/<path:path>')
 def static_assets(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'assets')
     return send_from_directory(dist_dir, path)
 
+# dist/js 정적 파일을 서빙한다
 @app.route('/js/<path:path>')
 def static_js(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'js')
     return send_from_directory(dist_dir, path)
 
+# dist/fonts 정적 파일을 서빙한다
 @app.route('/fonts/<path:path>')
 def static_fonts(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'fonts')
     return send_from_directory(dist_dir, path)
 
+# dist/images 정적 파일을 서빙한다
 @app.route('/images/<path:path>')
 def static_images(path):
     dist_dir = os.path.join(os.path.dirname(__file__), 'web', 'dist', 'images')
     return send_from_directory(dist_dir, path)
 
-# 웹앱용 통계 라우트
+# 연락처별 메일 송수신 통계(mail_contact_stats.json)를 반환한다
 @app.route("/mail-stats", methods=["POST"])
 def send_mail_stats():
     data = request.json or {}
@@ -921,6 +917,7 @@ def send_mail_stats():
     print(f"[MAIL_STATS] path={paths.USER_ROOT}")
     return jsonify({"user_id": user_id, "data": get_mail_stats(paths)})
 
+# 이 계정 메일의 가장 이른/늦은 날짜를 반환한다
 @app.route("/mail-date-range", methods=["POST"])
 def send_mail_date_range():
     data = request.json or {}
@@ -929,6 +926,7 @@ def send_mail_date_range():
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_mail_date_range(user_id)})
 
+# 이 계정의 키워드별 언급 수 목록을 반환한다
 @app.route("/keyword-stats", methods=["POST"])
 def send_keyword_stats():
     data = request.json or {}
@@ -938,7 +936,8 @@ def send_keyword_stats():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_keyword_stats(paths)})
 
-@app.route("/keyword-by-person-date", methods=["POST"]) # 각 사람마다 주고받은 메일의 키위드 리턴
+# 특정 상대방과 날짜 범위 내 주고받은 메일의 키워드별 언급 수·날짜를 반환한다
+@app.route("/keyword-by-person-date", methods=["POST"])
 def keyword_by_person_date():
     data = request.json or {}
     user_id = data.get("user_id", "").strip()
@@ -960,7 +959,8 @@ def keyword_by_person_date():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/mail-keyword-monthly-stats", methods=["POST"]) # 전체 상대방 합산, 월별 키워드 목록+언급 수
+# 계정 전체(모든 상대방 합산)의 월별 키워드 목록·언급 수를 반환한다
+@app.route("/mail-keyword-monthly-stats", methods=["POST"])
 def send_mail_keyword_monthly_stats():
     data = request.json or {}
     user_id    = data.get("user_id", "").strip()
@@ -975,7 +975,8 @@ def send_mail_keyword_monthly_stats():
         "data": get_mail_keyword_monthly_stats(user_id, start_date, end_date),
     })
 
-@app.route("/mail-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+# 계정 전체가 특정 월에 날짜별로 언급한 키워드 목록·횟수를 반환한다
+@app.route("/mail-keyword-daily-stats", methods=["POST"])
 def send_mail_keyword_daily_stats():
     data = request.json or {}
     user_id = data.get("user_id", "").strip()
@@ -992,7 +993,8 @@ def send_mail_keyword_daily_stats():
         "data": get_mail_keyword_daily_stats(user_id, month),
     })
 
-@app.route("/mail-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 사람 목록(이름+횟수+아바타)
+# 특정 날짜에 특정 키워드를 언급한 상대방 목록(이름·횟수·아바타)을 반환한다
+@app.route("/mail-keyword-mentioners", methods=["POST"])
 def send_mail_keyword_mentioners():
     data = request.json or {}
     user_id = data.get("user_id", "").strip()
@@ -1020,6 +1022,7 @@ def send_mail_keyword_mentioners():
         "data": mentioners,
     })
 
+# mail_keyword 테이블을 LLM 없이 문자열 매칭으로 재구성한다
 @app.route("/rebuild-keyword-mail", methods=["POST"])
 def rebuild_keyword_mail_route():
     data = request.json or {}
@@ -1033,6 +1036,7 @@ def rebuild_keyword_mail_route():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 사용자가 올린 연락처 사진(이메일→base64)을 contact_photos.json에 병합 저장한다
 @app.route("/upload-photos", methods=["POST"])
 def upload_contact_photos():
     data = request.json or {}
@@ -1053,6 +1057,7 @@ def upload_contact_photos():
         json.dump(existing, f, ensure_ascii=False, indent=2)
     return jsonify({"ok": True, "saved": len(photos)})
 
+# 저장된 연락처 사진 맵(contact_photos.json)을 반환한다
 @app.route("/contact-photos", methods=["POST"])
 def get_contact_photos():
     data = request.json or {}
@@ -1065,6 +1070,7 @@ def get_contact_photos():
     with open(paths.MAIL_PHOTOS_PATH, "r", encoding="utf-8") as f:
         return jsonify(json.load(f))
 
+# 캐시된 연락처 아바타 맵(이메일→URL)을 반환한다
 @app.route("/person-avatars", methods=["POST"])
 def get_person_avatars():
     data = request.json or {}
@@ -1074,26 +1080,31 @@ def get_person_avatars():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify(get_cached_person_avatars(paths))
 
+# 연락처 아바타 이미지 파일을 서빙한다
 @app.route("/person-avatar-image/<user_id>/<filename>")
 def person_avatar_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.AVATAR_IMAGES_DIR, filename)
 
+# 채팅방 참여자 아바타 이미지 파일을 서빙한다
 @app.route("/chatroom-person-avatar-image/<chatroom_id>/<filename>")
 def chatroom_person_avatar_image(chatroom_id, filename):
     paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
     return send_from_directory(paths.MESSAGE_AVATAR_IMAGES_DIR, filename)
 
+# 메일 기간 요약 삽화 이미지 파일을 서빙한다
 @app.route("/mail-summary-image/<user_id>/<filename>")
 def mail_summary_image(user_id, filename):
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return send_from_directory(paths.MAIL_SUMMARY_IMAGES_DIR, filename)
 
+# 메신저 기간 요약 삽화 이미지 파일을 서빙한다
 @app.route("/message-summary-image/<chatroom_id>/<filename>")
 def message_summary_image(chatroom_id, filename):
     paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
     return send_from_directory(paths.MESSAGE_SUMMARY_IMAGES_DIR, filename)
 
+# 로그인한 사용자 본인 아바타의 캐시 URL을 반환한다
 @app.route("/self-avatar", methods=["POST"])
 def get_self_avatar():
     data = request.json or {}
@@ -1103,6 +1114,7 @@ def get_self_avatar():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"url": get_cached_self_avatar(paths)})
 
+# 사용자 본인 아바타를 없으면 생성해 URL을 반환한다
 @app.route("/generate-self-avatar", methods=["POST"])
 def generate_self_avatar_route():
     data = request.json or {}
@@ -1114,6 +1126,7 @@ def generate_self_avatar_route():
     url = generate_self_avatar(paths, name)
     return jsonify({"url": url})
 
+# 연락처별 친밀도(EIS) 내림차순 목록을 반환한다
 @app.route("/high_affinity_person_stats", methods=["POST"])
 def send_high_affinity_person_stats():
     data = request.json or {}
@@ -1123,6 +1136,7 @@ def send_high_affinity_person_stats():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_high_affinity_person_stats(paths)})
 
+# 전체 유저 만족도 통계를 반환한다
 @app.route("/user_rating_stats", methods=["POST"])
 def send_user_rating_stats():
     data = request.json or {}
@@ -1132,6 +1146,7 @@ def send_user_rating_stats():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_user_rating_stats()})
 
+# 가장 최근 인덱싱의 동기화 메일 수·소요 시간·날짜를 반환한다
 @app.route("/mail_sync_stats", methods=["POST"])
 def send_mail_sync_stats():
     data = request.json or {}
@@ -1141,6 +1156,7 @@ def send_mail_sync_stats():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     return jsonify({"user_id": user_id, "data": get_mail_sync_stats(paths)})
 
+# 특정 상대방과 날짜 범위 내 월별 발신/수신 메일 수를 반환한다
 @app.route("/mail-exchange-stats", methods=["POST"])
 def send_mail_exchange_stats():
     data = request.json or {}
@@ -1158,6 +1174,7 @@ def send_mail_exchange_stats():
 
     return jsonify({"data": get_mail_exchange_stats(user_id, person_mail_id, start_date, end_date)})
 
+# 특정 상대방과 특정 월에 날짜별로 주고받은 메일 수를 반환한다
 @app.route("/mail-person-daily-stats", methods=["POST"])
 def send_mail_person_daily_stats():
     data = request.json or {}
@@ -1179,6 +1196,7 @@ def send_mail_person_daily_stats():
         "data": get_mail_person_daily_stats(user_id, person_mail_id, month),
     })
 
+# 단톡방 목록(이름·메시지 수·참여자)을 반환한다 (기간 지정 시 그 기간 집계)
 @app.route("/messenger-chatrooms", methods=["POST"])
 def send_messenger_chatrooms():
     data = request.json or {}
@@ -1187,10 +1205,12 @@ def send_messenger_chatrooms():
     chatrooms = list_indexed_chatrooms(BASE_DIR, start_date, end_date)
     return jsonify({"data": {"chatrooms": chatrooms}})
 
+# 인덱싱된 모든 단톡방을 통틀어 가장 이른/늦은 메시지 날짜를 반환한다
 @app.route("/messenger-date-range", methods=["POST"])
 def send_messenger_date_range():
     return jsonify({"data": get_messenger_date_range(BASE_DIR)})
 
+# chatroom_id로 방 이름을 반환한다
 @app.route("/chatroom-name", methods=["POST"])
 def send_chatroom_name():
     data = request.json or {}
@@ -1207,6 +1227,7 @@ def send_chatroom_name():
         "data": {"chatroom_name": chatroom_name},
     })
 
+# 채팅방 참여자 목록(이름·메시지 수·설명·아바타)을 반환한다
 @app.route("/chatroom-people", methods=["POST"])
 def send_chatroom_people():
     data = request.json or {}
@@ -1229,6 +1250,7 @@ def send_chatroom_people():
         "data": {"people": people},
     })
 
+# 지정 기간에 활동한 참여자들 사이의 사람-사람 관계 목록을 반환한다
 @app.route("/chatroom-relationships", methods=["POST"])
 def send_chatroom_relationships():
     data = request.json or {}
@@ -1260,6 +1282,7 @@ def send_chatroom_relationships():
         },
     })
 
+# 채팅방 참여자 명단의 프로필 설명과 지정 기간 메시지 수·아바타를 반환한다
 @app.route("/chatroom-person-detail", methods=["POST"])
 def send_chatroom_person_detail():
     data = request.json or {}
@@ -1294,6 +1317,7 @@ def send_chatroom_person_detail():
         },
     })
 
+# 채팅방의 지정 기간 월별/연별 분위기 점수·설명을 반환한다
 @app.route("/chatroom-mood", methods=["POST"])
 def send_chatroom_mood():
     data = request.json or {}
@@ -1317,6 +1341,7 @@ def send_chatroom_mood():
         "data": mood,
     })
 
+# 특정 참여자가 지정 기간에 사용한 키워드별 언급 횟수를 반환한다
 @app.route("/chatroom-keywords-by-person", methods=["POST"])
 def send_chatroom_keywords_by_person():
     data = request.json or {}
@@ -1348,7 +1373,8 @@ def send_chatroom_keywords_by_person():
         },
     })
 
-@app.route("/chatroom-keyword-monthly-stats", methods=["POST"]) # 전체 참여자 합산, 월별 키워드 목록+언급 수
+# 채팅방 전체(모든 참여자 합산)의 월별 키워드 목록·언급 수를 반환한다
+@app.route("/chatroom-keyword-monthly-stats", methods=["POST"])
 def send_chatroom_keyword_monthly_stats():
     data = request.json or {}
     chatroom_id = data.get("chatroom_id", "").strip()
@@ -1367,7 +1393,8 @@ def send_chatroom_keyword_monthly_stats():
         "data": stats,
     })
 
-@app.route("/chatroom-keyword-daily-stats", methods=["POST"]) # 특정 월 안에서 날짜별 키워드 목록+언급 수
+# 채팅방 전체가 특정 월에 날짜별로 언급한 키워드 목록·횟수를 반환한다
+@app.route("/chatroom-keyword-daily-stats", methods=["POST"])
 def send_chatroom_keyword_daily_stats():
     data = request.json or {}
     chatroom_id = data.get("chatroom_id", "").strip()
@@ -1388,7 +1415,8 @@ def send_chatroom_keyword_daily_stats():
         "data": stats,
     })
 
-@app.route("/chatroom-keyword-mentioners", methods=["POST"]) # 특정 날짜+키워드를 언급한 참여자 목록(이름+횟수+아바타)
+# 특정 날짜에 특정 키워드를 언급한 참여자 목록(이름·횟수·아바타)을 반환한다
+@app.route("/chatroom-keyword-mentioners", methods=["POST"])
 def send_chatroom_keyword_mentioners():
     data = request.json or {}
     chatroom_id = data.get("chatroom_id", "").strip()
@@ -1418,6 +1446,7 @@ def send_chatroom_keyword_mentioners():
         "data": mentioners,
     })
 
+# 특정 참여자가 월별로 보낸 메시지 수를 반환한다
 @app.route("/chatroom-person-monthly-stats", methods=["POST"])
 def send_chatroom_person_monthly_stats():
     data = request.json or {}
@@ -1443,6 +1472,7 @@ def send_chatroom_person_monthly_stats():
         "data": stats,
     })
 
+# 특정 참여자가 특정 월에 날짜별로 보낸 메시지 수를 반환한다
 @app.route("/chatroom-person-daily-stats", methods=["POST"])
 def send_chatroom_person_daily_stats():
     data = request.json or {}
@@ -1470,6 +1500,7 @@ def send_chatroom_person_daily_stats():
         "data": stats,
     })
 
+# 채팅방의 특정 날짜 하루치 대화 원문 메시지를 시간순으로 반환한다
 @app.route("/chatroom-day-messages", methods=["POST"])
 def send_chatroom_day_messages():
     data = request.json or {}
@@ -1491,6 +1522,7 @@ def send_chatroom_day_messages():
         "data": {"messages": messages},
     })
 
+# 채팅방의 월별/연별 LLM 요약을 삽화 URL과 함께 반환한다
 @app.route("/chatroom-summaries", methods=["POST"])
 def send_chatroom_summaries():
     data = request.json or {}
@@ -1534,6 +1566,7 @@ def send_chatroom_summaries():
 
 _mail_message_cache_lock = threading.Lock()
 
+# 메일 본문 파일 캐시(mail_message_cache.json)를 읽어 dict로 반환한다 (없거나 깨졌으면 빈 dict)
 def _load_mail_message_cache(paths):
     if not os.path.exists(paths.MAIL_MESSAGE_CACHE_PATH):
         return {}
@@ -1543,11 +1576,13 @@ def _load_mail_message_cache(paths):
     except (json.JSONDecodeError, OSError):
         return {}
 
+# 메일 본문 파일 캐시(mail_message_cache.json)를 저장한다
 def _save_mail_message_cache(paths, cache):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     with open(paths.MAIL_MESSAGE_CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
+# 특정 상대방과 날짜 범위 내 주고받은 메일 목록(캐시된 본문 포함)을 반환한다
 @app.route("/mail-person-emails", methods=["POST"])
 def send_person_emails_in_range():
     data = request.json or {}
@@ -1573,6 +1608,7 @@ def send_person_emails_in_range():
     paths = UserPaths(BASE_DIR, user_id, "mail")
     mail_cache = _load_mail_message_cache(paths)
 
+    # 메일 참조 하나를 캐시에서 조회해 본문 dict로 만든다 (캐시에 없으면 None)
     def _fetch_one(ref):
         cached = mail_cache.get(ref["id"])
         if cached:
@@ -1591,12 +1627,9 @@ def send_person_emails_in_range():
 
     return jsonify({"data": emails})
 
+# 특정 상대방과 특정 날짜에 주고받은 메일 전체(documents.parquet에서 읽은 본문 포함)를 반환한다
 @app.route("/mail-day-emails", methods=["POST"])
 def send_mail_day_emails():
-    """chatroom-day-messages(메신저: 하루치 대화 원문)의 메일판. 상세보기에서
-    /mail-person-daily-stats로 받은 일별 목록 중 하루를 클릭했을 때, 그날 이 사람과
-    주고받은 메일 전체(본문 포함)를 반환. 기존 /mail-person-emails의 파일 캐시 방식과
-    달리, documents.parquet(GraphRAG 산출물)에서 직접 본문을 읽는다."""
     data = request.json or {}
     user_id        = data.get("user_id", "").strip()
     person_mail_id = data.get("person_user_id", "").strip()
@@ -1625,11 +1658,9 @@ def send_mail_day_emails():
         "data": {"emails": emails},
     })
 
+# 근거 메일 하나(account + mail_id)의 제목/발신/수신/본문을 반환한다
 @app.route("/mail-body-by-ids", methods=["POST"])
 def send_mail_body_by_ids():
-    """검색 결과 답변의 근거(source_ids: [{id, account}, ...]) 중 하나를 "근거메일 보기"로
-    눌렀을 때, 그 메일 하나의 제목/발신/수신/본문을 반환한다. account가 실제로 그 메일이
-    저장된 계정(user_id)이므로 그걸로 UserPaths를 만든다(검색을 실행한 계정과 다를 수 있음)."""
     data = request.json or {}
     account = data.get("account", "").strip()
     mail_id = data.get("mail_id", "").strip()
@@ -1647,17 +1678,9 @@ def send_mail_body_by_ids():
 
     return jsonify({"id": mail_id, "account": account, **body})
 
+# 여러 근거 메일 refs의 제목만 {mail_id: subject}로 한 번에 반환한다 (계정별로 묶어 parquet을 계정당 1회만 읽음)
 @app.route("/mail-subjects-by-ids", methods=["POST"])
 def send_mail_subjects_by_ids():
-    """검색 결과 화면에서 "근거메일 보기" 버튼을 답변의 어느 줄에 붙일지 프론트가
-    판단할 수 있도록, 여러 근거메일의 제목만 한 번에 모아서 돌려준다. 예전엔 이
-    매핑을 lineMatch라는 문자열로 직접 하드코딩해뒀었는데(비용 지불 관련 메일
-    시연용), 하드코딩을 걷어내면서 실제 GraphRAG 응답에는 그 정보가 없어 버튼이
-    전부 답변 아래 목록으로만 떨어졌다 — 대신 여기서 제목을 받아와 프론트가 답변
-    텍스트에 그 제목이 언급된 줄을 찾아 옆에 버튼을 붙이도록 한다.
-    /mail-body-by-ids(본문 전체)와 달리 제목만 필요하므로, refs를 계정별로 묶어
-    계정당 한 번씩만 documents.parquet을 읽는다. refs: [{id, account}, ...] —
-    계정이 서로 다를 수 있음(연합 검색 결과)."""
     data = request.json or {}
     refs = data.get("refs") or []
 
@@ -1680,6 +1703,7 @@ def send_mail_subjects_by_ids():
 
     return jsonify({"subjects": subjects})
 
+# 날짜 범위 내 발신 메일을 상대방별로 집계해 반환한다
 @app.route("/mail-person-sent-stats", methods=["POST"])
 def send_mail_person_sent_stats():
     data = request.json or {}
@@ -1694,6 +1718,7 @@ def send_mail_person_sent_stats():
 
     return jsonify({"user_id": user_id, "data": get_date_range_person_stats(user_id, start_date, end_date, "sent")})
 
+# 날짜 범위 내 수신 메일을 상대방별로 집계해 반환한다
 @app.route("/mail-person-received-stats", methods=["POST"])
 def send_mail_person_received_stats():
     data = request.json or {}
@@ -1708,6 +1733,7 @@ def send_mail_person_received_stats():
 
     return jsonify({"user_id": user_id, "data": get_date_range_person_stats(user_id, start_date, end_date, "received")})
 
+# 특정 상대방과 지정 기간의 친밀도(EIS) 상세 점수를 반환한다
 @app.route("/intimacy", methods=["POST"])
 def send_intimacy():
     data = request.json or {}
@@ -1739,6 +1765,7 @@ def send_intimacy():
         "data":            result,
     })
 
+# 연락처별 LLM 프로필(description) 목록을 반환한다
 @app.route("/person-descriptions", methods=["POST"])
 def send_person_descriptions():
     data = request.json or {}
@@ -1747,6 +1774,7 @@ def send_person_descriptions():
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_person_descriptions(user_id)})
 
+# 연락처별 관계 라벨(relation_label) 목록을 반환한다
 @app.route("/mail-relationships", methods=["POST"])
 def send_mail_relationships():
     data = request.json or {}
@@ -1755,6 +1783,7 @@ def send_mail_relationships():
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_mail_relationships(user_id)})
 
+# 메일 기간 요약(monthly/yearly)을 mail_summaries.json에서 읽어 반환한다
 @app.route("/mail-summaries", methods=["POST"])
 def send_mail_summaries():
     data = request.json or {}
@@ -1775,7 +1804,7 @@ def send_mail_summaries():
 
     return jsonify({summary_type: summaries.get(summary_type, {})})
 
-# 연락처 프록시
+# 연락처 관련 프록시 액션(자주 연락하는 상대 조회 등)을 처리한다
 @app.route('/contacts-proxy', methods=['POST'])
 def contacts_proxy():
     data = request.get_json() or {}
@@ -1828,7 +1857,7 @@ def contacts_proxy():
 
     return jsonify({'ok': False, 'error': f'unknown action: {action}'})
 
-# 호스트/계정/비밀번호 받아서 로그인하여 실제 서버의 폴더 목록 반환
+# IMAP 서버에 로그인해 선택 가능한 폴더 목록을 반환한다
 @app.route("/imap-list-folders", methods=["POST"])
 def imap_list_folders():
     data = request.json or {}
@@ -1880,7 +1909,7 @@ def imap_list_folders():
             except Exception:
                 pass
 
-# 메일 수집 요청
+# IMAP 메일 수집을 백그라운드 잡으로 시작한다 (수집 후 내부적으로 /upload 호출해 인덱싱)
 @app.route("/imap-collect", methods=["POST"])
 def imap_collect():
     data = request.json or {}
@@ -1917,11 +1946,13 @@ def imap_collect():
     job_id = str(uuid.uuid4())[:8]
     create_job(job_id, job_type="imap_collect")
 
+    # 백그라운드에서 IMAP 수집 후 /upload로 인덱싱까지 위임하고 job 상태를 갱신한다
     def _worker():
         print(f"[IMAP-COLLECT] host={host}:{port} ssl={use_ssl} user={user} folders={folders} limit={limit} mode={sync_mode}")
         update_job(job_id, status="running", message="IMAP 서버에서 메일 수집 중")
         broadcast({"type": "progress", "job_id": job_id, "message": "IMAP 서버에서 메일 수집 중"})
 
+        # 폴더별 배치 수집 진행 상황을 job/SSE로 알린다
         def _on_batch(folder, batch_num, total_batches, count):
             msg = f"{folder} 배치 {batch_num}/{total_batches} ({count}개)"
             update_job(job_id, message=msg)
@@ -1993,6 +2024,7 @@ def imap_collect():
     threading.Thread(target=_worker, daemon=True).start()
     return jsonify({"ok": True, "jobId": job_id})
 
+# IMAP 수집 잡의 상태·메시지·결과·에러를 반환한다
 @app.route('/imap-collect-status/<job_id>', methods=['GET'])
 def imap_collect_status(job_id):
     job = get_job(job_id)
@@ -2006,8 +2038,7 @@ def imap_collect_status(job_id):
         "error": job.get("error"),
     })
 
-# 엔드포인트: POST /message-upload — 카카오톡 대화 내보내기(.txt)를 파싱해서 "message" 도메인으로 업로드/인덱싱.
-# /imap-collect와 동일한 패턴: 백그라운드 스레드에서 처리 후 내부적으로 /upload를 호출해 저장/인덱싱을 위임함.
+# 카카오톡 대화 내보내기(.txt)를 파싱해 messenger 도메인으로 업로드/인덱싱하는 백그라운드 잡을 시작한다
 @app.route("/message-upload", methods=["POST"])
 def message_upload():
     data = request.json or {}
@@ -2033,6 +2064,7 @@ def message_upload():
     job_id = str(uuid.uuid4())[:8]
     create_job(job_id, job_type="message_upload")
 
+    # 백그라운드에서 대화를 파싱해 블록으로 만들고 /upload로 인덱싱까지 위임한다
     def _worker():
         update_job(job_id, status="running", message="카카오톡 대화 파싱 중")
         broadcast({"type": "progress", "job_id": job_id, "message": "카카오톡 대화 파싱 중"})
@@ -2099,6 +2131,7 @@ def message_upload():
     threading.Thread(target=_worker, daemon=True).start()
     return jsonify({"ok": True, "jobId": job_id, "room_id": room_id, "room_name": room_name})
 
+# 메신저 업로드 잡의 상태·메시지·결과·에러를 반환한다
 @app.route('/message-upload-status/<job_id>', methods=['GET'])
 def message_upload_status(job_id):
     job = get_job(job_id)
@@ -2112,13 +2145,13 @@ def message_upload_status(job_id):
         "error": job.get("error"),
     })
 
-# 지금까지 인덱싱된 유저(또는 카카오 대화방, ?domain=message) 반환
+# 해당 도메인의 계정(또는 대화방) 목록을 반환한다
 @app.route("/accounts", methods=["GET"])
 def accounts_route():
     domain = (request.args.get("domain") or "mail").strip().lower()
     return jsonify({"accounts": list_accounts(BASE_DIR, domain)})
 
-# 정적 파일을 vite 빌드 없이 소스에서 직접 서빙하는 라우트. 브라우저가 들어오면 flask+url을 localStorage에 저장 및 홈화면으로 리다이렉트
+# IMAP 계정 연결 시작 페이지(imap-start.html)를 서빙한다
 @app.route('/imap-start')
 def imap_start():
     return send_from_directory(

@@ -17,7 +17,7 @@ _INVISIBLE_CHARS = "".join(chr(c) for c in (
     0x2060, 0xFEFF,
 ))
 
-# 메일 헤더(Subject 등) MIME 인코딩 디코딩
+# MIME 인코딩된 메일 헤더 값(Subject 등)을 디코딩해 문자열로 반환한다
 def _imap_decode_header_str(raw) -> str:
     if not raw:
         return ""
@@ -32,7 +32,7 @@ def _imap_decode_header_str(raw) -> str:
             decoded += text
     return decoded.strip()
 
-# 발신/수신인 "이름 <계정>" 포맷. 표시 이름이 없으면 계정 로컬파트(@ 앞부분)를 이름 대신 사용한다.
+# 이름/주소를 "이름 <계정>" 형식 문자열로 만든다 (이름 없으면 계정 로컬파트를 사용)
 def _imap_format_person(name: str, addr: str) -> str:
     name = (name or "").strip()
     addr = (addr or "").strip().lower()
@@ -44,7 +44,7 @@ def _imap_format_person(name: str, addr: str) -> str:
         return f"{name} <{addr}>"
     return f"<{addr}>"
 
-# 여러명이 나열된 값을 파싱해서 사람 목록으로 쪼개줌
+# To/Cc 같은 주소 헤더를 파싱해 (이름, 주소) 튜플 리스트로 반환한다
 def _imap_parse_person_list(raw_header) -> list[tuple[str, str]]:
     if not raw_header:
         return []
@@ -55,7 +55,7 @@ def _imap_parse_person_list(raw_header) -> list[tuple[str, str]]:
             people.append((_imap_decode_header_str(name), addr))
     return people
 
-# 본문 추출. text/plain 우선으로 추출하고 없으면 text/html에서 태그 제거해서 대체 본문으로 사용함
+# 메일 본문을 추출한다 (text/plain 우선, 없으면 text/html에서 태그·링크·불가시문자 제거)
 def _imap_extract_body(msg) -> str:
     body = ""
     if msg.is_multipart():
@@ -109,7 +109,7 @@ def _imap_extract_body(msg) -> str:
     body = re.sub(r"\n{3,}", "\n\n", body)
     return body.strip()
 
-# 지원하는 첨부파일은 실제 데이터 수집하고, 지원하지 않으면 메타정보만 수집
+# 메일의 첨부파일을 훑어 (전체 메타 정보 리스트, 지원 형식·용량 내 실제 데이터 payload 리스트)를 반환한다
 def _imap_collect_attachments(msg) -> tuple[list[dict], list[dict]]:
     infos, payloads = [], []
     if not msg.is_multipart():
@@ -141,7 +141,7 @@ def _imap_collect_attachments(msg) -> tuple[list[dict], list[dict]]:
 
     return infos, payloads
 
-# 메일을 정해진 포맷의 텍스트 블록으로 변환
+# 메일 하나를 인덱싱용 텍스트 블록으로 변환하고 첨부 payload 리스트와 함께 반환한다
 def _imap_build_block(mail_index: int, mail_id: str, msg, folder: str, my_email: str) -> tuple[str, list[dict]]:
     subject = _imap_decode_header_str(msg.get("Subject")) or "(제목 없음)"
 
