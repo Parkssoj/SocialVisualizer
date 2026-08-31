@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<!--
+    <!--
   "My Time" 타임라인 페이지 진입 HTML.
 
   Entry HTML for the "My Time" timeline page.
@@ -48,11 +48,6 @@
 
         <main class="right_col" role="main">
           <div class="mt-page">
-            <!-- 계정/방 선택은 사이드바가 전담하므로 메일·메신저 전환 버튼, 계정
-                 토글, 채팅방 토글, 월별/연별 토글은 페이지에서 없앰 — 아래
-                 전체 타임라인이 그 역할을 대신 덮는다. account-picker-mount /
-                 chatroom-picker-mount는 mytime.js가 컨테이너 없이(null) "헤드리스"로
-                 계속 호출해 초기 계정 id만 조용히 resolve한다(화면엔 안 그려짐). -->
             <div class="mt-page-header">
               <div class="mt-title-group">
                 <div class="mt-title">My <span>Time</span></div>
@@ -62,8 +57,7 @@
 
             <!-- 메일 뷰 (기본 표시) -->
             <div class="mt-view" id="mt-mail-view">
-              <!-- 전체 타임라인(기존 슬라이더)을 두 창 위로 올림 — 날짜 범위 라벨은
-                   한 줄로 합쳐서 트랙 위 가운데에 둠(양 끝에 따로 두지 않음) -->
+              <!-- 전체 타임라인(연도 슬라이드)을 두 창 위로 올림 -->
               <div class="mt-pointer-wrap">
                 <div class="mt-pointer-dates">
                   <span class="mt-pointer-date-label" id="mtPointerRangeLbl"
