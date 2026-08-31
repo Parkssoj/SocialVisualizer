@@ -1,4 +1,7 @@
-# src/util/message_summary.py
+# 대화 블록을 월별/연별로 묶어 LLM으로 요약을 생성하고 JSON과 message_summarize 테이블에 저장한다.
+
+# Groups conversation blocks by month/year, generates summaries via LLM, and saves them to JSON and the message_summarize table.
+
 import os
 import json
 import datetime

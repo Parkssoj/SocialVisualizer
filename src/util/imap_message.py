@@ -1,3 +1,7 @@
+# 메일 메시지의 헤더·본문·첨부파일을 파싱해 인덱싱용 텍스트 블록으로 변환한다.
+
+# Parses a mail message's headers, body, and attachments and converts it into a text block for indexing.
+
 import re
 import os
 import base64

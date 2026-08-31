@@ -1,4 +1,7 @@
-# IMAP 수집 유틸
+# IMAP 서버에 로그인해 선택한 폴더의 메일을 가져오고, 폴더명 인코딩/디코딩과 플랫폼 판별 등 수집에 필요한 기능을 처리한다.
+
+# Logs into the IMAP server to fetch mail from the selected folders, handling folder-name encoding/decoding and platform detection needed for collection.
+
 import base64
 import re
 import imaplib

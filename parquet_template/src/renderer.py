@@ -1,8 +1,6 @@
-"""
-소셜 데이터 유형별 config(JSON)와 Jinja2 템플릿(.j2)을 기반으로, GraphRAG 워크플로우별 프롬프트 텍스트와 설정 파일(settings.yaml)을 렌더링하여 저장한다.
+# 소셜 데이터 유형별 config(JSON)와 Jinja2 템플릿(.j2)을 기반으로, GraphRAG 워크플로우별 프롬프트 텍스트와 설정 파일(settings.yaml)을 렌더링하여 저장한다.
 
-This script renders workflow-specific prompt texts and a settings.yaml configuration file for GraphRAG, based on domain-specific JSON configs and Jinja2 (.j2) templates.
-"""
+#This script renders workflow-specific prompt texts and a settings.yaml configuration file for GraphRAG, based on domain-specific JSON configs and Jinja2 (.j2) templates.
 
 import json
 from jinja2 import Environment, FileSystemLoader, StrictUndefined

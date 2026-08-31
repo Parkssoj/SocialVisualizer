@@ -1,5 +1,6 @@
-# src/util/graphrag_engine.py
-# GraphRAG LocalSearch, GlobalSearch 엔진 유저별로 메모리에 캐싱해서 재사용하는 모듈
+# GraphRAG의 LocalSearch/GlobalSearch 엔진을 유저별로 메모리에 캐싱해두고, 인덱스가 갱신되면 새로 빌드해 재사용한다.
+
+# Caches GraphRAG's LocalSearch/GlobalSearch engines in memory per user and rebuilds them when the index is updated, for reuse across queries.
 
 import os
 from pathlib import Path # 파일 경로를 객체로 다루기 위한 표준 라이브러리

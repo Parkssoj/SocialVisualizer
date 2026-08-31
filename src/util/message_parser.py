@@ -1,3 +1,7 @@
+# 카카오톡 대화 내보내기 텍스트를 파싱해 메시지 목록으로 정규화하고, 방 이름 추출과 인덱싱용 블록·방 ID 생성까지 처리한다.
+
+# Parses KakaoTalk chat export text into a normalized list of messages, and handles room-name extraction and building indexing blocks and room IDs.
+
 import re
 import hashlib
 import datetime

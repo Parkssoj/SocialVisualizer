@@ -1,4 +1,7 @@
-# src/util/message_statics.py
+# parquet의 대화 블록을 파싱해 어조를 판별하고, 참여자별 메시지 이력·LLM 프로필·키워드 통계를 병렬로 생성해 저장한다.
+
+# Parses conversation blocks from parquet to classify tone, then generates and saves per-participant message history, LLM profiles, and keyword statistics in parallel.
+
 import os
 import re
 import json

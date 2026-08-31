@@ -1,3 +1,7 @@
+# 파일명을 안전하게 정규화하고, 오래된 업데이트 결과·증분 업로드 파일을 정리하며, JSON 파일을 읽어온다.
+
+# Sanitizes filenames, cleans up stale update-result and incremental upload files, and reads JSON files from disk.
+
 import os
 import re
 import shutil

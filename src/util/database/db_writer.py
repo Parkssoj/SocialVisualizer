@@ -1,4 +1,7 @@
-# user DB에 데이터 저장 함수
+# 메일 인덱싱 결과(계정·연락처·메일·키워드·요약·폴더·비용 통계 등)를 user DB에 저장한다.
+
+# Utility functions that persist mail indexing results — accounts, contacts, mail, keywords, summaries, folders, and cost stats — into the user database.
+
 import os
 import re
 import json
