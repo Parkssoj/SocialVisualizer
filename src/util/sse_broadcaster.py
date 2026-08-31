@@ -1,3 +1,7 @@
+# 인덱싱 진행/완료/실패 이벤트를 여러 SSE 구독자에게 실시간으로 전달하기 위한 인메모리 구독·브로드캐스트 큐를 관리한다.
+
+# Manages in-memory subscribe/broadcast queues used to push indexing progress/done/failed events to multiple SSE subscribers in real time.
+
 import threading
 import queue
 import json

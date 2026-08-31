@@ -126,8 +126,7 @@ def _build_mail_csv(paths, mode="rewrite", new_ids=None) -> str | None:
         csv_name = f"inc_{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}.csv"
 
     elif mode == "append" and not new_ids:
-        # [수정] append + 새 메일 없음: CSV 생성 불필요 → None 반환
-        # 기존에는 else로 떨어져 mail_latest.csv 전체를 덮어쓰는 버그가 있었음
+        # CSV 생성 불필요 
         print("[CSV] append 모드이나 new_ids 없음 → CSV 생성 생략")
         return None
 

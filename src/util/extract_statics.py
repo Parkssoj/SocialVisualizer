@@ -487,9 +487,7 @@ def generate_person_descriptions(paths) -> dict:
             relationship = rel_m.group(1).strip()     if rel_m     else ''
             content      = content_m.group(1).strip() if content_m else ''
 
-            # 메신저 relation_label과 동일한 "[관계: 카테고리]" 태그 파싱 (graphrag_parquet2json.py
-            # _RELATION_TAG_RE 참고). person.relation_label 컬럼으로 분리 저장하고, description에
-            # 남는 "관계:" 줄에서는 태그를 떼어내 순수 설명 문장만 남긴다.
+            # [관계: 카테고리] 태그 파싱  person.relation_label 컬럼으로 분리 저장한다
             tag_m = re.match(r'^\[관계:\s*([^\]]+?)\]\s*', relationship)
             relation_label = tag_m.group(1).strip() if tag_m else None
             if tag_m:

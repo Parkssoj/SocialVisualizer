@@ -307,7 +307,7 @@ def run_date_range_query(message: str, accounts_paths: list) -> str:
                 "content": f"[이메일 목록]\n{context}\n\n[질문]\n{message}"
             }
         ],
-        temperature=0.0 # 날짜 기반 질문은 창의성 필요 ㄴㄴ
+        temperature=0.0 # 날짜 기반 질문이므로 창의성 0
     )
     print(f'date_query execution_time : {time.time() - start_time}')  # 답변 시간 출력
     print(f'date_query answer : {response.choices[0].message.content.strip()}')  # 답변 출력

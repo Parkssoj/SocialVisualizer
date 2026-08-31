@@ -1,21 +1,16 @@
+# 계정(도메인+user_id)별로 원본 데이터·GraphRAG 산출물·이미지 등 모든 파일 경로를 한곳에서 계산하고, 계정 메타 파일과 인덱싱된 계정 목록을 관리한다.
+
+# Centralizes computation of every data/output/image file path for each account (domain + user_id), and manages account metadata files and the list of indexed accounts.
+
 import re,os
 import json
 import shutil
 from config.settings import GRAPHRAG_SETTINGS_DIR, GRAPHRAG_PROMPTS_DIR, RAG_ENGINE
 
+# 계정 폴더에 원본 user_id·room_name을 담아두는 메타 파일명 (sanitize된 폴더명 복원·인덱싱 전 방 이름 폴백용)
 ACCOUNT_META_FILENAME = "account.json"
 
-_MAX_MAILS_CONFIG = {
-    "ddyr1554@gmail.com": 200,
-    "inhist44@gmail.com": 1000,
-    "cjiyou1090@gmail.com": 1500,
-    "csi10186@gmail.com": 500,
-    "03yeah03@gmail.com": 300,
-}
-
-# 카카오톡 방 이름(한글 포함) 뒤에 build_room_id()가 붙여주는 "[msg_xxxxxxxx]" 해시 식별자.
-# 방 이름을 그대로 폴더명에 넣으면 한글이 전부 언더바로 뭉개져서 이름 길이만큼 폴더명이
-# 들쭉날쭉해지므로, 이 패턴이 있으면 해시 부분만 폴더명으로 쓴다(짧고 항상 일관된 길이).
+# 해시 부분만 폴더명으로 사용
 _MSG_ROOM_ID_RE = re.compile(r"\[msg_([0-9a-f]{8})\]\s*$")
 
 # user_id(이메일 또는 방 이름)를 파일시스템에 안전한 폴더명으로 변환한다
@@ -40,62 +35,37 @@ class UserPaths:
 
         dir_name = _mail_to_dir_name(user_id)
 
-        # user_data/<domain>/<계정 또는 단톡방>/ 구조 — 도메인(메일/카카오)별로 먼저 나누고
-        # 그 밑에 계정 폴더를 둔다. list_accounts()/list_indexed_user_ids()가 이 구조를 그대로
-        # 훑으면서 계정 목록을 찾는다.
+        # user_data/<domain>/<계정 또는 단톡방>/ 구조 — 도메인(메일/카카오)별로 먼저 나누고 그 밑에 계정 폴더를 둔다.
         self.USER_ROOT = os.path.join(base_dir, "user_data", domain, dir_name)
 
-        # RAG_ENGINE별로 저장 위치를 완전히 분리한다: user_data/<domain>/<계정>/graphrag/...,
-        # user_data/<domain>/<계정>/lightrag/... 이렇게 엔진 세그먼트를 하나 더 두었다.
-        # domain은 이미 USER_ROOT 경로에 반영돼 있으므로 여기서 다시 붙이지 않는다(중복 방지).
-        # 예전엔 엔진 세그먼트가 없어서 LightRAG가 working_dir로 GRAPHRAG_ROOT를 그대로
-        # 재사용할 수밖에 없었고, 그 결과 LightRAG의 그래프/벡터/KV 저장소 파일들이 GraphRAG의
-        # parquet 출력 폴더 안에 섞여 저장됐다. 지금은 아예 다른 폴더를 쓰므로 이 문제가 없다.
-        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag")     # GraphRAG 데이터 저장 위치
+        # RAG_ENGINE별로 저장 위치를 완전히 분리한다
+
+        # GraphRAG 데이터 저장 위치
+        self.DOMAIN_ROOT = os.path.join(self.USER_ROOT, "graphrag")     
         self.GRAPHRAG_ROOT = os.path.join(self.DOMAIN_ROOT, "parquet")
 
-        # LightRAG 저장소(rag_storage에 해당) 전용 루트. LightRAG()의 working_dir로 그대로 쓴다
-        # (job_run_lightrag.py의 _lightrag_ainsert, lightrag_engine.py의 get_lightrag_instance 참고).
-        # domain은 이미 USER_ROOT에 반영돼 있으므로 여기서 다시 붙이지 않는다.
+        # LightRAG 데이터 저장 위치
         self.LIGHTRAG_ROOT = os.path.join(self.USER_ROOT, "lightrag")
-
         # GraphRAG 결과 폴더(cache/input/logs/output)와 구조를 맞추기 위한 하위 폴더.
-        # LightRAG 라이브러리는 working_dir 하나에 그래프/벡터DB/캐시를 전부 섞어서 저장하고
-        # cache/input/output을 따로 나누는 옵션이 없다(라이브러리 코드를 안 건드리는 게 원칙이라
-        # 패치 안 함) — 그래서 LightRAG가 실제로 쓰는 파일(그래프, 벡터DB, 캐시 전부 포함)은
-        # output/ 하나에 모아 넣고, 그걸 working_dir로 쓴다. input/은 인덱싱 원본(latest.txt 등,
-        # 아래 MAIL_DIR 참고)이 실제로 저장되는 곳이고, logs/는 job 로그 파일을 남기는 용도로
-        # 우리가 직접 채운다(job_run_lightrag.py 참고).
         self.LIGHTRAG_OUTPUT_DIR = os.path.join(self.LIGHTRAG_ROOT, "output")
         self.LIGHTRAG_INPUT_DIR = os.path.join(self.LIGHTRAG_ROOT, "input")
         self.LIGHTRAG_LOGS_DIR = os.path.join(self.LIGHTRAG_ROOT, "logs")
 
-        # LightRAG용 그래프 시각화 json. GraphRAG의 GRAPH_JSON_PATH(DOMAIN_ROOT/json/...)와
-        # 똑같은 스키마({nodes, edges})를 쓰지만, 결과물이 섞이지 않도록 LIGHTRAG_ROOT 밑에
-        # 따로 둔다 (util/lightrag_backend/lightrag_graph_json.py가 씀).
+        # LightRAG용 그래프 시각화 json
         self.LIGHTRAG_GRAPH_JSON_PATH = os.path.join(self.LIGHTRAG_ROOT, "json", "graph_data.json")
 
         self.USER_GRAPH_SETTINGS_PATH = os.path.join(self.GRAPHRAG_ROOT, "settings.yaml")
         self.USER_GRAPH_PROMPTS_PATH = os.path.join(self.GRAPHRAG_ROOT, "prompts")
 
-        # graphrag_parquet2json.py로 파일명이 바뀐 지 오래된 스크립트라 이쪽(HEAD) 이름을 쓴다 —
-        # parquet2json.py는 이제 존재하지 않는 옛날 파일명.
         self.GRAPH_JSON_PATH = os.path.join(self.DOMAIN_ROOT, "json", "graph_data.json")
         self.GRAPH_BUILD_SCRIPT = os.path.join(base_dir, "src", "graphrag_parquet2json.py")
 
         # 원본 메일/첨부파일(latest.txt, latest.csv, attachments/)이 저장되는 위치.
-        # GraphRAG는 GraphRAG CLI(settings.yaml)가 input/을 GRAPHRAG_ROOT 바로 밑에서 찾도록
-        # 고정돼 있어서 GRAPHRAG_ROOT를 그대로 쓴다. LightRAG는 그런 제약이 없어서(paths.MAIL_DIR만
-        # 일관되게 참조하면 됨) LIGHTRAG_ROOT/input(=LIGHTRAG_INPUT_DIR) 밑으로 완전히 분리했다 —
-        # 예전엔 RAG_ENGINE에 상관없이 항상 GRAPHRAG_ROOT/input을 같이 썼는데, 그래서 LightRAG로만
-        # 인덱싱해도 graphrag/parquet/input 밑에 latest.txt가 같이 생기는 문제가 있었다.
         if RAG_ENGINE == "lightrag":
             self.MAIL_DIR = self.LIGHTRAG_INPUT_DIR
         else:
             self.MAIL_DIR = os.path.join(self.GRAPHRAG_ROOT, "input")
-        # domain이 메일/카카오 둘 다 지원하게 되면서 "mail_" 접두사가 항상 맞진 않아서
-        # "latest.txt"로 이름을 바꿨다. 다른 파일들은 전부 이 값을 paths.MAIL_LATEST_PATH로만
-        # 참조하고 파일명을 직접 하드코딩하지 않으므로, 여기 한 곳만 바꾸면 전체에 반영된다.
+
         self.MAIL_LATEST_PATH = os.path.join(self.MAIL_DIR, "latest.txt")
         self.ATTACHMENT_DIR = os.path.join(self.MAIL_DIR, "attachments")
 
@@ -104,12 +74,7 @@ class UserPaths:
         self.RELATIONSHIPS_PATH = os.path.join(self.PARQUET_DIR, "relationships.parquet") # 엣지 데이터: 엔티티 간 관계
         self.COMMUNITIES_PATH = os.path.join(self.PARQUET_DIR, "communities.parquet") # 커뮤니티 데이터: 군집화한 노드 그룹 정보
 
-        # 연락처/키워드 통계, 요약, 아바타 등은 MAIL_DIR과 같은 이유로 엔진별로 분리한다.
-        # PARQUET_DIR(entities/relationships/communities.parquet, GraphRAG 전용 산출물) 밑에
-        # 고정해두면, LightRAG만 쓰는 계정은 graphrag/ 폴더 자체가 안 생겨서
-        # (lightrag_extract_statics.py 등이 os.makedirs(paths.MAIL_STATICS_PATH)로 알아서
-        # 만들어주긴 하지만) 통계 폴더가 GraphRAG 전용 폴더 밑에 딸려 들어가는 게 어색하고,
-        # 실제로 mail_contact_stats.json을 못 찾는 FileNotFoundError가 났다.
+        # 연락처/키워드 통계, 요약, 아바타 등을 저장하는 위치
         if RAG_ENGINE == "lightrag":
             self.MAIL_STATICS_PATH = os.path.join(self.LIGHTRAG_ROOT, "statics")
         else:
@@ -122,8 +87,6 @@ class UserPaths:
         self.MAIL_AVATARS_PATH  = os.path.join(self.MAIL_STATICS_PATH, "person_avatars.json")
         self.AVATAR_IMAGES_DIR  = os.path.join(self.MAIL_STATICS_PATH, "avatars")
         self.MAIL_MESSAGE_CACHE_PATH = os.path.join(self.MAIL_STATICS_PATH, "mail_message_cache.json")
-        # 메신저(messenger) 도메인 전용 중간 통계 JSON — mail_*과 같은 디렉터리를 쓰지만
-        # (이미 domain별로 폴더가 나뉘어 있어 파일명 겹칠 일 없음) 별도 이름으로 구분.
         self.CHATROOM_PEOPLE_MESSAGES_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_messages.json")
         self.MESSAGE_KEYWORDS_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_keyword_stats.json")
         self.MESSAGE_SUMMARIES_PATH = os.path.join(self.MAIL_STATICS_PATH, "message_summaries.json")
@@ -132,7 +95,6 @@ class UserPaths:
         self.MESSAGE_AVATARS_PATH = os.path.join(self.MAIL_STATICS_PATH, "chatroom_people_avatars.json")
         self.MESSAGE_AVATAR_IMAGES_DIR = os.path.join(self.MAIL_STATICS_PATH, "chatroom_avatars")
         self.UPDATE_DIR = os.path.join(self.GRAPHRAG_ROOT, "update_output")
-        self.MAX_MAILS = _MAX_MAILS_CONFIG.get(user_id, None)
         self.ACCOUNT_META_PATH = os.path.join(self.USER_ROOT, ACCOUNT_META_FILENAME)
         _ensure_account_meta(self)
 
@@ -230,8 +192,6 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
                     user_id = None
 
             if not user_id:
-                # 메타 파일이 아직 없는 계정(이 기능 추가 이전에 만들어진 폴더) →
-                # 폴더명에서 최선으로 역추정만 하고, 파일에 쓰지는 않는다.
                 user_id = dir_name.replace("_at_", "@", 1).replace("_", ".")
 
             paths = UserPaths(base_dir, user_id, domain)
@@ -239,16 +199,10 @@ def list_accounts(base_dir: str, domain: str = "mail") -> list[dict]:
                 "user_id": user_id,
                 "indexed": _account_indexed(paths),
                 "indexed_at": _account_indexed_at(paths),
-                # 메신저(카카오) 업로드 시점에 저장해둔 방 이름 — 인덱싱 전엔 chatroom
-                # DB 테이블에 이름이 없으므로, 있으면 이걸 폴백으로 쓴다(list_indexed_chatrooms 참고).
                 "room_name": room_name,
             })
 
-    # 가장 최근에 인덱싱된 계정이 맨 앞에 오도록 정렬 — 사이드바 기본 선택값이
-    # "가장 최근 인덱싱된 계정"이 되도록 하기 위함(프런트는 이 배열의 첫 번째
-    # 항목을 기본값으로 쓴다: appSidebar.js의 refreshSidebarList()). 아직 인덱싱
-    # 안 된 계정(indexed_at == 0)은 뒤로 밀리되, 그 안에서는 원래의 알파벳 순서를
-    # 그대로 유지한다(Python 정렬은 stable이라 동점이면 기존 순서 보존).
+    # 가장 최근에 인덱싱된 계정이 맨 앞에 오도록 정렬 
     accounts.sort(key=lambda a: a["indexed_at"], reverse=True)
 
     return accounts

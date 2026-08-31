@@ -93,19 +93,18 @@ def _imap_extract_body(msg) -> str:
             except (LookupError, UnicodeDecodeError):
                 body = payload.decode("utf-8", errors="replace")
 
-    # text/plain 파트인데도 실제로는 HTML 원본이 그대로 들어있는 자동발송 메일이 있어서,
-    # 어느 파트에서 왔든 최종 본문에 남은 태그/주석은 방어적으로 한 번 더 제거한다.
-    body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)  # HTML 주석(조건부 주석 포함) 먼저 제거
-    # <style>/<script> 블록은 태그만 지우면 안의 CSS/JS 텍스트가 그대로 본문에 남으므로 내용째로 제거
+    # 최종 본문에 남은 태그/주석은 방어적으로 한 번 더 제거한다.
+    body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)  # HTML 주석(조건부 주석 포함) 제거
+    # <style>/<script> 블록 내용째로 제거
     body = re.sub(r"<style[^>]*>.*?</style>", " ", body, flags=re.DOTALL | re.IGNORECASE)
     body = re.sub(r"<script[^>]*>.*?</script>", " ", body, flags=re.DOTALL | re.IGNORECASE)
     body = re.sub(r"<[^>]+>", " ", body)
 
-    # 본문에 남는 링크(구독 해지/추적 URL 등)는 엔티티 추출에 노이즈만 될 뿐 의미 있는 정보가 아니라서 제거
+    # 본문에 남는 링크(구독 해지/추적 URL 등) 제거
     body = re.sub(r"https?://\S+", " ", body)
 
-    # 마케팅 메일이 받은편지함 미리보기 줄을 숨기려고 채워 넣는 폭 0 문자(ZWNJ/ZWJ/LRM/RLM/BOM 등) 제거 —
-    # display:none 처리된 프리헤더 안에 들어있어 화면엔 안 보이지만 태그가 아니라서 위 단계로는 안 걸러짐
+    # 폭 0 문자(ZWNJ/ZWJ/LRM/RLM/BOM 등) 제거 
+    # display:none 처리된 프리헤더 속 내용 제거
     body = re.sub(f"[{_INVISIBLE_CHARS}]", "", body)
 
     body = body.replace("\r\n", "\n")

@@ -1,3 +1,7 @@
+# 메일·카카오톡 원본을 정제한 뒤 GraphRAG 인덱싱을 실행하고, parquet 후처리·그래프 JSON 변환·DB 통계·요약·아바타 생성까지 하나의 백그라운드 잡으로 묶어 돌리는 GraphRAG 인덱싱 파이프라인 진입점.
+
+# Entry point of the GraphRAG indexing pipeline: cleans raw mail/KakaoTalk data, runs GraphRAG indexing, then chains parquet post-processing, graph-JSON conversion, DB stats, summaries, and avatar generation into a single background job.
+
 import time
 import os
 import sys
@@ -85,12 +89,12 @@ def _summarize_attachment_text(text: str, paths, filename: str) -> str:
     )
     try:
         response = client.chat.completions.create(
-            model=os.getenv("SUB_TASK_CHAT_MODEL"),  # 첨부파일 요약 = 보조 작업 (기존 RAG_CHAT_MODEL에서 변경)
+            model=os.getenv("SUB_TASK_CHAT_MODEL"), 
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"파일명: {filename}\n\n{text}"}
             ],
-            max_completion_tokens=150  # 한글 약 300자 기준. gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원이라 도입한 파라미터. vLLM도 호환 지원됨
+            max_completion_tokens=150  
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
@@ -212,7 +216,7 @@ def _trim_mail_latest(paths, max_mails, job_id):
     with open(paths.MAIL_LATEST_PATH, 'w', encoding='utf-8') as f:
         f.write(result)
 
-    # CSV도 트리밍 (GraphRAG는 csv를 읽음)
+    # CSV 트리밍 (GraphRAG는 csv를 읽음)
     trimmed_ids = set()
     for block in trimmed:
         m = re.search(r'^\s*\[ID\]\s*(.+?)\s*$', block, re.MULTILINE)
