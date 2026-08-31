@@ -6,7 +6,7 @@
  */
 // imap-collect.html 전용 스타일 (메신저 드롭존 원복 및 대화방/모드 가로 1줄 배치 버전)
 
-/* ── 페이지 콘텐츠 세로 위치 ──
+/* 페이지 콘텐츠 세로 위치
    예전엔 justify-content:center로 "진짜 중앙 정렬"을 했는데, 이러면 폴더
    목록처럼 안쪽 요소가 늘어날 때마다 콘텐츠 전체 높이가 바뀌면서 중앙 계산이
    다시 되어 요소 윗부분이 위로 갔다가 아래로 갔다가 하는 게 눈에 띄게
@@ -28,7 +28,7 @@
   }
 }
 
-/* ── 레이아웃 ── */
+/* 레이아웃 */
 .gw-collect-wrap {
   padding: 8px 32px 32px 32px !important;
   width: 100%;
@@ -56,7 +56,7 @@
   margin-bottom: 0;
 }
 
-/* ── 탭 전환 ── */
+/* 탭 전환 */
 .gw-tabs {
   display: flex !important;
   align-items: center !important;
@@ -100,7 +100,7 @@
   display: contents;
 }
 
-/* ── 💡 메신저 파일 드롭존 디자인 원본 완벽 복원 ── */
+/* 메신저 파일 드롭존 디자인 원본 완벽 복원 */
 .gw-dropzone {
   display: flex;
   flex-direction: column;
@@ -145,7 +145,7 @@
   border: 1px solid #fed7aa;
 }
 
-/* ── 카드 ── */
+/* 카드 */
 .gw-card {
   background: #fff;
   border: none;
@@ -169,7 +169,7 @@
   color: #fb923c;
 }
 
-/* ── 폼 요소 (기본은 세로 정렬) ── */
+/* 폼 요소 (기본은 세로 정렬) */
 .gw-form-grid,
 .gw-uniform-grid {
   display: grid !important;
@@ -192,7 +192,7 @@
   margin-bottom: 12px;
 }
 
-/* 💡 메신저 탭 안의 '대화방 이름'과 '모드'만 가로 1줄(2열)로 배치 */
+/* 메신저 탭 안의 '대화방 이름'과 '모드'만 가로 1줄(2열)로 배치 */
 #tab-panel-message .gw-form-grid {
   grid-template-columns: 1fr 1fr !important;
 }
@@ -261,7 +261,7 @@
   font-size: 1.12rem !important;
 }
 
-/* ── 프리셋 칩 ── */
+/* 프리셋 칩 */
 .gw-presets {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -309,7 +309,7 @@
   border-radius: 3px;
 }
 
-/* ── 폴더 체크박스 ── */
+/* 폴더 체크박스 */
 .gw-folder-list {
   display: flex;
   flex-wrap: wrap;
@@ -386,7 +386,7 @@
   font-size: 1rem;
 }
 
-/* ── 전체 선택 버튼 ── */
+/* 전체 선택 버튼 */
 .gw-select-all-btn {
   padding: 5px 13px;
   border-radius: 6px;
@@ -405,7 +405,7 @@
   box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
 }
 
-/* ── 수집 버튼 ── */
+/* 수집 버튼 */
 .gw-collect-btn {
   display: inline-flex;
   align-items: center;
@@ -437,7 +437,7 @@
   box-shadow: none;
 }
 
-/* ── 진행상황 패널 (로그 디자인 원본 완벽 복원) ── */
+/* 진행상황 패널 (로그 디자인 원본 완벽 복원) */
 .gw-log-panel {
   display: none;
   margin-top: 0 !important;
@@ -600,7 +600,7 @@
   gap: 6px;
 }
 
-/* ── job 패널 목록 ── */
+/* job 패널 목록 */
 .gw-jobs-list {
   margin-top: 0 !important;
   // 요청 — job 패널(계정별 로그 카드)이 여러 개 쌓일 때 카드끼리 위아래로
@@ -616,7 +616,7 @@
   padding: 40px 0;
 }
 
-/* ── 결과 요약 ── */
+/* 결과 요약 */
 .gw-result-row {
   display: flex;
   gap: 14px;
@@ -645,7 +645,7 @@
   margin-left: 2px;
 }
 
-/* ── 스피너 ── */
+/* 스피너 */
 .gw-spinner {
   width: 18px;
   height: 18px;
@@ -659,9 +659,9 @@
   display: inline-block;
 }
 
-/* ═══════════════════════════════════════════════
+/*
    6:4 분할 레이아웃 및 완벽한 상하/좌우 대칭 정렬
-   ═══════════════════════════════════════════════ */
+   */
 .gw-split-grid-wrapper {
   display: grid !important;
   grid-template-columns: 6fr 4fr !important;

@@ -1,8 +1,7 @@
 // floatingSearch.js
 /**
- * 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업. search.js와 동일한 GraphRAG 질의 (/run-query-async → /job-status 폴링)를 재사용해
- * 어느 페이지에서든 같은 검색 결과를 즉시 보여준다. main-app.js에서 side-effect import되어 로그인 페이지를 제외한 모든 페이지에 자동으로 뜬다.
- *
+ 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업. search.js와 동일한 GraphRAG 질의 (/run-query-async → /job-status 폴링)를 재사용해서 어느 페이지에서든 같은 검색 결과를 즉시 보여준다. main-app.js에서 side-effect import되어 로그인 페이지를 제외한 모든 페이지에 자동으로 뜬다.
+ 
  * Floating search button + popup shown on every page. Reuses the same GraphRAG query flow as search.js
  * (/run-query-async then polling /job-status) so results match the dedicated search page. Auto-mounted
  * on every page but login via a side-effect import in main-app.js.

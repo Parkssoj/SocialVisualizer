@@ -6,7 +6,7 @@
  * both mail and messenger channels. Switching the sidebar's account/chatroom reloads only that
  * channel's timeline and keyword data, without a page refresh.
  */
-/* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
+/* [필수] 사이드바 및 페이지 SCSS 로드 */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/mytime.scss";
 
@@ -18,7 +18,7 @@ import { initGlobalFilter } from "../utils/filterSync.js";
 
 bootstrapApp("mytime");
 
-/* ── 앱 초기화 및 사이드바 바인딩 ── */
+/* 앱 초기화 및 사이드바 바인딩 */
 document.addEventListener("DOMContentLoaded", () => {
   // 사이드바 렌더링 + 계정/채팅방 목록 조회는 initGlobalFilter가 전부 처리한다.
   initGlobalFilter((filterState, meta) => {
@@ -75,7 +75,7 @@ chatroomIdPromise.then((id) => {
   currentChatroomId = id || "";
 });
 
-/* ── 공통 fetch 헬퍼 ── */
+/* 공통 fetch 헬퍼 */
 // JSON POST 요청 공통 헬퍼
 async function postJSON(url, body) {
   const res = await fetch(url, {
@@ -87,7 +87,7 @@ async function postJSON(url, body) {
   return res.json();
 }
 
-/* ── 공용 툴팁(주요 연락처 설명 / 키워드 언급자) ── */
+/* 공용 툴팁(주요 연락처 설명 / 키워드 언급자) */
 let mtTooltipEl = null;
 // 공용 툴팁 엘리먼트를 최초 1회 생성해 body에 붙이고 재사용
 function ensureTooltip() {
@@ -139,7 +139,7 @@ function hideTooltip() {
   if (mtTooltipEl) mtTooltipEl.classList.remove("show");
 }
 
-/* ── 타임라인 컨트롤러 ── */
+/* 타임라인 컨트롤러 */
 // 좌측 월/연도 슬라이더 타임라인 전체(렌더링, 포인터/커서, 기간 고정, 데이터 주입)를
 // 관리하는 컨트롤러 팩토리 — 메일/메신저 화면이 각자 하나씩 만들어 쓴다.
 function createTimeline(ids) {
@@ -576,7 +576,7 @@ function createTimeline(ids) {
   return { setData, setMode, getRangeText: () => fullRangeText };
 }
 
-/* ── 오른쪽 "월별 키워드" 창 컨트롤러 ──
+/* 오른쪽 "월별 키워드" 창 컨트롤러
    ids: { body, hint, backBtn } — DOM id 문자열
    api: { monthlyUrl, dailyUrl, mentionersUrl, idField } — 메일/메신저별로 다른
         엔드포인트·요청 필드명(user_id vs chatroom_id)을 여기서 갈아끼운다. */
@@ -913,7 +913,7 @@ function createKeywordPanel(ids, api) {
   return { init, setPeriod };
 }
 
-/* ══════════════════════ 메일 뷰 ══════════════════════ */
+/* 메일 뷰 */
 const mailKwPanel = createKeywordPanel(
   { body: "mtKwBody", hint: "mtKwHint", backBtn: "mtKwBackBtn", title: "mtKwTitle" },
   {
@@ -1034,7 +1034,7 @@ async function initSelfAvatar(gmailId) {
 // 자기 아바타만 독립적으로 불러온다.
 userIdPromise.then((gmailId) => initSelfAvatar(gmailId || ""));
 
-/* ══════════════════════ 메신저 뷰 ══════════════════════ */
+/* 메신저 뷰 */
 const msgKwPanel = createKeywordPanel(
   { body: "msgKwBody", hint: "msgKwHint", backBtn: "msgKwBackBtn", title: "msgKwTitle" },
   {
@@ -1143,7 +1143,7 @@ async function loadMtMessengerData() {
   }
 }
 
-/* ── 메일 / 메신저 채널 전환 ──
+/* 메일 / 메신저 채널 전환
    예전엔 페이지에 있는 메일/메신저 버튼을 눌러야 전환됐는데, 이제 계정·방
    선택은 사이드바가 전담하므로 버튼은 없앴다 — 사이드바에서 메일 계정을
    고르면 자동으로 이 뷰가 뜨고, 메신저 방을 고르면 저 뷰가 뜬다(아래

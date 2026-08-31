@@ -14,7 +14,7 @@ import "../styles/tailwind.css";
 
 mountHomeApp("home-app-root");
 
-/* ── URL 파라미터로 넘어온 사용자 이름/계정/백엔드 주소를 저장소에 반영 ── */
+/* URL 파라미터로 넘어온 사용자 이름/계정/백엔드 주소를 저장소에 반영 */
 (function () {
   const params = new URLSearchParams(window.location.search);
   const nameParam = params.get("name");

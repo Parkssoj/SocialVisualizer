@@ -36,7 +36,7 @@ footer {
   overflow: hidden !important;
 }
 
-/* ── 페이지 레이아웃 ── */
+/* 페이지 레이아웃 */
 .right_col > div:first-child {
   padding-top: 0;
 }
@@ -67,7 +67,7 @@ footer {
     sans-serif;
 }
 
-/* ── 콘텐츠 행 (왼쪽+오른쪽 패널) ── */
+/* 콘텐츠 행 (왼쪽+오른쪽 패널) */
 .mp-content {
   flex: 1;
   min-height: 0;
@@ -77,7 +77,7 @@ footer {
   overflow: visible;
 }
 
-/* ── 왼쪽 컬럼 (사람 패널) ── */
+/* 왼쪽 컬럼 (사람 패널) */
 .mp-left {
   flex: 1;
   min-width: 0;
@@ -88,7 +88,7 @@ footer {
   position: relative;
 }
 
-/* ── 그리드 패널 ── */
+/* 그리드 패널 */
 .mp-panel {
   width: 100%;
   background: rgba(255, 255, 255, 0.72);
@@ -117,7 +117,7 @@ footer {
   overflow: hidden;
 }
 
-/* ── 패널 헤더 ── */
+/* 패널 헤더 */
 .mp-panel-header {
   display: flex;
   align-items: center;
@@ -211,7 +211,7 @@ footer {
   color: #fff;
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
-/* ── 정렬 컨트롤 묶음(광고 제거 버튼 + 정렬 드롭다운) ── */
+/* 정렬 컨트롤 묶음(광고 제거 버튼 + 정렬 드롭다운) */
 .mp-header-controls {
   display: flex;
   align-items: center;
@@ -278,7 +278,7 @@ footer {
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
-/* ── 노션식 드롭다운 토글 ── */
+/* 노션식 드롭다운 토글 */
 .mp-dropdown {
   position: relative;
 }
@@ -380,7 +380,7 @@ footer {
   align-items: start;
 }
 
-/* ── 친밀도 5분위 밴드 ── .mp-band는 .mp-grid의 그리드 아이템이지만
+/* 친밀도 5분위 밴드 .mp-band는 .mp-grid의 그리드 아이템이지만
    grid-column:1/-1로 한 줄 전체를 차지해서 그 안에 독립된 카드 그리드(.mp-band-cards)를
    넣는 구조. 상위 밴드일수록 배경(--band-bg)이 진하고, 하위로 갈수록 옅어지도록
    JS(renderAffinityBands)에서 인라인으로 값을 넣어준다. */
@@ -690,7 +690,7 @@ footer {
   margin-bottom: 10px;
 }
 
-/* ── 그래프 전체 패널 (왼쪽 패널 오버레이) ── */
+/* 그래프 전체 패널 (왼쪽 패널 오버레이) */
 .mp-graph-panel {
   display: none;
   position: absolute;
@@ -745,7 +745,7 @@ footer {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
-/* ── 메신저 탭: 단톡방 참여자 화면 헤더(뒤로가기 + 방 이름) ── */
+/* 메신저 탭: 단톡방 참여자 화면 헤더(뒤로가기 + 방 이름) */
 .mp-messenger-room-header {
   display: flex;
   align-items: center;
@@ -803,9 +803,9 @@ footer {
   line-height: 1;
 }
 
-/* ════════════════════════════════════
+/*
          사람 디테일 패널
-      ════════════════════════════════════ */
+      */
 .mp-panel {
   position: relative;
 }
@@ -1695,7 +1695,7 @@ footer {
   background: #fffaf5;
 }
 
-/* ── 메신저 상세: 월 클릭 → 일별 목록 → 하루 클릭 → 그날 대화 (메일 드로어 재사용) ── */
+/* 메신저 상세: 월 클릭 → 일별 목록 → 하루 클릭 → 그날 대화 (메일 드로어 재사용) */
 .mp-day-row {
   display: flex;
   align-items: center;
@@ -1841,9 +1841,9 @@ footer {
   opacity: 0.5;
 }
 
-/* ════════════════════════════════════
+/*
          타임라인 패널
-      ════════════════════════════════════ */
+      */
 .mp-timeline {
   position: fixed;
   // 요청 — 타임슬라이더를 살짝 더 위로 올려서 잘 보이도록.

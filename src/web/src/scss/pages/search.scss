@@ -5,7 +5,7 @@
  * header/sidebar rules).
  */
 
-/* ── 공통 ── */
+/* 공통 */
 .gw-spinner {
   width: 20px; height: 20px;
   border: 3px solid #e0e0e0; border-top-color: #fb923c;
@@ -14,7 +14,7 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── 탭 전환 (메일/메시지) ── */
+/* 탭 전환 (메일/메시지) */
 .gw-tabs {
   display: flex;
   gap: 4px;
@@ -45,7 +45,7 @@
 .gw-tab-panel { display: none; }
 .gw-tab-panel.active { display: block; }
 
-/* ── 검색 CSS ── */
+/* 검색 CSS */
 .gw-search-top {
   padding: 20px 32px 20px 32px;
   border-bottom: 1px solid #e8e8e8;
@@ -128,7 +128,7 @@
   font-size: 0.8rem; font-weight: 700;
 }
 
-/* ── 근거메일 보기(요청 — 근거 메일 하나하나에 버튼 붙여서 오른쪽에 본문 표시) ── */
+/* 근거메일 보기(요청 — 근거 메일 하나하나에 버튼 붙여서 오른쪽에 본문 표시) */
 
 /* 요청 — 답변을 줄 단위로 렌더링(gw-result-card 안, escapeHtml(text)+white-space:pre-wrap 대신)
    해서 "근거메일 보기" 버튼을 근거인 불릿 줄 바로 왼쪽에 붙일 수 있게 한다. */

@@ -37,7 +37,7 @@ footer {
   padding-top: 0;
 }
 
-/* ── 페이지 ── */
+/* 페이지 */
 .mt-page {
   position: fixed !important;
   top: 74px !important; // My People(.mp-page)과 정확히 같은 위치
@@ -180,7 +180,7 @@ footer {
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
-/* ── 왼쪽(요약) / 오른쪽(월별 키워드) 두 창 — 사진·프로필 칸을 없애면서 5:5로 ── */
+/* 왼쪽(요약) / 오른쪽(월별 키워드) 두 창 — 사진·프로필 칸을 없애면서 5:5로 */
 .mt-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -221,7 +221,7 @@ footer {
   flex-direction: column;
 }
 
-/* ── 메인 카드(요약) ── */
+/* 메인 카드(요약) */
 .mt-main {
   background: #fffefc;
   border-radius: 16px;
@@ -334,7 +334,7 @@ footer {
   color: #f97316;
 }
 
-/* ── 인포 패널 (노드 아래, 고정 높이) ── */
+/* 인포 패널 (노드 아래, 고정 높이) */
 .mt-info-area {
   margin-top: 32px;
   flex: 1;
@@ -443,7 +443,7 @@ footer {
   transform: translateY(-1px);
 }
 
-/* ── 포인터 라인(전체 타임라인 슬라이더) ──
+/* 포인터 라인(전체 타임라인 슬라이더)
    원래 두 창 아래(페이지 맨 밑)에 있었는데, 위로 올려서 두 창 위에 두고 — 그만큼
    박스 크기(패딩)도 줄여서 덜 무거워 보이게 함. "전체 타임라인 — 클릭으로 이동"
    문구는 없애고, 양 끝에 따로 있던 시작/끝 날짜도 트랙 위 가운데 한 줄로 합침. */
@@ -616,7 +616,7 @@ footer {
   white-space: nowrap;
 }
 
-/* ── 메일/메신저 뷰 전환 ──
+/* 메일/메신저 뷰 전환
    두 뷰(메일/메신저)는 mytime.js가 inline style.display로 하나만 보여준다.
    보이는 쪽이 .mt-page의 남는 세로 공간(flex:1)을 전부 차지하고, 그 공간을
    다시 .mt-pointer-wrap(고정 높이) + .mt-two-col(나머지 전부)로 나눠준다. */
@@ -648,7 +648,7 @@ footer {
   font-size: 1rem;
 }
 
-/* ══════════════════════ 오른쪽 창: 월별 키워드 ══════════════════════ */
+/* 오른쪽 창: 월별 키워드 */
 .mt-kw-panel {
   padding: clamp(20px, 2.8vw, 36px) clamp(22px, 3vw, 40px) clamp(18px, 2.6vw, 32px);
   display: flex;
@@ -898,7 +898,7 @@ footer {
   color: rgba(48, 37, 34, 0.5);
 }
 
-/* ── 공용 툴팁(연락처 설명 / 키워드 언급자) — 흰 배경 + 검정 글씨 + 검정 테두리 ── */
+/* 공용 툴팁(연락처 설명 / 키워드 언급자) — 흰 배경 + 검정 글씨 + 검정 테두리 */
 .mt-tooltip {
   position: fixed;
   z-index: 4000;

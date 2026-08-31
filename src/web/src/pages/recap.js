@@ -6,7 +6,7 @@
  * selected mail account in parallel and renders them as cards. Uses a generation counter to guard
  * against race conditions when the sidebar selection changes quickly.
  */
-/* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
+/* [필수] 사이드바 및 페이지 SCSS 로드 */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/recap.scss";
 
@@ -18,7 +18,7 @@ import { initGlobalFilter } from "../utils/filterSync.js";
 
 bootstrapApp("recap");
 
-// ── 사이드바 선택 ↔ 화면 렌더링 파이프라인 ──────────────────────────────
+// 사이드바 선택 ↔ 화면 렌더링 파이프라인
 // 문제: 사이드바에서 메일→메신저(또는 그 반대)로 빠르게 넘나들면, loadRecapData()는
 // 다섯 개 API를 await Promise.allSettled(...)로 "기다렸다가" DOM에 쓰는 비동기
 // 함수라서, 그 대기 중에 사용자가 다른 항목을 또 클릭하면 두 번의 실행이 동시에
@@ -36,7 +36,7 @@ bootstrapApp("recap");
 // 클릭 하나"의 결과만 남는다.
 let recapGeneration = 0;
 
-// ── Recap 데이터 캐시 ──────────────────────────────────────────────────
+// Recap 데이터 캐시
 // 요청 — "Recap 데이터 캐시로 띄우도록 해야지". 사이드바에서 다른 계정을
 // 봤다가 방금 전 계정으로 다시 돌아오는 경우처럼, 짧은 시간 안에 같은
 // gmailId를 다시 선택하면 5개 API를 또 처음부터 다 부르지 않고 메모리에
@@ -96,7 +96,7 @@ function resetRecapUI() {
   });
 }
 
-/* ── 앱 초기화 및 사이드바/데이터 로드 메인 이벤트 ── */
+/* 앱 초기화 및 사이드바/데이터 로드 메인 이벤트 */
 document.addEventListener("DOMContentLoaded", async () => {
   // 사이드바 렌더링 + 계정 목록 조회는 initGlobalFilter가 전부 처리한다.
   initGlobalFilter((filterState, meta) => {
@@ -202,14 +202,14 @@ function renderRecapResults(
 ) {
   if (generation !== recapGeneration) return;
 
-  // ── 발신자/수신자 통계 ──
+  // 발신자/수신자 통계
   renderSenderStats(
     mailStatsResult.status === "fulfilled"
       ? mailStatsResult.value.data || {}
       : {},
   );
 
-  // ── 키워드 통계 ──
+  // 키워드 통계
   {
     const kwData =
       keywordResult.status === "fulfilled" ? keywordResult.value.data : null;
@@ -229,7 +229,7 @@ function renderRecapResults(
     }
   }
 
-  // ── 친밀도 통계 ──
+  // 친밀도 통계
   {
     const afData =
       affinityResult.status === "fulfilled" ? affinityResult.value.data : null;
@@ -249,7 +249,7 @@ function renderRecapResults(
     }
   }
 
-  // ── 동기화 통계 ──
+  // 동기화 통계
   if (syncResult.status === "fulfilled" && syncResult.value.data) {
     renderSyncStats(syncResult.value.data);
   } else {
@@ -265,7 +265,7 @@ function renderRecapResults(
     }
   }
 
-  // ── 만족도 통계 ──
+  // 만족도 통계
   if (ratingResult.status === "fulfilled" && ratingResult.value.data) {
     renderRatingStats(ratingResult.value.data);
   } else {
@@ -473,7 +473,7 @@ function renderSenderStats(data) {
   );
 }
 
-/* ── 워드 클라우드 색상 팔레트 ── */
+/* 워드 클라우드 색상 팔레트 */
 const WC_COLORS = [
   "#353535",
   "#555555",
@@ -526,7 +526,7 @@ function renderKeywordStats(data) {
   });
 }
 
-/* ── 친밀도 렌더 ── */
+/* 친밀도 렌더 */
 function renderAffinityStats(data) {
   const list = (Array.isArray(data) ? data : []).slice(0, 7);
   if (list.length === 0) return;
@@ -668,7 +668,7 @@ function renderAffinityStats(data) {
   });
 }
 
-/* ── 동기화 통계 렌더링 ── */
+/* 동기화 통계 렌더링 */
 function renderSyncStats(data) {
   function fmtTime(t) {
     if (!t) return "—";
@@ -716,7 +716,7 @@ function renderSyncStats(data) {
   if (contentEl) contentEl.style.display = "";
 }
 
-/* ── 만족도 게이지 렌더링 ── */
+/* 만족도 게이지 렌더링 */
 function renderRatingStats(data) {
   const score = Math.min(100, Math.max(0, data.total_rating || 0));
   const ARC = 251.3;

@@ -48,7 +48,7 @@ class GlobalStore {
     this.debounceTimer = null;
   }
 
-  // ── [백엔드 DB 실제 연동] 80번 포트 Flask API 동시 호출 ──
+  // [백엔드 DB 실제 연동] 80번 포트 Flask API 동시 호출
   // 계정 토글(accountPicker.js)이 쓰는 것과 완전히 같은 엔드포인트/파싱을 그대로
   // 가져와서 쓴다 — 예전엔 메일은 도메인 없이 /accounts를 불러 응답이
   // {accounts:[{user_id,indexed}, ...]} 객체 배열인데도 문자열 배열인 것처럼

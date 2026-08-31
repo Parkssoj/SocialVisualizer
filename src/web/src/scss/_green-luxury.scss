@@ -10,10 +10,10 @@
 // _variables.scss 교체만으로 커버 안 되는 부분을 여기서 마무리
 // =============================================================================
 
-// ── Inter 폰트 (구글 폰트 CDN) ──────────────────────────────────────────────
+// Inter 폰트 (구글 폰트 CDN)
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
-// ── 전역 기본값 ──────────────────────────────────────────────────────────────
+// 전역 기본값
 *,
 *::before,
 *::after {
@@ -29,7 +29,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-// ── 사이드바 베이스 ────────────────────────────────────────────────────────────
+// 사이드바 베이스
 .left_col,
 .nav_side {
   background: var(--gt-gradient-sidebar) !important;
@@ -37,7 +37,7 @@ body {
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18) !important;
 }
 
-// ── 로고 영역 ─────────────────────────────────────────────────────────────────
+// 로고 영역
 .nav_title {
   background: rgba(0, 0, 0, 0.12) !important;
   border-bottom: 1px solid rgba(253, 186, 116, 0.1) !important;
@@ -70,7 +70,7 @@ body {
   }
 }
 
-// ── 프로필 카드 ───────────────────────────────────────────────────────────────
+// 프로필 카드
 .profile {
   background: none !important;
   border: none !important;
@@ -130,14 +130,14 @@ body {
   display: none !important;
 }
 
-// ── 메뉴 전체 래퍼 ────────────────────────────────────────────────────────────
+// 메뉴 전체 래퍼
 .profile + br + #sidebar-menu,
 .profile ~ #sidebar-menu {
   padding-top: 10px !important;
   border-top: none !important;
 }
 
-// ── 섹션 헤더 ─────────────────────────────────────────────────────────────────
+// 섹션 헤더
 .menu_section h3 {
   color: var(--gt-sidebar-heading) !important;
   font-size: 9.5px !important;
@@ -158,7 +158,7 @@ body {
   }
 }
 
-// ── 메뉴 항목 ─────────────────────────────────────────────────────────────────
+// 메뉴 항목
 .side-menu > li {
   list-style: none !important;
   margin: 0 !important;
@@ -225,14 +225,14 @@ body {
   }
 }
 
-// ── 열린 서브메뉴 화살표 회전 ─────────────────────────────────────────────────
+// 열린 서브메뉴 화살표 회전
 .side-menu > li.active > a .bi-chevron-down,
 .side-menu > li > a[aria-expanded="true"] .bi-chevron-down {
   transform: rotate(180deg) !important;
   opacity: 1 !important;
 }
 
-// ── 활성 메뉴 (클릭/현재 페이지 공통) ─────────────────────────────────────────
+// 활성 메뉴 (클릭/현재 페이지 공통)
 .side-menu > li.active > a,
 .side-menu > li > a.active,
 .side-menu > li.current-page > a {
@@ -271,7 +271,7 @@ body {
   }
 }
 
-// ── 서브메뉴 ──────────────────────────────────────────────────────────────────
+// 서브메뉴
 .nav.child_menu {
   background: rgba(0, 0, 0, 0.12) !important;
   margin: 2px 10px 4px !important;
@@ -328,7 +328,7 @@ body {
   }
 }
 
-// ── 사이드바 하단 푸터 ────────────────────────────────────────────────────────
+// 사이드바 하단 푸터
 .sidebar-footer {
   background: rgba(0, 0, 0, 0.15) !important;
   border-top: 1px solid rgba(253, 186, 116, 0.08) !important;
@@ -357,7 +357,7 @@ body {
   }
 }
 
-// ── 상단 네비게이션 ───────────────────────────────────────────────────────────
+// 상단 네비게이션
 // 투명/고정 처리는 _header.scss에서 전체 사이트 공통으로 담당
 .top_nav {
   .nav_menu {
@@ -424,7 +424,7 @@ body {
   }
 }
 
-// ── 패널 / 카드 ───────────────────────────────────────────────────────────────
+// 패널 / 카드
 .panel,
 .x_panel {
   background: #fff !important;
@@ -453,7 +453,7 @@ body {
   }
 }
 
-// ── 버튼 ─────────────────────────────────────────────────────────────────────
+// 버튼
 .btn-primary,
 .btn-success,
 .btn-info.btn-primary {
@@ -492,7 +492,7 @@ body {
   }
 }
 
-// ── 인풋 / 폼 ────────────────────────────────────────────────────────────────
+// 인풋 / 폼
 .form-control,
 input[type="text"],
 input[type="email"],
@@ -518,7 +518,7 @@ select {
   }
 }
 
-// ── 테이블 ───────────────────────────────────────────────────────────────────
+// 테이블
 .table {
   border-color: var(--gt-table-border) !important;
 
@@ -550,7 +550,7 @@ select {
   }
 }
 
-// ── 배지 ─────────────────────────────────────────────────────────────────────
+// 배지
 .badge,
 .label {
   font-weight: 600 !important;
@@ -580,13 +580,13 @@ select {
   color: #c43030 !important;
 }
 
-// ── 콘텐츠 영역 ───────────────────────────────────────────────────────────────
+// 콘텐츠 영역
 .right_col {
   background: var(--gt-body-bg) !important;
   padding: 24px !important;
 }
 
-// ── 링크 ─────────────────────────────────────────────────────────────────────
+// 링크
 a {
   color: var(--gt-link-color) !important;
   text-decoration: none !important;
@@ -597,7 +597,7 @@ a {
   }
 }
 
-// ── 스크롤바 (고급 그린) ──────────────────────────────────────────────────────
+// 스크롤바 (고급 그린)
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -613,7 +613,7 @@ a {
   }
 }
 
-// ── 토글/메뉴 버튼 ────────────────────────────────────────────────────────────
+// 토글/메뉴 버튼
 #menu_toggle {
   color: var(--gt-text-dark) !important;
   font-size: 18px !important;
@@ -625,7 +625,7 @@ a {
   }
 }
 
-// ── 홈 페이지 커스텀 ──────────────────────────────────────────────────────────
+// 홈 페이지 커스텀
 .gw-home-wrapper {
   background: transparent !important;
 }
@@ -654,7 +654,7 @@ a {
   }
 }
 
-// ── 검색 페이지 ───────────────────────────────────────────────────────────────
+// 검색 페이지
 .gw-recent-tag:hover {
   background: var(--gt-primary-glow) !important;
   border-color: var(--gt-primary) !important;
@@ -671,7 +671,7 @@ a {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14) !important;
 }
 
-// ── 푸터 ─────────────────────────────────────────────────────────────────────
+// 푸터
 footer {
   background: #fff !important;
   border-top: 1px solid var(--gt-border-light) !important;
@@ -685,7 +685,7 @@ footer {
   }
 }
 
-// ── 언어 스위처 ───────────────────────────────────────────────────────────────
+// 언어 스위처
 // 예전 vanilla 헤더 시절 id(#langDropdown) 기준 규칙이었음 — 지금은 홈(React
 // Header.jsx, id 없음)과 다른 페이지(appHeader.js, id="langDropdown") 둘 다
 // _header.scss의 .gw-lang-trigger 클래스 규칙(검정색)으로 통일해서 관리 중.
@@ -693,7 +693,7 @@ footer {
 // 있는 다른 페이지에서만 번역 아이콘이 초록색(var(--gt-primary))으로 새고
 // 홈 화면만 검정색으로 보이는 불일치의 원인이었음 — 완전히 제거함.
 
-// ── 선택 강조 색 ──────────────────────────────────────────────────────────────
+// 선택 강조 색
 ::selection {
   background: rgba(249, 115, 22, 0.2);
   color: var(--gt-primary-dark);

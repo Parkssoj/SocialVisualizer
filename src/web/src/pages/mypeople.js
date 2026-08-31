@@ -7,7 +7,7 @@
  * keywords, relationships, mini knowledge graph) on click. Switching the sidebar's account/chatroom
  * re-renders without a page refresh.
  */
-/* ── [필수] 사이드바 및 페이지 SCSS 로드 ── */
+/* [필수] 사이드바 및 페이지 SCSS 로드 */
 import "../scss/components/_sidebar.scss";
 import "../scss/pages/mypeople.scss";
 
@@ -20,7 +20,7 @@ import { store } from "../store/globalStore.js";
 
 bootstrapApp("mypeople");
 
-/* ── 사용자 데이터 세션/로컬 스토리지 처리 ── */
+/* 사용자 데이터 세션/로컬 스토리지 처리 */
 (function () {
   const p = new URLSearchParams(window.location.search);
   const n = p.get("name")
@@ -33,7 +33,7 @@ bootstrapApp("mypeople");
   if (el) el.textContent = n;
 })();
 
-/* ── 메일 계정 & 채팅방 피커 연결 (중복 선언 제거 단일화) ── */
+/* 메일 계정 & 채팅방 피커 연결 (중복 선언 제거 단일화) */
 // userIdPromise는 "페이지가 처음 열릴 때 고른 계정" 딱 한 번만 담아서 절대 안
 // 바뀌는 값이라, 사이드바에서 계정을 바꿔도 여기 의존하는 코드는 계속 옛날 계정을
 // 보고 있었다(그래서 사이드바 선택이 실제 화면에 반영되려면 새로고침이 필요했고,
@@ -82,7 +82,7 @@ chatroomIdPromise.then((id) => {
   selectedChatroomId = id || "";
 });
 
-/* ── 앱 초기화 및 사이드바 바인딩 ── */
+/* 앱 초기화 및 사이드바 바인딩 */
 document.addEventListener("DOMContentLoaded", () => {
   // 사이드바 렌더링 + 계정/채팅방 목록 조회는 initGlobalFilter가 전부 처리한다
   // (그 안에서 renderAppSidebar도 호출하므로 여기서 다시 부르지 않음 — 두 번
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* ── 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지) ──
+/* 같은 name을 가진 브랜드 엔트리 통합 (친밀도 높은 대표 1개만 유지)
          no-reply@google.com, no-reply@accounts.google.com, google-noreply@google.com 처럼
          실제로는 서로 다른 발신 주소지만 화면엔 전부 "google"로 표시되는 브랜드/발신전용
          계정들을, 표시 이름 기준으로 하나의 대표 카드로 합친다. 브랜드가 아닌 일반 계정은
@@ -181,7 +181,7 @@ function sumPeriodStats(person) {
   );
 }
 
-/* ── 이름 길이별 폰트 크기 ── */
+/* 이름 길이별 폰트 크기 */
 // 카드 패널을 더 작게(8열→10열) 줄인 만큼(비율 0.8배) 이름 글자 크기도
 // 같은 비율로 줄여서, 카드가 작아져도 예전과 같은 시각적 균형을 유지한다.
 // (메일·메신저 사람 카드가 전부 이 함수 하나를 공유하므로 두 패널이
@@ -209,7 +209,7 @@ function nameFontSize(name) {
   return scaledClamp(0.48, 0.8, 0.85);
 }
 
-/* ── 발신 전용/브랜드 계정 판별 ── */
+/* 발신 전용/브랜드 계정 판별 */
 const GENERIC_LOCAL_KEYWORDS = [
   "noreply",
   "no-reply",
@@ -410,7 +410,7 @@ function affinityColor(aff) {
   return tierColor(AFFINITY_HUE, tier.sat, tier.lightHi, tier.lightLo);
 }
 
-/* ── 친밀도 퍼센트 → 5단계 카테고리 라벨 ──
+/* 친밀도 퍼센트 → 5단계 카테고리 라벨
    "~% 이상" 식 퍼센트 표기 대신 말로 풀어서 보여주기 위한 구간(경계는
    100~90 / 90~70 / 70~45 / 45~20 / 20~0 요청값 그대로 사용). */
 const AFFINITY_LABEL_TIERS = [
@@ -430,7 +430,7 @@ function affinityLabel(aff) {
   return affinityLabelFromPct(Math.round((aff ?? 0) * 100));
 }
 
-/* ── 단톡방 분위기 점수(0~100) → 말로 풀어쓴 라벨 ──
+/* 단톡방 분위기 점수(0~100) → 말로 풀어쓴 라벨
    mood_score는 높을수록 사적·친밀한 분위기라는 스펙에 맞춰 5단계로 나눔. */
 // 단톡방 분위기 점수(0~100)를 5단계 한글 라벨로 변환
 function moodLabel(score) {
@@ -1081,11 +1081,11 @@ async function loadPeople() {
   startAvatarGeneration();
 }
 
-/* ── 실제로 카드에 뜨는(=이 기간에 진짜 메일을 주고받은) 사람에 대해서만 아바타 생성
+/* 실제로 카드에 뜨는(=이 기간에 진짜 메일을 주고받은) 사람에 대해서만 아바타 생성
          (이미 생성된 사람은 서버에서 캐시로 건너뜀) 실제 기업/브랜드 발신자인지는 서버에서
          LLM으로 판별해 로고 이미지를, 그 외에는 로컬 FLUX 서버로 일러스트 아바타를 생성한다.
          person 테이블에는 있지만 mail 테이블상 실제 교환 기록이 없어 카드 목록에서 걸러지는
-         사람까지 생성하면 절대 안 보일 이미지를 의미 없이 계속 만들게 되므로 대상에서 뺀다. ── */
+         사람까지 생성하면 절대 안 보일 이미지를 의미 없이 계속 만들게 되므로 대상에서 뺀다. */
 async function startAvatarGeneration() {
   if (avatarGenStarted) return;
   avatarGenStarted = true;

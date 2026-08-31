@@ -3,7 +3,7 @@
  *
  * Styles for the home page — hero entrance animations, preview cards, background grid, etc.
  */
-/* ── 등장 애니메이션 기본 상태 ── */
+/* 등장 애니메이션 기본 상태 */
 .gw-anim {
   opacity: 0;
   transform: translateY(28px);
@@ -16,7 +16,7 @@
   transform: translateY(0);
 }
 
-/* ── 인덱싱 로그 패널 ── */
+/* 인덱싱 로그 패널 */
 .log-fab {
   display: inline-flex;
   align-items: center;
@@ -328,13 +328,13 @@ html {
   overflow-x: hidden;
 }
 
-/* ══ [2컬럼 레이아웃 : 수직 정렬 하강 및 타이틀 커스텀] ══ */
+/* [2컬럼 레이아웃 : 수직 정렬 하강 및 타이틀 커스텀] */
 .gw-orbit-hero {
   position: relative;
   z-index: 1;
   display: flex !important;
   flex-direction: row !important;
-  align-items: center !important; /* ⭐ 좌/우 수직 가운데 맞춰 내림 ⭐ */
+  align-items: center !important; /* 좌/우 수직 가운데 맞춰 내림 */
   justify-content: space-between !important;
   gap: 40px !important;
   // 오른쪽 미리보기 카드를 더 키우면서도 전체가 화면에 들어오도록 컨테이너 자체를 넓힘
@@ -392,7 +392,7 @@ html {
   pointer-events: auto;
 }
 
-/* ── [왼쪽 영역] 문구 정렬 및 위치 하강 ── */
+/* [왼쪽 영역] 문구 정렬 및 위치 하강 */
 .gw-orbit-left {
   position: relative;
   z-index: 4;
@@ -428,7 +428,7 @@ html {
   text-align: left !important;
 }
 
-/* ⭐ 1. Social Visualizer 타이틀 훨씬 더 크게 확대 ⭐ */
+/* 1. Social Visualizer 타이틀 훨씬 더 크게 확대 */
 .gw-hero-headline {
   margin: 0 0 28px !important;
   font-family:
@@ -463,7 +463,7 @@ html {
   filter: url(#glow-4);
 }
 
-/* ⭐ 2. 서브 문구 한 줄 고정(요청) ⭐ */
+/* 2. 서브 문구 한 줄 고정(요청) */
 .gw-hero-desc {
   margin: 0 0 32px !important;
   max-width: none !important; /* 한 줄로 이어지도록 폭 제한을 없앰 */
@@ -533,7 +533,7 @@ html {
   border-color: #b8853a;
 }
 
-/* ── [오른쪽 영역] 미리보기 카드 : 세로 1줄 및 위치 하강 ── */
+/* [오른쪽 영역] 미리보기 카드 : 세로 1줄 및 위치 하강 */
 .gw-hero-previews {
   position: relative;
   z-index: 4;
@@ -552,7 +552,7 @@ html {
 }
 
 /* 오른쪽 두 미리보기 카드를 더 크게 키워달라는 요청 — max-width를 500px→660px로 확장
-   ⭐ 두 미리보기 창의 "비율" 조절 지점 — 카드 2장(My People / My Time) ⭐
+   두 미리보기 창의 "비율" 조절 지점 — 카드 2장(My People / My Time)
    요청 — 스크롤 없이 항상 한 화면(뷰포트) 안에 다 들어와야 함. aspect-ratio만으로
    높이를 정하면 화면이 낮을 때(카드가 세로로 긴 비율일수록) 두 카드 높이 합이
    뷰포트를 넘어서 스크롤이 생기고 아래가 잘림 — 그래서 max-height를 뷰포트 높이(vh)
@@ -647,7 +647,7 @@ html {
   opacity: 1;
 }
 
-/* ── 하단 지원 메일 서비스 ── */
+/* 하단 지원 메일 서비스 */
 .gw-trusted {
   position: relative;
   z-index: 4;

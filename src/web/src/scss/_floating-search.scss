@@ -333,7 +333,7 @@
   top: 50%;
   transform: translateY(-50%) translateX(-10px);
 
-  /* 👇 배경은 연한 주황색, 글자는 진한 남색(또는 #f97316 진한 주황)으로 변경 */
+  /* 배경은 연한 주황색, 글자는 진한 남색(또는 #f97316 진한 주황)으로 변경 */
   background-color: #fff1e6;
   color: #2a3f54;
 
@@ -360,7 +360,7 @@
   border-width: 6px;
   border-style: solid;
 
-  /* 👇 꼬리 색상도 배경과 똑같은 연한 주황색으로 변경 */
+  /* 꼬리 색상도 배경과 똑같은 연한 주황색으로 변경 */
   border-color: transparent transparent transparent #fff1e6;
 
   opacity: 0;

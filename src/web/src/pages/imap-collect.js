@@ -21,7 +21,7 @@ function now() {
   });
 }
 
-// ── 진행 중/완료된 수집 job 목록을 localStorage에 남겨서, 페이지를 벗어났다 돌아와도 이어서 볼 수 있게 함 ──
+// 진행 중/완료된 수집 job 목록을 localStorage에 남겨서, 페이지를 벗어났다 돌아와도 이어서 볼 수 있게 함
 const IMAP_JOBS_STORAGE_KEY = "gw_imap_jobs";
 const IMAP_JOBS_STORAGE_MAX = 15;
 
@@ -48,7 +48,7 @@ function removeStoredImapJob(jobId) {
   localStorage.setItem(IMAP_JOBS_STORAGE_KEY, JSON.stringify(jobs));
 }
 
-// ── 메시지(카카오톡) 탭의 진행 job 목록도 같은 방식으로 별도 키에 저장 (메일 job 목록과 안 섞이게) ──
+// 메시지(카카오톡) 탭의 진행 job 목록도 같은 방식으로 별도 키에 저장 (메일 job 목록과 안 섞이게)
 const MESSAGE_JOBS_STORAGE_KEY = "gw_message_jobs";
 
 function loadStoredMessageJobs() {
@@ -76,21 +76,21 @@ function removeStoredMessageJob(jobId) {
   localStorage.setItem(MESSAGE_JOBS_STORAGE_KEY, JSON.stringify(jobs));
 }
 
-// ── job이 끝나면(성공/실패 모두) localStorage 추적에서만 빼고, 패널 자체는 화면에 그대로 둔다.
-// 다음 새로고침 때 더 이상 복원되지 않는 방식으로 "사라지게" 하는 것 — 화면에서 즉시 지우지 않는다. ──
+// job이 끝나면(성공/실패 모두) localStorage 추적에서만 빼고, 패널 자체는 화면에 그대로 둔다.
+// 다음 새로고침 때 더 이상 복원되지 않는 방식으로 "사라지게" 하는 것 — 화면에서 즉시 지우지 않는다.
 function dismissJobPanel(panelEl, collectJobId, kind = "mail") {
   if (kind === "message") removeStoredMessageJob(collectJobId);
   else removeStoredImapJob(collectJobId);
 }
 
-// ── 수집 개수 "사용자 지정" 선택 시 입력칸 노출 ──
+// 수집 개수 "사용자 지정" 선택 시 입력칸 노출
 function toggleCustomLimit() {
   const select = document.getElementById("collect-limit");
   const customInput = document.getElementById("collect-limit-custom");
   customInput.style.display = select.value === "custom" ? "" : "none";
 }
 
-// ── 프리셋 적용 ──
+// 프리셋 적용
 function applyPreset(el) {
   document
     .querySelectorAll(".gw-preset-chip")
@@ -119,7 +119,7 @@ function applyPreset(el) {
   document.getElementById("imap-pass").value = "";
 }
 
-// ── 수집 시작 직후 폼을 처음 상태로 되돌려서 바로 다른 계정을 입력할 수 있게 함 ──
+// 수집 시작 직후 폼을 처음 상태로 되돌려서 바로 다른 계정을 입력할 수 있게 함
 function resetForm() {
   const gmailChip = document.querySelector(
     '.gw-preset-chip[data-host="imap.gmail.com"]',
@@ -141,7 +141,7 @@ function resetForm() {
   document.getElementById("sync-mode").value = "rewrite";
 }
 
-// ── 폴더 토글 ──
+// 폴더 토글
 function toggleFolder(checkbox) {
   const item = checkbox.closest(".gw-folder-item");
   if (checkbox.checked) {
@@ -151,14 +151,14 @@ function toggleFolder(checkbox) {
   }
 }
 
-// ── 선택된 폴더 목록 반환 ──
+// 선택된 폴더 목록 반환
 function getSelectedFolders() {
   return Array.from(
     document.querySelectorAll('.gw-folder-item input[type="checkbox"]:checked'),
   ).map((cb) => cb.value);
 }
 
-// ── 폴더 목록 렌더링 (서버가 실제 조회한 폴더명으로 체크박스 생성) ──
+// 폴더 목록 렌더링 (서버가 실제 조회한 폴더명으로 체크박스 생성)
 function renderFolderList(folders) {
   const container = document.getElementById("folder-list");
   const selectAllBtn = document.getElementById("select-all-btn");
@@ -202,7 +202,7 @@ function renderFolderList(folders) {
   selectAllBtn.textContent = "전체 선택";
 }
 
-// ── 폴더 전체 선택/해제 토글 ──
+// 폴더 전체 선택/해제 토글
 function toggleSelectAll() {
   const checkboxes = document.querySelectorAll(
     '#folder-list input[type="checkbox"]',
@@ -220,7 +220,7 @@ function toggleSelectAll() {
     : "전체 해제";
 }
 
-// ── 실제 IMAP 서버에 로그인해서 폴더 목록 조회 ──
+// 실제 IMAP 서버에 로그인해서 폴더 목록 조회
 async function listFolders() {
   const flaskUrl = getApiBase();
   const host = document.getElementById("imap-host").value.trim();
@@ -280,7 +280,7 @@ async function listFolders() {
   }
 }
 
-// ── job 패널 안에 로그 한 줄 추가 ──
+// job 패널 안에 로그 한 줄 추가
 function jobAddLog(panelEl, msg, type = "") {
   const body = panelEl.querySelector(".job-log-body");
   const line = document.createElement("div");
@@ -308,7 +308,7 @@ function jobSetProgress(panelEl, pct) {
   panelEl.querySelector(".job-progress-bar").style.width = pct + "%";
 }
 
-// ── 계정(또는 카카오 대화방) 하나의 job 패널을 목록 맨 위에 새로 생성 ──
+// 계정(또는 카카오 대화방) 하나의 job 패널을 목록 맨 위에 새로 생성
 function createJobPanel(user, kind = "mail") {
   const jobsList = document.getElementById(
     kind === "message" ? "message-jobs-list" : "jobs-list",
@@ -338,8 +338,8 @@ function createJobPanel(user, kind = "mail") {
   return panelEl;
 }
 
-// ── SSE: 폴링 대신 서버가 push하는 이벤트로 진행상황을 받는다. 페이지당 연결 하나만 유지하고,
-// 들어오는 이벤트의 job_id로 어느 패널(수집 job/인덱싱 job)에 해당하는지 찾아서 갱신한다. ──
+// SSE: 폴링 대신 서버가 push하는 이벤트로 진행상황을 받는다. 페이지당 연결 하나만 유지하고,
+// 들어오는 이벤트의 job_id로 어느 패널(수집 job/인덱싱 job)에 해당하는지 찾아서 갱신한다.
 const activeJobs = new Map(); // job_id -> { panelEl, phase: 'collect' | 'index', collectJobId, user }
 let sseConn = null;
 
@@ -491,7 +491,7 @@ function trackCollectJob(
     });
 }
 
-// ── 수집 시작: 요청만 보내고 바로 폼을 다시 쓸 수 있게 반환, 진행 추적은 패널별로 백그라운드에서 계속 ──
+// 수집 시작: 요청만 보내고 바로 폼을 다시 쓸 수 있게 반환, 진행 추적은 패널별로 백그라운드에서 계속
 async function startCollect() {
   const flaskUrl = getApiBase();
   const host = document.getElementById("imap-host").value.trim();
@@ -617,7 +617,7 @@ async function startCollect() {
   trackCollectJob(flaskUrl, started.jobId, panelEl, user);
 }
 
-// ── 이벤트 바인딩 ──
+// 이벤트 바인딩
 document.querySelectorAll(".gw-preset-chip[data-host]").forEach((chip) => {
   chip.addEventListener("click", () => applyPreset(chip));
 });
@@ -632,7 +632,7 @@ document
   .addEventListener("click", toggleSelectAll);
 document.getElementById("collect-btn").addEventListener("click", startCollect);
 
-// ── 초기화 ──
+// 초기화
 // URL 파라미터에서 user_id 저장
 const params = new URLSearchParams(location.search);
 const gid = params.get("user_id");
@@ -671,9 +671,7 @@ if (storedJobs.length > 0) {
   });
 }
 
-// ══════════════════════════════════════
 // 메일 / 메시지 탭 전환
-// ══════════════════════════════════════
 function switchTab(tab) {
   const isMail = tab === "mail";
   document.getElementById("tab-btn-mail").classList.toggle("active", isMail);
@@ -698,9 +696,7 @@ document
   .getElementById("tab-btn-message")
   .addEventListener("click", () => switchTab("message"));
 
-// ══════════════════════════════════════
 // 메시지 탭: 카카오톡 대화 업로드
-// ══════════════════════════════════════
 let messageFileText = null;
 
 // 클라이언트에서 파일 헤더 몇 줄만 보고 방 이름 후보를 추정 (서버의 guess_room_name과 같은 규칙).

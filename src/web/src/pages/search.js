@@ -31,7 +31,7 @@ const profileNameEl = document.getElementById('google-profile-name');
 if (profileNameEl) profileNameEl.textContent = name;
 window.currentUserName = name;
 
-// ── 공통 유틸 ──
+// 공통 유틸
 // XSS 방지용 최소 HTML 이스케이프
 function escapeHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -64,11 +64,9 @@ async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
   onError('응답 시간이 초과되었습니다. 다시 시도해주세요.');
 }
 
-// ══════════════════════════════════════
 // 검색 컨트롤러 — 메일/메시지(카카오) 탭이 각자 독립된 입력창·최근검색·결과영역·domain을 갖도록
 // 같은 로직을 재사용 가능한 형태로 묶음. 두 탭은 서로 다른 GraphRAG 도메인("mail"/"messenger")을
 // 대상으로 완전히 독립적으로 검색한다.
-// ══════════════════════════════════════
 // 메일/메신저 도메인 하나에 대한 검색창 전체(입력→질의→폴링→결과 렌더링→근거 메일 보기)를 만드는 팩토리
 function createSearchController({ domain, recentKey, ids, getUserId, loadingText, emptyIcon }) {
   const inputEl = document.getElementById(ids.input);
@@ -408,9 +406,7 @@ if (urlQuery && urlQuery.trim()) {
   mailSearch.runSearch(decodeURIComponent(urlQuery));
 }
 
-// ══════════════════════════════════════
 // 메일 / 메시지 탭 전환
-// ══════════════════════════════════════
 // 메일/메신저 검색 탭 전환 UI 처리
 function switchTab(tab) {
   const isMail = tab === 'mail';
