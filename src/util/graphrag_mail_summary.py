@@ -19,21 +19,25 @@ from util.database.db_writer import save_mail_summarize_to_db
 load_dotenv("src/parquet/.env")
 
 
+# 메일 블록 텍스트에서 "[필드명] 값" 형식의 값을 추출한다 (없으면 None)
 def _extract_field(text, field_name):
     m = re.search(rf'^\[{re.escape(field_name)}\]\s*(.+)$', text, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 
+# 메일 블록 텍스트에서 "[메일 본문]" 이후 내용을 추출한다
 def _extract_body(text):
     m = re.search(r'\[메일 본문\]\s*\n(.*?)(?=\n\[|$)', text, re.DOTALL)
     return m.group(1).strip() if m else ""
 
 
+# "Name <email>" 형태에서 이메일 주소만 뽑는다 (꺾쇠 없으면 원본을 그대로 사용)
 def _extract_email(raw):
     m = re.search(r'<([^>]+)>', raw or "")
     return m.group(1).strip() if m else raw.strip() if raw else None
 
 
+# 메일 목록을 LLM에 넘겨 해당 기간 요약과 관련 이메일 주소 목록을 JSON으로 받아온다
 def _summarize_with_llm(text, period_label, contacts):
     client = openai.OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
@@ -72,6 +76,7 @@ def _summarize_with_llm(text, period_label, contacts):
         return {"summary": "", "contacts": []}
 
 
+# text_units.parquet을 파싱해 월별/연별 메일 요약을 만들고 JSON 저장 및 mail_summarize 테이블 저장까지 수행한다
 def generate_mail_summaries(paths):
     import pandas as pd
 
@@ -130,12 +135,14 @@ def generate_mail_summaries(paths):
         monthly_groups.setdefault(mail["month"], []).append(mail)
         yearly_groups.setdefault(mail["year"],  []).append(mail)
 
+    # 그룹의 메일들을 제목/발신인/내용 형식으로 합쳐 LLM 입력 텍스트로 만든다
     def _build_text(group):
         return "\n\n".join(
             f"제목: {m['subject']}\n발신인: {m['sender']}\n내용: {m['body']}"
             for m in group
         )
 
+    # 그룹 내 모든 메일의 발신/수신 이메일 주소를 정렬된 리스트로 모은다
     def _collect_contacts(group):
         emails = set()
         for m in group:
@@ -145,6 +152,7 @@ def generate_mail_summaries(paths):
                 emails.add(m["receiver_email"])
         return sorted(emails)
 
+    # 기간 그룹 하나를 LLM 요약해 (kind, period, 요약결과)를 반환한다
     def _summarize_group(kind, period, group):
         print(f"[mail_summary] {kind} 요약 중: {period} ({len(group)}건)")
         return kind, period, _summarize_with_llm(_build_text(group), period, _collect_contacts(group))

@@ -5,12 +5,12 @@ import csv
 
 from config.settings import *
 
-# 메일 블록에서 '[ID] ...'(메일) 또는 'ID: ...'(메시지) 값을 추출
+# 메일/메시지 블록에서 ID 값을 추출한다 (없으면 None)
 def _extract_mail_id_from_block(block: str) -> str | None:
     m = re.search(r"^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$", block, re.MULTILINE)
     return m.group(1).strip() if m else None
 
-# mail_id 기준으로 첨부 텍스트를 각 메일 블록 하단에 삽입한 후 다시 append
+# mail_id 기준으로 첨부파일 추출 텍스트를 각 메일 블록 끝에 삽입한 전체 문자열을 반환한다
 def _merge_attachments_into_mail_blocks(content: str, attachment_texts_by_mail: dict[str, list[dict]]) -> str:
     parts = content.split(MAIL_BLOCK_SEP)
     merged_blocks = []
@@ -49,7 +49,7 @@ def _merge_attachments_into_mail_blocks(content: str, attachment_texts_by_mail: 
 
     return "\n".join(merged_blocks) + "\n"
 
-# 텍스트에서 메일별로 구분
+# 전체 텍스트를 구분자로 잘라 메일 블록 문자열 리스트로 반환한다 (앞뒤 구분자 보정)
 def _split_mail_blocks(text):
     parts = text.split(MAIL_BLOCK_SEP)
     blocks = []
@@ -65,7 +65,7 @@ def _split_mail_blocks(text):
 
     return blocks
 
-# 메일 번호 재정렬
+# 각 블록의 "[메일 N]" 번호를 1부터 순서대로 다시 매긴다
 def _renumber_mail_blocks(text: str) -> str:
     blocks = _split_mail_blocks(text)
     result = []
@@ -74,11 +74,11 @@ def _renumber_mail_blocks(text: str) -> str:
         result.append(renumbered)
     return "\n".join(result) + "\n"
 
-# 메일/메시지 id들 추출해서 집합으로 반환
+# 텍스트에 있는 모든 메일/메시지 ID를 집합으로 추출한다
 def _extract_message_ids(text):
     return set(re.findall(r"^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$", text, flags=re.MULTILINE))
 
-# 블록에서 "[날짜]"(메일) 또는 "날짜:"(메시지) 부분 파싱해서 datetime 객체로 반환
+# 블록의 날짜 줄을 파싱해 정렬 키로 쓸 datetime을 반환한다 (실패 시 datetime.min)
 def _extract_block_for_sort(block):
     for line in block.splitlines():
         if line.startswith("[날짜]") or line.startswith("날짜:"):
@@ -91,14 +91,14 @@ def _extract_block_for_sort(block):
             return datetime.datetime.min
     return datetime.datetime.min
 
-# 현재 mail_latest.txt 파일 전체 문자열로 읽어서 반환
+# mail_latest.txt 전체를 문자열로 읽어 반환한다 (없으면 빈 문자열)
 def _read_latest_text(paths):
     if not os.path.exists(paths.MAIL_LATEST_PATH):
         return ""
     with open(paths.MAIL_LATEST_PATH, "r", encoding="utf-8") as f:
         return f.read()
 
-# 메일 데이터 txt를 csv로 파싱
+# mail_latest.txt를 파싱해 id/text 컬럼 CSV로 저장한다 (rewrite=전체, append=새 메일만) 후 경로 반환
 def _build_mail_csv(paths, mode="rewrite", new_ids=None) -> str | None:
     # 1) mail_latest.txt 파싱 → {mail_id: block_text}
     mail_text = _read_latest_text(paths)
@@ -146,10 +146,7 @@ _MAIL_SENDER_RE   = re.compile(r"^\[발신인\]\s*(.*)$", re.MULTILINE)
 _MAIL_RECEIVER_RE = re.compile(r"^\[수신인\]\s*(.*)$", re.MULTILINE)
 _MAIL_BODY_RE = re.compile(r"\[메일 본문\]\s*\n(.*?)(?:\n\[첨부파일 정보\]|\Z)", re.DOTALL)
 
-# 메신저의 _parse_message_blocks_from_parquet(text_units.parquet 파싱)과 같은 역할이지만,
-# text_units.parquet은 GraphRAG 청크 분할로 긴 메일의 본문이 잘릴 수 있어서 그 대신
-# documents.parquet(청크로 쪼개지기 전, latest.csv의 id/text를 그대로 문서 단위로 보관한
-# GraphRAG 산출물)을 읽는다 — id가 mail_id와 정확히 일치하고 본문도 안 잘린다.
+# documents.parquet에서 주어진 mail_id들의 제목/발신인/수신인/본문을 파싱해 {mail_id: dict}로 반환한다
 def get_mail_bodies_by_ids(paths, mail_ids: set[str]) -> dict[str, dict]:
     if not mail_ids:
         return {}
