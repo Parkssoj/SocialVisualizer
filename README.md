@@ -15,7 +15,7 @@
 ## 📚 가이드
 
 <table>
-  <tr><td>설치 · 실행</td><td><a href="docs/EXECUTE.md">EXECUTE</a></td></tr>
+  <tr><td>설치 · 실행</td><td><a href="EXECUTE.md">EXECUTE</a></td></tr>
   <tr><td>라이선스</td><td><a href="LICENSE">LICENSE</a> · <a href="LICENSE_3rd.md">THIRD PARTY</a></td></tr>
   <tr><td>SW 자재명세서</td><td><a href="docs/SBOM.csv">SBOM</a></td></tr>
 </table>
