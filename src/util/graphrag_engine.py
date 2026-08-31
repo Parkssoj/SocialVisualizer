@@ -133,7 +133,6 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
     # settings.yaml의 local_search
     ls_config = config.local_search
     llm_config = config.completion_models["default_chat_model"]
-    # 임베딩은 인덱싱 때 벡터DB에 실제로 저장한 모델과 반드시 같아야 차원이 맞음 (local_search.embedding_model_id 스위치 따라감)
     emb_config = config.embedding_models[ls_config.embedding_model_id]
 
     # LLM: 최종 답변 생성용
@@ -207,8 +206,7 @@ def _build_local_engine(output_dir: str, graphrag_root: str) -> tuple[LocalSearc
             "include_relationship_weight": True,
         },
         # "multiple paragraphs"(SFT 학습 시 재구성한 프롬프트에도 쓰인 값)에서
-        # 개조식(마크다운 불릿)을 명시적으로 요구하는 쪽으로 조정 — output_instructions의
-        # "실제 줄바꿈 있는 리스트로 써라" 규칙과 모순되지 않도록 맞춘 것.
+        # 개조식(마크다운 불릿)을 명시적으로 요구
         response_type="a concise breakdown organized as short markdown bullet points, one distinct point per line — avoid long flowing paragraphs",
     )
     return engine, model
@@ -265,14 +263,12 @@ def _build_global_engine(output_dir: str, graphrag_root: str) -> tuple[GlobalSea
         map_llm_params=dict(llm_config.call_args),
         reduce_llm_params=dict(llm_config.call_args),
         max_data_tokens=gs_config.data_max_tokens,  # reduce 단계에 넣을 map 결과 최대 토큰 (v3: GlobalSearch 생성자 인자)
-        concurrent_coroutines=config.concurrent_requests,   # concurrent_requests(settings.j2 전역 설정)를 map 단계 동시 실행 개수로 사용. 미지정 시 라이브러리 기본값 32로 고정됨
+        concurrent_coroutines=config.concurrent_requests,   # concurrent_requests(settings.j2 전역 설정)를 map 단계 동시 실행 개수로 사용
         context_builder_params={
             "max_context_tokens": gs_config.max_context_tokens, # map 단계 컨텍스트(커뮤니티 리포트) 조립 예산
-            # build_context() 기본값은 use_community_summary=True(요약만 사용)/include_community_rank=False라
-            # 정보 손실이 있음. 공식 factory.py(get_global_search_engine)와 동일하게 전문 사용 + 랭크 포함으로 맞춤
             "use_community_summary": False,
             "include_community_rank": True,
-            "community_weight_name": "occurrence weight",  # build_community_context()의 실제 기본 가중치 속성명과 일치시킴
+            "community_weight_name": "occurrence weight",  # build_community_context()의 실제 기본 가중치 속성명과 일치
         },
     )
     return engine, model

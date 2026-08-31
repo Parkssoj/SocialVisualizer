@@ -5,7 +5,7 @@
 import os
 import re
 import json
-import asyncio # 비동기 실행 지원 (LocalSearch/GlobalSearch.search()가 async 함수라 필요)
+import asyncio # 비동기 실행 지원
 import traceback
 import threading
 import time
@@ -31,8 +31,7 @@ def _save_federated_query(accounts_paths: list, primary_user_id: str, original_m
         if not model_name and usage["model_name"]:
             model_name = usage["model_name"]
 
-    # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면(로컬 검색에서 인용이 하나도 안 잡힌 경우 등)
-    # 참여 계정 전체로 채워넣지 않고 그냥 비워둔다 — 억지로 채운 값은 틀린 정보를 남기는 것과 같음
+    # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면 그냥 비워둠
     refer_kg = json.dumps(refer_accounts) if refer_accounts else None
 
     try:
@@ -66,7 +65,7 @@ def _load_account_sender_map(paths) -> dict:
 def _strip_id_punct(mail_id: str) -> str:
     return mail_id.strip(']),.;:》」』')
 
-# 메일 ID가 그럴듯한지 판단한다 (LLM이 순번 "2" 등을 ID로 잘못 쓴 짧은 숫자는 걸러냄)
+# 메일 ID가 올바른지 판단한다 (LLM이 순번 "2" 등을 ID로 잘못 쓴 짧은 숫자는 걸러냄)
 def _is_plausible_mail_id(mail_id: str) -> bool:
     return not (mail_id.isdigit() and len(mail_id) <= 6)
 
@@ -86,7 +85,7 @@ def strip_ids_for_display(text: str) -> str:
 # 캐시된 LocalSearch/GlobalSearch 엔진을 직접 호출해 단일 계정 질의 답변과 근거 메일 ID 목록을 반환하고 query 로그를 저장한다
 def run_graphrag_query(message: str, original_message: str, paths, method: str = "local") -> tuple[str, list]:
     start_time = time.time()
-    result_container = {"result": None, "error": None} # 스레드 간에 결과나 에러를 공유하기 위한 컨테이너 (스레드 return 값 직접 전달 못해서 dict로 우회함)
+    result_container = {"result": None, "error": None} # 스레드 간에 결과나 에러를 공유하기 위한 컨테이너
 
     # 새 이벤트 루프를 가진 별도 스레드에서 비동기 검색을 실행하고 결과/에러를 컨테이너에 담는다
     def _run():
@@ -98,7 +97,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                 output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
                 local_engine, global_engine = get_engines(paths.USER_ID, output_dir, paths.GRAPHRAG_ROOT) # 유저별 캐싱된 local + global 엔진 둘 다 가져오기 (캐시에서 재사용)
                 engine = local_engine if method == "local" else global_engine
-                result = await engine.search(message) # cli subprocess 대신 엔진 객체 함수 호출 (subprocess 생성이나 종료가 없어서 속도 빨라짐)
+                result = await engine.search(message) # 엔진 객체 함수 호출
                 answer = result.response # 검색 결과 객체에서 답변 텍스트 추출
                 answer = _strip_echoed_question(answer) # 답변 맨 앞에 붙는 "> 질문 그대로" 줄 제거
                 answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer) # graphrag가 답변에 삽입하는 출처 태그 제거
@@ -118,7 +117,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                         found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', ctx)]
                         found = [m for m in found if _is_plausible_mail_id(m)]
 
-                # 순서 유지하면서 중복 제거. account를 같이 넣어서 연합 검색(run_federated_local_search) 결과와 형태를 통일함
+                # 순서 유지하면서 중복 제거. 연합 검색(run_federated_local_search) 형태 통일
                 seen = set()
                 source_ids = []
                 for id in found:
@@ -141,7 +140,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
     # 완전히 새로운 스레드에서 _run 실행
     t = threading.Thread(target=_run, daemon=True)
     t.start()
-    t.join(timeout=120)  # 최대 120초 대기. 120초 넘어도 답이 안 오면 런타임에러 발생 및 CLI fallback로 넘어감. (스레드 종료 ㄴㄴ)
+    t.join(timeout=120)  # 최대 120초 대기. 120초 넘어도 답이 안 오면 런타임에러 발생 및 CLI fallback로 넘어감.
 
     if t.is_alive():
         raise RuntimeError("graphrag 검색 타임아웃 (120초)")
@@ -251,12 +250,8 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                     context_data=merged_context,
                     response_type=first_engine.response_type,
                 )
-                # 여러 계정 데이터가 섞여 있다는 것과, 각 데이터 앞의 [계정: ...] 라벨을 알려줌.
-                # 관련 내용이 없는 계정까지 억지로 채우지 말고 실제로 관련 있는 계정만 빠짐없이 다루게 함.
-                # 계정 언급은 "근거 계정" 영역에서 별도로 보여주므로 답변 본문에서 굳이 언급하라고 하지는 않음.
 
-                # 도메인마다 원본 블록의 필드 구성이 다르므로(이메일: 발신인/수신인, 카카오: 채팅방/참여자)
-                # 그 필드 이름을 그대로 지시문에 박아넣지 않고 도메인별로 분기한다.
+                # 도메인마다 원본 블록의 필드 구성이 다르므로(이메일: 발신인/수신인, 카카오: 채팅방/참여자)도메인별로 분기한다.
                 domain = engines[0][0].DOMAIN
                 if domain == "messenger":
                     search_prompt += (
@@ -332,9 +327,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 answer = '\n\n'.join(_fix_paragraph_sender(p) for p in answer.split('\n\n'))
 
-                # 항목마다 ID가 있으면 그 ID로 진짜 소속 계정을 역추적하는 쪽이 정확하다(위 발신인 교정과 동일한 방식).
-                # LLM이 직접 쓴 '계정:' 값은 여러 계정 데이터를 요약하면서 항목별로 정확히 구분하지 못하고
-                # 전부 같은 계정으로 잘못 적는 경우가 있어, ID를 못 찾았을 때만 쓰는 폴백으로 둔다.
+                # 항목마다 ID가 있으면 그 ID로 진짜 소속 계정을 역추적
                 found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
                 found = [m for m in found if _is_plausible_mail_id(m)]
                 seen = set()
@@ -346,7 +339,6 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 if not source_ids:
                     # ID를 하나도 못 찾았을 때(요약형 답변 등)만 LLM이 쓴 '계정:' 값으로 폴백.
-                    # 실제 인덱싱된 계정 목록에 없는 값(오타/환각)은 조용히 버린다 — 확신 없는 건 안 보여준다는 원칙 유지.
                     valid_accounts = {p.USER_ID.strip().lower(): p.USER_ID for p, _ in engines}
                     cited_accounts = []
                     for m in re.findall(r'계정:\s*(\S+)', answer):

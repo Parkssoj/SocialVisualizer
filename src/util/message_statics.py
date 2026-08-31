@@ -64,8 +64,7 @@ def _parse_message_blocks_from_parquet(paths) -> list[dict]:
         body_match = re.search(r'\[대화 내용\]\s*\n(.*?)(?:\n=+|\Z)', text, re.DOTALL)
         body = body_match.group(1) if body_match else ""
 
-        # 한 메시지가 여러 줄일 수 있어(원본에 개행 포함) 새 "HH:MM ...:" 줄이 나올 때까지는
-        # 직전 메시지의 연속으로 본다 (message_parser.parse_message_export와 동일한 규칙).
+        #  새 "HH:MM ...:" 줄이 나올 때까지는 직전 메시지의 연속으로 본다
         messages = []
         for line in body.splitlines():
             m = _MSG_LINE_RE.match(line)
@@ -304,7 +303,6 @@ def _save_message_keyword_stats(paths, mode: str = "rewrite"):
 # 참여자 메시지 이력 저장과 키워드 통계 저장을 병렬로 실행하는 메신저 통계 파이프라인
 def _extract_message_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
-    # 서로 다른 출력 파일(people/keywords)에 쓰고 순서 의존성이 없어 병렬 실행
     _run_and_join([
         (_save_chatroom_people_messages, (paths, mode)),
         (_save_message_keyword_stats, (paths, mode)),

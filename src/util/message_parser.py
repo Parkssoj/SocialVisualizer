@@ -95,7 +95,6 @@ def parse_message_export(raw_text: str) -> list[dict]:
             continue
 
         # 위 패턴에 매치되지 않는 줄은 직전 메시지의 연속 줄(멀티라인 메시지: 사진 전송 안내 뒤 텍스트, 줄바꿈 포함 메시지 등)로 간주.
-        # 아직 메시지가 하나도 없으면(파일 맨 앞 안내문 등) 그냥 무시한다.
         if messages:
             messages[-1]["text"] += "\n" + line
 
@@ -111,7 +110,7 @@ def guess_room_name(raw_text: str, fallback: str) -> str:
         m = _ROOM_NAME_HINT_RE.search(line)
         if m and m.group("name").strip():
             return m.group("name").strip()
-        break  # 첫 non-blank 줄만 후보로 봄 — 그 아래는 이미 대화 본문일 가능성이 높음
+        break  # 첫 non-blank 줄만 후보로 봄
     return fallback
 
 

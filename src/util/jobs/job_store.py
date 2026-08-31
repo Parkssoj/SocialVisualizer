@@ -5,10 +5,9 @@
 import threading
 import time
 
-# 메모리 기반 Job 저장소 → 모든 작업 상태를 딕셔너리로 관리
-# 서버 재시작 시 모든 Job 정보 소멸 (영속성 없음)
+# 모든 작업 상태를 딕셔너리로 관리
 _jobs = {}
-# 여려 쓰레드가 동시에 _jobs를 수정하는 걸 막기 위한 Lock
+# 여러 쓰레드가 동시에 _jobs를 수정하는 걸 막기 위한 Lock
 _jobs_lock = threading.Lock()
 
 
