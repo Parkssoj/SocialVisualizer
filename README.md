@@ -15,7 +15,7 @@
 ## 📚 가이드
 
 <table>
-  <tr><td>설치 · 실행</td><td><a href="EXECUTE.md">EXECUTE</a></td></tr>
+  <tr><td>설치 · 실행</td><td><a href="docs/EXECUTE.md">EXECUTE</a></td></tr>
   <tr><td>라이선스</td><td><a href="LICENSE">LICENSE</a> · <a href="LICENSE_3rd.md">THIRD PARTY</a></td></tr>
   <tr><td>SW 자재명세서</td><td><a href="docs/SBOM.csv">SBOM</a></td></tr>
 </table>
@@ -83,7 +83,8 @@
 | FLUX | [`black-forest-labs/FLUX.1-schnell`](https://huggingface.co/black-forest-labs/FLUX.1-schnell) | 이미지 및 아바타 생성 | Apache-2.0 |
 | Embedding | [`BAAI/bge-m3`](https://huggingface.co/BAAI/bge-m3) | 텍스트 임베딩 및 벡터 검색 | MIT |
 
-> Llama LoRA Adapter의 학습·서빙에 대한 자세한 내용은 [`llama-finetune/README.md`](./llama-finetune/README.md)를 참고.
+> Llama LoRA Adapter의 학습·서빙에 대한 자세한 내용은 [`llama-finetune/README.md`](./llama-finetune/README.md)를,
+위 모델 서버들의 설치·실행 명령은 [`llama-finetune/serving/gpu_server_ops.md`](./llama-finetune/serving/gpu_server_ops.md)를 참고.
 </details>
 
 - <b>Llama</b>: 엔티티·관계 추출 및 자연어 질의응답
@@ -191,3 +192,7 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 ## 📒 참고 자료
 - Microsoft GraphRAG: https://github.com/microsoft/graphrag
 - HKUDS LightRAG: https://github.com/HKUDS/LightRAG
+- Meta Llama: https://github.com/meta-llama/llama3
+- Qwen: https://github.com/QwenLM
+- BAAI FlagEmbedding (BGE-M3): https://github.com/FlagOpen/FlagEmbedding
+- Black Forest Labs FLUX: https://github.com/black-forest-labs/flux

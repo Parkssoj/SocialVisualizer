@@ -1,6 +1,6 @@
 # 설치 및 실행 가이드
 
-## 📝 To-do list
+## To-do list
 - [ ] Python 3.11 · Node.js 20.19+ · MySQL 설치
 - [ ] 저장소 fork 후 clone
 - [ ] 가상환경 생성 및 활성화
@@ -43,7 +43,6 @@ source socialvisualizer-venv/bin/activate
 # PowerShell
 socialvisualizer-venv\Scripts\Activate.ps1
 ```
----
 
 3. 의존성 설치
 
@@ -100,12 +99,15 @@ DB_PASSWORD=본인이_설정한_MySQL_비밀번호
 DB_NAME=social_visualizer_db   # db/schema.sql 이 생성하는 이름과 일치해야 함
 ```
 
-3. AI 서버 주소 (선택)
-`# 질의응답` 이하 블록은 오픈소스 AI 서버의 엔드포인트다.
-표준 로컬 구성(포트 8001~8005)을 그대로 쓴다면 수정하지 않아도 된다.
-다른 서버/모델을 연결하려면 각 `*_API_BASE` 와 모델명을 바꾼다.
-`LLM_API_KEY` 는 값 검증을 하지 않지만 줄 자체를 지우면 KeyError가 발생하므로 `dummy` 로 둔다.
+3. AI 서버 선택
 
+- <b>오픈 AI 사용</b>
+각 모델 서버(Llama/Qwen/BGE-M3/FLUX)를 직접 설치·실행하는 방법은
+[`llama-finetune/serving/gpu_server_ops.md`](./llama-finetune/serving/gpu_server_ops.md)를 참고한다.
+이때 표준 로컬 구성(포트 8001~8005)을 그대로 쓴다면 수정하지 않아도 되며, `LLM_API_KEY` 는 값 검증을 하지 않지만 줄 자체를 지우면 KeyError가 발생하므로 `dummy` 로 둔다.<br><br>
+
+- <b>상용 API 사용</b>
+OpenAI 등 상용 API로 대체하려면 `.env` 의 `# 질의응답` 블록에서 각 모델명을 원하는 모델로 바꾸고 `LLM_API_KEY` 에 발급받은 실제 키를 넣는다. 이 경우 로컬 AI 서버는 띄우지 않아도 된다.
 
 ---
 
