@@ -1,3 +1,7 @@
+# 첨부파일/문서 파일(PDF, DOCX, HWP, TXT, PPTX, XLSX, CSV)에서 텍스트를 추출하는 유틸 함수 모음과, base64로 전달된 첨부파일을 서버 로컬 디스크에 저장하는 함수를 제공한다.
+
+# Utility functions for extracting text from attachment/document files (PDF, DOCX, HWP, TXT, PPTX, XLSX, CSV), plus a function for saving base64-encoded attachments to local disk on the server.
+
 import os
 import zlib
 import uuid
