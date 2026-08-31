@@ -569,60 +569,6 @@ def rebuild_keyword_mail(paths, update_date=None):
     save_keyword_stats_to_db(paths, update_date)
 
 
-# 서버 시작 시 mail_keyword 테이블이 없으면 생성한다 (실패해도 무시)
-def init_mail_keyword_table():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS mail_keyword (
-                keyword_name            VARCHAR(100) NOT NULL,
-                user_mail_account_id    VARCHAR(255) NOT NULL,
-                index_date              DATETIME     NOT NULL,
-                person_mail_account_id  VARCHAR(255) NOT NULL,
-                mail_date               DATETIME     NOT NULL,
-                daily_count             INT          NOT NULL DEFAULT 0,
-                PRIMARY KEY (
-                    user_mail_account_id, index_date, person_mail_account_id,
-                    keyword_name, mail_date
-                ),
-                FOREIGN KEY (user_mail_account_id, index_date, person_mail_account_id)
-                    REFERENCES person(user_mail_account_id, index_date, person_mail_account_id)
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DB] mail_keyword 테이블 준비 완료")
-    except Exception as e:
-        print(f"[DB] mail_keyword 테이블 초기화 실패 (무시): {e}")
-
-
-# 서버 시작 시 processed_attachments 테이블이 없으면 생성한다 (실패해도 무시)
-def init_processed_attachments_table():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS processed_attachments (
-                id                    INT AUTO_INCREMENT PRIMARY KEY,
-                user_mail_account_id  VARCHAR(255) NOT NULL,
-                index_date            DATETIME     NOT NULL,
-                mail_id               VARCHAR(255) NOT NULL,
-                filename              VARCHAR(255) NOT NULL,
-                processed_at          DATETIME     NOT NULL,
-                UNIQUE KEY uq_att (user_mail_account_id, index_date, mail_id, filename),
-                FOREIGN KEY (user_mail_account_id, index_date) REFERENCES mail_account(user_mail_account_id, index_date)
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DB] processed_attachments 테이블 준비 완료")
-    except Exception as e:
-        print(f"[DB] processed_attachments 테이블 초기화 실패 (무시): {e}")
-
-
 # processed_attachments 테이블과 대조해 아직 처리되지 않은 첨부파일만 걸러 반환한다
 def filter_unprocessed_attachments(user_id: str, attachments: list) -> list:
     if not attachments:

@@ -114,13 +114,10 @@ elif RAG_ENGINE == "graphrag":
     )
 from util.database.db_writer import (
     save_query_to_db,
-    init_processed_attachments_table,
-    init_mail_keyword_table,
     filter_unprocessed_attachments,
     mark_attachments_as_processed,
     rebuild_keyword_mail,
 )
-from util.database.chatroom_db_writer import init_chatroom_tables
 from util.database.chatroom_reader import (
     list_indexed_chatrooms,
     get_messenger_date_range,
@@ -199,11 +196,6 @@ print("=" * 60)
 # Flask 앱 초기화
 app = Flask(__name__)
 CORS(app)
-
-# 서버 시작 시 테이블 초기화 실행
-init_processed_attachments_table()
-init_mail_keyword_table()
-init_chatroom_tables()
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
