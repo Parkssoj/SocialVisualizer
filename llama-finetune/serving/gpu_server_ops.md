@@ -43,6 +43,10 @@ pip install torch diffusers
 가상환경을 생성한 후 프로젝트에서 사용하는 Python 및 모델 서빙 의존성을 설치한다.
 정확한 라이브러리 버전은 상위 프로젝트의 SBOM 문서를 참고한다.
 
+> Qwen2.5-7B-Instruct, BAAI/bge-m3는 Llama Index/Query 모델과 달리 별도로 준비해둘 로컬
+> 모델 파일이 없다 — `vllm serve` 명령에 허깅페이스 repo id를 그대로 넘기면 처음 실행할 때
+> 자동으로 가중치를 다운로드한다.
+
 ## 재기동 명령
 
 ### 1. Index 모델

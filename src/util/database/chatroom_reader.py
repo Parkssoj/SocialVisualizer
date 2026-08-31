@@ -304,7 +304,23 @@ def get_chatroom_relationships(paths, active_names: set) -> list:
         cursor.close()
         conn.close()
 
-    return [row for row in rows if row["source"] in active_names and row["target"] in active_names]
+    existing = {
+        (row["source"], row["target"]): row
+        for row in rows
+        if row["source"] in active_names and row["target"] in active_names
+    }
+
+    names = sorted(active_names)
+    result = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            result.append(existing.get((a, b)) or {
+                "source": a,
+                "target": b,
+                "relation_label": "채팅방 참여자",
+                "description": None,
+            })
+    return result
 
 
 # 채팅방 참여자 명단(participant_id 지정 시 그 한 명)의 프로필 설명과 기간 내 메시지 수를 반환한다 (기간 0건도 포함)
