@@ -4,7 +4,6 @@ dist
 node_modules/
 src/parquet/.env
 .vscode/
-docs/
 gmailweaver-venv/
 mailgrapher-venv/
 lightrag-venv/
