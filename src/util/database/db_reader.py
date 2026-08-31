@@ -1,4 +1,7 @@
-# src/util/database/db_reader.py
+# 메일 계정의 통계·친밀도·키워드·연락처 관계 등을 DB에서 조회해 반환한다.
+
+# Utility functions that read and return mail account statistics, affinity (EIS) scores, keywords, and contact relationships from the database.
+
 import calendar
 import json
 import math

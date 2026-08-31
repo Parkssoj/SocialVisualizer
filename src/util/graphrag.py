@@ -1,5 +1,9 @@
+# GraphRAG CLI로 질의를 실행해 응답을 정제하고 인덱싱 완료 여부를 확인하며 질의 로그를 DB에 저장한다.
+
+# Runs queries through the GraphRAG CLI, cleans up the response text, checks whether indexing has finished, and logs queries to the database.
+
 import os
-import time 
+import time
 import traceback
 import re
 import subprocess

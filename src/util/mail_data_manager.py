@@ -1,3 +1,7 @@
+# 메일 블록 텍스트를 병합·분할·재정렬하고, mail_latest.txt를 CSV로 변환하거나 parquet에서 메일 본문을 조회하는 등 메일 데이터를 관리한다.
+
+# Manages mail block text — merging attachments in, splitting/renumbering blocks, converting mail_latest.txt to CSV, and looking up mail bodies from parquet.
+
 import re
 import datetime
 import os

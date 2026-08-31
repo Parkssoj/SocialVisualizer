@@ -1,3 +1,7 @@
+# 질의문에서 날짜/기간 표현을 추출해 해당 기간의 메일을 계정별로 필터링하고 LLM으로 답변을 생성한다.
+
+# Extracts a date range from the user's query, filters mail within that range across accounts, and generates an answer via LLM.
+
 import os
 import re
 import time

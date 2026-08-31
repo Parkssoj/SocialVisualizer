@@ -1,3 +1,7 @@
+# 메일 본문에서 LLM으로 키워드·어조·관계 프로필을 추출해 연락처별 통계를 계산하고 파이프라인으로 저장한다.
+
+# Extracts keywords, tone, and relationship profiles from mail bodies via LLM, then computes and saves per-contact statistics through a background pipeline.
+
 import os
 import re
 import json

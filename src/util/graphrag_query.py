@@ -1,5 +1,6 @@
-# src/util/graphrag_query.py
-# 캐싱된 서치 엔진 객체 직접 호출해서 검색 속도 개선함
+# 캐싱된 LocalSearch/GlobalSearch 엔진을 직접 호출해 단일·다중 계정 질의에 답변하고, 근거 메일 ID와 질의 로그를 정리해 저장한다.
+
+# Calls the cached LocalSearch/GlobalSearch engines directly to answer single- or multi-account queries, then organizes and saves the supporting mail IDs and query logs.
 
 import os
 import re

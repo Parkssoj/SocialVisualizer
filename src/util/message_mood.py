@@ -1,4 +1,7 @@
-# src/util/message_mood.py
+# 대화 블록의 말투·응답속도·참여 균형 등을 분석해 채팅방의 월별/연별 분위기 점수와 설명을 계산하고 저장한다.
+
+# Analyzes message tone, response speed, and participation balance in conversation blocks to compute and save each chatroom's monthly/yearly mood scores and descriptions.
+
 import os
 import re
 import math

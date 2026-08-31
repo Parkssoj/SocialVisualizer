@@ -1,4 +1,7 @@
-# src/util/database/chatroom_db_writer.py
+# 메신저 대화방 인덱싱 결과(참여자·대화 블록·관계·키워드·요약·분위기 등)를 chatroom 관련 테이블에 저장한다.
+
+# Utility functions that persist messenger chatroom indexing results (participants, message blocks, relationships, keywords, summaries, mood) into the chatroom-related database tables.
+
 import os
 import json
 import datetime

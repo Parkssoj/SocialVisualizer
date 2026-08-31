@@ -1,4 +1,7 @@
-# src/util/database/chatroom_reader.py
+# 메신저 대화방의 목록·참여자·관계·키워드·분위기·메시지·요약 등을 DB에서 조회해 반환한다.
+
+# Utility functions that read and return messenger chatroom data — room lists, participants, relationships, keywords, mood, messages, and summaries — from the database.
+
 import calendar
 import json
 import os
