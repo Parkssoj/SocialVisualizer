@@ -616,35 +616,6 @@
   padding: 40px 0;
 }
 
-/* 결과 요약 */
-.gw-result-row {
-  display: flex;
-  gap: 14px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-.gw-result-chip {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  background: #f7f7f7;
-  border: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  color: #f97316;
-}
-.gw-result-chip i {
-  font-size: 1rem;
-}
-.gw-result-chip span {
-  font-weight: 400;
-  color: #73879c;
-  margin-left: 2px;
-}
-
 /* 스피너 */
 .gw-spinner {
   width: 18px;

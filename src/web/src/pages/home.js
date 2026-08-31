@@ -1,16 +1,15 @@
 /**
- * 홈 화면(index.html) 진입점 — HomeApp(React)을 마운트하고, URL 파라미터(name/gmail_id/ flask_url)를 세션·로컬 스토리지에 저장해
- * 로그인 핸드오프를 처리한다.
- *
- * Entry point for the home page (index.html) — mounts HomeApp (React) and persists URL params
- * (name/gmail_id/flask_url) to session/local storage to complete the login handoff.
+홈 화면(index.html) 진입점 — HomeApp(React)을 마운트하고, URL 파라미터(name/gmail_id/ flask_url)를 세션·로컬 스토리지에 저장해
+로그인 핸드오프를 처리한다.
+
+Entry point for the home page (index.html) — mounts HomeApp (React) and persists URL params
+(name/gmail_id/flask_url) to session/local storage to complete the login handoff.
  */
-// bootstrap JS, main.scss, security, i18n 등 전역 세팅은 그대로 재사용 (side-effect import).
+// bootstrap JS, main.scss, security 등 전역 세팅은 그대로 재사용 (side-effect import).
 // renderHeader/renderFooter(옛 innerHTML 방식)는 더 이상 안 씀 — HomeApp.jsx가 대신 그림.
 import "../main-app.js";
 import { mountHomeApp } from "../components/HomeApp.jsx";
 import "../scss/pages/home.scss";
-import "../styles/tailwind.css";
 
 mountHomeApp("home-app-root");
 
@@ -38,4 +37,4 @@ mountHomeApp("home-app-root");
   if (pnEl) pnEl.textContent = name;
 })();
 
-/* 등장 애니메이션(.gw-anim → .visible)은 이제 HeroOrbit.jsx 안의 useEffect가 처리함 */
+/* 등장 애니메이션(.gw-anim → .visible)은 이제 HeroContent.jsx 안의 useEffect가 처리함 */

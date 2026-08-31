@@ -1,10 +1,9 @@
 /*
- * 공통 헤더(appHeader.js/Header.jsx) 스타일 — 상단 고정 네비게이션 바와, 사이드바 제거에 따른 레이아웃 오프셋 보정을 한 곳에 모았다.
+ * 공통 헤더(Header.jsx) 스타일 — 상단 고정 네비게이션 바와, 사이드바 제거에 따른 레이아웃 오프셋 보정을 한 곳에 모았다.
  *
- * Styles for the shared header (appHeader.js/Header.jsx) — the fixed top nav bar and layout offset
+ * Styles for the shared header (Header.jsx) — the fixed top nav bar and layout offset
  * fixes now that the old sidebar is gone.
  */
-// 공통 헤더(src/layout/appHeader.js)용 스타일.
 // 기존에 페이지마다 미세하게 다르게 복붙되어 있던 .gw-top-links 관련 규칙을 한 곳으로 통합.
 
 // 사이드바가 사라졌으므로 top_nav/right_col의 사이드바 오프셋을 항상 0으로 고정
@@ -75,29 +74,6 @@
   white-space: nowrap;
 }
 
-.gw-login-btn {
-  background: #fff;
-  border: none;
-  color: #000000;
-  font-size: 0.86rem;
-  font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap; // 좁은 화면에서 flex가 버튼을 눌러 "로그인" 글자가 줄바꿈되는 것 방지
-  flex-shrink: 0;
-  margin-top: 7px; // 다른 헤더 요소들과 정렬이 안 맞아서 이 버튼만 살짝 내림
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-  transition:
-    background 0.15s,
-    box-shadow 0.15s;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.06);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
-  }
-}
-
 .gw-top-links {
   display: flex;
   align-items: center;
@@ -120,7 +96,7 @@
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: 0.01em;
-  // _green-luxury.scss의 전역 `a { color: var(--gt-link-color) !important }`가
+  // _global-overrides.scss의 전역 `a { color: var(--gt-link-color) !important }`가
   // 사이트 전체 링크를 초록색으로 강제하므로, 이를 이기기 위해 !important 필요
   color: #000000 !important;
   text-decoration: none;
@@ -143,33 +119,6 @@
     font-weight: 700;
     background: rgba(255, 255, 255, 0.4);
   }
-}
-
-// #langDropdown은 예전 vanilla JS 헤더 시절 id라서 지금 React 버전(Header.jsx)엔
-// 존재하지 않음 — 그래서 번역 아이콘이 이 규칙을 못 받고 _green-luxury.scss의
-// 전역 링크 초록색으로 새고 있었음. 실제 클래스(.gw-lang-trigger)로 교체.
-.gw-lang-trigger,
-.gw-lang-trigger i,
-#current-lang {
-  color: #000000 !important;
-}
-
-// 홈 화면(React Header.jsx)의 트리거는 Radix UI라서 "dropdown-toggle" 클래스가
-// 없어 Bootstrap 기본 캐럿(▾, .dropdown-toggle::after)이 안 붙는데, 다른 페이지
-// (appHeader.js)는 Bootstrap JS 드롭다운 동작을 위해 이 클래스가 꼭 필요해서
-// 캐럿이 같이 따라와 KO 옆에 삼각형이 보였음 — 홈 화면 기준(캐럿 없음)으로
-// 통일하기 위해 이 트리거에서만 Bootstrap 기본 캐럿을 숨김.
-.gw-lang-trigger.dropdown-toggle::after {
-  display: none;
-}
-
-/* '매일 분석 현황' FAB — indexingStatus.js가 런타임에 주입하는 초록 스타일을 올리브 톤으로 강제 교체 */
-.log-fab {
-  background: linear-gradient(150deg, #525252 0%, #393939 100%) !important;
-  box-shadow: 0 8px 20px rgba(57, 57, 57, 0.28) !important;
-}
-.log-fab:hover {
-  background: linear-gradient(150deg, #606060 0%, #444444 100%) !important;
 }
 
 // 900px는 nav 항목이 홈/검색/메일 수집/My Life/지식 그래프 5개였을 때 기준 —

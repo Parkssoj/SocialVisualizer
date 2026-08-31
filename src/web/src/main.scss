@@ -1,8 +1,12 @@
 /*
  * 전체 스타일 진입점 — Bootstrap, 변수/색상 테마, 커스텀·럭셔리 그린 디자인, 헤더/플로팅 검색 스타일, 아이콘 폰트를 한 곳에서 불러와 합친다.
+ * (custom/global-overrides/color-schemes/font-optimization은 미사용으로 판단해 한 번 지웠다가, 실제 화면 UI가
+ * 크게 깨져서 다시 복구함 — 이 파일들은 실제로 쓰이고 있었음.)
  *
- * Global stylesheet entry point — pulls in Bootstrap, variables/color themes, the custom and "luxury
- * green" design layers, header/floating-search styles, and icon fonts.
+ * Global stylesheet entry point — pulls in Bootstrap, variables/color themes, the custom and global
+ * override layers, header/floating-search styles, and icon fonts.
+ * (custom/global-overrides/color-schemes/font-optimization were once removed as presumed-unused, but
+ * the live UI broke badly, so they were restored — they were actually in use.)
  */
 // SCSS files using @use (must come first)
 @use "bootstrap/scss/bootstrap";
@@ -11,10 +15,10 @@
 @use "./scss/color-schemes";
 
 @use "./scss/custom.scss";
-@use "./scss/green-luxury.scss"; // Luxury Green Design System
+@use "./scss/global-overrides.scss"; // _variables.scss 토큰으로 안 덮이는 세부 오버라이드
 @use "./scss/font-optimization.scss";
-@use "./scss/header.scss"; // 공통 헤더(appHeader.js) 스타일 + 사이드바 제거에 따른 레이아웃 보정
-@use "./scss/floating-search.scss"; // 모든 페이지 우측 하단 떠 있는 검색 버튼/팝업(floatingSearch.js)
+@use "./scss/components/header.scss"; // 공통 헤더(Header.jsx) 스타일 + 사이드바 제거에 따른 레이아웃 보정
+@use "./scss/components/floating-search.scss"; // 모든 페이지 우측 하단 떠 있는 검색 버튼/팝업(floatingSearch.js)
 
 // CSS files using @import (legacy approach for .css files)
 @import "@fortawesome/fontawesome-free/css/all.min.css";

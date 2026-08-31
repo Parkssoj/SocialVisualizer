@@ -1,8 +1,8 @@
 /**
- * 개발 모드에서만 콘솔에 출력하는 로거 래퍼. 프로덕션 빌드에서는 Terser가 이 호출들을 제거한다.
- *
- * Console logger wrapper that only outputs in development; production builds strip these calls via
- * Terser.
+개발 모드에서만 콘솔에 출력하는 로거 래퍼. 프로덕션 빌드에서는 Terser가 이 호출들을 제거한다.
+
+Console logger wrapper that only outputs in development; production builds strip these calls via
+Terser.
  */
 
 const isDev = process.env.NODE_ENV === 'development';

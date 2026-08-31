@@ -1,14 +1,14 @@
 /**
- * 메일/메신저 계정을 선택하는 드롭다운 위젯. GET /accounts로 인덱싱된 계정 목록을 받아 <select>를 그려주고, 선택된 user_id(또는 chatroom_id)를
- * localStorage에 저장 후 반환한다.
- *
- * Account/chatroom picker dropdown — fetches indexed accounts via GET /accounts, renders a <select>,
- * and persists the chosen user_id/chatroom_id to localStorage.
+메일/메신저 계정을 선택하는 드롭다운 위젯. GET /accounts로 인덱싱된 계정 목록을 받아 <select>를 그려주고, 선택된 user_id(또는 chatroom_id)를
+localStorage에 저장 후 반환한다.
+
+Account/chatroom picker dropdown — fetches indexed accounts via GET /accounts, renders a <select>,
+and persists the chosen user_id/chatroom_id to localStorage.
  */
 /**
- * 계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정(또는 카카오 대화방) 목록을 가져와
- * container 안에 <select>를 렌더링하고, 확정된 user_id를 반환한다.
- * (해당 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
+계정 선택 드롭다운 — GET /accounts로 인덱싱된 계정(또는 카카오 대화방) 목록을 가져와
+container 안에 <select>를 렌더링하고, 확정된 user_id를 반환한다.
+(해당 페이지에서만 명시적으로 호출 — bootstrapApp()에는 연결하지 않음)
  */
 /** 화면에 보여줄 계정 라벨을 반환 — 항상 실제 계정 id 그대로. */
 export function displayAccountLabel(userId) {
@@ -91,8 +91,10 @@ export async function initAccountPicker(container, onChange, options = {}) {
   return effective;
 }
 
-/** POST /chatroom-name — chatroom_id로 실제 채팅방 이름을 조회. 400/404 등
- * 실패 시 null을 반환해서 호출부가 원래 id로 폴백할 수 있게 한다. */
+/**
+POST /chatroom-name — chatroom_id로 실제 채팅방 이름을 조회. 400/404 등
+실패 시 null을 반환해서 호출부가 원래 id로 폴백할 수 있게 한다.
+ */
 async function fetchChatroomName(chatroomId) {
   try {
     const res = await fetch('/chatroom-name', {

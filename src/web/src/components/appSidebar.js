@@ -1,10 +1,8 @@
 import { store } from "../store/globalStore.js";
 /**
- * My People/My Time/Recap 등에서 공용으로 쓰는 좌측 사이드바(메일 계정·메신저 채팅방 선택 목록). globalStore와 연동해 선택 상태를 반영하고,
- * 접기/펼치기 및 목록 클릭 이벤트를 처리한다.
- *
- * Shared left sidebar (mail account / messenger chatroom picker) used by My People, My Time, Recap,
- * etc. Syncs selection with the global store and handles collapse toggle and item clicks.
+ My People/My Time/Recap 등에서 공용으로 쓰는 좌측 사이드바(메일 계정·메신저 채팅방 선택 목록). globalStore와 연동해 선택 상태를 반영하고, 접기/펼치기 및 목록 클릭 이벤트를 처리한다.
+ 
+ Shared left sidebar (mail account / messenger chatroom picker) used by My People, My Time, Recap, etc. Syncs selection with the global store and handles collapse toggle and item clicks.
  */
 
 // 완전히 새로 그린 사이드바(디자인/클래스 전부 새로 작성 — 예전 클래스명과 절대

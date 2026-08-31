@@ -1,14 +1,12 @@
 /*
  * _variables.scss 토큰만으로 덮이지 않는 세부 디자인(폰트, 전역 기본값 등)을 보정하는 오버라이드 모음.
+ * 예전 이름은 _green-luxury.scss였다 — 디자인 시스템이 "Luxury Green"에서 지금의 앰버 톤으로 바뀌면서
+ * 이름만 안 맞게 남아있던 걸 내용에 맞게 고쳤다.
  *
  * Override styles (fonts, global defaults, etc.) that fill gaps _variables.scss's tokens alone don't
- * cover.
+ * cover. Previously named _green-luxury.scss — a holdover from when the design system was "Luxury
+ * Green" before it moved to the current amber palette; renamed to match what the file actually does.
  */
-// =============================================================================
-// GmailWeaver — Luxury Green Design Overrides
-// =============================================================================
-// _variables.scss 교체만으로 커버 안 되는 부분을 여기서 마무리
-// =============================================================================
 
 // Inter 폰트 (구글 폰트 CDN)
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");

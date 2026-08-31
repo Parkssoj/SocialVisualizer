@@ -1,10 +1,22 @@
 /**
- * 홈 화면 히어로 섹션 — 헤드라인/설명/CTA와 My People·My Time 미리보기 카드, 배경 그리드, 글로우 SVG 필터를 렌더링한다. 미리보기는 정적 이미지(기본) 또는
- * 실제 페이지를 담은 축소 iframe 중 하나로 전환 가능하다(USE_STATIC_HERO_PREVIEWS).
- *
- * Home page hero section — renders the headline/description/CTA, My People & My Time preview cards,
- * background grid, and a glow SVG filter. Previews can switch between static images (default) and a
- * scaled-down live iframe of the actual page (USE_STATIC_HERO_PREVIEWS).
+홈 화면 히어로 섹션 — 헤드라인/설명/CTA와 My People·My Time 미리보기 카드, 글로우 SVG 필터를 렌더링한다. 미리보기는 정적 이미지(기본) 또는
+실제 페이지를 담은 축소 iframe 중 하나로 전환 가능하다(USE_STATIC_HERO_PREVIEWS).
+
+예전 파일명은 HeroOrbit.jsx였다 — "지구본 + 그 주변을 도는 스킬 아이콘" 오빗(orbit) 비주얼로
+디자인했던 흔적(gw-orbit-hero 등 CSS 클래스 접두사가 그 이름을 그대로 물려받음)인데, 실제로는
+그 지구본/오빗 마크업 자체가 이미 지금의 2컬럼(문구 + 미리보기 카드) 레이아웃으로 교체된 지
+오래라 이름만 안 맞게 남아있었다. HomeApp.jsx도 이미 HeroContent라는 이름으로 import해서 쓰고
+있던 터라, 파일/컴포넌트 이름을 실제 하는 일(히어로 콘텐츠 렌더링)에 맞게 HeroContent로 통일했다.
+
+Home page hero section — renders the headline/description/CTA, My People & My Time preview cards,
+and a glow SVG filter. Previews can switch between static images (default) and a scaled-down live
+iframe of the actual page (USE_STATIC_HERO_PREVIEWS).
+
+This file used to be named HeroOrbit.jsx — a holdover from an earlier "globe + orbiting skill
+icons" hero visual (the gw-orbit-hero etc. CSS class prefix still carries that name), but that
+globe/orbit markup itself was long since replaced by the current two-column layout (copy + preview
+cards). HomeApp.jsx was already importing it under the name HeroContent, so the file/component name
+was unified to HeroContent to match what it actually does (rendering the hero content).
  */
 import { useEffect } from "react";
 
@@ -38,7 +50,7 @@ function PagePreviewFrame({ src }) {
 }
 
 // 히어로 전체(헤드라인 + 글로우 필터 + 미리보기 카드) 렌더링
-export default function HeroOrbit() {
+export default function HeroContent() {
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
   // 실제로 DOM에 존재하는 시점에 안전하게 .visible 클래스를 붙일 수 있음
   useEffect(() => {

@@ -1,10 +1,10 @@
 /**
- * jQuery 없이 쓰는 DOM 조작 유틸 모음(select/class/style/이벤트 등). window/global에도 노출되며, 코드베이스 전반에서 실제로 쓰이는
- * select, selectAll, on, find, closest, hasClass, addClass, removeClass만 남겨뒀다.
- *
- * jQuery-free DOM utility collection (selection/class/event helpers), exposed on window/global;
- * trimmed down to only the methods actually called anywhere in the codebase today: select,
- * selectAll, on, find, closest, hasClass, addClass, removeClass.
+jQuery 없이 쓰는 DOM 조작 유틸 모음(select/class/style/이벤트 등). window/global에도 노출되며, 코드베이스 전반에서 실제로 쓰이는
+select, selectAll, on, find, closest, hasClass, addClass, removeClass만 남겨뒀다.
+
+jQuery-free DOM utility collection (selection/class/event helpers), exposed on window/global;
+trimmed down to only the methods actually called anywhere in the codebase today: select,
+selectAll, on, find, closest, hasClass, addClass, removeClass.
  */
 
 const DOM = {

@@ -1,13 +1,13 @@
 // src/utils/filterSync.js
 /**
- * 사이드바(계정/채널 필터) 상태와 각 페이지를 동기화하는 모듈. 사이드바를 렌더링하고, 전역 스토어 변경 이벤트를 구독해 페이지에 필터 변경을 전달하며, 인덱싱 미완료 계정이
- * 있으면 주기적으로 목록을 다시 불러온다.
- *
- * Keeps the sidebar (account/channel filter) in sync with each page — renders the sidebar, listens for
- * global store change events to notify pages of filter changes, and polls for accounts still being
- * indexed.
+사이드바(계정/채널 필터) 상태와 각 페이지를 동기화하는 모듈. 사이드바를 렌더링하고, 전역 스토어 변경 이벤트를 구독해 페이지에 필터 변경을 전달하며, 인덱싱 미완료 계정이
+있으면 주기적으로 목록을 다시 불러온다.
+
+Keeps the sidebar (account/channel filter) in sync with each page — renders the sidebar, listens for
+global store change events to notify pages of filter changes, and polls for accounts still being
+indexed.
  */
-import { renderAppSidebar, refreshSidebarList } from "../layout/appSidebar.js";
+import { renderAppSidebar, refreshSidebarList } from "../components/appSidebar.js";
 import { store } from "../store/globalStore.js";
 
 let indexingPollTimer = null;

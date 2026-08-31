@@ -54,7 +54,7 @@
 .gw-search-box { width: 100%; position: relative; }
 .gw-search-box input {
   width: 100%; padding: 17px 56px 17px 24px;
-  // 요청 — 글씨 크기가 반영이 안 됐던 원인: _green-luxury.scss의 전역
+  // 요청 — 글씨 크기가 반영이 안 됐던 원인: _global-overrides.scss의 전역
   // input[type="text"] { font-size: 13px !important; ... } 규칙이 여기보다
   // 늦게 로드되며 !important로 덮어쓰고 있었음. 같은 !important로 맞대응.
   font-size: 1rem !important; border: 2px solid #e0e0e0;
@@ -107,26 +107,6 @@
 .gw-empty { padding: 80px 0; text-align: center; color: #bbb; }
 .gw-empty i { font-size: 3.5rem; display: block; margin-bottom: 16px; color: #e0e0e0; }
 .gw-empty p { font-size: 1.1rem; }
-
-.gw-source-emails { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e8e8e8; }
-.gw-source-label { font-size: 0.92rem; color: #73879C; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.gw-source-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.gw-source-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 16px; background: #fff; border: none;
-  border-radius: 20px; font-size: 0.98rem; color: #fb923c;
-  text-decoration: none; box-shadow: 0 1px 4px rgba(251, 146, 60, 0.2);
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s; white-space: nowrap;
-}
-.gw-source-btn:hover { background: #fb923c; color: #fff; text-decoration: none; box-shadow: 0 2px 7px rgba(251, 146, 60, 0.4); }
-.gw-source-btn-plain { cursor: default; color: #73879C; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
-.gw-source-btn-plain:hover { background: #fff; color: #73879C; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
-.gw-source-count {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
-  background: #d8dde2; color: #55606b; border-radius: 999px;
-  font-size: 0.8rem; font-weight: 700;
-}
 
 /* 근거메일 보기(요청 — 근거 메일 하나하나에 버튼 붙여서 오른쪽에 본문 표시) */
 

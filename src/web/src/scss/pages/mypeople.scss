@@ -168,49 +168,6 @@ footer {
   padding: 2px 8px;
   border-radius: 20px;
 }
-/* mp-count 옆 채널 선택 버튼, mp-brand-filter-btn과 같은 팔레트/톤 */
-.mp-channel-btns {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 4px;
-}
-.mp-channel-btn {
-  box-sizing: border-box;
-  appearance: none;
-  -webkit-appearance: none;
-  font-family: inherit;
-  line-height: inherit;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 20px;
-  padding: 4px 12px;
-  cursor: pointer;
-  /* 서로 다른 컨테이너에 있는 요소들도 항상 동일하게 보이도록 고정 rem 값 사용 */
-  font-size: 1rem;
-  font-weight: 600;
-  color: #3f302a;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  transition:
-    box-shadow 0.15s,
-    background 0.15s,
-    color 0.15s;
-  white-space: nowrap;
-  user-select: none;
-}
-.mp-channel-btn:hover {
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
-}
-.mp-channel-btn.active {
-  background: #fb923c;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
-}
 /* 정렬 컨트롤 묶음(광고 제거 버튼 + 정렬 드롭다운) */
 .mp-header-controls {
   display: flex;
@@ -1402,15 +1359,6 @@ footer {
   box-sizing: border-box;
   box-shadow: none;
 }
-.mp-detail-section-sub {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #4a4640;
-  background: rgba(28, 28, 30, 0.06);
-  padding: 2px 8px;
-  border-radius: 20px;
-  letter-spacing: 0;
-}
 
 // 요청 — Y축이 뭘 나타내는지 표시.
 .mp-vchart-y-title {
@@ -1639,11 +1587,6 @@ footer {
   font-weight: 700;
   color: #1c1c1e;
   line-height: 1.4;
-}
-.mp-email-snippet {
-  font-size: 0.96rem;
-  color: #6b6459;
-  line-height: 1.5;
 }
 .mp-email-from {
   font-size: 0.82rem;

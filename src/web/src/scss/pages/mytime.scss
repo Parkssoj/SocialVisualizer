@@ -72,11 +72,6 @@ footer {
   align-items: center;
   gap: 14px;
 }
-.mt-header-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 /* accountPicker.js가 주입하는 .gw-account-picker 기본 폰트(0.85rem)를
    페이지 공통 크기(1rem)로 오버라이드 */
 #account-picker-mount .gw-account-picker {
@@ -111,75 +106,6 @@ footer {
   border-radius: 20px;
   white-space: nowrap;
 }
-.mt-mode-toggle {
-  display: flex;
-  gap: 3px;
-  background: #fff6ef;
-  border-radius: 8px;
-  padding: 3px;
-}
-.mt-mode-btn {
-  margin: 0;
-  padding: 10px;
-  min-width: 72px;
-  border-radius: 6px;
-  border: none;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  background: transparent;
-  color: rgba(48, 37, 34, 0.55);
-  transition: all 0.15s;
-  font-family: inherit;
-}
-.mt-mode-btn.active {
-  background: #fffefc;
-  color: #f97316;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-/* My People의 mp-channel-btns/mp-channel-btn과 동일 스타일 (페이지별 scss 분리로 복사) */
-.mp-channel-btns {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.mp-channel-btn {
-  box-sizing: border-box;
-  appearance: none;
-  -webkit-appearance: none;
-  font-family: inherit;
-  line-height: inherit;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 20px;
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #302522;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  transition:
-    box-shadow 0.15s,
-    background 0.15s,
-    color 0.15s;
-  white-space: nowrap;
-  user-select: none;
-}
-.mp-channel-btn:hover {
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(251, 146, 60, 0.25);
-}
-.mp-channel-btn.active {
-  background: #fb923c;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
-}
-
 /* 왼쪽(요약) / 오른쪽(월별 키워드) 두 창 — 사진·프로필 칸을 없애면서 5:5로 */
 .mt-two-col {
   display: grid;
@@ -302,10 +228,6 @@ footer {
   color: #f97316;
   font-weight: 800;
 }
-.mt-node-col.pinned .mt-node-count {
-  color: #f97316;
-}
-
 /* 기간 레이블 */
 .mt-node-label {
   margin-top: 10px;
@@ -320,20 +242,6 @@ footer {
 .mt-node-col.active .mt-node-label {
   color: #f97316;
 }
-
-/* 메일 수 */
-.mt-node-count {
-  margin-top: 3px;
-  font-size: 1rem;
-  color: #4a4a4a;
-  font-weight: 500;
-  transition: color 0.15s;
-}
-.mt-node-col:hover .mt-node-count,
-.mt-node-col.active .mt-node-count {
-  color: #f97316;
-}
-
 /* 인포 패널 (노드 아래, 고정 높이) */
 .mt-info-area {
   margin-top: 32px;

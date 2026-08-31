@@ -1,6 +1,6 @@
 /**
 
- * Vite 빌드 설정 — production/*.html 8개를 각각 별도 진입점으로 빌드하는 멀티페이지 앱 구성, React/Tailwind 플러그인, 청크
+ * Vite 빌드 설정 — production/*.html 8개를 각각 별도 진입점으로 빌드하는 멀티페이지 앱 구성, React 플러그인, 청크
 
  * 분리(vendor-core/d3/react), 개발 서버의 백엔드(80번 포트) API 프록시 목록을 정의한다.
 
@@ -8,7 +8,7 @@
 
  * Vite build config — sets up a multi-page app with 8 separate production/*.html entry points, the
 
- * React/Tailwind plugins, vendor chunk splitting, and the dev server's proxy list to the backend on
+ * React plugin, vendor chunk splitting, and the dev server's proxy list to the backend on
 
  * port 80.
 
@@ -16,7 +16,6 @@
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import { fileURLToPath } from "url";
 import path from "path";
@@ -29,13 +28,7 @@ export default defineConfig({
   publicDir: "public",
   logLevel: "info",
   clearScreen: false,
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      // shadcn/ui 컴포넌트가 쓰는 "@/components/..." 임포트 경로용 별칭
-      "@": path.resolve(__dirname, "src"),
-    },
-  },
+  plugins: [react()],
   // 빌드 산출물 설정 — dist/ 출력, 소스맵은 프로덕션에서만 hidden(생성하되 배포물엔 참조 안 남김)
   build: {
     outDir: "dist",
@@ -80,11 +73,11 @@ export default defineConfig({
         home: "production/index.html",
         mytime: "production/mytime.html",
         mypeople: "production/mypeople.html",
-        graph_viz: "production/graph-viz.html",
+        graphviz: "production/graphviz.html",
         recap: "production/recap.html",
         search: "production/search.html",
         imap_collect: "production/imap-collect.html",
-        analysis_hub: "production/analysis-hub.html",
+        analysishub: "production/analysishub.html",
       },
     },
     minify: "terser",
