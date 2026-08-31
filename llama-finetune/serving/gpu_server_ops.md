@@ -17,19 +17,27 @@ SocialVisualizer 개발 과정에서 사용한 GPU 서버의 모델 서비스 �
 
 ## Python 가상환경
 
-개발 GPU 서버에서는 Llama 모델 관련 서비스 실행에 Python 가상환경을 사용한다.
+개발 GPU 서버에서는 서비스별로 별도의 Python 가상환경을 사용한다. Llama(vLLM) 서빙용 venv와
+FLUX 이미지 생성용 venv는 서로 다른 의존성(각각 vLLM / torch+diffusers)을 요구하므로 반드시
+구분해서 활성화해야 한다.
 
-개발 서버에서 사용하는 가상환경 경로는 다음과 같다.
-
-```bash
-/workspace/socialvisualizer-llama-venv
-```
+| 서비스 | 가상환경 경로 |
+|---|---|
+| Llama 서빙 (Index/Query/Qwen/BGE-M3) | `/workspace/socialvisualizer-llama-venv` |
+| FLUX 이미지 생성 | `/workspace/flux-venv` |
 
 새 환경에서 가상환경을 생성하는 예시는 다음과 같다.
 
 ```bash
-python3 -m venv ~/venvs/socialvisualizer-llama-venv
-source ~/venvs/socialvisualizer-llama-venv/bin/activate
+# Llama 서빙용
+python3 -m venv /workspace/socialvisualizer-llama-venv
+source /workspace/socialvisualizer-llama-venv/bin/activate
+pip install vllm
+
+# FLUX 이미지 생성용 (별도 venv — torch/diffusers는 여기에만 설치한다)
+python3 -m venv /workspace/flux-venv
+source /workspace/flux-venv/bin/activate
+pip install torch diffusers
 ```
 
 가상환경을 생성한 후 프로젝트에서 사용하는 Python 및 모델 서빙 의존성을 설치한다.
@@ -96,16 +104,19 @@ CUDA_VISIBLE_DEVICES=3 vllm serve Qwen/Qwen2.5-7B-Instruct \
 
 ### 4. FLUX 이미지 생성 서버
 
-GPU3에서 이미지/아바타 생성 서버를 실행한다.
+GPU3에서 이미지/아바타 생성 서버를 실행한다. Llama 서빙용 venv가 아니라
+FLUX 전용 venv(`flux-venv`)를 활성화해야 한다 — torch/diffusers는 여기에만 설치돼 있다.
 
 ```bash
 tmux new -s flux-server
+source /workspace/flux-venv/bin/activate
 cd /workspace
 
 CUDA_VISIBLE_DEVICES=3 python flux_server.py
 ```
 
 - GPU: `3`
+- venv: `/workspace/flux-venv` (Llama 서빙용과 별도)
 - 용도: 이미지/아바타 생성
 
 ### 5. Query 모델
@@ -214,7 +225,8 @@ nvidia-smi
 | 항목 | 개발 서버 설정 | 다른 환경에서 |
 |---|---|---|
 | GPU 번호 | GPU2 / GPU3 | 사용 가능한 GPU로 변경 |
-| Python 환경 | `/workspace/socialvisualizer-llama-venv` | 자신의 가상환경 경로로 변경 |
+| Python 환경 (Llama 서빙) | `/workspace/socialvisualizer-llama-venv` | 자신의 가상환경 경로로 변경 |
+| Python 환경 (FLUX) | `/workspace/flux-venv` | 자신의 가상환경 경로로 변경 |
 | Index 모델 경로 | `/workspace/models/socialvisualizer-llama-v5-merged` | 실제 모델 경로로 변경 |
 | Query 모델 경로 | `/workspace/models/socialvisualizer-llama-query-merged` | 실제 모델 경로로 변경 |
 | FLUX 서버 경로 | `/workspace/flux_server.py` | 실제 파일 위치로 변경 |

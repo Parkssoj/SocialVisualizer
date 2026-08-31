@@ -23,7 +23,7 @@ const profileNameEl = document.getElementById('google-profile-name');
 if (profileNameEl) profileNameEl.textContent = name;
 window.currentUserName = name;
 
-// ── 공통 유틸 ──
+// 공통 유틸
 function escapeHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -53,11 +53,9 @@ async function pollJob(jobId, onDone, onError, interval = 2000, maxTries = 60) {
   onError('응답 시간이 초과되었습니다. 다시 시도해주세요.');
 }
 
-// ══════════════════════════════════════
 // 검색 컨트롤러 — 메일/메시지(카카오) 탭이 각자 독립된 입력창·최근검색·결과영역·domain을 갖도록
 // 같은 로직을 재사용 가능한 형태로 묶음. 두 탭은 서로 다른 GraphRAG 도메인("mail"/"messenger")을
 // 대상으로 완전히 독립적으로 검색한다.
-// ══════════════════════════════════════
 function createSearchController({ domain, recentKey, ids, getUserId, loadingText, emptyIcon }) {
   const inputEl = document.getElementById(ids.input);
   const btnEl = document.getElementById(ids.btn);
@@ -65,10 +63,6 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
   const recentTagsEl = document.getElementById(ids.recentTags);
   const clearRecentEl = document.getElementById(ids.clearRecent);
   const resultEl = document.getElementById(ids.resultContainer);
-  // showResult()가 검색할 때마다 새로 붙이는 resize 리스너 — 매번 새로 만든 걸
-  // 이전 것 위에 그냥 쌓으면 검색을 반복할수록 리스너가 계속 늘어나므로, 여기
-  // 컨트롤러 스코프에 하나만 들고 있다가 새로 붙이기 전에 먼저 떼어낸다.
-  let currentResizeHandler = null;
 
   function getRecents() {
     try { return JSON.parse(localStorage.getItem(recentKey)) || []; } catch { return []; }
@@ -177,19 +171,17 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
 
   // 답변 줄 하나에 제목이 "언급됐다"고 볼 수 있는지 판단한다. 요약된 답변은 보통
   // 제목을 그대로 인용하지 않고 "OO 메일은 ~"처럼 살짝 바꿔 쓰므로, 제목 전체가
-  // 그대로 포함된 줄을 먼저 찾고, 없으면 제목의 첫 단어(한글/영문/숫자만 남기고
-  // 2글자 이상)만이라도 포함된 줄을 찾는다.
+  // 그대로 포함된 줄을 찾는다.
+  // 요청 — 예전엔 제목 전체가 안 걸리면 제목의 "첫 단어"만으로도 매칭시키는
+  // fallback이 있었으나, 여러 메일이 같은 단어로 시작하는 제목을 가진 경우
+  // (예: "한국정보통신학회 ..." 로 시작하는 메일이 여러 건) 전부 같은 한 줄에
+  // 몰려 붙어 버튼이 중복 표시되고, 실제로는 그 줄과 무관한 메일까지 근거처럼
+  // 보이는 문제가 있어 제거했다. 제목 전체가 걸리지 않으면 그냥 버튼 없이
+  // 넘어간다(의도된 동작).
   function findLineIdxBySubject(lines, subject) {
     const cleaned = String(subject || '').trim();
     if (!cleaned) return -1;
-    let idx = lines.findIndex(line => line.includes(cleaned));
-    if (idx !== -1) return idx;
-    const firstWord = cleaned.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/)[0];
-    if (firstWord && firstWord.length >= 2) {
-      idx = lines.findIndex(line => line.includes(firstWord));
-      if (idx !== -1) return idx;
-    }
-    return -1;
+    return lines.findIndex(line => line.includes(cleaned));
   }
 
   async function showResult(q, text, sourceIds) {
@@ -280,22 +272,12 @@ function createSearchController({ domain, recentKey, ids, getUserId, loadingText
 
     if (hasSourceMails) {
       const drawer = resultEl.querySelector('#gw-mail-drawer');
-      const answerMain = resultEl.querySelector('.gw-answer-main');
       const detailPanel = drawer.querySelector('.gw-mail-detail-panel');
       const closeBtn = drawer.querySelector('.gw-mail-drawer-close');
 
-      // 요청 — 서랍은 항상 답변 카드와 같은 높이로 늘어나되(위아래 선 일치),
-      // 그 안에 표시되는 메일 본문이 그보다 길어도 서랍 자체가 카드보다 더
-      // 커지지 않고 내부에서만 스크롤되도록, 서랍의 최대 높이를 답변 카드의
-      // 실제 렌더링 높이로 캡(cap)한다(overflow-y: auto는 scss에 이미 있음).
-      function syncDrawerHeight() {
-        if (!answerMain) return;
-        drawer.style.maxHeight = answerMain.getBoundingClientRect().height + 'px';
-      }
-      syncDrawerHeight();
-      if (currentResizeHandler) window.removeEventListener('resize', currentResizeHandler);
-      currentResizeHandler = syncDrawerHeight;
-      window.addEventListener('resize', currentResizeHandler);
+      // 요청 — 서랍 높이를 답변 카드에 맞추려던 JS 동기화 로직은 양쪽 다 문제였어서
+      // 제거했다. 서랍의 최대 높이는 이제 scss(.gw-mail-drawer.is-open)의 고정
+      // max-height(70vh)로만 관리한다.
 
       resultEl.querySelectorAll('.gw-view-source-mail-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -382,9 +364,7 @@ if (urlQuery && urlQuery.trim()) {
   mailSearch.runSearch(decodeURIComponent(urlQuery));
 }
 
-// ══════════════════════════════════════
 // 메일 / 메시지 탭 전환
-// ══════════════════════════════════════
 function switchTab(tab) {
   const isMail = tab === 'mail';
   document.getElementById('tab-btn-mail').classList.toggle('active', isMail);
