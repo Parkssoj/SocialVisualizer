@@ -81,6 +81,8 @@ from util.database.db_reader import (
     calculate_eis,
     get_person_descriptions,
     get_mail_relationships,
+    get_mail_people,
+    get_mail_summaries,
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
@@ -1522,7 +1524,7 @@ def send_chatroom_day_messages():
         "data": {"messages": messages},
     })
 
-# 채팅방의 월별/연별 LLM 요약을 삽화 URL과 함께 반환한다
+# 채팅방의 월별/연별 LLM 요약을 주요 연락처(설명 포함)와 함께 반환한다
 @app.route("/chatroom-summaries", methods=["POST"])
 def send_chatroom_summaries():
     data = request.json or {}
@@ -1538,23 +1540,18 @@ def send_chatroom_summaries():
     if summaries is None:
         return jsonify({"error": "chatroom not found"}), 404
 
-    # image_url은 DB(message_summarize)가 아니라 message_summaries.json에만 있고
-    # 요약 생성 뒤 이미지 생성이 끝나는 대로 채워지므로, 여기서 summary_period 기준으로
-    # 병합해 내려준다(스키마 변경 없이 파일을 그대로 읽어 붙이는 방식).
-    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
-    image_urls = {}
-    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
-        try:
-            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
-                file_summaries = json.load(f)
-            for period, info in file_summaries.get(summarize_unit, {}).items():
-                if info.get("image_url"):
-                    image_urls[period] = info["image_url"]
-        except (OSError, json.JSONDecodeError):
-            pass
+    people = get_chatroom_people(chatroom_id) or []
+    people_map = {p["participant_id"]: p for p in people}
 
     for s in summaries:
-        s["image_url"] = image_urls.get(s["summary_period"])
+        s["contacts"] = [
+            {
+                "participant_id": name,
+                "description": people_map.get(name, {}).get("description"),
+                "short_bio":    people_map.get(name, {}).get("short_bio"),
+            }
+            for name in s["contacts"]
+        ]
 
     return jsonify({
         "chatroom_id":    chatroom_id,
@@ -1783,11 +1780,25 @@ def send_mail_relationships():
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_mail_relationships(user_id)})
 
-# 메일 기간 요약(monthly/yearly)을 mail_summaries.json에서 읽어 반환한다
+# 최신 인덱싱 기준 연락처 전체 목록(메일수·description·relation_label·short_bio 포함)을 반환한다
+@app.route("/mail-people", methods=["POST"])
+def send_mail_people():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    people = get_mail_people(user_id)
+    if people is None:
+        return jsonify({"error": "mail account not found"}), 404
+
+    return jsonify({"user_id": user_id, "data": {"people": people}})
+
+# 메일 기간 요약(monthly/yearly)을 주요 연락처(설명 포함)와 함께 반환한다
 @app.route("/mail-summaries", methods=["POST"])
 def send_mail_summaries():
     data = request.json or {}
-    user_id     = data.get("user_id", "").strip()
+    user_id      = data.get("user_id", "").strip()
     summary_type = data.get("type", "").strip()
 
     if not user_id:
@@ -1795,14 +1806,17 @@ def send_mail_summaries():
     if summary_type not in ("monthly", "yearly"):
         return jsonify({"error": "type must be 'monthly' or 'yearly'"}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "mail")
-    if not os.path.exists(paths.MAIL_SUMMARIES_PATH):
-        return jsonify({"error": "summaries not generated yet"}), 404
+    summaries = get_mail_summaries(user_id, summary_type)
+    if summaries is None:
+        return jsonify({"error": "mail account not found"}), 404
 
-    with open(paths.MAIL_SUMMARIES_PATH, "r", encoding="utf-8") as f:
-        summaries = json.load(f)
-
-    return jsonify({summary_type: summaries.get(summary_type, {})})
+    return jsonify({
+        "user_id": user_id,
+        "type": summary_type,
+        "data": {
+            "summaries": summaries,
+        },
+    })
 
 # 연락처 관련 프록시 액션(자주 연락하는 상대 조회 등)을 처리한다
 @app.route('/contacts-proxy', methods=['POST'])

@@ -64,6 +64,7 @@ def init_chatroom_tables():
                 chatroom_people_name VARCHAR(255),
                 message_count INT,
                 description TEXT,
+                short_bio TEXT,
                 PRIMARY KEY (participant_id, chatroom_id, index_date, user_id),
                 FOREIGN KEY (chatroom_id, index_date, user_id)
                     REFERENCES chatroom(chatroom_id, index_date, user_id)
@@ -405,7 +406,7 @@ def save_message_block_to_db(paths, update_date=None):
 
 # 참여자별 메시지 수와 LLM 프로필(description)을 chatroom_people 테이블에 저장한다
 def save_chatroom_people_to_db(paths, update_date=None):
-    from util.message_statics import generate_chatroom_people_descriptions
+    from util.message_statics import generate_chatroom_people_descriptions, generate_chatroom_people_short_bios
 
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
     if key is None:
@@ -425,26 +426,34 @@ def save_chatroom_people_to_db(paths, update_date=None):
         print(f"[WARN] 참여자 프로필 생성 실패, description 없이 저장: {e}")
         descriptions = {}
 
+    # description을 입력으로 My Time 툴팁용 한줄소개(short_bio) 2차 생성
+    try:
+        short_bios = generate_chatroom_people_short_bios(descriptions)
+    except Exception as e:
+        print(f"[WARN] 참여자 한줄소개 생성 실패, short_bio 없이 저장: {e}")
+        short_bios = {}
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         insert_sql = """
             INSERT INTO chatroom_people (
                 participant_id, chatroom_id, index_date, user_id,
-                chatroom_people_name, message_count, description
+                chatroom_people_name, message_count, description, short_bio
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 chatroom_people_name = VALUES(chatroom_people_name),
                 message_count        = VALUES(message_count),
-                description          = COALESCE(VALUES(description), description)
+                description          = COALESCE(VALUES(description), description),
+                short_bio            = COALESCE(VALUES(short_bio), short_bio)
         """
         count = 0
         for name, messages in people.items():
             clipped_name = _clip_participant_name(name)
             cursor.execute(insert_sql, (
                 clipped_name, chatroom_id, update_date, user_id,
-                clipped_name, len(messages), descriptions.get(name),
+                clipped_name, len(messages), descriptions.get(name), short_bios.get(name),
             ))
             count += 1
 

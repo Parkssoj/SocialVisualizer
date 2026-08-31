@@ -107,13 +107,20 @@ def save_person_stats_to_db(paths, update_date=None):
             stats = json.load(f)
 
         # parquet → LLM 프로필 생성 (실패해도 기본 통계 저장은 계속)
-        from util.extract_statics import generate_person_descriptions
+        from util.extract_statics import generate_person_descriptions, generate_person_short_bios
         try:
             descriptions_raw = generate_person_descriptions(paths)
             descriptions = {k.lower(): v for k, v in descriptions_raw.items()}
         except Exception as e:
             print(f"[WARN] 프로필 생성 실패, description 없이 저장: {e}")
             descriptions = {}
+
+        # description(+relation_label)을 입력으로 My Time 툴팁용 한줄소개(short_bio) 2차 생성
+        try:
+            short_bios = generate_person_short_bios(descriptions)
+        except Exception as e:
+            print(f"[WARN] 한줄소개 생성 실패, short_bio 없이 저장: {e}")
+            short_bios = {}
 
         insert_sql = """
             INSERT INTO person (
@@ -125,16 +132,18 @@ def save_person_stats_to_db(paths, update_date=None):
                 send_mails,
                 friendly_mails,
                 description,
-                relation_label
+                relation_label,
+                short_bio
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 person_name    = VALUES(person_name),
                 receive_mails  = VALUES(receive_mails),
                 send_mails     = VALUES(send_mails),
                 friendly_mails = VALUES(friendly_mails),
                 description    = COALESCE(VALUES(description), description),
-                relation_label = COALESCE(VALUES(relation_label), relation_label)
+                relation_label = COALESCE(VALUES(relation_label), relation_label),
+                short_bio      = COALESCE(VALUES(short_bio), short_bio)
         """
 
         inserted_count = 0
@@ -157,6 +166,7 @@ def save_person_stats_to_db(paths, update_date=None):
                     int(info.get("friendly_mail", 0)),
                     profile.get("description"),
                     profile.get("relation_label"),
+                    short_bios.get(email),
                 )
             )
             inserted_count += 1
