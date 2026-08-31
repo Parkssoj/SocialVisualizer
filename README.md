@@ -15,9 +15,9 @@
 ## 📚 가이드
 
 <table>
-  <tr><td>설치 · 실행</td><td><a href="EXECUTE.md">EXECUTE</a></td></tr>
+  <tr><td>설치 · 실행</td><td><a href="docs/EXECUTE.md">EXECUTE</a></td></tr>
   <tr><td>라이선스</td><td><a href="LICENSE">LICENSE</a> · <a href="LICENSE_3rd.md">THIRD PARTY</a></td></tr>
-  <tr><td>SW 자재명세서</td><td><a href="SBOM.csv">SBOM</a></td></tr>
+  <tr><td>SW 자재명세서</td><td><a href="docs/SBOM.csv">SBOM</a></td></tr>
 </table>
 
 ---
@@ -129,7 +129,7 @@
 - <b>주요 키워드</b>: 반복적으로 등장한 핵심 키워드 가시화
 - <b>친밀도</b>: 전체 인물에 대한 친밀도 분석 및 시각화
 
-<img width="70%"alt="recap" src="./docs/images/recap.png">
+<img width="70%" alt="recap" src="./docs/images/recap.png">
 
 ---
 
@@ -181,25 +181,10 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
 
 ### 개발 언어
-![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
-![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white)
-![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white)
-![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black) ![SCSS](https://img.shields.io/badge/SCSS-CC6699?logo=sass&logoColor=white) ![HTML](https://img.shields.io/badge/HTML-E34F26?logo=html5&logoColor=white) ![Jinja](https://img.shields.io/badge/Jinja-B41717?logo=jinja&logoColor=white)
 
 ### 개발 도구 및 라이브러리
-![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white)
-![LanceDB](https://img.shields.io/badge/LanceDB-25A0A0?logoColor=white)
-![NetworkX](https://img.shields.io/badge/NetworkX-2C7BB6?logoColor=white)
-![pandas](https://img.shields.io/badge/pandas-150458?logo=pandas&logoColor=white)
-![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
-![Apache Arrow](https://img.shields.io/badge/Apache_Arrow-1A1A2E?logo=apachearrow&logoColor=white)
-![spaCy](https://img.shields.io/badge/spaCy-09A3D5?logo=spacy&logoColor=white)
-![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
-![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![GraphRAG](https://img.shields.io/badge/GraphRAG-2088FF?logoColor=white) ![LanceDB](https://img.shields.io/badge/LanceDB-25A0A0?logoColor=white) ![NetworkX](https://img.shields.io/badge/NetworkX-2C7BB6?logoColor=white) ![pandas](https://img.shields.io/badge/pandas-150458?logo=pandas&logoColor=white) ![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white) ![Apache Arrow](https://img.shields.io/badge/Apache_Arrow-1A1A2E?logo=apachearrow&logoColor=white) ![spaCy](https://img.shields.io/badge/spaCy-09A3D5?logo=spacy&logoColor=white) ![NLTK](https://img.shields.io/badge/NLTK-154F5B?logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
 
 ---
 
