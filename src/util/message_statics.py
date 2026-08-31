@@ -243,6 +243,56 @@ def generate_chatroom_people_descriptions(paths) -> dict:
     return descriptions
 
 
+# generate_chatroom_people_descriptions() 결과({이름: description})를 2차 LLM 호출로 한 문장 소개(short_bio)로 압축해 {이름: 문장}으로 반환한다
+def generate_chatroom_people_short_bios(descriptions: dict) -> dict:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    targets = [(name, desc) for name, desc in descriptions.items() if desc]
+    if not targets:
+        return {}
+
+    # 완성된 참여자 description으로 한 문장 소개 프롬프트를 만든다
+    def _build_prompt(name, description):
+        return f"""다음은 '{name}'님에 대해 이미 생성된 채팅 프로필입니다.
+
+{description}
+
+위 내용을 바탕으로, 이 사람을 다른 사람에게 소개하듯 자연스러운 한국어 한 문장으로 요약하세요.
+- 문장은 반드시 "~입니다."로 끝나야 합니다.
+- 성격이나 대화 스타일의 특징이 드러나는 짧은 소개 문장으로 쓰세요.
+- 예시: "꼼꼼하고 계획적인 성격의 친구입니다.", "이모티콘을 자주 쓰는 유쾌한 성격입니다."
+- 다른 설명, 따옴표, 접두어 없이 문장 하나만 출력하세요.""".strip()
+
+    def _call_llm(name, description):
+        try:
+            result = client.chat.completions.create(
+                model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다."
+                    },
+                    {"role": "user", "content": _build_prompt(name, description)}
+                ],
+                temperature=0.3,
+            )
+            return name, result.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[MSG_SHORT_BIO] LLM 호출 실패 ({name}): {e}")
+            return name, None
+
+    short_bios: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:
+        futures = {executor.submit(_call_llm, name, desc): name for name, desc in targets}
+        for future in as_completed(futures):
+            name, bio = future.result()
+            if bio:
+                short_bios[name] = bio
+
+    print(f"[MSG_SHORT_BIO] 총 {len(short_bios)}명 한줄소개 생성 완료")
+    return short_bios
+
+
 # 블록마다 참여자별 메시지에서 LLM 키워드를 뽑아 언급 횟수를 집계해 JSON으로 저장한다 (rewrite/append)
 def _save_message_keyword_stats(paths, mode: str = "rewrite"):
     from util.extract_statics import extract_keywords_with_llm

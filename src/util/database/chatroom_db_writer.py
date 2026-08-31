@@ -24,139 +24,6 @@ def _clip_participant_name(name: str, maxlen: int = _PARTICIPANT_NAME_MAXLEN) ->
         return name
     return name[: maxlen - 3].rstrip() + "..."
 
-# 서버 시작 시 chatroom 관련 7개 테이블이 없으면 생성한다 (실패해도 무시)
-def init_chatroom_tables():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS chatroom (
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                chatroom_name VARCHAR(255) NOT NULL,
-                message_platform VARCHAR(50),
-                message_count INT,
-                index_time VARCHAR(50),
-                llm_model VARCHAR(100),
-                embed_model VARCHAR(100),
-                llm_calls INT,
-                input_tokens INT,
-                output_tokens INT,
-                embed_calls INT,
-                embed_tokens INT,
-                total_tokens INT,
-                cost_usd DECIMAL(12,6),
-                node_count INT,
-                edge_count INT,
-                PRIMARY KEY (chatroom_id, index_date, user_id),
-                FOREIGN KEY (user_id) REFERENCES `user`(user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS chatroom_people (
-                participant_id VARCHAR(255) NOT NULL,
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                chatroom_people_name VARCHAR(255),
-                message_count INT,
-                description TEXT,
-                PRIMARY KEY (participant_id, chatroom_id, index_date, user_id),
-                FOREIGN KEY (chatroom_id, index_date, user_id)
-                    REFERENCES chatroom(chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS message_block (
-                block_id VARCHAR(255) NOT NULL,
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                block_date DATE,
-                message_count INT,
-                participant_count INT,
-                kg_tone VARCHAR(20),
-                llm_tone VARCHAR(20),
-                participant JSON,
-                PRIMARY KEY (block_id, chatroom_id, index_date, user_id),
-                FOREIGN KEY (chatroom_id, index_date, user_id)
-                    REFERENCES chatroom(chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS participant (
-                participant_name VARCHAR(255) NOT NULL,
-                block_id VARCHAR(255) NOT NULL,
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                sent_message INT,
-                PRIMARY KEY (participant_name, block_id, chatroom_id, index_date, user_id),
-                FOREIGN KEY (block_id, chatroom_id, index_date, user_id)
-                    REFERENCES message_block(block_id, chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS message_keyword (
-                keyword_name VARCHAR(100) NOT NULL,
-                participant_name VARCHAR(255) NOT NULL,
-                block_id VARCHAR(255) NOT NULL,
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                mention_count INT,
-                PRIMARY KEY (keyword_name, participant_name, block_id, chatroom_id, index_date, user_id),
-                FOREIGN KEY (participant_name, block_id, chatroom_id, index_date, user_id)
-                    REFERENCES participant(participant_name, block_id, chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS message_summarize (
-                summarize_unit VARCHAR(20) NOT NULL,
-                summary_period VARCHAR(20) NOT NULL,
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                summarized_context TEXT,
-                contacts JSON,
-                PRIMARY KEY (summarize_unit, summary_period, chatroom_id, index_date, user_id),
-                FOREIGN KEY (chatroom_id, index_date, user_id)
-                    REFERENCES chatroom(chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS chatroom_relationship (
-                chatroom_id CHAR(40) NOT NULL,
-                index_date DATETIME NOT NULL,
-                user_id CHAR(36) NOT NULL,
-                person_a VARCHAR(255) NOT NULL,
-                person_b VARCHAR(255) NOT NULL,
-                relation_label VARCHAR(100),
-                description TEXT,
-                PRIMARY KEY (chatroom_id, index_date, user_id, person_a, person_b),
-                FOREIGN KEY (person_a, chatroom_id, index_date, user_id)
-                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id),
-                FOREIGN KEY (person_b, chatroom_id, index_date, user_id)
-                    REFERENCES chatroom_people(participant_id, chatroom_id, index_date, user_id)
-            ) ENGINE=InnoDB
-        """)
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DB] chatroom 관련 테이블 준비 완료")
-    except Exception as e:
-        print(f"[DB] chatroom 테이블 초기화 실패 (무시): {e}")
-
-
 # chatroom 테이블에서 해당 chatroom_id의 가장 최근 레코드를 dict로 반환한다 (없으면 None)
 def get_latest_chatroom(chatroom_id: str):
     conn = get_db_connection()
@@ -405,7 +272,7 @@ def save_message_block_to_db(paths, update_date=None):
 
 # 참여자별 메시지 수와 LLM 프로필(description)을 chatroom_people 테이블에 저장한다
 def save_chatroom_people_to_db(paths, update_date=None):
-    from util.message_statics import generate_chatroom_people_descriptions
+    from util.message_statics import generate_chatroom_people_descriptions, generate_chatroom_people_short_bios
 
     key = _resolve_chatroom_key(paths.USER_ID, update_date)
     if key is None:
@@ -425,26 +292,34 @@ def save_chatroom_people_to_db(paths, update_date=None):
         print(f"[WARN] 참여자 프로필 생성 실패, description 없이 저장: {e}")
         descriptions = {}
 
+    # description을 입력으로 My Time 툴팁용 한줄소개(short_bio) 2차 생성
+    try:
+        short_bios = generate_chatroom_people_short_bios(descriptions)
+    except Exception as e:
+        print(f"[WARN] 참여자 한줄소개 생성 실패, short_bio 없이 저장: {e}")
+        short_bios = {}
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         insert_sql = """
             INSERT INTO chatroom_people (
                 participant_id, chatroom_id, index_date, user_id,
-                chatroom_people_name, message_count, description
+                chatroom_people_name, message_count, description, short_bio
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 chatroom_people_name = VALUES(chatroom_people_name),
                 message_count        = VALUES(message_count),
-                description          = COALESCE(VALUES(description), description)
+                description          = COALESCE(VALUES(description), description),
+                short_bio            = COALESCE(VALUES(short_bio), short_bio)
         """
         count = 0
         for name, messages in people.items():
             clipped_name = _clip_participant_name(name)
             cursor.execute(insert_sql, (
                 clipped_name, chatroom_id, update_date, user_id,
-                clipped_name, len(messages), descriptions.get(name),
+                clipped_name, len(messages), descriptions.get(name), short_bios.get(name),
             ))
             count += 1
 

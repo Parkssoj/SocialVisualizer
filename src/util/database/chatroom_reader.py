@@ -163,6 +163,41 @@ def get_messenger_date_range(base_dir: str):
         conn.close()
 
 
+# 가장 최근 인덱싱의 메시지 수·소요 시간·날짜를 반환한다 (인덱싱 기록 없으면 0/None)
+def get_chatroom_sync_stats(chatroom_id: str):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT message_count, index_time, index_date
+            FROM chatroom
+            WHERE chatroom_id = %s
+            ORDER BY index_date DESC
+            LIMIT 1
+            """,
+            (chatroom_id,),
+        )
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not row:
+        return {
+            "message_count": 0,
+            "sync_time": None,
+            "sync_update_date": None,
+        }
+
+    index_date = row["index_date"]
+    return {
+        "message_count": row["message_count"],
+        "sync_time": row["index_time"],
+        "sync_update_date": index_date.strftime("%Y-%m-%d") if index_date is not None else None,
+    }
+
+
 # 인덱싱 전 방을 위해 account.json에 저장된 room_name을 읽어 반환한다 (실패 시 None)
 def _room_name_from_account_meta(chatroom_id: str):
     try:
@@ -214,7 +249,7 @@ def get_chatroom_people(chatroom_id: str):
     try:
         cursor.execute(
             """
-            SELECT participant_id, chatroom_people_name AS name, message_count, description
+            SELECT participant_id, chatroom_people_name AS name, message_count, description, short_bio
             FROM chatroom_people
             WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
             ORDER BY message_count DESC
@@ -232,6 +267,7 @@ def get_chatroom_people(chatroom_id: str):
             "name": row["name"],
             "message_count": int(row["message_count"] or 0),
             "description": row["description"],
+            "short_bio": row["short_bio"],
         }
         for row in rows
     ]
@@ -282,6 +318,38 @@ def get_chatroom_people_stats(chatroom_id: str, start_date: str, end_date: str):
     ]
 
 
+# chatroom_relationship 테이블의 실제 저장된 관계만 relation_label별로 집계해 count 내림차순으로 반환한다
+def get_chatroom_relationship_stats(chatroom_id: str):
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT relation_label, COUNT(*) AS count
+            FROM chatroom_relationship
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+            GROUP BY relation_label
+            ORDER BY count DESC
+            """,
+            (chatroom_id, index_date, user_id),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    relationships = [{"relation_label": row["relation_label"], "count": int(row["count"] or 0)} for row in rows]
+    return {
+        "total": sum(r["count"] for r in relationships),
+        "relationships": relationships,
+    }
+
+
 # chatroom_relationship 테이블에서 이 채팅방의 사람-사람 관계 중 양쪽 다 active_names에 속한 것만 반환한다
 def get_chatroom_relationships(paths, active_names: set) -> list:
     latest = get_latest_chatroom(paths.USER_ID)
@@ -303,7 +371,23 @@ def get_chatroom_relationships(paths, active_names: set) -> list:
         cursor.close()
         conn.close()
 
-    return [row for row in rows if row["source"] in active_names and row["target"] in active_names]
+    existing = {
+        (row["source"], row["target"]): row
+        for row in rows
+        if row["source"] in active_names and row["target"] in active_names
+    }
+
+    names = sorted(active_names)
+    result = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            result.append(existing.get((a, b)) or {
+                "source": a,
+                "target": b,
+                "relation_label": "채팅방 참여자",
+                "description": None,
+            })
+    return result
 
 
 # 채팅방 참여자 명단(participant_id 지정 시 그 한 명)의 프로필 설명과 기간 내 메시지 수를 반환한다 (기간 0건도 포함)
@@ -433,6 +517,63 @@ def get_chatroom_keywords_by_person(chatroom_id: str, start_date: str, end_date:
         conn.close()
 
     return [{"word": row["word"], "count": int(row["count"] or 0)} for row in rows]
+
+
+# 채팅방 전체(모든 참여자·전체 기간 합산)의 키워드별 총 언급 수를 count 내림차순으로 반환한다
+def get_chatroom_keyword_stats(chatroom_id: str):
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT keyword_name AS word, SUM(mention_count) AS count
+            FROM message_keyword
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+            GROUP BY keyword_name
+            ORDER BY count DESC
+            """,
+            (chatroom_id, index_date, user_id),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"keywords": [{"word": row["word"], "count": int(row["count"] or 0)} for row in rows]}
+
+
+# 채팅방 전체(모든 참여자 합산)의 월별 메시지 수를 [{month, count}]로 반환한다 (미인덱싱 방이면 None)
+# 단톡방은 발신/수신 구분이 없는 그룹 대화라 "송수신 횟수" = 그 달에 오간 전체 메시지 수로 집계한다.
+def get_chatroom_monthly_message_stats(chatroom_id: str):
+    latest = get_latest_chatroom(chatroom_id)
+    if not latest:
+        return None
+    index_date, user_id = latest["index_date"], latest["user_id"]
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT DATE_FORMAT(block_date, '%Y-%m') AS month, SUM(message_count) AS count
+            FROM message_block
+            WHERE chatroom_id = %s AND index_date = %s AND user_id = %s
+            GROUP BY month
+            ORDER BY month
+            """,
+            (chatroom_id, index_date, user_id),
+        )
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return [{"month": row["month"], "count": int(row["count"] or 0)} for row in rows]
 
 
 # 채팅방 전체(모든 참여자 합산)의 월별 키워드 목록·언급 수를 {월: [{word, count}]}로 반환한다 (미인덱싱 방이면 None)

@@ -81,6 +81,8 @@ from util.database.db_reader import (
     calculate_eis,
     get_person_descriptions,
     get_mail_relationships,
+    get_mail_people,
+    get_mail_summaries,
     get_date_range_person_stats,
     get_person_mail_ids_in_range
 )
@@ -112,23 +114,24 @@ elif RAG_ENGINE == "graphrag":
     )
 from util.database.db_writer import (
     save_query_to_db,
-    init_processed_attachments_table,
-    init_mail_keyword_table,
     filter_unprocessed_attachments,
     mark_attachments_as_processed,
     rebuild_keyword_mail,
 )
-from util.database.chatroom_db_writer import init_chatroom_tables
 from util.database.chatroom_reader import (
     list_indexed_chatrooms,
     get_messenger_date_range,
+    get_chatroom_sync_stats,
     get_chatroom_name,
     get_chatroom_people,
     get_chatroom_people_stats,
     get_chatroom_relationships,
+    get_chatroom_relationship_stats,
     get_chatroom_person_detail,
     get_chatroom_mood,
     get_chatroom_keywords_by_person,
+    get_chatroom_keyword_stats,
+    get_chatroom_monthly_message_stats,
     get_chatroom_keyword_monthly_stats,
     get_chatroom_keyword_daily_stats,
     get_chatroom_keyword_mentioners,
@@ -195,11 +198,6 @@ print("=" * 60)
 # Flask 앱 초기화
 app = Flask(__name__)
 CORS(app)
-
-# 서버 시작 시 테이블 초기화 실행
-init_processed_attachments_table()
-init_mail_keyword_table()
-init_chatroom_tables()
 
 # 한글 출력 시 깨지거나 에러 나는 것 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -1170,6 +1168,20 @@ def send_messenger_chatrooms():
 def send_messenger_date_range():
     return jsonify({"data": get_messenger_date_range(BASE_DIR)})
 
+# 채팅방의 가장 최근 인덱싱 메시지 수·소요 시간·날짜를 반환한다
+@app.route("/chatroom-sync-stats", methods=["POST"])
+def send_chatroom_sync_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": get_chatroom_sync_stats(chatroom_id),
+    })
+
 # chatroom_id로 방 이름을 반환한다
 @app.route("/chatroom-name", methods=["POST"])
 def send_chatroom_name():
@@ -1208,6 +1220,24 @@ def send_chatroom_people():
     return jsonify({
         "chatroom_id": chatroom_id,
         "data": {"people": people},
+    })
+
+# 채팅방에 실제 저장된 사람-사람 관계를 relation_label별 개수·순위로 반환한다
+@app.route("/chatroom-relationship-stats", methods=["POST"])
+def send_chatroom_relationship_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_relationship_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
     })
 
 # 지정 기간에 활동한 참여자들 사이의 사람-사람 관계 목록을 반환한다
@@ -1330,6 +1360,42 @@ def send_chatroom_keywords_by_person():
         "data": {
             "keywords": keywords,
         },
+    })
+
+# 채팅방 전체(모든 참여자·전체 기간 합산)의 키워드별 총 언급 수를 순위(내림차순)로 반환한다
+@app.route("/chatroom-keyword-stats", methods=["POST"])
+def send_chatroom_keyword_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_keyword_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": stats,
+    })
+
+# 채팅방 전체의 월별 메시지 수(송수신 횟수)를 반환한다
+@app.route("/chatroom-monthly-message-stats", methods=["POST"])
+def send_chatroom_monthly_message_stats():
+    data = request.json or {}
+    chatroom_id = data.get("chatroom_id", "").strip()
+
+    if not chatroom_id:
+        return jsonify({"error": "chatroom_id is required"}), 400
+
+    stats = get_chatroom_monthly_message_stats(chatroom_id)
+    if stats is None:
+        return jsonify({"error": "chatroom not found"}), 404
+
+    return jsonify({
+        "chatroom_id": chatroom_id,
+        "data": {"monthly": stats},
     })
 
 # 채팅방 전체(모든 참여자 합산)의 월별 키워드 목록·언급 수를 반환한다
@@ -1481,7 +1547,7 @@ def send_chatroom_day_messages():
         "data": {"messages": messages},
     })
 
-# 채팅방의 월별/연별 LLM 요약을 삽화 URL과 함께 반환한다
+# 채팅방의 월별/연별 LLM 요약을 주요 연락처(설명 포함)와 함께 반환한다
 @app.route("/chatroom-summaries", methods=["POST"])
 def send_chatroom_summaries():
     data = request.json or {}
@@ -1497,21 +1563,18 @@ def send_chatroom_summaries():
     if summaries is None:
         return jsonify({"error": "chatroom not found"}), 404
 
-    # summary_period 기준으로 병합
-    paths = UserPaths(BASE_DIR, chatroom_id, "messenger")
-    image_urls = {}
-    if os.path.exists(paths.MESSAGE_SUMMARIES_PATH):
-        try:
-            with open(paths.MESSAGE_SUMMARIES_PATH, "r", encoding="utf-8") as f:
-                file_summaries = json.load(f)
-            for period, info in file_summaries.get(summarize_unit, {}).items():
-                if info.get("image_url"):
-                    image_urls[period] = info["image_url"]
-        except (OSError, json.JSONDecodeError):
-            pass
+    people = get_chatroom_people(chatroom_id) or []
+    people_map = {p["participant_id"]: p for p in people}
 
     for s in summaries:
-        s["image_url"] = image_urls.get(s["summary_period"])
+        s["contacts"] = [
+            {
+                "participant_id": name,
+                "description": people_map.get(name, {}).get("description"),
+                "short_bio":    people_map.get(name, {}).get("short_bio"),
+            }
+            for name in s["contacts"]
+        ]
 
     return jsonify({
         "chatroom_id":    chatroom_id,
@@ -1737,11 +1800,25 @@ def send_mail_relationships():
         return jsonify({"error": "user_id is required"}), 400
     return jsonify({"user_id": user_id, "data": get_mail_relationships(user_id)})
 
-# 메일 기간 요약(monthly/yearly)을 mail_summaries.json에서 읽어 반환한다
+# 최신 인덱싱 기준 연락처 전체 목록(메일수·description·relation_label·short_bio 포함)을 반환한다
+@app.route("/mail-people", methods=["POST"])
+def send_mail_people():
+    data = request.json or {}
+    user_id = data.get("user_id", "").strip()
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    people = get_mail_people(user_id)
+    if people is None:
+        return jsonify({"error": "mail account not found"}), 404
+
+    return jsonify({"user_id": user_id, "data": {"people": people}})
+
+# 메일 기간 요약(monthly/yearly)을 주요 연락처(설명 포함)와 함께 반환한다
 @app.route("/mail-summaries", methods=["POST"])
 def send_mail_summaries():
     data = request.json or {}
-    user_id     = data.get("user_id", "").strip()
+    user_id      = data.get("user_id", "").strip()
     summary_type = data.get("type", "").strip()
 
     if not user_id:
@@ -1749,14 +1826,17 @@ def send_mail_summaries():
     if summary_type not in ("monthly", "yearly"):
         return jsonify({"error": "type must be 'monthly' or 'yearly'"}), 400
 
-    paths = UserPaths(BASE_DIR, user_id, "mail")
-    if not os.path.exists(paths.MAIL_SUMMARIES_PATH):
-        return jsonify({"error": "summaries not generated yet"}), 404
+    summaries = get_mail_summaries(user_id, summary_type)
+    if summaries is None:
+        return jsonify({"error": "mail account not found"}), 404
 
-    with open(paths.MAIL_SUMMARIES_PATH, "r", encoding="utf-8") as f:
-        summaries = json.load(f)
-
-    return jsonify({summary_type: summaries.get(summary_type, {})})
+    return jsonify({
+        "user_id": user_id,
+        "type": summary_type,
+        "data": {
+            "summaries": summaries,
+        },
+    })
 
 # 연락처 관련 프록시 액션(자주 연락하는 상대 조회 등)을 처리한다
 @app.route('/contacts-proxy', methods=['POST'])

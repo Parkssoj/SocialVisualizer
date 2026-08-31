@@ -337,5 +337,9 @@ def recompute_all_message_moods(paths):
         conn.close()
 
     for chatroom_id in chatroom_ids:
+        if chatroom_id != paths.USER_ID:
+            room_dir = os.path.join(BASE_DIR, "user_data", "messenger", chatroom_id)
+            if not os.path.isdir(room_dir):
+                continue
         room_paths = paths if chatroom_id == paths.USER_ID else UserPaths(BASE_DIR, chatroom_id, "messenger")
         generate_message_mood(room_paths)

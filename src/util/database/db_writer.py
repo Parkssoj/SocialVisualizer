@@ -107,13 +107,20 @@ def save_person_stats_to_db(paths, update_date=None):
             stats = json.load(f)
 
         # parquet → LLM 프로필 생성 (실패해도 기본 통계 저장은 계속)
-        from util.extract_statics import generate_person_descriptions
+        from util.extract_statics import generate_person_descriptions, generate_person_short_bios
         try:
             descriptions_raw = generate_person_descriptions(paths)
             descriptions = {k.lower(): v for k, v in descriptions_raw.items()}
         except Exception as e:
             print(f"[WARN] 프로필 생성 실패, description 없이 저장: {e}")
             descriptions = {}
+
+        # description(+relation_label)을 입력으로 My Time 툴팁용 한줄소개(short_bio) 2차 생성
+        try:
+            short_bios = generate_person_short_bios(descriptions)
+        except Exception as e:
+            print(f"[WARN] 한줄소개 생성 실패, short_bio 없이 저장: {e}")
+            short_bios = {}
 
         insert_sql = """
             INSERT INTO person (
@@ -125,16 +132,18 @@ def save_person_stats_to_db(paths, update_date=None):
                 send_mails,
                 friendly_mails,
                 description,
-                relation_label
+                relation_label,
+                short_bio
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 person_name    = VALUES(person_name),
                 receive_mails  = VALUES(receive_mails),
                 send_mails     = VALUES(send_mails),
                 friendly_mails = VALUES(friendly_mails),
                 description    = COALESCE(VALUES(description), description),
-                relation_label = COALESCE(VALUES(relation_label), relation_label)
+                relation_label = COALESCE(VALUES(relation_label), relation_label),
+                short_bio      = COALESCE(VALUES(short_bio), short_bio)
         """
 
         inserted_count = 0
@@ -157,6 +166,7 @@ def save_person_stats_to_db(paths, update_date=None):
                     int(info.get("friendly_mail", 0)),
                     profile.get("description"),
                     profile.get("relation_label"),
+                    short_bios.get(email),
                 )
             )
             inserted_count += 1
@@ -557,60 +567,6 @@ def rebuild_keyword_mail(paths, update_date=None):
 
     # DB에 저장
     save_keyword_stats_to_db(paths, update_date)
-
-
-# 서버 시작 시 mail_keyword 테이블이 없으면 생성한다 (실패해도 무시)
-def init_mail_keyword_table():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS mail_keyword (
-                keyword_name            VARCHAR(100) NOT NULL,
-                user_mail_account_id    VARCHAR(255) NOT NULL,
-                index_date              DATETIME     NOT NULL,
-                person_mail_account_id  VARCHAR(255) NOT NULL,
-                mail_date               DATETIME     NOT NULL,
-                daily_count             INT          NOT NULL DEFAULT 0,
-                PRIMARY KEY (
-                    user_mail_account_id, index_date, person_mail_account_id,
-                    keyword_name, mail_date
-                ),
-                FOREIGN KEY (user_mail_account_id, index_date, person_mail_account_id)
-                    REFERENCES person(user_mail_account_id, index_date, person_mail_account_id)
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DB] mail_keyword 테이블 준비 완료")
-    except Exception as e:
-        print(f"[DB] mail_keyword 테이블 초기화 실패 (무시): {e}")
-
-
-# 서버 시작 시 processed_attachments 테이블이 없으면 생성한다 (실패해도 무시)
-def init_processed_attachments_table():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS processed_attachments (
-                id                    INT AUTO_INCREMENT PRIMARY KEY,
-                user_mail_account_id  VARCHAR(255) NOT NULL,
-                index_date            DATETIME     NOT NULL,
-                mail_id               VARCHAR(255) NOT NULL,
-                filename              VARCHAR(255) NOT NULL,
-                processed_at          DATETIME     NOT NULL,
-                UNIQUE KEY uq_att (user_mail_account_id, index_date, mail_id, filename),
-                FOREIGN KEY (user_mail_account_id, index_date) REFERENCES mail_account(user_mail_account_id, index_date)
-            )
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DB] processed_attachments 테이블 준비 완료")
-    except Exception as e:
-        print(f"[DB] processed_attachments 테이블 초기화 실패 (무시): {e}")
 
 
 # processed_attachments 테이블과 대조해 아직 처리되지 않은 첨부파일만 걸러 반환한다

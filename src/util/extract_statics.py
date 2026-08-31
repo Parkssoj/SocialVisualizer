@@ -31,7 +31,7 @@ def start_timer():
 
 # 타이머를 종료해 시작/종료 시각과 경과 초를 담은 dict를 반환한다
 def end_timer(timer):
-    ended_at = datetime.now()
+    ended_at = datetime.now().replace(microsecond=0)
     elapsed_sec = time.perf_counter() - timer["start_perf"]
 
     return {
@@ -517,6 +517,62 @@ def generate_person_descriptions(paths) -> dict:
 
     print(f"[PROFILES] 총 {len(descriptions)}명 프로필 생성 완료")
     return descriptions
+
+
+# generate_person_descriptions() 결과({이메일: {description, relation_label}})를 2차 LLM 호출로 한 문장 소개(short_bio)로 압축해 {이메일: 문장}으로 반환한다
+def generate_person_short_bios(descriptions: dict) -> dict:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    targets = [
+        (email, info.get("description") or "", info.get("relation_label") or "지인")
+        for email, info in descriptions.items()
+        if info.get("description")
+    ]
+    if not targets:
+        return {}
+
+    # 완성된 description + relation_label로 한 문장 소개 프롬프트를 만든다
+    def _build_prompt(description, relation_label):
+        return f"""다음은 이미 생성된 인물 설명입니다.
+
+관계 카테고리: {relation_label}
+설명:
+{description}
+
+위 내용을 바탕으로, 이 사람을 다른 사람에게 소개하듯 자연스러운 한국어 한 문장으로 요약하세요.
+- 문장은 반드시 "~입니다."로 끝나야 합니다.
+- 성격이나 관계의 특징이 드러나는 짧은 소개 문장으로 쓰세요.
+- 예시: "꼼꼼하고 계획적인 성격의 친구입니다.", "함께 프로젝트를 진행하는 믿음직한 동료입니다."
+- 다른 설명, 따옴표, 접두어 없이 문장 하나만 출력하세요.""".strip()
+
+    def _call_llm(email, description, relation_label):
+        try:
+            result = client.chat.completions.create(
+                model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다."
+                    },
+                    {"role": "user", "content": _build_prompt(description, relation_label)}
+                ],
+                temperature=0.3
+            )
+            return email, result.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[SHORT_BIO] LLM 호출 실패 ({email}): {e}")
+            return email, None
+
+    short_bios: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:
+        futures = {executor.submit(_call_llm, email, desc, rel): email for email, desc, rel in targets}
+        for future in as_completed(futures):
+            email, bio = future.result()
+            if bio:
+                short_bios[email] = bio
+
+    print(f"[SHORT_BIO] 총 {len(short_bios)}명 한줄소개 생성 완료")
+    return short_bios
 
 
 # (함수, 인자) 목록을 각각 스레드로 병렬 실행하고 모두 끝날 때까지 기다린다 (에러가 나면 첫 에러를 재발생)
