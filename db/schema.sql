@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS `person` (
     `friendly_mails`            INT             NULL,
     `description`               TEXT            NULL,       -- LLM 생성 프로필
     `relation_label`            VARCHAR(20)     NULL,       -- 가족/연인/친구/동료/사제/지인/기업 등
+    `short_bio`                 TEXT            NULL,
     CONSTRAINT `PK_PERSON` PRIMARY KEY (
         `user_mail_account_id`, `index_date`, `person_mail_account_id`
     ),
@@ -264,6 +265,7 @@ CREATE TABLE IF NOT EXISTS `chatroom_people` (
     `chatroom_people_name`  VARCHAR(255)    NULL,
     `message_count`         INT             NULL,
     `description`           TEXT            NULL,
+    `short_bio`             TEXT            NULL,
     PRIMARY KEY (`participant_id`, `chatroom_id`, `index_date`, `user_id`),
     FOREIGN KEY (`chatroom_id`, `index_date`, `user_id`)
         REFERENCES `chatroom` (`chatroom_id`, `index_date`, `user_id`)
