@@ -6,14 +6,20 @@ import { fmtSyncTime, fmtSyncDate } from "../../features/recapStats.js";
 
 "Sync status" card — animates the synced mail count counting up from 0. Since it's a continuous 60fps text update, the DOM node is updated directly via a ref instead of re-rendering (same requestAnimationFrame easing as the original).
  */
-export default function SyncStatsCard({ state }) {
+export default function SyncStatsCard({
+  state,
+  title = "메일 동기화 현황",
+  countField = "mail_count",
+  countLabel = "동기화된 메일",
+  countUnit = "통",
+}) {
   const { status, data, error } = state;
   const countRef = useRef(null);
 
   useEffect(() => {
     if (status !== "done" || !data || !countRef.current) return;
     const el = countRef.current;
-    const target = data.mail_count || 0;
+    const target = data[countField] || 0;
     const duration = 900;
     const start = performance.now();
     let raf;
@@ -25,13 +31,13 @@ export default function SyncStatsCard({ state }) {
     }
     raf = requestAnimationFrame(tick);
     const finalTimer = setTimeout(() => {
-      el.textContent = target.toLocaleString() + "통";
+      el.textContent = target.toLocaleString() + countUnit;
     }, 940);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(finalTimer);
     };
-  }, [status, data]);
+  }, [status, data, countField, countUnit]);
 
   return (
     <div className="rc-grid2">
@@ -41,7 +47,7 @@ export default function SyncStatsCard({ state }) {
             <div className="rc-card-title-icon" style={{ background: "#eff6ff" }}>
               🔄
             </div>
-            메일 동기화 현황
+            {title}
           </div>
         </div>
 
@@ -60,7 +66,7 @@ export default function SyncStatsCard({ state }) {
               <div className="rc-sync-tile-num" ref={countRef}>
                 —
               </div>
-              <div className="rc-sync-tile-label">동기화된 메일</div>
+              <div className="rc-sync-tile-label">{countLabel}</div>
             </div>
             <div className="rc-sync-tile rc-sync-tile--violet">
               <div className="rc-sync-tile-icon">⏱</div>
