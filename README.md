@@ -196,3 +196,8 @@ Social Visualizer는 기존 소셜 서비스의 검색 기능이나 대화형 LL
 - Qwen: https://github.com/QwenLM
 - BAAI FlagEmbedding (BGE-M3): https://github.com/FlagOpen/FlagEmbedding
 - Black Forest Labs FLUX: https://github.com/black-forest-labs/flux
+
+---
+
+## 🤝 참여자
+[![Contributors](https://contrib.rocks/image?repo=s0-yeon/SocialVisualizer)](https://github.com/s0-yeon/SocialVisualizer/graphs/contributors)
