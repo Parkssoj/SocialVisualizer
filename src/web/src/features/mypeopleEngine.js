@@ -1744,7 +1744,8 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   listview.style.paddingLeft = "18px";
   listview.style.borderLeft = "1px solid rgba(28,28,30,0.1)";
 
-  if (!person || !person.email) {
+  const emails = personEmails(person);
+  if (!emails.length) {
     currentMailDayList = [];
     renderMailDayList([]);
     return;
@@ -1754,17 +1755,24 @@ async function openEmailDrawer(month, sentCount, recvCount) {
 
   try {
     // 이 세션에서 만든 "달 클릭 → 일별 목록 → 날짜 클릭 → 그날 메일" 드릴다운 흐름(renderMailDayList/openMailDayChat)을 그대로 유지한다.
-    const res = await fetch("/mail-person-daily-stats", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: gmailId,
-        person_user_id: person.email,
-        month,
-      }),
-    });
+    // 브랜드 통합 카드(예: Pinterest 여러 주소)는 상단 "총 N건" 집계(refreshDetailStats)가
+    // personEmails(person)의 모든 주소를 합산해서 보여주는데, 여기는 person.email 하나만
+    // 조회해서 다른 주소로 온 메일이 빠지는 바람에 "총 5건"인데 "이 달엔 메일이 없어요"로
+    // 어긋나 보이는 문제가 있었다 — mergeExchangeStats와 같은 패턴으로 주소별로 다 조회해서 합산한다.
+    const results = await Promise.all(
+      emails.map((email) =>
+        fetch("/mail-person-daily-stats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: gmailId, person_user_id: email, month }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((j) => (j ? j.data : null))
+          .catch(() => null)
+      )
+    );
     if (activeDrawerMonth !== month) return;
-    const days = res.ok ? (await res.json()).data.days || [] : [];
+    const days = mergeDailyStats(results);
     days.sort((a, b) => b.date.localeCompare(a.date));
     currentMailDayList = days;
     renderMailDayList(days);
@@ -1787,7 +1795,8 @@ async function openMailDayChat(date) {
   listEl.innerHTML =
     '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
 
-  if (!person || !person.email) {
+  const personAddrs = personEmails(person);
+  if (!personAddrs.length) {
     currentMailDayEmails = [];
     renderMailDayEmailList([]);
     return;
@@ -1795,17 +1804,8 @@ async function openMailDayChat(date) {
 
   const gmailId = await getCurrentMailId();
   try {
-    const res = await fetch("/mail-day-emails", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: gmailId,
-        person_user_id: person.email,
-        date,
-      }),
-    });
+    const emails = await fetchMergedDayEmails(personAddrs, gmailId, date);
     if (currentMailDrawerDate !== date) return;
-    const emails = res.ok ? (await res.json()).data.emails || [] : [];
     currentMailDayEmails = emails;
     renderMailDayEmailList(emails);
   } catch (e) {
@@ -1815,6 +1815,24 @@ async function openMailDayChat(date) {
       renderMailDayEmailList([]);
     }
   }
+}
+
+// 통합 카드의 여러 주소를 다 조회해서 그날 메일을 합친 뒤 시간순으로 정렬해 반환
+// (openMailDayChat과, 초기 진입 시 "본문 있는 가장 최근 메일" 자동 탐색이 공유해서 쓴다).
+async function fetchMergedDayEmails(personAddrs, gmailId, date) {
+  const results = await Promise.all(
+    personAddrs.map((email) =>
+      fetch("/mail-day-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: gmailId, person_user_id: email, date }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((j) => (j ? j.data.emails || [] : []))
+        .catch(() => [])
+    )
+  );
+  return results.flat().sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // 특정 날짜의 메일 목록(보낸/받은 태그 포함)을 렌더링
@@ -2046,6 +2064,23 @@ export function switchDetailTab(tab) {
 }
 window.switchDetailTab = switchDetailTab;
 window.closeEmailDrawer = closeEmailDrawer;
+
+/* 여러 사람(주소)의 {days:[{date, sent, received, count}]}를 날짜 단위로 합산
+   (브랜드 통합 카드 = 여러 주소 대상) — mergeExchangeStats와 같은 패턴. */
+function mergeDailyStats(list) {
+  const byDate = new Map();
+  list.forEach((r) => {
+    if (!r) return;
+    (r.days || []).forEach((d) => {
+      const cur = byDate.get(d.date) || { date: d.date, sent: 0, received: 0, count: 0 };
+      cur.sent += d.sent || 0;
+      cur.received += d.received || 0;
+      cur.count += d.count || 0;
+      byDate.set(d.date, cur);
+    });
+  });
+  return [...byDate.values()];
+}
 
 /* 여러 달의 {month, sent, received}를 월 단위로 합산 (브랜드 통합 카드 = 여러 주소 대상) */
 function mergeExchangeStats(list) {

@@ -1,23 +1,49 @@
-/* 
- mytime.html 전용 스타일(기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외).
- 
- Styles for mytime.html (migrated from inline <style>, excluding shared header/sidebar rules).
-*/
-
+// mytime.html 전용 스타일 (기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외)
+// My People(.mp-page)과 같은 방식 — body/html을 hidden으로 막고 .right_col과
+// .mt-page를 position:fixed로 화면에 고정한 뒤 flex column으로 쌓아서, 전체
+// 페이지 스크롤 없이 안쪽 패널(.mt-panel/.mt-kw-body)만 스크롤되게 한다.
+// (예전엔 .mt-page가 width:88vw처럼 뷰포트 기준 폭을 썼는데, 사이드바가 있는
+// 페이지에서는 실제 콘텐츠 영역(.right_col)이 사이드바 폭만큼 좁아져서 오른쪽이
+// 화면 밖으로 잘렸다 — 지금은 --gw-sidebar-w를 좌측 패딩에 더해 해결.)
+body,
+html {
+  overflow: hidden;
+}
 .right_col {
+  position: fixed !important;
+  top: 74px !important; // 공용 헤더 바로 아래(My People과 동일)
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   background: #ffffff;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
 footer {
   display: none !important;
 }
-
+.right_col > div:first-child {
+  padding-top: 0;
+}
 /* ── 페이지 ── */
 .mt-page {
-  width: 88vw;
-  max-width: 1700px;
-  margin: 0 auto;
-  padding: 12px clamp(20px, 3vw, 56px) 32px;
+  position: fixed !important;
+  top: 74px !important; // My People(.mp-page)과 정확히 같은 위치
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: auto;
+  max-width: none;
+  margin: 0 !important;
+  // position:fixed라서 부모(.right_col)의 margin-left는 안 먹는다 — My People과
+  // 마찬가지로 좌측 패딩에 직접 --gw-sidebar-w를 더해서 사이드바 폭만큼 밀어냄.
+  padding: 0 clamp(20px, 3vw, 56px) 24px calc(clamp(20px, 3vw, 56px) + var(--gw-sidebar-w, 0px)) !important;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 페이지 상단 헤더: My Time 로고(+메일/메신저 버튼) + 월별/연별 토글 (좌우 컬럼 밖, 전체 폭) */
@@ -25,7 +51,9 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  flex-shrink: 0;
+  padding-top: 12px;
+  margin-bottom: 14px;
 }
 /* 제목 + 메일/메신저 버튼 그룹 */
 .mt-title-group {
@@ -60,6 +88,17 @@ footer {
 }
 .mt-title span {
   color: #f97316;
+}
+/* My People에서 제목 옆에 사람 명수를 보여주는 .mp-count와 동일한 뱃지 —
+   여기서는 "2020.11 ~ 2026.08 데이터" 같은 전체 기간 문구를 보여준다. */
+.mt-count {
+  font-size: clamp(0.6rem, 1.2vw, 0.72rem);
+  color: #fb923c;
+  font-weight: 700;
+  background: rgba(251, 146, 60, 0.12);
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
 }
 .mt-mode-toggle {
   display: flex;
@@ -130,127 +169,21 @@ footer {
   box-shadow: 0 2px 8px rgba(251, 146, 60, 0.4);
 }
 
-/* 좌(아바타 4) : 우(요약 6) 레이아웃, 두 컬럼 stretch로 높이 정렬 */
-.mt-layout {
-  display: grid;
-  grid-template-columns: 4fr 6fr;
-  gap: clamp(16px, 2.4vw, 32px);
-  align-items: stretch;
-}
-.mt-col-main {
-  min-width: 0;
-}
-@media (max-width: 860px) {
-  .mt-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── 좌측: 나 아바타 ── */
-.mt-side {
-  background: #fffefc;
-  border-radius: 16px;
-  border: none;
-  box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
-  padding: 28px 22px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  height: 100%; /* .mt-main과 같은 높이로 고정, grid stretch로 오른쪽과 아래 라인 일치 */
-  box-sizing: border-box;
-}
-.mt-side-avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.18);
-  outline: 3px solid #e0e0e0;
-  margin-bottom: 10px;
-}
-.mt-side-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.mt-side-avatar-fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(150deg, #e0e0e0, #4a4a4a);
-  color: #302522;
-  font-size: 1rem;
-  font-weight: 800;
-}
-/* 아바타 밑 "My" 라벨 */
-.mt-side-my-label {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #f97316;
-  letter-spacing: -0.01em;
-  margin-bottom: 22px;
-}
-
-/* 4:3 이미지 슬롯 (placeholder, 나중에 #mtSideImageSlot 안에 img 삽입) */
-/* 바깥 슬롯: 남은 공간만큼 유동적으로 채움 (.mt-side 높이를 넘지 않음) */
-.mt-side-image-slot {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-/* 안쪽 박스: 4:3 비율 고정, 바깥 슬롯 안에서 남는 공간은 여백으로 남음(레터박스) */
-.mt-side-image-box {
-  height: 100%;
-  max-width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #fff;
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 3px 14px rgba(48, 37, 34, 0.12);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: #4a4a4a;
-  font-size: 1.6rem;
-  padding: 16px;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-.mt-side-image-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* 이미지 비율 유지, 남는 부분은 여백 */
-  display: block;
-}
-.mt-side-image-box span {
-  font-size: 1rem;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-/* ── 메인 카드 ── */
+/* ── 메인 카드(요약) ── */
 .mt-main {
   background: #fffefc;
   border-radius: 16px;
   border: none;
   box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
-  padding: 36px 52px 32px;
-  margin-bottom: 12px;
+  // 오른쪽 키워드 창(.mt-kw-panel)과 패딩을 맞춰서 두 창이 같은 "박스" 크기로 보이게 함.
+  padding: clamp(20px, 2.6vw, 34px) clamp(20px, 3vw, 40px) clamp(18px, 2.4vw, 30px);
   display: flex;
   flex-direction: column;
-  height: clamp(320px, 58vh, 600px); /* 화면 높이에 따라 반응형으로 조절 */
+  // .mt-page ~ .mt-two-col이 전부 flex:1로 남는 높이를 정확히 계산해 내려주므로,
+  // 여기는 그 높이를 그대로 받기만 하면 된다 — 화면이 작아도 안 잘리고, 넘치는
+  // 부분은 안쪽 .mt-panel이 스크롤로 담당한다.
+  min-height: 0;
+  flex: 1;
 }
 
 /* 타임라인 트랙 */
@@ -303,18 +236,19 @@ footer {
   box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.28);
   transform: scale(1.3);
 }
-/* 클릭으로 고정된 노드 */
+/* 클릭으로 고정된(선택된) 노드 — 월별 타임슬라이더에서 지금 선택된 달임을
+   한눈에 알 수 있도록 주황색으로 튀게 강조 */
 .mt-node-col.pinned .mt-dot {
-  background: #302522;
-  box-shadow: 0 0 0 6px rgba(48, 37, 34, 0.22);
+  background: #f97316;
+  box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.28);
   transform: scale(1.4);
 }
 .mt-node-col.pinned .mt-node-label {
-  color: #302522;
+  color: #f97316;
   font-weight: 800;
 }
 .mt-node-col.pinned .mt-node-count {
-  color: #302522;
+  color: #f97316;
 }
 
 /* 기간 레이블 */
@@ -391,7 +325,7 @@ footer {
 .mt-panel-period {
   font-size: 1rem;
   font-weight: 800;
-  color: #f97316;
+  color: #302522;
   letter-spacing: 0.04em;
 }
 .mt-panel-count {
@@ -405,7 +339,10 @@ footer {
   font-weight: 700;
 }
 .mt-panel-summary {
-  font-size: 1rem;
+  // 주요 연락처 카드 글씨(1rem, 600)만큼 눈에 띄도록 더 키움 — 예전엔 숫자상
+  // 크기는 같았지만(1rem) 얇은 두께라 훨씬 작아 보였음.
+  font-size: 1.12rem;
+  font-weight: 500;
   color: #302522;
   line-height: 1.75;
   margin-bottom: 14px;
@@ -413,41 +350,60 @@ footer {
 .mt-panel-contacts-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #4a4a4a;
+  color: #302522;
   letter-spacing: 1.2px;
   text-transform: uppercase;
+  /* 요약 문단과 살짝 더 떨어지도록(아주 살짝) */
+  margin-top: 4px;
   margin-bottom: 7px;
 }
 .mt-panel-contacts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
+/* 네모난 연락처 카드 — 예전엔 알약 모양(radius 20px)의 작은 태그라 눈에 잘
+   안 띄었음. 카드형으로 바꾸고, 마우스를 올리면 그 사람 설명을 툴팁으로 보여준다
+   (mytime.js의 contactLookup + showTooltip). */
 .mt-panel-contact {
   font-size: 1rem;
   color: #302522;
-  background: #e0e0e0;
-  border-radius: 20px;
-  padding: 3px 11px;
-  font-weight: 500;
+  background: #fff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: default;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.mt-panel-contact:hover {
+  background: #fdd9b8;
+  border-color: #fdba74;
+  color: #7a3a0a;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.2);
+  transform: translateY(-1px);
 }
 
-/* ── 포인터 라인 ── */
-/* .mt-layout 밖, 페이지 전체 폭으로 표시되는 타임라인 포인터 */
+/* ── 포인터 라인(전체 타임라인 슬라이더) ──
+   두 창 위에 두고, 그만큼 박스 크기(패딩)도 줄여서 덜 무거워 보이게 함. */
 .mt-pointer-wrap {
   background: #fffefc;
   border-radius: 12px;
   border: none;
   box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
-  padding: 20px 52px 16px;
-  margin-top: 16px;
+  padding: clamp(12px, 1.5vw, 16px) clamp(20px, 3vw, 40px) clamp(10px, 1.3vw, 14px);
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
-/* 날짜 표시 행 — My People .mp-tl-dates와 동일한 구조/스타일 */
+/* 날짜 범위 표시 — 트랙 위 가운데 한 줄 */
 .mt-pointer-dates {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; // 자식이 "선택된 연도는 ..." 라벨 하나뿐이라 가운데 정렬
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 /* My People .mp-tl-date-label과 동일 */
 .mt-pointer-date-label {
@@ -459,18 +415,9 @@ footer {
   border-radius: 20px;
   letter-spacing: 0.02em;
 }
-.mt-pointer-label {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #000;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  flex: 1;
-  text-align: center;
-}
 .mt-pointer-track {
   position: relative;
-  height: 30px;
+  height: 26px;
   cursor: pointer;
   user-select: none;
 }
@@ -484,16 +431,10 @@ footer {
   transform: translateY(-50%);
 }
 .mt-pointer-window {
-  position: absolute;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: rgba(249, 115, 22, 0.52);
-  border-radius: 2px;
-  pointer-events: none;
-  transition:
-    left 0.2s,
-    width 0.2s;
+  /* 타임슬라이더에서 동그라미 커서 말고는 아무것도 움직이거나 색이 바뀌지
+     않아야 함 — 트랙(.mt-pointer-bg)은 항상 같은 회색 한 줄로 고정되고,
+     움직이는 건 .mt-pointer-cursor(동그라미)뿐이다. */
+  display: none;
 }
 /* 타임라인 위를 이동하는 "나" 아바타 커서 */
 .mt-pointer-cursor {
@@ -613,9 +554,16 @@ footer {
   white-space: nowrap;
 }
 
-/* ── 메일/메신저 뷰 전환 ── */
+/* ── 메일/메신저 뷰 전환 ──
+   두 뷰(메일/메신저)는 mytime.js가 inline style.display로 하나만 보여준다.
+   보이는 쪽이 .mt-page의 남는 세로 공간(flex:1)을 전부 차지하고, 그 공간을
+   다시 .mt-pointer-wrap(고정 높이) + .mt-two-col(나머지 전부)로 나눠준다. */
 .mt-view {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 /* My People .mp-panel과 동일한 카드 스타일(배경/테두리/모서리) */
 .mt-card {
@@ -638,34 +586,57 @@ footer {
   font-size: 1rem;
 }
 
-/* 좌(요약) / 우(월별 키워드) 두 창 */
+/* ── 왼쪽(요약) / 오른쪽(월별 키워드) 두 창 ── */
 .mt-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(16px, 2.4vw, 32px);
-  align-items: start;
+  align-items: stretch;
+  // .mt-view가 flex:1로 확보한 남는 세로 공간을 이 그리드가 그대로 이어받아서
+  // .mt-main / .mt-kw-panel의 실제 높이를 정해준다 — 이게 있어야 안쪽의
+  // .mt-panel(absolute+inset:0), .mt-kw-body(overflow-y:auto)가 스크롤할
+  // 기준 높이를 가진다.
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 820px) {
+  // 좁은 화면에서는 두 창이 세로로 쌓이는데, grid는 auto 행 높이라 flex:1인
+  // 카드 내용이 찌그러질 수 있음 — 그리드 대신 세로 flex로 바꾸고, 이 영역
+  // 자체가 하나의 내부 스크롤 컨테이너가 되게 해서 "전체 페이지 스크롤 없이
+  // 창 스크롤로만" 조건을 좁은 화면에서도 그대로 지킨다.
+  .mt-two-col {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    overflow-y: auto;
+  }
+  .mt-main,
+  .mt-kw-panel {
+    flex: 0 0 auto;
+    min-height: 340px;
+  }
 }
 .mt-col-main {
   min-width: 0;
-}
-@media (max-width: 860px) {
-  .mt-two-col { grid-template-columns: 1fr; }
-  .mt-kw-panel { height: auto; }
-}
-
-/* 오른쪽 창: 월별 키워드 */
-.mt-kw-panel {
-  min-width: 0;
-  box-sizing: border-box;
-  background: #fffefc;
-  border-radius: 16px;
-  border: none;
-  box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* .mt-main과 동일한 그림자 */
-  padding: 36px 52px 32px;
-  margin-bottom: 12px;
+  min-height: 0;
+  // .mt-two-col의 align-items: stretch는 grid item인 .mt-col-main 자체를 행
+  // 높이만큼 늘려줄 뿐, 그 안의 실제 카드(.mt-main)는 평범한 자식 div라 자동으로
+  // 같이 안 늘어난다 — display: flex + .mt-main에 flex: 1을 줘서 항상 꽉 채운다.
   display: flex;
   flex-direction: column;
-  height: clamp(320px, 58vh, 600px); /* .mt-main과 같은 높이로 맞춤 */
+}
+
+/* ══════════════════════ 오른쪽 창: 월별 키워드 ══════════════════════ */
+.mt-kw-panel {
+  padding: clamp(20px, 2.8vw, 36px) clamp(22px, 3vw, 40px) clamp(18px, 2.6vw, 32px);
+  display: flex;
+  flex-direction: column;
+  // .mt-main과 마찬가지로 부모(.mt-two-col)가 stretch로 내려주는 높이를
+  // flex:1로 그대로 받는다 — 창이 잘리지 않으면서도 왼쪽 창과 항상 같은
+  // 높이를 유지.
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
 }
 .mt-kw-header {
   display: flex;
@@ -681,17 +652,21 @@ footer {
   letter-spacing: -0.02em;
 }
 .mt-kw-back-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
   background: #fff;
-  border: 1px solid #e3ddd6;
+  border: 1.5px solid #e0e0e0;
   border-radius: 20px;
-  font-size: 0.9rem;
-  color: rgba(48, 37, 34, 0.7);
+  padding: 7px 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #302522;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 .mt-kw-back-btn:hover {
   background: #f3f0ec;
@@ -716,85 +691,102 @@ footer {
 .mt-kw-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
+  gap: 14px;
   cursor: pointer;
+  padding: 9px 10px;
+  border-radius: 10px;
   transition: background 0.15s;
 }
 .mt-kw-row:hover {
-  background: #f7f4ef;
+  background: #fff6ef;
 }
 .mt-kw-row-word {
+  width: clamp(76px, 12vw, 132px);
+  flex-shrink: 0;
   font-size: 1rem;
   font-weight: 700;
   color: #302522;
-  flex: 0 0 auto;
-  min-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mt-kw-row-track {
   flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: #efe9e0;
+  height: 14px;
+  background: #f3f0ec;
+  border-radius: 7px;
   overflow: hidden;
 }
 .mt-kw-row-fill {
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #f0b866, #e08a3c);
+  border-radius: 7px;
+  width: 0%;
+  background: linear-gradient(90deg, #fdba74, #f97316);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .mt-kw-row-count {
-  flex: 0 0 auto;
-  font-size: 0.88rem;
-  color: rgba(48, 37, 34, 0.55);
-  min-width: 32px;
+  width: 54px;
+  flex-shrink: 0;
   text-align: right;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(48, 37, 34, 0.6);
 }
 
-/* 키워드 하나를 눌렀을 때 나오는 일별 막대그래프 드릴다운 */
-.mt-kw-daily-box {
+/* 키워드 하나를 눌렀을 때 나오는 일별 막대그래프 드릴다운 — 제목+막대그래프+
+   날짜줄을 하나의 박스로 감싸서 시각적으로 분리함. */
+.mt-kw-body > .mt-kw-daily-box {
   box-sizing: border-box;
   background: #fff;
   border: 1.5px solid #e0e0e0;
   border-radius: 14px;
   padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 .mt-kw-daily-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 800;
   color: #302522;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 /* 이 색감의 막대그래프가 지금 이 키워드를 나타낸다는 걸 알려주는 스와치 */
 .mt-kw-daily-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  margin-right: 8px;
+  flex-shrink: 0;
   background: linear-gradient(180deg, #fdba74, #f97316);
   box-shadow: 0 1px 4px rgba(249, 115, 22, 0.4);
-  flex: 0 0 auto;
 }
-.mt-kw-daily-y-title,
-.mt-kw-daily-x-title {
-  font-size: 0.82rem;
+// Y축/X축이 각각 뭘 나타내는지 표시.
+.mt-kw-daily-y-title {
+  font-size: 0.78rem;
+  font-weight: 700;
   color: rgba(48, 37, 34, 0.5);
+  margin-bottom: 4px;
+}
+.mt-kw-daily-x-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(48, 37, 34, 0.5);
+  text-align: center;
+  margin-top: 8px;
 }
 .mt-kw-daily-empty {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: rgba(48, 37, 34, 0.5);
-  padding: 24px 0;
   text-align: center;
+  padding: 24px 0;
+  margin: 0;
 }
 .mt-kw-daily-chart-wrap {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 /* Y축 — 그 달의 실제 최댓값(max)에 맞춰 0 / max÷2 / max를 매번 다시 계산해서
@@ -806,9 +798,11 @@ footer {
   justify-content: space-between;
   align-items: flex-end;
   flex-shrink: 0;
-  font-size: 0.78rem;
-  color: rgba(48, 37, 34, 0.45);
-  padding-bottom: 20px;
+  width: 32px;
+  padding-bottom: 5.5px; // 아래 .mt-kw-daily-chart의 border-bottom(4px+1.5px)과 눈높이를 맞춤
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(48, 37, 34, 0.42);
 }
 /* 막대 수가 적을 때 억지로 늘어나지 않도록, 막대/간격을 고정폭으로 맞추고
    이 영역 안에서만(Y축은 고정) 필요할 때 가로 스크롤되게 함. */
@@ -823,15 +817,17 @@ footer {
 .mt-kw-daily-chart {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
+  gap: 14px;
   width: max-content;
   min-width: 100%;
   box-sizing: border-box;
-  height: 140px;
+  height: clamp(200px, 32vh, 320px);
+  padding-bottom: 4px;
+  border-bottom: 1.5px solid #e0e0e0;
 }
 .mt-kw-daily-bar {
-  width: 14px;
-  flex: 0 0 auto;
+  flex: 0 0 32px;
+  width: 32px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -843,69 +839,98 @@ footer {
   width: 100%;
   min-height: 1px;
   border-radius: 4px 4px 0 0;
-  background: #efe9e0;
-  transition: background 0.15s, height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  background: rgba(74, 74, 74, 0.25);
+  transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .mt-kw-daily-bar.has-count {
   cursor: pointer;
 }
 .mt-kw-daily-bar.has-count .mt-kw-daily-bar-fill {
-  background: linear-gradient(180deg, #f0b866, #e08a3c);
+  background: linear-gradient(180deg, #fdba74, #f97316);
 }
 .mt-kw-daily-bar.has-count:hover .mt-kw-daily-bar-fill {
-  background: linear-gradient(180deg, #f5c988, #c96f28);
+  background: linear-gradient(180deg, #fb923c, #ea580c);
 }
 .mt-kw-daily-days {
   display: flex;
-  gap: 4px;
+  gap: 14px;
   width: max-content;
   min-width: 100%;
   box-sizing: border-box;
-  padding-left: 2px;
+  margin-top: 6px;
+  flex-shrink: 0;
 }
 .mt-kw-daily-day {
-  width: 14px;
-  flex: 0 0 auto;
-  font-size: 0.7rem;
+  flex: 0 0 32px;
+  width: 32px;
   text-align: center;
-  color: rgba(48, 37, 34, 0.45);
+  font-size: 1rem;
+  color: rgba(48, 37, 34, 0.5);
 }
 
-/* 공용 툴팁(연락처 설명 / 키워드 언급자) — 흰 배경 + 검정 글씨 + 검정 테두리 */
+/* ── 공용 툴팁(연락처 설명 / 키워드 언급자) — 흰 배경 + 검정 글씨 + 검정 테두리 ── */
 .mt-tooltip {
   position: fixed;
   z-index: 4000;
-  max-width: 280px;
   background: #fff;
   color: #302522;
-  border: 1px solid #302522;
-  border-radius: 10px;
+  border: 1.5px solid #302522;
   padding: 10px 14px;
-  font-size: 0.88rem;
-  line-height: 1.5;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  opacity: 0;
+  border-radius: 10px;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 260px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   pointer-events: none;
-  transition: opacity 0.12s ease;
+  opacity: 0;
+  transform: translateY(-100%);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
 }
 .mt-tooltip.show {
   opacity: 1;
 }
+// 주요 연락처 hover 설명 창을, 그 연락처 카드가 hover 시 변하는
+// 연한 주황(.mt-panel-contact:hover)과 같은 톤으로.
 .mt-tooltip.mt-tooltip-contact {
   background: #fdf3e7;
   border-color: #fdba74;
   color: #7a3a0a;
 }
+.mt-tooltip.mt-tooltip-contact .mt-tooltip-row + .mt-tooltip-row {
+  border-top-color: rgba(122, 58, 10, 0.16);
+}
 .mt-tooltip-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 0;
+  padding: 4px 0;
 }
+.mt-tooltip-row + .mt-tooltip-row {
+  border-top: 1px solid rgba(48, 37, 34, 0.14);
+}
+/* 언급자 아바타 — <span class="mt-tooltip-avatar"><img></span> 구조라, 원 모양
+   마스크(overflow:hidden)는 이 바깥 span이 담당하고, 실제 크기 제한은 안의
+   <img>에 줘야 한다. (예전엔 object-fit이 img가 아니라 이 span에 붙어있고
+   overflow:hidden도 없어서 img가 원본 크기 그대로 튀어나왔었음.) */
 .mt-tooltip-avatar {
   width: 22px;
   height: 22px;
   border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(150deg, #e0e0e0, #4a4a4a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #302522;
+}
+.mt-tooltip-avatar img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  flex: 0 0 auto;
+  display: block;
 }

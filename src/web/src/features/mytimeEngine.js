@@ -107,10 +107,7 @@ function createTimeline(ids) {
   function yearIdxPct(i) {
     if (YEAR_KEYS.length <= 1) return 0.5;
     const clamped = Math.max(0, Math.min(YEAR_KEYS.length - 1, i));
-    return (
-      YEAR_DOT_INSET +
-      (clamped / (YEAR_KEYS.length - 1)) * (1 - YEAR_DOT_INSET * 2)
-    );
+    return YEAR_DOT_INSET + (clamped / (YEAR_KEYS.length - 1)) * (1 - YEAR_DOT_INSET * 2);
   }
   function getWindowKeys() {
     if (mode === "month") {
@@ -149,8 +146,7 @@ function createTimeline(ids) {
 
       const lbl = document.createElement("div");
       lbl.className = "mt-node-label";
-      lbl.textContent =
-        mode === "month" ? `${parseInt(k.slice(5), 10)}월` : `${k}년`;
+      lbl.textContent = mode === "month" ? `${parseInt(k.slice(5), 10)}월` : `${k}년`;
 
       col.appendChild(dot);
       col.appendChild(lbl);
@@ -202,11 +198,7 @@ function createTimeline(ids) {
       if (ids.contactLookup) {
         el.addEventListener("mouseenter", () => {
           const desc = ids.contactLookup(c);
-          showTooltip(
-            el,
-            desc ? formatContactDesc(desc) : "등록된 설명이 없습니다.",
-            "bottom",
-          );
+          showTooltip(el, desc ? formatContactDesc(desc) : "등록된 설명이 없습니다.", "bottom");
         });
         el.addEventListener("mouseleave", hideTooltip);
       }
@@ -249,9 +241,7 @@ function createTimeline(ids) {
     if (!ALL_KEYS.length) return;
     const key = ALL_KEYS[ALL_KEYS.length - 1];
     const d = MONTH_DATA[key];
-    const col = document
-      .getElementById(ids.track)
-      .querySelector(`.mt-node-col[data-key="${key}"]`);
+    const col = document.getElementById(ids.track).querySelector(`.mt-node-col[data-key="${key}"]`);
     if (!col || !d) {
       notifyPeriod(key);
       return;
@@ -297,8 +287,7 @@ function createTimeline(ids) {
     axis.innerHTML = "";
 
     const MIN_GAP_PX = 64;
-    const axisWidth =
-      axis.offsetWidth || axis.getBoundingClientRect().width || 0;
+    const axisWidth = axis.offsetWidth || axis.getBoundingClientRect().width || 0;
     const withPct = YEAR_KEYS.map((y, i) => ({
       y,
       pct: yearIdxPct(i) * 100,
@@ -345,8 +334,7 @@ function createTimeline(ids) {
     if (!track) return;
     let selectedYear = null;
     if (mode === "year") {
-      selectedYear =
-        YEAR_KEYS[Math.max(0, Math.min(YEAR_KEYS.length - 1, centerIdx))];
+      selectedYear = YEAR_KEYS[Math.max(0, Math.min(YEAR_KEYS.length - 1, centerIdx))];
     } else {
       const mk = ALL_KEYS[Math.max(0, Math.min(ALL_KEYS.length - 1, centerIdx))];
       selectedYear = mk ? mk.split("-")[0] : null;
@@ -357,9 +345,7 @@ function createTimeline(ids) {
 
     const rangeLbl = document.getElementById(ids.rangeLbl);
     if (rangeLbl) {
-      rangeLbl.textContent = selectedYear
-        ? `선택된 연도는 ${selectedYear}년도 입니다`
-        : "—";
+      rangeLbl.textContent = selectedYear ? `선택된 연도는 ${selectedYear}년도 입니다.` : "—";
     }
   }
 
@@ -375,8 +361,7 @@ function createTimeline(ids) {
     } else {
       pct = yearIdxPct(YEAR_KEYS.indexOf(k)) * 100;
     }
-    document.getElementById(ids.pointerCursor).style.left =
-      Math.max(0, Math.min(100, pct)) + "%";
+    document.getElementById(ids.pointerCursor).style.left = Math.max(0, Math.min(100, pct)) + "%";
     updateYearDotSelection();
   }
 
@@ -391,8 +376,7 @@ function createTimeline(ids) {
     } else {
       const startIdx = YEAR_KEYS.indexOf(wKeys[0]);
       const endIdx = YEAR_KEYS.indexOf(wKeys[wKeys.length - 1]);
-      const step =
-        YEAR_KEYS.length > 1 ? (1 - YEAR_DOT_INSET * 2) / (YEAR_KEYS.length - 1) : 0;
+      const step = YEAR_KEYS.length > 1 ? (1 - YEAR_DOT_INSET * 2) / (YEAR_KEYS.length - 1) : 0;
       s = yearIdxPct(startIdx);
       e = yearIdxPct(endIdx) + step * 0.6;
     }
@@ -411,13 +395,9 @@ function createTimeline(ids) {
     } else {
       const rawIdx =
         YEAR_KEYS.length > 1
-          ? ((pct - YEAR_DOT_INSET) / (1 - YEAR_DOT_INSET * 2)) *
-            (YEAR_KEYS.length - 1)
+          ? ((pct - YEAR_DOT_INSET) / (1 - YEAR_DOT_INSET * 2)) * (YEAR_KEYS.length - 1)
           : 0;
-      centerIdx = Math.max(
-        0,
-        Math.min(YEAR_KEYS.length - 1, Math.round(rawIdx)),
-      );
+      centerIdx = Math.max(0, Math.min(YEAR_KEYS.length - 1, Math.round(rawIdx)));
     }
     updatePointerCursor();
     render();
@@ -524,8 +504,7 @@ function createKeywordPanel(ids, api) {
   function renderEmpty(msg) {
     if (hintEl()) hintEl().textContent = "";
     if (bodyEl())
-      bodyEl().innerHTML =
-        `<div class="mt-empty"><i class="bi bi-chat-square-text"></i><p>${escHtml(msg)}</p></div>`;
+      bodyEl().innerHTML = `<div class="mt-empty"><i class="bi bi-chat-square-text"></i><p>${escHtml(msg)}</p></div>`;
   }
 
   // 현재 선택된 기간의 키워드 랭킹 목록을 렌더링(연도 보기는 그 해 전체 합산)
@@ -565,8 +544,7 @@ function createKeywordPanel(ids, api) {
     }
 
     if (!keywords.length) {
-      bodyEl().innerHTML =
-        `<div class="mt-empty"><i class="bi bi-chat-square-text"></i><p>이 기간에는 추출된 키워드가 없습니다.</p></div>`;
+      bodyEl().innerHTML = `<div class="mt-empty"><i class="bi bi-chat-square-text"></i><p>이 기간에는 추출된 키워드가 없습니다.</p></div>`;
       return;
     }
 
@@ -593,10 +571,9 @@ function createKeywordPanel(ids, api) {
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         list.querySelectorAll(".mt-kw-row-fill").forEach((el, i) => {
-          el.style.width =
-            Math.max(4, Math.round((keywords[i].count / max) * 100)) + "%";
+          el.style.width = Math.max(4, Math.round((keywords[i].count / max) * 100)) + "%";
         });
-      }),
+      })
     );
   }
 
@@ -607,10 +584,8 @@ function createKeywordPanel(ids, api) {
     currentKeyword = word;
     if (backBtnEl()) backBtnEl().style.display = "";
     if (hintEl())
-      hintEl().textContent =
-        "막대에 마우스를 올리면 그 날 이 키워드를 언급한 사람을 볼 수 있어요.";
-    bodyEl().innerHTML =
-      `<div class="mt-empty"><i class="bi bi-hourglass-split"></i><p>불러오는 중...</p></div>`;
+      hintEl().textContent = "막대에 마우스를 올리면 그 날 이 키워드를 언급한 사람을 볼 수 있어요.";
+    bodyEl().innerHTML = `<div class="mt-empty"><i class="bi bi-hourglass-split"></i><p>불러오는 중...</p></div>`;
 
     const monthKey = currentMonthKey;
     let dayData = dailyCache[monthKey];
@@ -673,15 +648,11 @@ function createKeywordPanel(ids, api) {
       const fill = document.createElement("div");
       fill.className = "mt-kw-daily-bar-fill";
       fill.style.height =
-        c.count > 0
-          ? Math.max(8, Math.round((c.count / max) * 100)) + "%"
-          : "1px";
+        c.count > 0 ? Math.max(8, Math.round((c.count / max) * 100)) + "%" : "1px";
       bar.appendChild(fill);
 
       if (c.count > 0) {
-        bar.addEventListener("mouseenter", () =>
-          showMentioners(bar, c.date, word),
-        );
+        bar.addEventListener("mouseenter", () => showMentioners(bar, c.date, word));
         bar.addEventListener("mouseleave", hideTooltip);
       }
       chart.appendChild(bar);
@@ -731,10 +702,7 @@ function createKeywordPanel(ids, api) {
   // 언급자 목록 데이터를 툴팁 HTML로 그려서 표시
   function renderMentionersTooltip(anchorEl, data) {
     if (!data.length) {
-      showTooltip(
-        anchorEl,
-        `<div class="mt-tooltip-row">이 날 언급한 사람이 없어요.</div>`,
-      );
+      showTooltip(anchorEl, `<div class="mt-tooltip-row">이 날 언급한 사람이 없어요.</div>`);
       return;
     }
     const html = data
@@ -806,9 +774,7 @@ async function loadMailDescriptions(gmailId) {
 // person-descriptions 캐시에서 contactId로 설명을 조회
 function mailContactLookup(contactId) {
   const found = mailDescCache.find(
-    (d) =>
-      (d.person_account_id || "").toLowerCase() ===
-      String(contactId).toLowerCase(),
+    (d) => (d.person_account_id || "").toLowerCase() === String(contactId).toLowerCase()
   );
   return found ? found.description : null;
 }
@@ -836,7 +802,7 @@ async function initMail(gmailId) {
   mailTimeline.setData(
     MONTH_DATA,
     YEAR_DATA,
-    "아직 생성된 요약이 없습니다. 데이터 분석하기를 먼저 실행해주세요.",
+    "아직 생성된 요약이 없습니다. 데이터 분석하기를 먼저 실행해주세요."
   );
 }
 
@@ -880,9 +846,7 @@ async function loadMsgPeople(chatroomId) {
 }
 // chatroom-people 캐시에서 참여자 id/이름으로 설명을 조회
 function msgContactLookup(contactId) {
-  const found = msgPeopleCache.find(
-    (p) => p.participant_id === contactId || p.name === contactId,
-  );
+  const found = msgPeopleCache.find((p) => p.participant_id === contactId || p.name === contactId);
   return found ? found.description : null;
 }
 
@@ -912,33 +876,22 @@ async function loadMtMessengerData() {
   const chatroomId = currentChatroomId || (await chatroomIdPromise) || "";
   if (!chatroomId) {
     await msgKwPanel.init("");
-    return msgTimeline.setData(
-      {},
-      {},
-      "연결된 채팅방이 없습니다. 채팅방을 먼저 선택해주세요.",
-    );
+    return msgTimeline.setData({}, {}, "연결된 채팅방이 없습니다. 채팅방을 먼저 선택해주세요.");
   }
   try {
     const [monthData, yearData] = await Promise.all([
       fetchChatroomSummaries(chatroomId, "monthly"),
       fetchChatroomSummaries(chatroomId, "yearly"),
     ]);
-    await Promise.all([
-      msgKwPanel.init(chatroomId),
-      loadMsgPeople(chatroomId),
-    ]);
-    return msgTimeline.setData(
-      monthData,
-      yearData,
-      "아직 생성된 메신저 요약이 없습니다.",
-    );
+    await Promise.all([msgKwPanel.init(chatroomId), loadMsgPeople(chatroomId)]);
+    return msgTimeline.setData(monthData, yearData, "아직 생성된 메신저 요약이 없습니다.");
   } catch (e) {
     console.error("chatroom-summaries 오류:", e);
     await msgKwPanel.init("");
     return msgTimeline.setData(
       {},
       {},
-      "메신저 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      "메신저 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
     );
   }
 }
@@ -969,7 +922,7 @@ export function initMyTimePage() {
       dailyUrl: "/mail-keyword-daily-stats",
       mentionersUrl: "/mail-keyword-mentioners",
       idField: "user_id",
-    },
+    }
   );
 
   mailTimeline = createTimeline({
@@ -997,7 +950,7 @@ export function initMyTimePage() {
       dailyUrl: "/chatroom-keyword-daily-stats",
       mentionersUrl: "/chatroom-keyword-mentioners",
       idField: "chatroom_id",
-    },
+    }
   );
 
   msgTimeline = createTimeline({
@@ -1024,7 +977,7 @@ export function initMyTimePage() {
         store.setFilter("mail", selectedMail);
         refreshSidebarList();
       }
-    },
+    }
   );
 
   /* 메신저 뷰용 채팅방 선택 토글 */
@@ -1035,7 +988,7 @@ export function initMyTimePage() {
       mtMessengerLoaded = true;
       loadMtMessengerData();
     },
-    { domain: "messenger", storageKey: "gw_chatroom_id" },
+    { domain: "messenger", storageKey: "gw_chatroom_id" }
   );
   chatroomIdPromise.then((id) => {
     currentChatroomId = id || "";
