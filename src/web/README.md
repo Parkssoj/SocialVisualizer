@@ -1,10 +1,7 @@
 # web — Vite 프론트엔드
 
-MailGrapher의 웹 UI로, Vite 멀티페이지 앱(MPA)이며 `production/*.html` 각각이 별도 빌드 진입점이다.
+Social Visualizer의 웹 UI로, Vite 멀티페이지 앱(MPA)이며 `production/*.html` 각각이 별도 빌드 진입점이다.
 스타일은 Bootstrap 5 + SCSS가 주력이고, 그래프 시각화는 D3, 일부 위젯은 React 19로 만든다.
-Tailwind 4는 랜딩 페이지 히어로의 shadcn 컴포넌트에서만 쓴다.
-i18next는 언어 스위처와 리소스(ko/en/ja)까지 배선돼 있으나 페이지 텍스트가 아직 `data-i18n`로 태깅되지 않아, 실제 동작하는 번역은 홈 인사말 한 줄뿐이다.
-
 빌드·실행 명령은 [`docs/EXECUTE.md`](../../docs/EXECUTE.md)를 참고. 여기서는 구조와 배선만 설명한다.
 
 ## 구성
@@ -48,11 +45,8 @@ i18next는 언어 스위처와 리소스(ko/en/ja)까지 배선돼 있으나 페
 
 # web — Vite frontend
 
-MailGrapher's web UI: a Vite multi-page app (MPA) where each `production/*.html` is its own build entry point.
+Social Visualizer's web UI: a Vite multi-page app (MPA) where each `production/*.html` is its own build entry point.
 Styling is primarily Bootstrap 5 + SCSS, with D3 for graph visualization and React 19 for a few widgets.
-Tailwind 4 is used only by the shadcn components in the landing-page hero.
-i18next is fully wired (language switcher + ko/en/ja resources) but page text isn't tagged with `data-i18n` yet, so the only live translation is the home greeting.
-
 See [`docs/EXECUTE.md`](../../docs/EXECUTE.md) for build/run commands; this file only covers layout and wiring.
 
 ## Layout
