@@ -39,13 +39,9 @@ function escHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-// 주요 연락처 설명이 "이름: ... 관계: ... 자주 주고받은 내용: ..."처럼 라벨이 붙은 한 줄 문자열로 오므로, 그 라벨들 앞에 줄바꿈을 넣어 각각 한 줄씩 보이게 만든다.
-function formatContactDesc(text) {
-  let html = escHtml(text);
-  ["이름:", "관계:", "자주 주고받은 내용:"].forEach((label) => {
-    html = html.split(escHtml(label)).join(`<br>${escHtml(label)}`);
-  });
-  return html.replace(/^(<br>)+/, "");
+// 주요 연락처 카드 hover 설명 — 상세 설명(description) 대신 short_bio(한줄 소개)만 보여준다.
+function formatContactTooltip(shortBio) {
+  return shortBio ? escHtml(shortBio) : "등록된 설명이 없습니다.";
 }
 // anchorEl 위치를 기준으로 공용 툴팁을 표시(placement로 위/아래 결정)
 function showTooltip(anchorEl, html, placement = "top") {
@@ -191,19 +187,22 @@ function createTimeline(ids) {
 
     const cc = document.getElementById(ids.panelContacts);
     cc.innerHTML = "";
-    (d.contacts || []).forEach((c) => {
+    // person_name이 없는 항목(예: 예전에 저장된 요약에 본인 이메일이 섞여 들어간
+    // 경우 — person 테이블엔 본인이 없어 이름을 못 찾음)은 빈 알약으로 안 보이게 건너뛴다.
+    (d.contacts || []).filter((c) => c.person_name).forEach((c) => {
       const el = document.createElement("div");
       el.className = "mt-panel-contact";
-      el.textContent = c;
-      if (ids.contactLookup) {
-        el.addEventListener("mouseenter", () => {
-          const desc = ids.contactLookup(c);
-          showTooltip(el, desc ? formatContactDesc(desc) : "등록된 설명이 없습니다.", "bottom");
-        });
-        el.addEventListener("mouseleave", hideTooltip);
-      }
+      el.textContent = c.person_name;
+      el.addEventListener("mouseenter", () => {
+        showTooltip(el, formatContactTooltip(c.short_bio), "bottom");
+      });
+      el.addEventListener("mouseleave", hideTooltip);
       cc.appendChild(el);
     });
+    // 필터링 후 하나도 안 남으면(전부 이름 없는 연락처였던 경우) 빈 칸 대신 안내 문구를 보여준다.
+    if (!cc.children.length) {
+      cc.innerHTML = '<p class="mt-panel-contacts-empty">표시할 주요 연락처가 없습니다.</p>';
+    }
 
     document.getElementById(ids.panel).classList.add("show");
   }
@@ -748,8 +747,6 @@ let currentChatroomId = "";
 let chatroomIdPromise = null;
 let userIdPromise = null;
 let mailKwPanel, msgKwPanel, mailTimeline, msgTimeline;
-let mailDescCache = [];
-let msgPeopleCache = [];
 let mtMailView, mtMessengerView;
 let mtMessengerLoaded = false;
 let mtActiveChannel = "mail";
@@ -758,25 +755,6 @@ let mtActiveChannel = "mail";
 function updateSharedRangeBadge(text) {
   const el = document.getElementById("mtDataRangeLbl");
   if (el) el.textContent = text || "";
-}
-
-// 주요 연락처 hover 설명 — 이미 있는 /person-descriptions(메일 계정 기준 사람 설명)를 계정이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
-async function loadMailDescriptions(gmailId) {
-  mailDescCache = [];
-  if (!gmailId) return;
-  try {
-    const j = await postJSON("/person-descriptions", { user_id: gmailId });
-    mailDescCache = j.data || [];
-  } catch (e) {
-    console.error("person-descriptions 오류:", e);
-  }
-}
-// person-descriptions 캐시에서 contactId로 설명을 조회
-function mailContactLookup(contactId) {
-  const found = mailDescCache.find(
-    (d) => (d.person_account_id || "").toLowerCase() === String(contactId).toLowerCase()
-  );
-  return found ? found.description : null;
 }
 
 // 계정이 바뀔 때(사이드바에서 다른 메일 계정 선택) 새로고침 없이 다시 호출할 수 있는 이름 있는 함수다.
@@ -797,8 +775,8 @@ async function initMail(gmailId) {
     fetchSummaries("monthly"),
     fetchSummaries("yearly"),
   ]);
-  // mailTimeline.setData()가 끝나자마자 가장 최근 달을 오른쪽 키워드 창에 자동으로 띄우므로(notifyPeriod), 그보다 먼저 키워드/연락처-설명 데이터를 받아둬야 한다.
-  await Promise.all([mailKwPanel.init(gmailId), loadMailDescriptions(gmailId)]);
+  // mailTimeline.setData()가 끝나자마자 가장 최근 달을 오른쪽 키워드 창에 자동으로 띄우므로(notifyPeriod), 그보다 먼저 키워드 데이터를 받아둬야 한다.
+  await mailKwPanel.init(gmailId);
   mailTimeline.setData(
     MONTH_DATA,
     YEAR_DATA,
@@ -831,23 +809,6 @@ async function initSelfAvatar(gmailId) {
   } catch (e) {
     console.error("내 아바타 로드 오류:", e);
   }
-}
-
-// 주요 연락처 hover 설명 — 메신저는 /chatroom-people(참여자 전체 목록 + description)을 채팅방이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
-async function loadMsgPeople(chatroomId) {
-  msgPeopleCache = [];
-  if (!chatroomId) return;
-  try {
-    const j = await postJSON("/chatroom-people", { chatroom_id: chatroomId });
-    msgPeopleCache = (j.data && j.data.people) || [];
-  } catch (e) {
-    console.error("chatroom-people 오류:", e);
-  }
-}
-// chatroom-people 캐시에서 참여자 id/이름으로 설명을 조회
-function msgContactLookup(contactId) {
-  const found = msgPeopleCache.find((p) => p.participant_id === contactId || p.name === contactId);
-  return found ? found.description : null;
 }
 
 // 요약 배열을 기간(summary_period) 키의 맵으로 변환
@@ -883,8 +844,12 @@ async function loadMtMessengerData() {
       fetchChatroomSummaries(chatroomId, "monthly"),
       fetchChatroomSummaries(chatroomId, "yearly"),
     ]);
-    await Promise.all([msgKwPanel.init(chatroomId), loadMsgPeople(chatroomId)]);
-    return msgTimeline.setData(monthData, yearData, "아직 생성된 메신저 요약이 없습니다.");
+    await msgKwPanel.init(chatroomId);
+    return msgTimeline.setData(
+      monthData,
+      yearData,
+      "아직 생성된 메신저 요약이 없습니다.",
+    );
   } catch (e) {
     console.error("chatroom-summaries 오류:", e);
     await msgKwPanel.init("");
@@ -939,7 +904,6 @@ export function initMyTimePage() {
     rangeLbl: "mtPointerRangeLbl",
     channel: "mail",
     onPeriod: (mode, key) => mailKwPanel.setPeriod(mode, key),
-    contactLookup: mailContactLookup,
   });
 
   /* 메신저 뷰 */
@@ -967,7 +931,6 @@ export function initMyTimePage() {
     rangeLbl: "msgPointerRangeLbl",
     channel: "messenger",
     onPeriod: (mode, key) => msgKwPanel.setPeriod(mode, key),
-    contactLookup: msgContactLookup,
   });
 
   userIdPromise = initAccountPicker(

@@ -1564,12 +1564,12 @@ def send_chatroom_summaries():
         return jsonify({"error": "chatroom not found"}), 404
 
     people = get_chatroom_people(chatroom_id) or []
-    people_map = {p["participant_id"]: p for p in people}
+    people_map = {p["name"]: p for p in people}
 
     for s in summaries:
         s["contacts"] = [
             {
-                "participant_id": name,
+                "person_name": name,
                 "description": people_map.get(name, {}).get("description"),
                 "short_bio":    people_map.get(name, {}).get("short_bio"),
             }

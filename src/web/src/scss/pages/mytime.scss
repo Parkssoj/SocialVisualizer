@@ -386,6 +386,13 @@ footer {
   box-shadow: 0 4px 14px rgba(249, 115, 22, 0.2);
   transform: translateY(-1px);
 }
+// 필터링 후 이름 있는 연락처가 하나도 없을 때 대신 보여주는 안내 문구.
+.mt-panel-contacts-empty {
+  font-size: 0.9rem;
+  color: rgba(48, 37, 34, 0.5);
+  margin: 0;
+  padding: 4px 0;
+}
 
 /* ── 포인터 라인(전체 타임라인 슬라이더) ──
    두 창 위에 두고, 그만큼 박스 크기(패딩)도 줄여서 덜 무거워 보이게 함. */
