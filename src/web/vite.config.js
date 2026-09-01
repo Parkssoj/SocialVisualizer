@@ -139,6 +139,13 @@ export default defineConfig({
       // /person-avatar-image 누락으로 개발 서버에서 아바타 이미지가 404 났던 적 있음
       "/intimacy": "http://127.0.0.1:80",
       "/person-avatar-image": "http://127.0.0.1:80",
+
+      // 메신저 Recap 통계
+      "/chatroom-people": "http://127.0.0.1:80",
+      "/chatroom-keyword-stats": "http://127.0.0.1:80",
+      "/chatroom-relationship-stats": "http://127.0.0.1:80",
+      "/chatroom-monthly-message-stats": "http://127.0.0.1:80",
+      "/chatroom-sync-stats": "http://127.0.0.1:80",
     },
     watch: {
       usePolling: false,

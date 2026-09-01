@@ -7,7 +7,12 @@ import { rankKeywords, keywordFontSize, WC_COLORS } from "../../features/recapSt
 
 "Top keywords" card — renders the top-10 keywords as a tag cloud sized by frequency. Each word fades in with a staggered delay (same requestAnimationFrame + "show" class trick as the original).
  */
-export default function KeywordCloudCard({ state }) {
+export default function KeywordCloudCard({
+  state,
+  title = "메일 속 주요 키워드",
+  icon = "✦",
+  iconBg = "#f0faf4",
+}) {
   const { status, data, error } = state;
   const keywords = data ? rankKeywords(data) : [];
   const [shown, setShown] = useState(false);
@@ -32,10 +37,10 @@ export default function KeywordCloudCard({ state }) {
     <div className="rc-card">
       <div className="rc-card-header">
         <div className="rc-card-title">
-          <div className="rc-card-title-icon" style={{ background: "#f0faf4" }}>
-            ✦
+          <div className="rc-card-title-icon" style={{ background: iconBg }}>
+            {icon}
           </div>
-          메일 속 주요 키워드
+          {title}
         </div>
         {status === "done" && keywords.length > 0 && (
           <span className="rc-card-badge">{keywords.length}개 키워드</span>

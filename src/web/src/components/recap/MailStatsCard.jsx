@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { initials, AVATAR_COLORS } from "../../features/recapStats.js";
 
 /**
@@ -8,7 +8,16 @@ import { initials, AVATAR_COLORS } from "../../features/recapStats.js";
 
 "Top senders to me" / "Top people I sent to" card — renders the #1 highlight plus a top-10 bar list. Bars render at 0 width first, then grow to their real percentage on the next frame so the CSS transition is visible (same double-requestAnimationFrame trick as the original).
  */
-export default function MailStatsCard({ icon, iconBg, title, tag, unit, state }) {
+export default function MailStatsCard({
+  icon,
+  iconBg,
+  title,
+  tag,
+  unit,
+  state,
+  secondary = "email",
+  barUnit = "통",
+}) {
   const { status, ranked = [], error } = state;
   const [revealed, setRevealed] = useState(false);
 
@@ -28,6 +37,10 @@ export default function MailStatsCard({ icon, iconBg, title, tag, unit, state })
   const max = ranked[0]?.count || 0;
   const top = ranked[0];
   const [c1, c2] = AVATAR_COLORS[0];
+
+  // 1위/바 리스트의 보조 텍스트(이름 아래 줄). "email"=이메일, "bio"=한줄소개, "none"=숨김
+  const secondaryText = (item) =>
+    secondary === "email" ? item.email : secondary === "bio" ? item.bio || "" : "";
 
   return (
     <div className="rc-card">
@@ -65,7 +78,9 @@ export default function MailStatsCard({ icon, iconBg, title, tag, unit, state })
             <div className="rc-rank1-info">
               <div className="rc-rank1-tag">🏆 {tag}</div>
               <div className="rc-rank1-name">{top.name}</div>
-              <div className="rc-rank1-email">{top.email}</div>
+              {secondaryText(top) && (
+                <div className="rc-rank1-email">{secondaryText(top)}</div>
+              )}
             </div>
             <div className="rc-rank1-count">
               <div className="rc-rank1-num">{top.count}</div>
@@ -78,10 +93,10 @@ export default function MailStatsCard({ icon, iconBg, title, tag, unit, state })
               const rankLabel = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
               const pct = max > 0 ? Math.round((item.count / max) * 100) : 0;
               return (
-                <li className="rc-bar-item" key={item.email}>
+                <li className="rc-bar-item" key={item.email || item.name}>
                   <div className={`rc-bar-rank${i < 3 ? " top" : ""}`}>{rankLabel}</div>
                   <div className="rc-bar-inner">
-                    <div className="rc-bar-name" title={item.email}>
+                    <div className="rc-bar-name" title={secondaryText(item) || item.name}>
                       {item.name}
                     </div>
                     <div className="rc-bar-track">
@@ -91,7 +106,10 @@ export default function MailStatsCard({ icon, iconBg, title, tag, unit, state })
                       ></div>
                     </div>
                   </div>
-                  <div className="rc-bar-count">{item.count}통</div>
+                  <div className="rc-bar-count">
+                    {item.count}
+                    {barUnit}
+                  </div>
                 </li>
               );
             })}

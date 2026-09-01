@@ -15,6 +15,17 @@ export async function postStat(endpoint, gmailId) {
   return res.json();
 }
 
+// chatroom_id를 POST 바디에 담아 메신저 통계 API 호출 (postStat의 메신저 버전)
+export async function postRoomStat(endpoint, chatroomId) {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatroom_id: chatroomId }),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
 // 아바타에 표시할 이니셜(이름 앞글자 1~2자) 추출
 export function initials(nameStr) {
   const parts = nameStr.trim().split(/\s+/);
@@ -102,6 +113,67 @@ export function rankAffinity(data) {
     return seg;
   });
   return { sorted, circumference, segments };
+}
+
+// 메신저: 참여자별 메시지 수를 내림차순 상위 10명으로 가공.
+// MailStatsCard가 기대하는 {email, name, count} 스키마에 맞추되,
+// email 자리에는 participant_id를, bio에는 short_bio/description을 넣는다.
+export function rankChatPeople(data) {
+  const people = (data && data.people) || [];
+  return people
+    .map((p) => ({
+      email: p.participant_id || "",
+      name: p.name || p.participant_id || "-",
+      count: p.message_count || 0,
+      bio: p.short_bio || p.description || "",
+    }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+// 메신저: 관계 라벨별 건수를 rankAffinity와 동일한 방식으로 도넛 세그먼트화(상위 7개).
+export function rankRelationships(data) {
+  const rows = (data && data.relationships) || [];
+  const sorted = [...rows]
+    .map((r) => ({ label: r.relation_label || "-", count: r.count || 0 }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 7);
+  const total = (data && data.total) || sorted.reduce((s, r) => s + r.count, 0);
+  const radius = 82.5;
+  const circumference = 2 * Math.PI * radius;
+  const segTotal = sorted.reduce((s, r) => s + r.count, 0);
+  let offset = 0;
+  const segments = sorted.map((item, i) => {
+    const percentage = segTotal > 0 ? item.count / segTotal : 0;
+    const length = circumference * percentage;
+    const seg = {
+      item,
+      count: item.count,
+      color: AF_COLORS[i % AF_COLORS.length],
+      length,
+      dashOffset: -offset,
+    };
+    offset += length;
+    return seg;
+  });
+  return { sorted, circumference, segments, total };
+}
+
+// 메신저: 월별 메시지 수를 month 오름차순 정렬 + 최근 N개월로 제한, 막대차트용 가공.
+export function prepMonthlyMessages(data, limit = 12) {
+  const rows = (data && data.monthly) || [];
+  return rows
+    .map((r) => ({ month: r.month, count: r.count || 0 }))
+    .filter((r) => r.month)
+    .sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0))
+    .slice(-limit)
+    .map((r) => {
+      const parts = String(r.month).split("-");
+      const label = parts.length === 2 ? parts[0].slice(2) + "." + parts[1] : r.month;
+      return { ...r, label };
+    });
 }
 
 export function fmtSyncTime(t) {
