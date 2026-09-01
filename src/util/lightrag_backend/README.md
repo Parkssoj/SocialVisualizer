@@ -114,7 +114,7 @@ ValueError로 막힌다).
 - `<엔진명>_db_writer.py` — DB 저장 로직
 - `<엔진명>_mail_parser.py` — 위 통계/요약/DB 저장 코드들이 공통으로 쓰는 파싱 헬퍼
 - `<엔진명>_progress.py` — 인덱싱 진행률 표시
-- `<엔진명>_loop.py` —
+- `<엔진명>_loop.py` — 동기 코드에서 async 질의를 실행하는 공용 백그라운드 이벤트 루프
 
 ---
 

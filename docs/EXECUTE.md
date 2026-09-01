@@ -163,4 +163,3 @@ Press CTRL+C to quit
 - **이후:** `http://localhost/dashboard/`
 
 홈 화면이 보이면 설치가 정상적으로 완료된 것이다.
-(로그인 화면 경로: `http://localhost/dashboard/login.html`)
