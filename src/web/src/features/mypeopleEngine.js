@@ -1674,7 +1674,7 @@ function renderRelationDiagram(personName, relationships) {
               <div class="mp-relation-card-cell mp-relation-card-cell-val${o.label ? "" : " mp-relation-card-cell-empty"}">${o.label ? esc(o.label) : "파악된 설명 없음"}</div>
             </div>
             <div class="mp-relation-card-row">
-              <div class="mp-relation-card-cell mp-relation-card-cell-key">참여 패턴</div>
+              <div class="mp-relation-card-cell mp-relation-card-cell-key">메신저 횟수</div>
               <div class="mp-relation-card-cell mp-relation-card-cell-val">${esc(participationText)}</div>
             </div>
           </div>

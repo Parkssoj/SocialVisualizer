@@ -815,10 +815,12 @@ function mailContactLookup(contactId) {
 
 // 계정이 바뀔 때(사이드바에서 다른 메일 계정 선택) 새로고침 없이 다시 호출할 수 있는 이름 있는 함수다.
 async function initMail(gmailId) {
+  // /mail-summaries는 { type, data: { summaries: [...] } } 형태로 응답하므로,
+  // 메신저 쪽(loadMsgSummaries)과 동일하게 summariesToMap으로 period 기준 맵으로 변환한다.
   async function fetchSummaries(type) {
     try {
       const j = await postJSON("/mail-summaries", { user_id: gmailId, type });
-      return j[type] || {};
+      return summariesToMap((j.data && j.data.summaries) || []);
     } catch (e) {
       console.error(`mail-summaries(${type}) 오류:`, e);
       return {};
