@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   fetchSubjectsByRefs,
   findLineIdxBySubject,
@@ -39,23 +39,6 @@ export default function SearchPanel({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeMailId, setActiveMailId] = useState(null);
   const [mailDetail, setMailDetail] = useState(null);
-  const answerMainRef = useRef(null);
-  const drawerRef = useRef(null);
-
-  // 서랍은 항상 답변 카드와 같은 높이로 늘어나되(위아래 선 일치), 그 안의 메일 본문이
-  // 더 길어도 서랍 자체는 커지지 않고 내부에서만 스크롤되도록 최대 높이를 답변 카드의
-  // 실제 렌더링 높이로 캡(cap)한다
-  useEffect(() => {
-    if (!drawerOpen) return;
-    function syncHeight() {
-      if (answerMainRef.current && drawerRef.current) {
-        drawerRef.current.style.maxHeight = `${answerMainRef.current.getBoundingClientRect().height}px`;
-      }
-    }
-    syncHeight();
-    window.addEventListener('resize', syncHeight);
-    return () => window.removeEventListener('resize', syncHeight);
-  }, [drawerOpen, result]);
 
   async function runSearch(q) {
     setResult({ query: q, status: 'loading' });
@@ -215,7 +198,7 @@ export default function SearchPanel({
 
             {result.status === 'done' && (
               <div className="gw-answer-frame">
-                <div className="gw-answer-main" ref={answerMainRef}>
+                <div className="gw-answer-main">
                   <div className="gw-result-card">
                     {result.lines.map((line, idx) => {
                       const inlineRefs = result.inlineRefsByLineIdx.get(idx);
@@ -246,7 +229,7 @@ export default function SearchPanel({
                 </div>
 
                 {result.inlineRefsByLineIdx.size > 0 && (
-                  <div className={`gw-mail-drawer${drawerOpen ? ' is-open' : ''}`} ref={drawerRef}>
+                  <div className={`gw-mail-drawer${drawerOpen ? ' is-open' : ''}`}>
                     <button
                       type="button"
                       className="gw-mail-drawer-close"

@@ -1,7 +1,6 @@
-# src/util/graphrag_mail_summary.py
-#
-# GraphRAG 전용 파일 (mail_summary.py에서 이름만 변경). text_units.parquet을 직접 읽어
-# 월별/연별 메일 요약을 만든다. LightRAG 버전은 util/lightrag_backend/lightrag_mail_summary.py.
+# text_units.parquet을 직접 읽어 월별/연별 메일 요약을 LLM으로 생성하고 저장한다 (GraphRAG 전용, LightRAG 버전은 lightrag_backend/lightrag_mail_summary.py).
+
+# Reads text_units.parquet directly to generate and save monthly/yearly mail summaries via LLM — the GraphRAG-specific version (see lightrag_backend/lightrag_mail_summary.py for the LightRAG counterpart).
 
 import os
 import re
@@ -11,29 +10,29 @@ import openai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.database.db_writer import save_mail_summarize_to_db
-# My Time 화면에서 기간 요약 삽화(image_url)를 더 이상 렌더링하지 않고, 이걸 만들려면
-# 로컬 FLUX 이미지 서버(port 8005)가 떠있어야 하는데 지금은 꺼져있어서 매번 생성 실패
-# 로그만 남긴다 — 안 쓰는 기능이라 호출 자체를 꺼둠 (2026-08-27).
-# from util.summary_image_generator import generate_mail_summary_images
 
 load_dotenv("src/parquet/.env")
 
 
+# 메일 블록 텍스트에서 "[필드명] 값" 형식의 값을 추출한다 (없으면 None)
 def _extract_field(text, field_name):
     m = re.search(rf'^\[{re.escape(field_name)}\]\s*(.+)$', text, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 
+# 메일 블록 텍스트에서 "[메일 본문]" 이후 내용을 추출한다
 def _extract_body(text):
     m = re.search(r'\[메일 본문\]\s*\n(.*?)(?=\n\[|$)', text, re.DOTALL)
     return m.group(1).strip() if m else ""
 
 
+# "Name <email>" 형태에서 이메일 주소만 뽑는다 (꺾쇠 없으면 원본을 그대로 사용)
 def _extract_email(raw):
     m = re.search(r'<([^>]+)>', raw or "")
     return m.group(1).strip() if m else raw.strip() if raw else None
 
 
+# 메일 목록을 LLM에 넘겨 해당 기간 요약과 관련 이메일 주소 목록을 JSON으로 받아온다
 def _summarize_with_llm(text, period_label, contacts):
     client = openai.OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
@@ -60,7 +59,7 @@ def _summarize_with_llm(text, period_label, contacts):
                     "content": f"[{period_label}] 이메일 목록: {contacts}\n\n메일 목록:\n\n{text}"
                 }
             ],
-            max_completion_tokens=1000  # gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
+            max_completion_tokens=1000 
         )
         result = json.loads(response.choices[0].message.content)
         return {
@@ -72,6 +71,7 @@ def _summarize_with_llm(text, period_label, contacts):
         return {"summary": "", "contacts": []}
 
 
+# text_units.parquet을 파싱해 월별/연별 메일 요약을 만들고 JSON 저장 및 mail_summarize 테이블 저장까지 수행한다
 def generate_mail_summaries(paths):
     import pandas as pd
 
@@ -130,12 +130,14 @@ def generate_mail_summaries(paths):
         monthly_groups.setdefault(mail["month"], []).append(mail)
         yearly_groups.setdefault(mail["year"],  []).append(mail)
 
+    # 그룹의 메일들을 제목/발신인/내용 형식으로 합쳐 LLM 입력 텍스트로 만든다
     def _build_text(group):
         return "\n\n".join(
             f"제목: {m['subject']}\n발신인: {m['sender']}\n내용: {m['body']}"
             for m in group
         )
 
+    # 그룹 내 모든 메일의 발신/수신 이메일 주소를 정렬된 리스트로 모은다
     def _collect_contacts(group):
         emails = set()
         for m in group:
@@ -145,6 +147,7 @@ def generate_mail_summaries(paths):
                 emails.add(m["receiver_email"])
         return sorted(emails)
 
+    # 기간 그룹 하나를 LLM 요약해 (kind, period, 요약결과)를 반환한다
     def _summarize_group(kind, period, group):
         print(f"[mail_summary] {kind} 요약 중: {period} ({len(group)}건)")
         return kind, period, _summarize_with_llm(_build_text(group), period, _collect_contacts(group))
@@ -173,4 +176,3 @@ def generate_mail_summaries(paths):
     print(f"[mail_summary] 저장 완료: {paths.MAIL_SUMMARIES_PATH}")
 
     save_mail_summarize_to_db(paths)
-    # generate_mail_summary_images(paths)  # 위 import 주석 처리 사유와 동일 — 미사용 기능

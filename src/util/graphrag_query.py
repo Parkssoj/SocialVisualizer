@@ -1,10 +1,11 @@
-# src/util/graphrag_query.py
-# 캐싱된 서치 엔진 객체 직접 호출해서 검색 속도 개선함
+# 캐싱된 LocalSearch/GlobalSearch 엔진을 직접 호출해 단일·다중 계정 질의에 답변하고, 근거 메일 ID와 질의 로그를 정리해 저장한다.
+
+# Calls the cached LocalSearch/GlobalSearch engines directly to answer single- or multi-account queries, then organizes and saves the supporting mail IDs and query logs.
 
 import os
 import re
 import json
-import asyncio # 비동기 실행 지원 (LocalSearch/GlobalSearch.search()가 async 함수라 필요)
+import asyncio # 비동기 실행 지원
 import traceback
 import threading
 import time
@@ -17,9 +18,7 @@ from config.settings import MAIL_BLOCK_SEP
 
 load_dotenv("src/parquet/.env")
 
-# 연합 검색은 query 테이블에 계정마다 행을 따로 남기지 않고 딱 1행만 저장한다.
-# user_id는 앱 전체에서 하나로 통일돼 있어 어느 계정으로 저장해도 동일하므로 primary_user_id는 FK 채우기용일 뿐이고,
-# 실제로 참고한 계정 목록은 refer_kg에 기록한다. 토큰 사용량은 참여한 계정들의 사용량을 전부 더한 총합으로 저장한다.
+# 연합 검색 결과를 query 테이블에 1행으로 저장한다 (참여 계정들의 토큰 사용량 총합, 인용 계정은 refer_kg에 기록)
 def _save_federated_query(accounts_paths: list, primary_user_id: str, original_message: str,
                            elapsed: float, method: str, answer: str, refer_accounts: list = None):
     total_input = 0
@@ -32,8 +31,7 @@ def _save_federated_query(accounts_paths: list, primary_user_id: str, original_m
         if not model_name and usage["model_name"]:
             model_name = usage["model_name"]
 
-    # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면(로컬 검색에서 인용이 하나도 안 잡힌 경우 등)
-    # 참여 계정 전체로 채워넣지 않고 그냥 비워둔다 — 억지로 채운 값은 틀린 정보를 남기는 것과 같음
+    # 어떤 계정이 실제로 근거가 됐는지 확신할 수 없으면 그냥 비워둠
     refer_kg = json.dumps(refer_accounts) if refer_accounts else None
 
     try:
@@ -48,9 +46,7 @@ def _save_federated_query(accounts_paths: list, primary_user_id: str, original_m
     except Exception as e:
         print(f"[WARN] 연합 검색 query DB 저장 실패 (무시): {e}")
 
-# 계정의 mail_latest.txt에서 "메일 ID → 실제 발신인" 매핑을 읽어온다.
-# GraphRAG가 조립한 컨텍스트나 LLM 답변을 정규식으로 다시 파싱하면 내부 포맷/토큰 잘림/LLM의 필드 혼동 때문에
-# 틀리기 쉬워서, 원본 파일에서 직접 읽어와 정답으로 덮어쓰는 방식이 훨씬 안정적이다.
+# 계정의 mail_latest.txt에서 {메일ID(소문자): 실제 발신인} 매핑을 읽어 반환한다
 def _load_account_sender_map(paths) -> dict:
     try:
         with open(paths.MAIL_LATEST_PATH, "r", encoding="utf-8") as f:
@@ -65,31 +61,20 @@ def _load_account_sender_map(paths) -> dict:
             sender_map[id_m.group(1).strip().lower()] = sender_m.group(1).strip()
     return sender_map
 
-# 답변에서 "ID: xxx" 뽑을 때 \S+ 가 뒤에 붙은 문장부호(대괄호, 마침표 등)까지 같이 잡아버리는 경우가 있어
-# (예: "[ID: xxx@icloud.com]" → "xxx@icloud.com]") 매칭 전에 제거해준다
+# 추출한 메일 ID 끝에 붙은 문장부호(대괄호·마침표 등)를 제거한다
 def _strip_id_punct(mail_id: str) -> str:
     return mail_id.strip(']),.;:》」』')
 
-# LLM이 답변에서 메일을 1, 2, 3... 처럼 순번을 매기다가 그 순번을 그대로 "ID: 2"로 써버리는 경우가 있음.
-# 실제 메일 ID는 항상 길고(16자리 hex, 또는 '@'가 포함된 긴 문자열) 이런 순수 짧은 숫자가 나올 수 없으므로,
-# 매칭 시도(=필연적으로 실패해서 "알 수 없음"으로 뜸) 자체를 하지 않고 미리 걸러낸다.
+# 메일 ID가 올바른지 판단한다 (LLM이 순번 "2" 등을 ID로 잘못 쓴 짧은 숫자는 걸러냄)
 def _is_plausible_mail_id(mail_id: str) -> bool:
     return not (mail_id.isdigit() and len(mail_id) <= 6)
 
-# ID/계정 필드는 근거 추출(계정 매칭, 발신인 교정)에만 쓰고 사용자에게 보여줄 답변에서는 지운다.
-# "- ID: xxx"처럼 단독 줄이면 줄째로, "1. ID: xxx"처럼 번호 뒤에 붙어있으면 그 부분만 지우는데,
-# 후자의 경우 번호(예: "1.")만 남고 내용이 텅 빈 줄이 생기므로 그것도 같이 정리한다.
-
-# LLM이 답변 맨 앞에 자신이 받은 질문을 "> 질문 내용" 형태로 그대로 되풀이해서 붙이는 경우가 있음
-# (예: "> 프로젝트 관련 메일 알려줘 영어 말고 한국어로 답변해줘"). 사용자에게 보여줄 답변이 아니므로
-# 맨 앞줄이 '>'로 시작하면 그 줄(과 뒤따르는 빈 줄)까지 통째로 제거한다.
+# LLM이 답변 맨 앞에 되풀이한 "> 질문" 줄을 제거한다
 def _strip_echoed_question(answer: str) -> str:
     return re.sub(r'^>.*\n+', '', answer)
 
+# 화면 표시용으로 답변을 정리한다 (불릿 줄바꿈 정규화, ID/계정 줄 제거, 빈 번호 줄 정리)
 def strip_ids_for_display(text: str) -> str:
-    # 요청 — 로컬 모델이 프롬프트의 "불릿마다 줄바꿈" 지시를 안 지키고 " - 항목: 설명 - 항목: 설명"
-    # 처럼 한 문단으로 이어 붙여 화면(white-space: pre-wrap)에서 줄바꿈이 안 되는 문제 방지 —
-    # 이미 줄 앞이 아닌 자리의 " - "(불릿 마커)만 실제 개행으로 정규화한다.
     text = re.sub(r'(?<!\n) - (?=\S)', '\n- ', text)
     text = re.sub(r'^[ \t]*[-*]?[ \t]*(ID|계정):\s*\S+[ \t]*\n?', '', text, flags=re.MULTILINE)
     text = re.sub(r'(ID|계정):\s*\S+', '', text)
@@ -97,20 +82,22 @@ def strip_ids_for_display(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text).strip()
     return text
 
-# cli 호출 방식인 _run_graphrag() 대체용 (get_engines()로 캐싱된 LocalSearch, globalSearch 객체 직접 호출)
+# 캐시된 LocalSearch/GlobalSearch 엔진을 직접 호출해 단일 계정 질의 답변과 근거 메일 ID 목록을 반환하고 query 로그를 저장한다
 def run_graphrag_query(message: str, original_message: str, paths, method: str = "local") -> tuple[str, list]:
     start_time = time.time()
-    result_container = {"result": None, "error": None} # 스레드 간에 결과나 에러를 공유하기 위한 컨테이너 (스레드 return 값 직접 전달 못해서 dict로 우회함)
+    result_container = {"result": None, "error": None} # 스레드 간에 결과나 에러를 공유하기 위한 컨테이너
 
-    def _run(): # 별도 스레드에서 실행할 함수 (플라스크가 자체 이벤트 루프 갖고 있어서 asyncio.run() 바로 쓰면 충돌날수도 있음)
+    # 새 이벤트 루프를 가진 별도 스레드에서 비동기 검색을 실행하고 결과/에러를 컨테이너에 담는다
+    def _run():
         loop = asyncio.new_event_loop() # 현재 스레드 전용 새 이벤트 루프 생성
         asyncio.set_event_loop(loop) # 현재 스레드의 기본 루프로 설정
         try:
-            async def _search(): # 실제 검색 로직 담은 함수
+            # 엔진을 검색해 답변을 정제하고 근거 메일 ID를 추출한다
+            async def _search():
                 output_dir = os.path.join(paths.GRAPHRAG_ROOT, "output")
                 local_engine, global_engine = get_engines(paths.USER_ID, output_dir, paths.GRAPHRAG_ROOT) # 유저별 캐싱된 local + global 엔진 둘 다 가져오기 (캐시에서 재사용)
                 engine = local_engine if method == "local" else global_engine
-                result = await engine.search(message) # cli subprocess 대신 엔진 객체 함수 호출 (subprocess 생성이나 종료가 없어서 속도 빨라짐)
+                result = await engine.search(message) # 엔진 객체 함수 호출
                 answer = result.response # 검색 결과 객체에서 답변 텍스트 추출
                 answer = _strip_echoed_question(answer) # 답변 맨 앞에 붙는 "> 질문 그대로" 줄 제거
                 answer = re.sub(r'\[Data:.*?\]|\[데이터:.*?\]', '', answer) # graphrag가 답변에 삽입하는 출처 태그 제거
@@ -130,7 +117,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
                         found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', ctx)]
                         found = [m for m in found if _is_plausible_mail_id(m)]
 
-                # 순서 유지하면서 중복 제거. account를 같이 넣어서 연합 검색(run_federated_local_search) 결과와 형태를 통일함
+                # 순서 유지하면서 중복 제거. 연합 검색(run_federated_local_search) 형태 통일
                 seen = set()
                 source_ids = []
                 for id in found:
@@ -153,7 +140,7 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
     # 완전히 새로운 스레드에서 _run 실행
     t = threading.Thread(target=_run, daemon=True)
     t.start()
-    t.join(timeout=120)  # 최대 120초 대기. 120초 넘어도 답이 안 오면 런타임에러 발생 및 CLI fallback로 넘어감. (스레드 종료 ㄴㄴ)
+    t.join(timeout=120)  # 최대 120초 대기. 120초 넘어도 답이 안 오면 런타임에러 발생 및 CLI fallback로 넘어감.
 
     if t.is_alive():
         raise RuntimeError("graphrag 검색 타임아웃 (120초)")
@@ -179,16 +166,18 @@ def run_graphrag_query(message: str, original_message: str, paths, method: str =
         print(f"[WARN] query DB 저장 실패 (무시): {e}")
     return answer, source_ids  # app.py의 _worker()로 튜플 반환
 
-# 여러 계정의 로컬 서치 컨텍스트(벡터 검색 결과)를 계정별로 따로 조립한 뒤, 답변 생성은 한번만 함
+# 여러 계정의 로컬 서치 컨텍스트를 계정별로 조립·병합해 답변을 한 번만 생성하고, 근거 메일 ID·계정을 반환한다
 def run_federated_local_search(message: str, original_message: str, accounts_paths: list,
                                 primary_user_id: str = None, per_account_max_tokens: int = 3000) -> tuple[str, list]:
     start_time = time.time()
     result_container = {"result": None, "error": None}
 
+    # 새 이벤트 루프를 가진 별도 스레드에서 연합 로컬 검색을 실행한다
     def _run():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
+            # 계정별 로컬 엔진 컨텍스트를 모아 답변을 생성하고 근거를 추출한다
             async def _search():
                 engines = []
                 for paths in accounts_paths:
@@ -226,8 +215,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 merged_context = "\n\n".join(combined_chunks)
 
-                # 답변에 나온 ID로 원본 데이터를 찾는다. 완전 일치 → 도메인 빠진 경우 → 일부만 옮겨 적힌 경우 순으로 완화.
-                # 반환값: (원본 파일 기준 진짜 ID, 그 계정 user_id) 또는 (None, None)
+                # 답변 속 메일 ID로 원본 데이터를 찾아 (진짜 ID, 계정 user_id)를 반환한다 (완전일치→부분일치 순 완화, 실패 시 None,None)
                 def _find_real_id(mail_id: str):
                     key = mail_id.lower()
 
@@ -249,6 +237,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                     return None, None
 
+                # 메일 ID로 소속 계정 user_id를 역추적한다 (실패 시 None)
                 def _resolve_account(mail_id: str):
                     _, user_id = _find_real_id(mail_id)
                     if not user_id:
@@ -261,12 +250,8 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                     context_data=merged_context,
                     response_type=first_engine.response_type,
                 )
-                # 여러 계정 데이터가 섞여 있다는 것과, 각 데이터 앞의 [계정: ...] 라벨을 알려줌.
-                # 관련 내용이 없는 계정까지 억지로 채우지 말고 실제로 관련 있는 계정만 빠짐없이 다루게 함.
-                # 계정 언급은 "근거 계정" 영역에서 별도로 보여주므로 답변 본문에서 굳이 언급하라고 하지는 않음.
 
-                # 도메인마다 원본 블록의 필드 구성이 다르므로(이메일: 발신인/수신인, 카카오: 채팅방/참여자)
-                # 그 필드 이름을 그대로 지시문에 박아넣지 않고 도메인별로 분기한다.
+                # 도메인마다 원본 블록의 필드 구성이 다르므로(이메일: 발신인/수신인, 카카오: 채팅방/참여자)도메인별로 분기한다.
                 domain = engines[0][0].DOMAIN
                 if domain == "messenger":
                     search_prompt += (
@@ -327,9 +312,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
                 answer = re.sub(r'\*+|#+', '', answer)
                 answer = answer.strip()
 
-                # 프롬프트로 "발신인 자리에 ID값 쓰지 마라"고 지시해도 LLM이 종종 혼동해서 틀리게 쓰므로,
-                # 아예 각 항목의 ID로 원본 데이터를 찾아 진짜 발신인 값으로 강제로 덮어쓴다.
-                # (항목을 문단 단위로 나눠서, 그 문단에 있는 ID에 해당하는 발신인만 그 문단 안에서 교체)
+                # 답변 문단 하나에서 ID에 해당하는 진짜 발신인 값으로 '발신인:' 줄을 강제 교정한다
                 def _fix_paragraph_sender(p):
                     id_m = re.search(r'ID:\s*(\S+)', p)
                     if not id_m:
@@ -344,9 +327,7 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 answer = '\n\n'.join(_fix_paragraph_sender(p) for p in answer.split('\n\n'))
 
-                # 항목마다 ID가 있으면 그 ID로 진짜 소속 계정을 역추적하는 쪽이 정확하다(위 발신인 교정과 동일한 방식).
-                # LLM이 직접 쓴 '계정:' 값은 여러 계정 데이터를 요약하면서 항목별로 정확히 구분하지 못하고
-                # 전부 같은 계정으로 잘못 적는 경우가 있어, ID를 못 찾았을 때만 쓰는 폴백으로 둔다.
+                # 항목마다 ID가 있으면 그 ID로 진짜 소속 계정을 역추적
                 found = [_strip_id_punct(m) for m in re.findall(r'ID:\s*(\S+)', answer)]
                 found = [m for m in found if _is_plausible_mail_id(m)]
                 seen = set()
@@ -358,7 +339,6 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
 
                 if not source_ids:
                     # ID를 하나도 못 찾았을 때(요약형 답변 등)만 LLM이 쓴 '계정:' 값으로 폴백.
-                    # 실제 인덱싱된 계정 목록에 없는 값(오타/환각)은 조용히 버린다 — 확신 없는 건 안 보여준다는 원칙 유지.
                     valid_accounts = {p.USER_ID.strip().lower(): p.USER_ID for p, _ in engines}
                     cited_accounts = []
                     for m in re.findall(r'계정:\s*(\S+)', answer):
@@ -408,20 +388,18 @@ def run_federated_local_search(message: str, original_message: str, accounts_pat
     )
     return answer, source_ids
 
-# 여러 계정의 글로벌 서치(map-reduce)를 연합한다.
-# map 단계(계정별 커뮤니티 보고서 요약)는 계정마다 각자 돌리되(데이터량만큼 필요한 비용이라 못 줄임),
-# reduce 단계(최종 답변 합성)만 전체 계정의 map 결과를 모아 딱 1번만 실행해서 비용을 아낀다.
-# 참고: _map_response_single_batch / _reduce_response는 graphrag 라이브러리의 비공개(밑줄) 메서드라
-# 버전이 바뀌면 시그니처가 달라질 수 있다.
+# 여러 계정의 글로벌 서치를 연합한다 (map은 계정별, reduce는 전체를 모아 1회 실행해 비용 절감)
 def run_federated_global_search(message: str, original_message: str, accounts_paths: list,
                                  primary_user_id: str = None) -> tuple[str, list]:
     start_time = time.time()
     result_container = {"result": None, "error": None}
 
+    # 새 이벤트 루프를 가진 별도 스레드에서 연합 글로벌 검색을 실행한다
     def _run():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
+            # 계정별 map 응답을 모아 reduce를 1회 실행해 최종 답변을 만든다
             async def _search():
                 engines = []
                 for paths in accounts_paths:
@@ -499,7 +477,7 @@ def run_federated_global_search(message: str, original_message: str, accounts_pa
     )
     return answer, source_ids
 
-# 질의 방법 분류 (RAG 검색 자체가 아닌 보조 작업이라 SUB_TASK_CHAT_MODEL 사용 — lightrag_query.py와 동일 원칙)
+# 질문이 로컬 검색용인지 글로벌 검색용인지 LLM으로 분류해 "local"/"global"을 반환한다
 def _classify_query_method(message: str) -> str:
     prompt = f"""다음 질문이 로컬 검색(특정 메일·인물·날짜·주제)에 적합한지,
                 글로벌 검색(전체 경향·요약·패턴·빈도)에 적합한지 판단하라.

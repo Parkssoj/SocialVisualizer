@@ -137,13 +137,12 @@
    순간 오른쪽에서 서랍처럼 튀어나오도록. gw-answer-frame을 flex row로 두고,
    gw-answer-main(답변, flex:1)과 gw-mail-drawer(flex:0 0 auto, 평소 width:0)를
    나란히 배치 — 서랍이 열리면 실제로 폭을 차지하며 늘어나므로, 오버레이로 버튼을
-   가리는 게 아니라 답변 카드가 그만큼 자연히 왼쪽으로 밀려 줄어든다. align-items가
-   기본값 stretch라서 서랍 높이는 항상 답변 카드와 위/아래 선이 정확히 일치한다. */
-.gw-answer-frame { display: flex; align-items: stretch; }
-// 요청 — 서랍이 답변 카드보다 길어지면(내용이 길 때) 카드 쪽에 흰 여백만 남고
-// 카드 박스 자체는 짧아서 밑선이 안 맞았음. gw-answer-main을 세로 flex로 바꾸고
-// gw-result-card를 flex:1로 늘려서, 카드 박스 자체가 서랍과 같은 높이까지
-// 늘어나 밑선이 항상 일치하도록 한다.
+   가리는 게 아니라 답변 카드가 그만큼 자연히 왼쪽으로 밀려 줄어든다.
+   요청 — align-items를 stretch로 두고 카드를 서랍 높이에 강제로 맞췄더니, 서랍
+   내용(메일 본문)이 답변보다 길 때 카드 내부에 빈 여백만 커지는 문제가 있어
+   flex-start로 되돌렸다. 카드는 항상 자기 내용 길이만큼만 커지고, 서랍이 카드보다
+   길어지는 건 자연스럽게 허용한다(밑선이 항상 맞진 않지만 빈 카드보다 낫다). */
+.gw-answer-frame { display: flex; align-items: flex-start; }
 .gw-answer-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .gw-mail-drawer {
   // 요청 — 닫기(×) 버튼이 안 보이던 원인: gw-mail-drawer-close가 position:absolute인데
@@ -167,22 +166,34 @@
   padding: 38px 36px 34px;
   margin-left: 32px;
   box-shadow: 0 10px 34px rgba(0,0,0,0.2);
-  // max-height는 search.js가 렌더링 직후 답변 카드(.gw-answer-main)의 실제 높이를
-  // 재서 인라인 스타일로 채워 넣는다(syncDrawerHeight) — 서랍이 항상 카드와 같은
-  // 높이로 늘어나되, 메일 본문이 그보다 길면 서랍이 더 커지는 대신 여기 overflow-y:
-  // auto로 내부에서만 스크롤되게 하기 위함.
-  overflow-y: auto;
 }
 .gw-mail-drawer-close {
+  // 요청 — 스크롤해도 닫기 버튼이 계속 보이도록, 스크롤은 .gw-mail-drawer 자체가
+  // 아니라 안쪽 .gw-mail-detail-panel에서만 일어나게 했다(아래 참고). 이 버튼은
+  // 스크롤되지 않는 .gw-mail-drawer 기준으로 고정된 위치에 남는다.
   position: absolute; top: 12px; right: 12px;
   width: 28px; height: 28px; border: none; border-radius: 50%;
   background: #f4f6f8; color: #73879C; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.85rem; transition: background 0.15s, color 0.15s;
+  z-index: 1;
 }
 .gw-mail-drawer-close:hover { background: #fee; color: #e74c3c; }
 
-.gw-mail-detail-panel { min-height: 160px; }
+// 요청 — 서랍 높이를 답변 카드 높이에 맞추려던 시도(JS의 syncDrawerHeight)가 양쪽
+// 다 문제였다: 카드에 맞추면 카드가 짧을 때 서랍이 필요 이상 작게 눌리고, 반대로
+// 카드를 서랍에 맞추면 서랍이 길 때 카드 안에 빈 여백만 커졌다. 그래서 서랍은
+// 카드와 무관하게 뷰포트 기준의 고정 최대 높이만 갖고, 넘치는 내용은 이 안쪽
+// 패널에서만 스크롤한다(닫기 버튼이 있는 .gw-mail-drawer 자체는 스크롤시키지
+// 않아야 닫기 버튼이 스크롤을 따라 밀려 올라가지 않는다).
+// 요청 — 스크롤바가 닫기 버튼(서랍 오른쪽 끝에서 12px)보다 안쪽(서랍 패딩만큼,
+// 36px)에 생겨서 버튼이랑 스크롤바가 다른 세로선에 걸려 있었다. 패널을 오른쪽
+// 패딩 바깥으로 24px(=36-12) 밀어서 스크롤바를 버튼과 같은 선에 맞추고, 그만큼
+// padding-right로 다시 채워 실제 텍스트 위치는 그대로 유지한다.
+.gw-mail-detail-panel {
+  min-height: 160px; max-height: 70vh; overflow-y: auto;
+  margin-right: -24px; padding-right: 24px;
+}
 .gw-mail-detail-empty { color: #aaa; font-size: 1rem; line-height: 1.7; }
 .gw-mail-detail-loading { display: flex; align-items: center; gap: 12px; color: #73879C; font-size: 1rem; }
 .gw-mail-detail-subject { font-size: 1.15rem; font-weight: 700; color: #2A3F54; margin-bottom: 14px; word-break: break-word; }

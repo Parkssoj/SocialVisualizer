@@ -1,3 +1,7 @@
+# 메일 본문에서 LLM으로 키워드·어조·관계 프로필을 추출해 연락처별 통계를 계산하고 파이프라인으로 저장한다.
+
+# Extracts keywords, tone, and relationship profiles from mail bodies via LLM, then computes and saves per-contact statistics through a background pipeline.
+
 import os
 import re
 import json
@@ -18,14 +22,16 @@ client = OpenAI(
     base_url=os.getenv("SUB_TASK_API_BASE") or None,
 )
 
+# 시작 시각과 성능 카운터를 담은 타이머 dict를 만든다
 def start_timer():
     return {
         "started_at": datetime.now(),
         "start_perf": time.perf_counter()
     }
 
+# 타이머를 종료해 시작/종료 시각과 경과 초를 담은 dict를 반환한다
 def end_timer(timer):
-    ended_at = datetime.now()
+    ended_at = datetime.now().replace(microsecond=0)
     elapsed_sec = time.perf_counter() - timer["start_perf"]
 
     return {
@@ -34,6 +40,7 @@ def end_timer(timer):
         "elapsed_sec": round(elapsed_sec, 2)
     }
 
+# 초 단위 시간을 "HH:MM:SS.ss" 문자열로 변환한다
 def format_elapsed_time(seconds: float) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
@@ -41,7 +48,7 @@ def format_elapsed_time(seconds: float) -> str:
 
     return f"{hours:02d}:{minutes:02d}:{secs:05.2f}"
 
-# 이름+메일주소 형식에서 이름과 메일주소 분리하여 반환
+# "이름 <메일>" 형식에서 (이름, 소문자 메일주소) 튜플을 분리해 반환한다
 def _parse_contact(raw: str) -> tuple[str, str]:
         m = re.search(r"^(.*?)\s*<([^>]+)>", raw.strip())
         if m:
@@ -52,7 +59,7 @@ def _parse_contact(raw: str) -> tuple[str, str]:
             email = raw.strip().lower()
         return name, email
 
-# 메일 블록에서 특정 필드 값 추출
+# 메일 블록에서 특정 라벨의 필드 값을 추출한다 (multiline이면 블록 단위로 추출)
 def _extract_field(block: str, label: str, multiline: bool = False) -> str:
     if multiline:
         m = re.search(
@@ -68,7 +75,7 @@ def _extract_field(block: str, label: str, multiline: bool = False) -> str:
         )
     return m.group(1).strip() if m else ""
 
-# LLM으로 친밀한 어조 판별
+# 메일 본문을 LLM에 넘겨 친밀한 어조인지(True/False) 판별한다
 def _is_friendly_tone_with_llm(body: str) -> bool:
 
     if not body.strip():
@@ -113,6 +120,7 @@ def _is_friendly_tone_with_llm(body: str) -> bool:
     answer = result.choices[0].message.content.strip().lower()
     return answer == "friendly"
 
+# 메일/대화 본문에서 LLM으로 핵심 키워드(한국어 명사)를 최대 몇 개 뽑아 리스트로 반환한다
 def extract_keywords_with_llm(body: str) -> list[str]:
     body = body.strip()
     if not body:
@@ -171,7 +179,7 @@ def extract_keywords_with_llm(body: str) -> list[str]:
         return []
 
 
-# 메일 발신 수신 횟수 계정별로 저장
+# parquet에서 연락처별 발신/수신/친밀 메일 수와 이름을 집계해 mail_contact_stats.json으로 저장한다 (rewrite/append)
 def _save_mail_contact_stats(paths, mode: str = "rewrite"):
     import pandas as pd
 
@@ -244,6 +252,7 @@ def _save_mail_contact_stats(paths, mode: str = "rewrite"):
 
     print(f"[STATS] ({mode}) 계정 {len(stats)}개 집계 완료 → {paths.MAIL_CONTACTS_PATH}")
 
+# text_units.parquet의 메일마다 LLM 키워드를 뽑아 키워드별 언급 수·사람·날짜 맵을 mail_keyword_stats.json으로 저장한다
 def _save_mail_keyword_stats(paths, mode: str = "rewrite"):
     import pandas as pd, re
     # 기존 데이터 로드 (append 모드)
@@ -272,6 +281,7 @@ def _save_mail_keyword_stats(paths, mode: str = "rewrite"):
         date_match = re.search(r'^\[날짜\]\s*(.+)$', text, re.MULTILINE)
         mail_date = date_match.group(1).strip()[:10] if date_match else None  # YYYY-MM-DD
 
+        # "Name <email>" 형태에서 이메일만 뽑는다
         def parse_email(value):
             m = re.search(r'<(.+?)>', value)
             return m.group(1).strip() if m else value.strip()
@@ -316,14 +326,8 @@ def _save_mail_keyword_stats(paths, mode: str = "rewrite"):
     print(f"[KEYWORD] ({mode}) 키워드 {len(keyword_stats)}개 저장 완료 → {paths.MAIL_KEYWORDS_PATH}")
 
 
+# parquet에서 사람별 이름·소속·주제·메일 수를 모아 LLM으로 관계 프로필을 생성해 {이메일: {description, relation_label}}로 반환한다
 def generate_person_descriptions(paths) -> dict:
-    """
-    parquet에서 각 person의 이름·소속·주제·메일 수를 수집하고
-    LLM으로 줄글 프로필을 생성해 dict로 반환한다 (DB 저장은 호출자가 담당).
-
-    반환: { person_email: {"description": "이름: ...\n관계: ...\n자주 주고 받은 내용: ...",
-                          "relation_label": "가족|연인|친구|동료|사제|지인|기업" | None} }
-    """
     import pandas as pd
 
     if not os.path.exists(paths.ENTITIES_PATH) or not os.path.exists(paths.RELATIONSHIPS_PATH):
@@ -335,6 +339,7 @@ def generate_person_descriptions(paths) -> dict:
 
     type_col = 'type' if 'type' in entities_df.columns else 'entity_type'
 
+    # 주어진 엔티티 타입에 해당하는 title들의 집합을 반환한다
     def titles_of(etype: str) -> set:
         mask = entities_df[type_col].str.lower() == etype.lower()
         return set(entities_df.loc[mask, 'title'].astype(str))
@@ -462,6 +467,7 @@ def generate_person_descriptions(paths) -> dict:
 
         person_prompts.append((person_email, name, prompt))
 
+    # 사람 한 명의 프롬프트를 LLM에 넘겨 (이메일, description, relation_label)을 반환한다
     def _call_llm(person_email, name, prompt):
         try:
             result = client.chat.completions.create(
@@ -481,9 +487,7 @@ def generate_person_descriptions(paths) -> dict:
             relationship = rel_m.group(1).strip()     if rel_m     else ''
             content      = content_m.group(1).strip() if content_m else ''
 
-            # 메신저 relation_label과 동일한 "[관계: 카테고리]" 태그 파싱 (graphrag_parquet2json.py
-            # _RELATION_TAG_RE 참고). person.relation_label 컬럼으로 분리 저장하고, description에
-            # 남는 "관계:" 줄에서는 태그를 떼어내 순수 설명 문장만 남긴다.
+            # [관계: 카테고리] 태그 파싱  person.relation_label 컬럼으로 분리 저장한다
             tag_m = re.match(r'^\[관계:\s*([^\]]+?)\]\s*', relationship)
             relation_label = tag_m.group(1).strip() if tag_m else None
             if tag_m:
@@ -515,8 +519,66 @@ def generate_person_descriptions(paths) -> dict:
     return descriptions
 
 
+# generate_person_descriptions() 결과({이메일: {description, relation_label}})를 2차 LLM 호출로 한 문장 소개(short_bio)로 압축해 {이메일: 문장}으로 반환한다
+def generate_person_short_bios(descriptions: dict) -> dict:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    targets = [
+        (email, info.get("description") or "", info.get("relation_label") or "지인")
+        for email, info in descriptions.items()
+        if info.get("description")
+    ]
+    if not targets:
+        return {}
+
+    # 완성된 description + relation_label로 한 문장 소개 프롬프트를 만든다
+    def _build_prompt(description, relation_label):
+        return f"""다음은 이미 생성된 인물 설명입니다.
+
+관계 카테고리: {relation_label}
+설명:
+{description}
+
+위 내용을 바탕으로, 이 사람을 다른 사람에게 소개하듯 자연스러운 한국어 한 문장으로 요약하세요.
+- 문장은 반드시 "~입니다."로 끝나야 합니다.
+- 성격이나 관계의 특징이 드러나는 짧은 소개 문장으로 쓰세요.
+- 예시: "꼼꼼하고 계획적인 성격의 친구입니다.", "함께 프로젝트를 진행하는 믿음직한 동료입니다."
+- 다른 설명, 따옴표, 접두어 없이 문장 하나만 출력하세요.""".strip()
+
+    def _call_llm(email, description, relation_label):
+        try:
+            result = client.chat.completions.create(
+                model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다."
+                    },
+                    {"role": "user", "content": _build_prompt(description, relation_label)}
+                ],
+                temperature=0.3
+            )
+            return email, result.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[SHORT_BIO] LLM 호출 실패 ({email}): {e}")
+            return email, None
+
+    short_bios: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:
+        futures = {executor.submit(_call_llm, email, desc, rel): email for email, desc, rel in targets}
+        for future in as_completed(futures):
+            email, bio = future.result()
+            if bio:
+                short_bios[email] = bio
+
+    print(f"[SHORT_BIO] 총 {len(short_bios)}명 한줄소개 생성 완료")
+    return short_bios
+
+
+# (함수, 인자) 목록을 각각 스레드로 병렬 실행하고 모두 끝날 때까지 기다린다 (에러가 나면 첫 에러를 재발생)
 def _run_and_join(jobs):
     errors = []
+    # 함수를 실행하고 예외를 errors 리스트에 모은다
     def _wrap(fn, args):
         try:
             fn(*args)
@@ -529,6 +591,7 @@ def _run_and_join(jobs):
         raise errors[0]
 
 
+# 메일 키워드 통계와 연락처 통계 저장을 병렬로 실행하는 메일 통계 파이프라인
 def _extract_statics_pipeline(paths, mode: str = "rewrite"):
     os.makedirs(paths.MAIL_STATICS_PATH, exist_ok=True)
     # 서로 다른 출력 파일(keywords/contacts)에 쓰고 순서 의존성이 없어 병렬 실행
@@ -537,6 +600,7 @@ def _extract_statics_pipeline(paths, mode: str = "rewrite"):
         (_save_mail_contact_stats, (paths, mode)),
     ])
 
+# 통계 파이프라인을 실행하며 Job 상태(running/done/failed)와 로그를 갱신한다
 def run_statics_pipeline(job_id, paths, mode: str = "rewrite"):
     print(f"[JOB][statics] START job_id={job_id}")
     append_job_log(job_id, "[START] statics pipeline")
@@ -571,6 +635,7 @@ def run_statics_pipeline(job_id, paths, mode: str = "rewrite"):
             finished_at=time.time(),
         )
 
+# 통계 파이프라인을 데몬 스레드로 백그라운드 실행하고 스레드 객체를 반환한다
 def start_statics_pipeline_background(job_id, paths, mode: str = "rewrite"):
     print(f"[JOB][statics] BACKGROUND START job_id={job_id}")
     append_job_log(job_id, "[INFO] background thread starting")

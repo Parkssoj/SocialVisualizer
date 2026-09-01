@@ -52,19 +52,14 @@ export async function fetchSubjectsByRefs(flaskUrl, refs) {
   }
 }
 
-// 답변 줄 하나에 제목이 "언급됐다"고 볼 수 있는지 판단 — 제목 전체가 그대로 포함된 줄을
-// 먼저 찾고, 없으면 제목의 첫 단어(2글자 이상)만이라도 포함된 줄을 찾는다
+// 답변 줄 하나에 제목이 "언급됐다"고 볼 수 있는지 판단 — 제목 전체가 그대로 포함된 줄을 찾는다.
+// (제목 전체가 안 걸리면 첫 단어만으로 매칭하던 fallback이 있었으나, 같은 단어로 시작하는
+// 제목의 메일이 여럿일 때 전부 한 줄에 몰려 버튼이 중복 표시되는 문제가 있어 제거했다 —
+// 제목 전체가 걸리지 않으면 버튼 없이 넘어간다.)
 export function findLineIdxBySubject(lines, subject) {
   const cleaned = String(subject || '').trim();
   if (!cleaned) return -1;
-  let idx = lines.findIndex((line) => line.includes(cleaned));
-  if (idx !== -1) return idx;
-  const firstWord = cleaned.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/)[0];
-  if (firstWord && firstWord.length >= 2) {
-    idx = lines.findIndex((line) => line.includes(firstWord));
-    if (idx !== -1) return idx;
-  }
-  return -1;
+  return lines.findIndex((line) => line.includes(cleaned));
 }
 
 // source_ids({id, account} 배열)에서 메일 도메인 근거만, 중복 id 제거해서 뽑기

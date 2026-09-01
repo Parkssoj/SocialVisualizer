@@ -1,7 +1,6 @@
-# src/util/message_summary.py
-#
-# graphrag_mail_summary.py의 메신저 버전. text_units.parquet에서 재구성한 대화 블록을
-# 월별/연별로 묶어 LLM 요약을 만들고 message_summarize 테이블에 저장한다.
+# 대화 블록을 월별/연별로 묶어 LLM으로 요약을 생성하고 JSON과 message_summarize 테이블에 저장한다.
+
+# Groups conversation blocks by month/year, generates summaries via LLM, and saves them to JSON and the message_summarize table.
 
 import os
 import json
@@ -11,14 +10,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from util.message_statics import _parse_message_blocks_from_parquet
 from util.database.chatroom_db_writer import save_message_summarize_to_db
-# My Time 화면에서 기간 요약 삽화(image_url)를 더 이상 렌더링하지 않고, 이걸 만들려면
-# 로컬 FLUX 이미지 서버(port 8005)가 떠있어야 하는데 지금은 꺼져있어서 매번 생성 실패
-# 로그만 남긴다 — 안 쓰는 기능이라 호출 자체를 꺼둠 (2026-08-27).
-# from util.summary_image_generator import generate_message_summary_images
 
 load_dotenv("src/parquet/.env")
 
 
+# 대화 목록을 LLM에 넘겨 해당 기간 요약과 관련 참여자 목록을 JSON으로 받아온다
 def _summarize_with_llm(text, period_label, contacts):
     client = openai.OpenAI(
         api_key=os.environ.get("LLM_API_KEY"),
@@ -45,7 +41,7 @@ def _summarize_with_llm(text, period_label, contacts):
                     "content": f"[{period_label}] 참여자 목록: {contacts}\n\n대화 목록:\n\n{text}"
                 }
             ],
-            max_completion_tokens=1000  # gpt-5.4-mini(reasoning 모델)는 max_tokens 미지원, max_completion_tokens 사용
+            max_completion_tokens=1000 
         )
         result = json.loads(response.choices[0].message.content)
         return {
@@ -57,6 +53,7 @@ def _summarize_with_llm(text, period_label, contacts):
         return {"summary": "", "contacts": []}
 
 
+# 대화 블록을 월별/연별로 묶어 LLM 요약을 만들고 JSON 저장 및 message_summarize 테이블 저장
 def generate_message_summaries(paths):
     blocks = _parse_message_blocks_from_parquet(paths)
     if not blocks:
@@ -103,15 +100,18 @@ def generate_message_summaries(paths):
         monthly_groups.setdefault(e["month"], []).append(e)
         yearly_groups.setdefault(e["year"], []).append(e)
 
+    # 그룹의 대화들을 날짜별로 합쳐 LLM 입력 텍스트로 만든다
     def _build_text(group):
         return "\n\n".join(f"날짜: {e['date'].strftime('%Y-%m-%d')}\n{e['text']}" for e in group)
 
+    # 그룹 내 모든 대화의 참여자 이름을 정렬된 리스트로 모은다
     def _collect_contacts(group):
         names = set()
         for e in group:
             names |= e["contacts"]
         return sorted(names)
 
+    # 기간 그룹 하나를 LLM 요약해 (kind, period, 요약결과)를 반환한다
     def _summarize_group(kind, period, group):
         print(f"[message_summary] {kind} 요약 중: {period} ({len(group)}개 블록)")
         return kind, period, _summarize_with_llm(_build_text(group), period, _collect_contacts(group))
@@ -140,4 +140,3 @@ def generate_message_summaries(paths):
     print(f"[message_summary] 저장 완료: {paths.MESSAGE_SUMMARIES_PATH}")
 
     save_message_summarize_to_db(paths)
-    # generate_message_summary_images(paths)  # 위 import 주석 처리 사유와 동일 — 미사용 기능
