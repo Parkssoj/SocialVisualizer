@@ -1,16 +1,17 @@
-// recap.html 전용 스타일 (기존 인라인 <style>에서 이관, 공통 헤더/사이드바 관련 규칙 제외)
+/*
+ * "Recap" 통계 페이지 전용 스타일(인라인 <style>에서 이관, 공통 헤더/사이드바 규칙 제외).
+ *
+ * Styles for the "Recap" stats page (migrated from inline <style>, excluding shared header/sidebar rules).
+ */
 
-/* ── 페이지 배경 ── */
+/* 페이지 배경 */
 .right_col {
   background: #ffffff;
 }
 
-/* ── 히어로 배너 ──
-   예전엔 진한 오렌지-갈색 그라디언트라 색감이 너무 강했음 — 흰 배경으로 바꾸고
-   글자색만 이 페이지의 다른 곳(사이드바, mytime 등)과 같은 톤(진갈색 본문/
-   오렌지 포인트)으로 맞춤. 흰 배경 위에선 의미 없는 점무늬 패턴도 제거. 아래
-   .rc-content가 이 배너 위로 살짝 겹쳐 올라오므로, 배너 영역이 흰 배경에서도
-   구분되도록 옅은 밑줄만 하나 둠. */
+/* 히어로 배너 — 흰 배경에 이 페이지의 다른 영역(사이드바, mytime 등)과 같은 톤(진갈색 본문/오렌지 포인트)의
+   글자색을 쓴다. 아래 .rc-content가 이 배너 위로 살짝 겹쳐 올라오므로, 배너 영역이 흰 배경에서도
+   구분되도록 옅은 밑줄을 둔다. */
 .rc-hero {
   background: #ffffff;
   border-bottom: 1px solid #ececec;
@@ -81,7 +82,7 @@
   font-size: 0.9rem;
 }
 
-/* ── 컨텐츠 영역 (히어로와 겹치게) ── */
+/* 컨텐츠 영역 (히어로와 겹치게) */
 .rc-content {
   margin-top: -44px;
   padding: 0 32px 40px;
@@ -89,7 +90,7 @@
   z-index: 2;
 }
 
-/* ── 카드 ── */
+/* 카드 */
 .rc-card {
   background: #fff;
   border-radius: 20px;
@@ -130,7 +131,7 @@
   color: #7c2d12;
 }
 
-/* ── 로딩 / 에러 ── */
+/* 로딩 / 에러 */
 .rc-loading {
   display: flex;
   align-items: center;
@@ -165,7 +166,7 @@
   box-shadow: 0 4px 14px rgba(231, 76, 60, 0.15);
 }
 
-/* ── 1위 하이라이트 카드 ── */
+/* 1위 하이라이트 카드 */
 .rc-rank1-card {
   background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
   border: none;
@@ -254,7 +255,7 @@
   margin-top: 2px;
 }
 
-/* ── 바 리스트 ── */
+/* 바 리스트 */
 .rc-bar-list {
   list-style: none;
   padding: 0;
@@ -297,8 +298,7 @@
   height: 10px;
   overflow: hidden;
 }
-// 요청 — 4~10등(랭크 클래스 없는 기본값)은 그냥 회색으로. 원래 3등이 이미
-// 회색 계열이라 겹치므로, 3등 색은 연한 갈색으로 바꿔서 구분되게 함.
+// 4~10등(랭크 클래스 없는 기본값)은 회색, 3등은 회색과 겹치지 않도록 연한 갈색으로 구분한다.
 .rc-bar-fill {
   height: 100%;
   border-radius: 20px;
@@ -323,7 +323,7 @@
   white-space: nowrap;
 }
 
-/* ── 2열 그리드 ── */
+/* 2열 그리드 */
 .rc-grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -335,7 +335,7 @@
   }
 }
 
-/* ── 워드 클라우드 ── */
+/* 워드 클라우드 */
 .rc-wc-wrap {
   width: 100%;
   padding: 18px 14px 14px;
@@ -381,7 +381,7 @@
   opacity: 0.7;
 }
 
-/* ── 친밀도 도넛 차트 ── */
+/* 친밀도 도넛 차트 */
 .rc-af-donut-wrap {
   display: flex;
   align-items: center;
@@ -436,6 +436,7 @@
   margin-top: 4px;
   font-weight: 600;
 }
+// 도넛 옆 범례 목록 — 순위, 색상 점, 이름/이메일, 점수
 .rc-af-legend {
   display: flex;
   flex-direction: column;
@@ -494,7 +495,7 @@
   min-width: 50px;
 }
 
-/* ── 동기화 타일 ── */
+/* 동기화 타일 */
 .rc-sync-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -551,55 +552,7 @@
   text-transform: uppercase;
 }
 
-/* ── 만족도 게이지 ── */
-.rc-gauge-wrap {
-  position: relative;
-  text-align: center;
-  padding: 8px 0 0;
-}
-.rc-gauge-svg {
-  width: 100%;
-  max-width: 240px;
-  display: block;
-  margin: 0 auto;
-}
-.rc-gauge-center {
-  margin-top: -18px; /* SVG 반원 아래 여백 당기기 */
-}
-.rc-gauge-num {
-  font-size: 2.8rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #f87171, #fbbf24, #a7a7a7);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1;
-  transition: all 0.1s;
-}
-.rc-gauge-sub {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  font-weight: 600;
-  margin-top: 2px;
-}
-.rc-gauge-label {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  margin-top: 4px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.rc-gauge-stars {
-  text-align: center;
-  font-size: 1.4rem;
-  letter-spacing: 4px;
-  margin-top: 14px;
-  min-height: 28px;
-}
-
-/* ── 반응형 ── */
+/* 반응형 */
 @media (max-width: 768px) {
   .rc-hero {
     padding: 28px 20px 70px;
