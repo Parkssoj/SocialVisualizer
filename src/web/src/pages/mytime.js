@@ -93,15 +93,9 @@ function escHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-// 주요 연락처 설명이 "이름: ... 관계: ... 자주 주고받은 내용: ..."처럼
-// 라벨이 붙은 한 줄 문자열로 오므로, 그 라벨들 앞에 줄바꿈을 넣어 각각
-// 한 줄씩 보이게 만든다.
-function formatContactDesc(text) {
-  let html = escHtml(text);
-  ["이름:", "관계:", "자주 주고받은 내용:"].forEach((label) => {
-    html = html.split(escHtml(label)).join(`<br>${escHtml(label)}`);
-  });
-  return html.replace(/^(<br>)+/, "");
+// 주요 연락처 카드 hover 설명 — 상세 설명(description) 대신 short_bio(한줄 소개)만 보여준다.
+function formatContactTooltip(shortBio) {
+  return shortBio ? escHtml(shortBio) : "등록된 설명이 없습니다.";
 }
 function showTooltip(anchorEl, html, placement = "top") {
   const t = ensureTooltip();
@@ -269,12 +263,8 @@ function createTimeline(ids) {
       // 메신저: /chatroom-people)를 ids.contactLookup으로 넘겨받아 조회한다.
       if (ids.contactLookup) {
         el.addEventListener("mouseenter", () => {
-          const desc = ids.contactLookup(c);
-          showTooltip(
-            el,
-            desc ? formatContactDesc(desc) : "등록된 설명이 없습니다.",
-            "bottom",
-          );
+          const shortBio = ids.contactLookup(c);
+          showTooltip(el, formatContactTooltip(shortBio), "bottom");
         });
         el.addEventListener("mouseleave", hideTooltip);
       }
@@ -910,7 +900,7 @@ function mailContactLookup(contactId) {
       (d.person_account_id || "").toLowerCase() ===
       String(contactId).toLowerCase(),
   );
-  return found ? found.description : null;
+  return found ? found.short_bio : null;
 }
 
 const mailTimeline = createTimeline({
@@ -1029,7 +1019,7 @@ function msgContactLookup(contactId) {
   const found = msgPeopleCache.find(
     (p) => p.participant_id === contactId || p.name === contactId,
   );
-  return found ? found.description : null;
+  return found ? found.short_bio : null;
 }
 
 const msgTimeline = createTimeline({
