@@ -32,6 +32,18 @@ html {
   overflow-x: hidden;
 }
 
+// 히어로 전체를 창 크기에 맞춰 통째로 줄었다 커졌다 하도록 감싸는 바깥 컨테이너.
+// 안쪽(.gw-orbit-hero)의 요소·크기 값은 전혀 건드리지 않고, JS(HeroContent.jsx)가
+// 여기 담긴 원본 크기를 기준으로 transform:scale()만 적용한다.
+.gw-hero-scale-wrap {
+  width: 100%;
+  height: calc(100vh - 80px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
 /* [2컬럼 레이아웃 : 수직 정렬 하강 및 타이틀 커스텀] */
 .gw-orbit-hero {
   position: relative;
@@ -40,7 +52,7 @@ html {
   flex-direction: row !important;
   align-items: center !important; /* 좌/우 수직 가운데 맞춰 내림 */
   justify-content: space-between !important;
-  gap: 40px !important;
+  gap: 80px !important; // 문구 영역과 미리보기 카드 두 개 사이 간격을 더 벌림(기존 40px)
   // 오른쪽 미리보기 카드를 더 키우면서도 전체가 화면에 들어오도록 컨테이너 자체를 넓힘
   max-width: 1480px !important;
   margin: 0 auto !important;

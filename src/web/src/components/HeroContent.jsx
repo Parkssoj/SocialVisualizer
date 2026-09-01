@@ -5,7 +5,7 @@
 Home page hero section — renders the headline/description/CTA, My People & My Time preview cards, and a glow SVG filter.
 Previews can switch between static images (default) and a scaled-down live iframe of the actual page (USE_STATIC_HERO_PREVIEWS). The gw-orbit-hero CSS class prefix is a naming leftover from an earlier design; the current markup is the two-column (copy + preview cards) layout.
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // 미니 프리뷰 카드
 const FRAME_W = 1600;
@@ -34,6 +34,8 @@ function PagePreviewFrame({ src }) {
 
 // 히어로 전체 렌더링
 export default function HeroContent() {
+  const heroRef = useRef(null);
+
   // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이 실제로 DOM에 존재하는 시점에 안전하게 .visible 클래스를 붙일 수 있음
   useEffect(() => {
     const els = document.querySelectorAll(".gw-orbit-hero .gw-anim");
@@ -42,8 +44,57 @@ export default function HeroContent() {
     });
   }, []);
 
+  // 창 크기가 바뀌어도 .gw-orbit-hero 안의 요소·크기 값(폰트, 여백, 카드 크기 등)은
+  // 전혀 건드리지 않고, 원래 크기 그대로 렌더링된 상태를 매번 다시 측정해서 그 비율만큼
+  // transform:scale()로 통째로 줄이거나 키운다. 크기를 한 번만 재서 고정해두면(freeze)
+  // 이미지가 아직 로딩되지 않았거나 레이아웃이 자리잡기 전 타이밍에 잘못된 값으로
+  // 굳어버릴 수 있어서, 매번 스케일을 잠깐 풀고 "원본 크기"를 다시 잰 뒤 재적용한다.
+  useEffect(() => {
+    const hero = heroRef.current;
+    const wrap = hero?.parentElement;
+    if (!hero || !wrap) return undefined;
+
+    let frame = null;
+
+    function measureAndScale() {
+      // 측정 직전엔 스케일을 잠깐 초기화해서, 이전에 적용된 scale 값이 원본 크기
+      // 측정에 영향을 주지 않도록 한다.
+      hero.style.transform = "none";
+      const naturalW = hero.offsetWidth;
+      const naturalH = hero.offsetHeight;
+      const availW = wrap.clientWidth;
+      const availH = wrap.clientHeight;
+      if (!naturalW || !naturalH || !availW || !availH) return;
+      const scale = Math.min(availW / naturalW, availH / naturalH);
+      hero.style.transformOrigin = "top center";
+      hero.style.transform = `scale(${scale})`;
+    }
+
+    function schedule() {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measureAndScale);
+    }
+
+    schedule();
+    window.addEventListener("resize", schedule);
+    const ro = new ResizeObserver(schedule);
+    ro.observe(wrap);
+    // 정적 미리보기 이미지가 늦게 로딩되며 자연 크기가 바뀌는 경우도 다시 재는다
+    const imgs = hero.querySelectorAll("img");
+    imgs.forEach((img) => {
+      if (!img.complete) img.addEventListener("load", schedule, { once: true });
+    });
+
+    return () => {
+      window.removeEventListener("resize", schedule);
+      ro.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
   return (
-    <div className="gw-orbit-hero">
+    <div className="gw-hero-scale-wrap">
+      <div className="gw-orbit-hero" ref={heroRef}>
       <div className="gw-orbit-left">
         <h1 className="gw-hero-headline gw-anim" style={{ transitionDelay: "0.05s" }}>
           Social Visualizer
@@ -188,6 +239,7 @@ export default function HeroContent() {
             <i className="bi bi-arrow-right-short"></i>
           </div>
         </a>
+      </div>
       </div>
     </div>
   );

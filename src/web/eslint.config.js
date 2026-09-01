@@ -38,6 +38,7 @@ const browserGlobals = {
   FileReader: "readonly",
   requestAnimationFrame: "readonly",
   cancelAnimationFrame: "readonly",
+  ResizeObserver: "readonly",
   DOMPurify: "readonly",
   bootstrap: "readonly", // main-app.js가 window.bootstrap으로 노출
   process: "readonly", // vite.config.js가 define으로 정적 주입(process.env.NODE_ENV)
