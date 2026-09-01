@@ -1,20 +1,13 @@
 /**
-지식그래프 시각화 페이지 엔진 — 기존 graph-viz.js의 로직(계정/도메인 전환, d3 + graph-render.js
-동적 로드, /graph-data 조회, SVG 렌더링)을 거의 그대로 옮긴 모듈. 순수 헬퍼(_loadScript)와
-데이터 로드/렌더링 함수(loadGraphData, loadDomain)는 모듈 스코프에 그대로 두고, DOM에 즉시
-손을 대는 URL 파라미터 처리·이벤트 바인딩·최초 로드만 initGraphVizPage()로 묶어서 React 마운트
-후 한 번 호출되도록 했다.
+지식그래프 시각화 페이지 엔진 — 계정/도메인 전환, d3 + graph-render.js 동적 로드, /graph-data 조회, SVG 렌더링을 담당한다.
+순수 헬퍼(_loadScript)와 데이터 로드/렌더링 함수(loadGraphData, loadDomain)는 모듈 스코프에 두고, DOM에 직접 손을 대는 URL 파라미터 처리·이벤트 바인딩·최초 로드는 initGraphVizPage()로 묶어 React 마운트 후 한 번 호출한다.
 
-Engine module for the knowledge-graph page — ports the original graph-viz.js's logic (account/
-domain switching, dynamically loading d3 + graph-render.js, fetching /graph-data, SVG rendering)
-nearly verbatim. The pure helper (_loadScript) and the load/render functions (loadGraphData,
-loadDomain) stay at module scope unchanged; only the URL-param handling, event bindings, and
-initial load are wrapped into initGraphVizPage(), called once after the React component mounts.
+Engine module for the knowledge-graph page — handles account/domain switching, dynamically loading d3 + graph-render.js, fetching /graph-data, and SVG rendering.
+The pure helper (_loadScript) and the load/render functions (loadGraphData, loadDomain) live at module scope; the URL-param handling, event bindings, and initial load are wrapped into initGraphVizPage(), called once after the React component mounts.
  */
 import { initAccountPicker } from "./accountPicker.js";
 
-// My People/My Time/Recap이 공유하는 'gw_user_id'와는 별도의 저장키를 써서,
-// 이 페이지에서 고른 계정이 다른 페이지의 계정 선택에 영향을 주지 않게 한다.
+// My People/My Time/Recap이 공유하는 'gw_user_id'와는 별도의 저장키를 써서, 이 페이지에서 고른 계정이 다른 페이지의 계정 선택에 영향을 주지 않게 한다.
 // URL에 gmail_id가 명시된 경우엔 그걸 그대로 우선한다.
 var GRAPH_MAIL_STORAGE_KEY = "gw_graph_mail_user_id";
 
@@ -23,8 +16,7 @@ var GRAPH_MAIL_STORAGE_KEY = "gw_graph_mail_user_id";
 var currentDomain = "mail";
 
 // d3 + graph-render.js는 계정 목록 조회와 병렬로 미리 로드해두고, 렌더링 직전에만 대기한다.
-// initGraphVizPage()에서 실제로 로드를 시작하고 이 변수에 할당한다(모듈 스코프에 미리 선언해둬야
-// loadGraphData()가 클로저로 참조할 수 있다).
+// initGraphVizPage()에서 실제로 로드를 시작하고 이 변수에 할당한다(모듈 스코프에 미리 선언해둬야 loadGraphData()가 클로저로 참조할 수 있다).
 var rendererReady;
 
 // 외부 <script> 태그를 동적으로 로드하고 완료되면 resolve하는 헬퍼
@@ -50,7 +42,7 @@ function loadGraphData(userId) {
     "/graph-data?user_id=" +
       encodeURIComponent(userId) +
       "&domain=" +
-      encodeURIComponent(currentDomain),
+      encodeURIComponent(currentDomain)
   )
     .then(function (res) {
       return res.json();
@@ -76,26 +68,20 @@ function loadGraphData(userId) {
 // 메일/메신저 도메인 전환 — 토글 버튼 상태 갱신, 해당 도메인 계정 선택기 재초기화, 그래프 재조회
 function loadDomain(domain) {
   currentDomain = domain;
-  document
-    .getElementById("domain-btn-mail")
-    .classList.toggle("active", domain === "mail");
+  document.getElementById("domain-btn-mail").classList.toggle("active", domain === "mail");
   document
     .getElementById("domain-btn-mail")
     .setAttribute("aria-selected", String(domain === "mail"));
-  document
-    .getElementById("domain-btn-message")
-    .classList.toggle("active", domain === "messenger");
+  document.getElementById("domain-btn-message").classList.toggle("active", domain === "messenger");
   document
     .getElementById("domain-btn-message")
     .setAttribute("aria-selected", String(domain === "messenger"));
 
-  var storageKey =
-    domain === "mail" ? GRAPH_MAIL_STORAGE_KEY : "gw_message_room_id";
-  return initAccountPicker(
-    document.getElementById("account-picker-mount"),
-    loadGraphData,
-    { domain, storageKey },
-  ).then(function (effectiveUserId) {
+  var storageKey = domain === "mail" ? GRAPH_MAIL_STORAGE_KEY : "gw_message_room_id";
+  return initAccountPicker(document.getElementById("account-picker-mount"), loadGraphData, {
+    domain,
+    storageKey,
+  }).then(function (effectiveUserId) {
     return loadGraphData(effectiveUserId);
   });
 }
@@ -107,45 +93,32 @@ export function initGraphVizPage() {
   const name = nameParam
     ? decodeURIComponent(nameParam)
     : sessionStorage.getItem("gw_user_name") || "-";
-  if (nameParam)
-    sessionStorage.setItem("gw_user_name", decodeURIComponent(nameParam));
+  if (nameParam) sessionStorage.setItem("gw_user_name", decodeURIComponent(nameParam));
 
   const gmailIdParam = params.get("gmail_id");
-  if (gmailIdParam)
-    localStorage.setItem("gw_user_id", decodeURIComponent(gmailIdParam));
+  if (gmailIdParam) localStorage.setItem("gw_user_id", decodeURIComponent(gmailIdParam));
   const flaskUrlParam = params.get("flask_url");
-  if (flaskUrlParam)
-    localStorage.setItem(
-      "gw_flask_url",
-      decodeURIComponent(flaskUrlParam),
-    );
+  if (flaskUrlParam) localStorage.setItem("gw_flask_url", decodeURIComponent(flaskUrlParam));
 
   if (gmailIdParam) {
-    localStorage.setItem(
-      GRAPH_MAIL_STORAGE_KEY,
-      decodeURIComponent(gmailIdParam),
-    );
+    localStorage.setItem(GRAPH_MAIL_STORAGE_KEY, decodeURIComponent(gmailIdParam));
   }
 
   const profileNameEl = document.getElementById("google-profile-name");
   if (profileNameEl) profileNameEl.textContent = name;
 
-  rendererReady = _loadScript(
-    "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js",
-  ).then(function () {
-    return _loadScript("/graph-render.js");
-  });
+  rendererReady = _loadScript("https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js").then(
+    function () {
+      return _loadScript("/graph-render.js");
+    }
+  );
 
-  document
-    .getElementById("domain-btn-mail")
-    .addEventListener("click", function () {
-      loadDomain("mail");
-    });
-  document
-    .getElementById("domain-btn-message")
-    .addEventListener("click", function () {
-      loadDomain("messenger");
-    });
+  document.getElementById("domain-btn-mail").addEventListener("click", function () {
+    loadDomain("mail");
+  });
+  document.getElementById("domain-btn-message").addEventListener("click", function () {
+    loadDomain("messenger");
+  });
 
   window.addEventListener("load", function () {
     loadDomain("mail");

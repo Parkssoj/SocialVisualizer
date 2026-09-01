@@ -2,13 +2,9 @@ import { useState } from 'react';
 import { rankAffinity, RANK_LABELS } from '../../features/recapStats.js';
 
 /**
-"친밀도" 카드 — SVG 도넛 차트 + 범례. 범례 항목이나 도넛 세그먼트에 마우스를 올리면 서로 강조되도록
-양방향으로 연동한다(기존엔 addEventListener로 형제 엘리먼트 스타일을 직접 바꿨는데, 여기선 hover
-중인 인덱스 하나를 state로 두고 두 쪽 다 그 값을 보고 스타일을 계산한다).
+"친밀도" 카드 — SVG 도넛 차트 + 범례. 범례 항목이나 도넛 세그먼트에 마우스를 올리면 서로 강조되도록 양방향으로 연동한다(기존엔 addEventListener로 형제 엘리먼트 스타일을 직접 바꿨는데, 여기선 hover 중인 인덱스 하나를 state로 두고 두 쪽 다 그 값을 보고 스타일을 계산한다).
 
-"Affinity" card — SVG donut chart + legend. Hovering a legend row or a donut segment highlights
-both in sync (the original mutated sibling element styles via addEventListener; here a single
-hovered-index state drives both sides' styles).
+"Affinity" card — SVG donut chart + legend. Hovering a legend row or a donut segment highlights both in sync (the original mutated sibling element styles via addEventListener; here a single hovered-index state drives both sides' styles).
  */
 export default function AffinityDonutCard({ state }) {
   const { status, data, error } = state;

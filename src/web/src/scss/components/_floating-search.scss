@@ -1,15 +1,11 @@
 /*
- * 모든 페이지 우측 하단 플로팅 검색 버튼 + 팝업(floatingSearch.js) 스타일.
- *
- * Styles for the floating search button + popup shown on every page (floatingSearch.js).
+ 모든 페이지 우측 상단 플로팅 검색 버튼 + 팝업(floatingSearch.js) 스타일.
+ 
+ Styles for the floating search button + popup shown on every page (floatingSearch.js).
  */
-// _floating-search.scss
-// 모든 페이지 우측 하단에 떠 있는 검색 버튼 + 팝업(floatingSearch.js).
-// 색감은 search.scss(실제 검색 페이지)와 동일하게: 흰 바탕 + 주황 포인트 + 그레이/검정.
 
-// 요청 — 헤더 밑에 따로 떠 있던 버튼을, 헤더(.top_nav, top:0 / min-height:70px)
-// 안쪽 맨 오른쪽에 들어가 있는 것처럼 보이도록 위치/크기를 맞춤(세로 중앙
-// 정렬: (70-44)/2 = 13px).
+// _floating-search.scss 모든 페이지 우측 상단에 떠 있는 검색 버튼 + 팝업(floatingSearch.js). 색감은 search.scss(실제 검색 페이지)와 동일하게: 흰 바탕 + 주황 포인트 + 그레이/검정.
+
 .gwfs-btn {
   position: fixed;
   right: 28px;
@@ -333,7 +329,7 @@
   top: 50%;
   transform: translateY(-50%) translateX(-10px);
 
-  /* 배경은 연한 주황색, 글자는 진한 남색(또는 #f97316 진한 주황)으로 변경 */
+  /* 배경은 연한 주황색, 글자는 진한 남색(또는 #f97316 진한 주황)으로 */
   background-color: #fff1e6;
   color: #2a3f54;
 

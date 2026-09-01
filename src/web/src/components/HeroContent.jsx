@@ -1,30 +1,13 @@
 /**
-홈 화면 히어로 섹션 — 헤드라인/설명/CTA와 My People·My Time 미리보기 카드, 글로우 SVG 필터를 렌더링한다. 미리보기는 정적 이미지(기본) 또는
-실제 페이지를 담은 축소 iframe 중 하나로 전환 가능하다(USE_STATIC_HERO_PREVIEWS).
+홈 화면 히어로 섹션 — 헤드라인/설명/CTA와 My People·My Time 미리보기 카드, 글로우 SVG 필터를 렌더링한다.
+미리보기는 정적 이미지(기본) 또는 실제 페이지를 담은 축소 iframe 중 하나로 전환 가능하다(USE_STATIC_HERO_PREVIEWS). CSS 클래스 접두사(gw-orbit-hero 등)는 예전 디자인의 흔적으로 이름만 남아있을 뿐, 지금 마크업은 2컬럼(문구 + 미리보기 카드) 레이아웃이다.
 
-예전 파일명은 HeroOrbit.jsx였다 — "지구본 + 그 주변을 도는 스킬 아이콘" 오빗(orbit) 비주얼로
-디자인했던 흔적(gw-orbit-hero 등 CSS 클래스 접두사가 그 이름을 그대로 물려받음)인데, 실제로는
-그 지구본/오빗 마크업 자체가 이미 지금의 2컬럼(문구 + 미리보기 카드) 레이아웃으로 교체된 지
-오래라 이름만 안 맞게 남아있었다. HomeApp.jsx도 이미 HeroContent라는 이름으로 import해서 쓰고
-있던 터라, 파일/컴포넌트 이름을 실제 하는 일(히어로 콘텐츠 렌더링)에 맞게 HeroContent로 통일했다.
-
-Home page hero section — renders the headline/description/CTA, My People & My Time preview cards,
-and a glow SVG filter. Previews can switch between static images (default) and a scaled-down live
-iframe of the actual page (USE_STATIC_HERO_PREVIEWS).
-
-This file used to be named HeroOrbit.jsx — a holdover from an earlier "globe + orbiting skill
-icons" hero visual (the gw-orbit-hero etc. CSS class prefix still carries that name), but that
-globe/orbit markup itself was long since replaced by the current two-column layout (copy + preview
-cards). HomeApp.jsx was already importing it under the name HeroContent, so the file/component name
-was unified to HeroContent to match what it actually does (rendering the hero content).
+Home page hero section — renders the headline/description/CTA, My People & My Time preview cards, and a glow SVG filter.
+Previews can switch between static images (default) and a scaled-down live iframe of the actual page (USE_STATIC_HERO_PREVIEWS). The gw-orbit-hero CSS class prefix is a naming leftover from an earlier design; the current markup is the two-column (copy + preview cards) layout.
  */
 import { useEffect } from "react";
 
-/* 미니 프리뷰 카드 — 실제 페이지(mypeople.html/mytime.html)를 iframe으로 그대로
-   불러온 뒤 CSS transform: scale로 축소해서 보여준다(캡처 이미지 아님, 진짜 화면).
-   iframe 안쪽은 실제 폭(FRAME_W)으로 렌더링되고, 바깥 wrapper는 카드 크기만큼만
-   보이도록 overflow:hidden으로 잘라낸다. pointer-events:none으로 iframe 내부와의
-   상호작용은 막고, 카드 전체를 감싸는 <a>가 클릭/이동을 담당한다. */
+// 미니 프리뷰 카드
 const FRAME_W = 1600;
 const FRAME_H = 1020;
 
@@ -49,10 +32,9 @@ function PagePreviewFrame({ src }) {
   );
 }
 
-// 히어로 전체(헤드라인 + 글로우 필터 + 미리보기 카드) 렌더링
+// 히어로 전체 렌더링
 export default function HeroContent() {
-  // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이
-  // 실제로 DOM에 존재하는 시점에 안전하게 .visible 클래스를 붙일 수 있음
+  // React가 화면을 다 그린 "다음"에 실행됨 — 그래서 .gw-anim 요소들이 실제로 DOM에 존재하는 시점에 안전하게 .visible 클래스를 붙일 수 있음
   useEffect(() => {
     const els = document.querySelectorAll(".gw-orbit-hero .gw-anim");
     requestAnimationFrame(() => {
@@ -63,20 +45,10 @@ export default function HeroContent() {
   return (
     <div className="gw-orbit-hero">
       <div className="gw-orbit-left">
-        <h1
-          className="gw-hero-headline gw-anim"
-          style={{ transitionDelay: "0.05s" }}
-        >
+        <h1 className="gw-hero-headline gw-anim" style={{ transitionDelay: "0.05s" }}>
           Social Visualizer
         </h1>
-        {/* shadcnspace "illuminated-hero" 데모의 글로우 필터를 그대로 가져옴 —
-            .gw-hero-headline-glow가 filter: url(#glow-4)로 참조함 (텍스트 디자인만 차용, 나머지 레이아웃/애니메이션은 안 씀) */}
-        <svg
-          className="absolute -z-1 h-0 w-0"
-          width="0"
-          height="0"
-          aria-hidden="true"
-        >
+        <svg className="absolute -z-1 h-0 w-0" width="0" height="0" aria-hidden="true">
           <defs>
             <filter
               id="glow-4"
@@ -86,26 +58,10 @@ export default function HeroContent() {
               width="200%"
               height="500%"
             >
-              <feGaussianBlur
-                in="SourceGraphic"
-                stdDeviation="4"
-                result="blur4"
-              />
-              <feGaussianBlur
-                in="SourceGraphic"
-                stdDeviation="19"
-                result="blur19"
-              />
-              <feGaussianBlur
-                in="SourceGraphic"
-                stdDeviation="9"
-                result="blur9"
-              />
-              <feGaussianBlur
-                in="SourceGraphic"
-                stdDeviation="30"
-                result="blur30"
-              />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur4" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="19" result="blur19" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur9" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="30" result="blur30" />
               <feColorMatrix
                 in="blur4"
                 result="color-0-blur"
@@ -115,12 +71,7 @@ export default function HeroContent() {
                         0 0 0.9647058823529412 0 0
                         0 0 0 0.3 0"
               />
-              <feOffset
-                in="color-0-blur"
-                result="layer-0-offsetted"
-                dx="0"
-                dy="0"
-              />
+              <feOffset in="color-0-blur" result="layer-0-offsetted" dx="0" dy="0" />
               <feColorMatrix
                 in="blur19"
                 result="color-1-blur"
@@ -130,12 +81,7 @@ export default function HeroContent() {
                         0 0 0.2627450980392157 0 0
                         0 0 0 0.2 0"
               />
-              <feOffset
-                in="color-1-blur"
-                result="layer-1-offsetted"
-                dx="0"
-                dy="2"
-              />
+              <feOffset in="color-1-blur" result="layer-1-offsetted" dx="0" dy="2" />
               <feColorMatrix
                 in="blur9"
                 result="color-2-blur"
@@ -145,12 +91,7 @@ export default function HeroContent() {
                         0 0 0.36470588235294116 0 0
                         0 0 0 0.15 0"
               />
-              <feOffset
-                in="color-2-blur"
-                result="layer-2-offsetted"
-                dx="0"
-                dy="2"
-              />
+              <feOffset in="color-2-blur" result="layer-2-offsetted" dx="0" dy="2" />
               <feColorMatrix
                 in="blur30"
                 result="color-3-blur"
@@ -160,12 +101,7 @@ export default function HeroContent() {
                         0 0 0.39215686274509803 0 0
                         0 0 0 0.12 0"
               />
-              <feOffset
-                in="color-3-blur"
-                result="layer-3-offsetted"
-                dx="0"
-                dy="2"
-              />
+              <feOffset in="color-3-blur" result="layer-3-offsetted" dx="0" dy="2" />
               <feColorMatrix
                 in="blur30"
                 result="color-4-blur"
@@ -175,12 +111,7 @@ export default function HeroContent() {
                         0 0 0 0 0
                         0 0 0 0.08 0"
               />
-              <feOffset
-                in="color-4-blur"
-                result="layer-4-offsetted"
-                dx="0"
-                dy="16"
-              />
+              <feOffset in="color-4-blur" result="layer-4-offsetted" dx="0" dy="16" />
               <feColorMatrix
                 in="blur30"
                 result="color-5-blur"
@@ -190,12 +121,7 @@ export default function HeroContent() {
                         0 0 0.11372549019607843 0 0
                         0 0 0 0.06 0"
               />
-              <feOffset
-                in="color-5-blur"
-                result="layer-5-offsetted"
-                dx="0"
-                dy="64"
-              />
+              <feOffset in="color-5-blur" result="layer-5-offsetted" dx="0" dy="64" />
               <feColorMatrix
                 in="blur30"
                 result="color-6-blur"
@@ -205,12 +131,7 @@ export default function HeroContent() {
                         0 0 0.07450980392156863 0 0
                         0 0 0 0.05 0"
               />
-              <feOffset
-                in="color-6-blur"
-                result="layer-6-offsetted"
-                dx="0"
-                dy="64"
-              />
+              <feOffset in="color-6-blur" result="layer-6-offsetted" dx="0" dy="64" />
               <feMerge>
                 <feMergeNode in="layer-0-offsetted" />
                 <feMergeNode in="layer-1-offsetted" />
@@ -224,27 +145,17 @@ export default function HeroContent() {
             </filter>
           </defs>
         </svg>
-        <p
-          className="gw-hero-desc gw-anim"
-          style={{ transitionDelay: "0.15s" }}
-        >
-          Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의
-          흐름을 시각화합니다.
+        <p className="gw-hero-desc gw-anim" style={{ transitionDelay: "0.15s" }}>
+          Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의 흐름을 시각화합니다.
         </p>
-        <div
-          className="gw-hero-cta gw-anim"
-          style={{ transitionDelay: "0.22s" }}
-        >
+        <div className="gw-hero-cta gw-anim" style={{ transitionDelay: "0.22s" }}>
           <a href="imap-collect.html" className="gw-hero-cta-primary">
             시작하기
           </a>
         </div>
       </div>
 
-      <div
-        className="gw-hero-previews gw-anim"
-        style={{ transitionDelay: "0.28s" }}
-      >
+      <div className="gw-hero-previews gw-anim" style={{ transitionDelay: "0.28s" }}>
         <a
           href="mypeople.html"
           className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
@@ -268,11 +179,7 @@ export default function HeroContent() {
           className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
         >
           {USE_STATIC_HERO_PREVIEWS ? (
-            <img
-              src="/images/hero/MyTime.png"
-              alt="My Time"
-              className="gw-preview-static-img"
-            />
+            <img src="/images/hero/MyTime.png" alt="My Time" className="gw-preview-static-img" />
           ) : (
             <PagePreviewFrame src="mytime.html" />
           )}

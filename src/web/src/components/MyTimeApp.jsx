@@ -1,22 +1,15 @@
-import { createRoot } from 'react-dom/client';
-import { useEffect } from 'react';
-import Header from './Header.jsx';
-import Footer from './Footer.jsx';
-import { initMyTimePage } from '../features/mytimeEngine.js';
+import { createRoot } from "react-dom/client";
+import { useEffect } from "react";
+import Header from "./Header.jsx";
+import Footer from "./Footer.jsx";
+import { initMyTimePage } from "../features/mytimeEngine.js";
 
 /**
-"My Time" 페이지(mytime.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자,
-메일/메신저 타임라인 마크업, 푸터를 마운트한다. 타임라인 슬라이더·키워드 패널 자체의 동작은
-mytimeEngine.js(기존 로직을 그대로 포팅한 모듈)가 담당하며, 이 컴포넌트는 마운트 직후 딱 한 번
-initMyTimePage()를 호출해 그 엔진을 이 DOM에 연결해준다(D3 같은 명령형 라이브러리를 React에 붙일 때
-쓰는 표준 패턴과 동일 — 구조는 React가 그리고, 내부 동작은 useEffect 안에서 기존 엔진이 담당).
+"My Time" 페이지(mytime.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자, 메일/메신저 타임라인 마크업, 푸터를 마운트한다.
+타임라인 슬라이더·키워드 패널 자체의 동작은 mytimeEngine.js(기존 로직을 그대로 포팅한 모듈)가 담당하며, 이 컴포넌트는 마운트 직후 딱 한 번 initMyTimePage()를 호출해 그 엔진을 이 DOM에 연결해준다(D3 같은 명령형 라이브러리를 React에 붙일 때 쓰는 표준 패턴과 동일 — 구조는 React가 그리고, 내부 동작은 useEffect 안에서 기존 엔진이 담당).
 
-Top-level React component wrapping the entire "My Time" page (mytime.html) — mounts the header,
-sidebar placeholder, mail/messenger timeline markup, and footer. The timeline slider and keyword
-panel behavior themselves are owned by mytimeEngine.js (a module that ports the original logic
-unchanged); this component just calls initMyTimePage() once right after mount to wire that engine
-up to this DOM (the same pattern used to integrate an imperative library like D3 into React —
-structure is drawn by React, behavior is owned by the existing engine inside a useEffect).
+Top-level React component wrapping the entire "My Time" page (mytime.html) — mounts the header, sidebar placeholder, mail/messenger timeline markup, and footer.
+The timeline slider and keyword panel behavior themselves are owned by mytimeEngine.js (a module that ports the original logic unchanged); this component just calls initMyTimePage() once right after mount to wire that engine up to this DOM (the same pattern used to integrate an imperative library like D3 into React — structure is drawn by React, behavior is owned by the existing engine inside a useEffect).
  */
 function MyTimeApp() {
   useEffect(() => {
@@ -79,7 +72,12 @@ function MyTimeApp() {
                   <div className="mt-kw-title" id="mtKwTitle">
                     키워드
                   </div>
-                  <button type="button" className="mt-kw-back-btn" id="mtKwBackBtn" style={{ display: 'none' }}>
+                  <button
+                    type="button"
+                    className="mt-kw-back-btn"
+                    id="mtKwBackBtn"
+                    style={{ display: "none" }}
+                  >
                     <i className="bi bi-arrow-left"></i>
                     <span>키워드 목록으로</span>
                   </button>
@@ -93,7 +91,7 @@ function MyTimeApp() {
           </div>
 
           {/* 메신저 뷰: 첫 클릭 시 mytimeEngine.js가 /chatroom-summaries를 불러와 채움, 기본은 숨김 */}
-          <div className="mt-view" id="mt-messenger-view" style={{ display: 'none' }}>
+          <div className="mt-view" id="mt-messenger-view" style={{ display: "none" }}>
             <div className="mt-pointer-wrap">
               <div className="mt-pointer-dates">
                 <span className="mt-pointer-date-label" id="msgPointerRangeLbl">
@@ -132,7 +130,12 @@ function MyTimeApp() {
                   <div className="mt-kw-title" id="msgKwTitle">
                     키워드
                   </div>
-                  <button type="button" className="mt-kw-back-btn" id="msgKwBackBtn" style={{ display: 'none' }}>
+                  <button
+                    type="button"
+                    className="mt-kw-back-btn"
+                    id="msgKwBackBtn"
+                    style={{ display: "none" }}
+                  >
                     <i className="bi bi-arrow-left"></i>
                     <span>키워드 목록으로</span>
                   </button>

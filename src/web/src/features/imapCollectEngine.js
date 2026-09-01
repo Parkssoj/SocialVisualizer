@@ -1,14 +1,9 @@
 /**
-"소셜 데이터 분석" 수집 페이지 엔진 — 기존 imap-collect.js의 IMAP 메일 수집 / 카카오톡 대화 업로드
-로직을 거의 그대로 옮긴 모듈. 순수 함수/상태(로그·job 목록 관리, SSE 추적, 폼 검증 등)는 모듈
-스코프에 그대로 두고, DOM에 즉시 손을 대는 이벤트 바인딩·초기화 코드만 initImapCollectPage()로
-묶어서 React 마운트 후 한 번 호출되도록 했다.
+"소셜 데이터 분석" 수집 페이지 엔진 — IMAP 메일 수집과 카카오톡 대화 업로드를 담당한다.
+순수 함수/상태(로그·job 목록 관리, SSE 추적, 폼 검증 등)는 모듈 스코프에 두고, DOM에 직접 손을 대는 이벤트 바인딩·초기화 코드는 initImapCollectPage()로 묶어 React 마운트 후 한 번 호출한다.
 
-Engine module for the social-data collection page — ports the original imap-collect.js's IMAP
-mail-collection / KakaoTalk chat-upload logic nearly verbatim. Pure functions/state (log and job
-list management, SSE tracking, form validation, etc.) stay at module scope unchanged; only the
-DOM-touching event-binding/init code is wrapped into initImapCollectPage(), called once after the
-React component mounts.
+Engine module for the social-data collection page — handles IMAP mail collection and KakaoTalk chat-log uploads.
+Pure functions/state (log and job list management, SSE tracking, form validation, etc.) live at module scope; the DOM-touching event-binding/init code is wrapped into initImapCollectPage(), called once after the React component mounts.
  */
 import { getApiBase } from "../utils/apiBase.js";
 
@@ -35,10 +30,7 @@ function loadStoredImapJobs() {
 function addStoredImapJob(jobId, user) {
   const jobs = loadStoredImapJobs();
   jobs.push({ jobId, user });
-  localStorage.setItem(
-    IMAP_JOBS_STORAGE_KEY,
-    JSON.stringify(jobs.slice(-IMAP_JOBS_STORAGE_MAX)),
-  );
+  localStorage.setItem(IMAP_JOBS_STORAGE_KEY, JSON.stringify(jobs.slice(-IMAP_JOBS_STORAGE_MAX)));
 }
 
 function removeStoredImapJob(jobId) {
@@ -50,9 +42,7 @@ const MESSAGE_JOBS_STORAGE_KEY = "gw_message_jobs";
 
 function loadStoredMessageJobs() {
   try {
-    const raw = JSON.parse(
-      localStorage.getItem(MESSAGE_JOBS_STORAGE_KEY) || "[]",
-    );
+    const raw = JSON.parse(localStorage.getItem(MESSAGE_JOBS_STORAGE_KEY) || "[]");
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -64,7 +54,7 @@ function addStoredMessageJob(jobId, user) {
   jobs.push({ jobId, user });
   localStorage.setItem(
     MESSAGE_JOBS_STORAGE_KEY,
-    JSON.stringify(jobs.slice(-IMAP_JOBS_STORAGE_MAX)),
+    JSON.stringify(jobs.slice(-IMAP_JOBS_STORAGE_MAX))
   );
 }
 
@@ -85,9 +75,7 @@ function toggleCustomLimit() {
 }
 
 function applyPreset(el) {
-  document
-    .querySelectorAll(".gw-preset-chip")
-    .forEach((c) => c.classList.remove("active"));
+  document.querySelectorAll(".gw-preset-chip").forEach((c) => c.classList.remove("active"));
   el.classList.add("active");
 
   const host = el.dataset.host;
@@ -101,8 +89,7 @@ function applyPreset(el) {
   if (domain) {
     userInput.value = "@" + domain;
     userInput.focus();
-    // focus() 직후 브라우저가 자체적으로 커서를 맨 뒤로 보내는 경우가 있어서,
-    // 그 동작이 끝난 다음 틱에 커서 위치를 다시 맨 앞으로 강제 설정함
+    // focus() 직후 브라우저가 자체적으로 커서를 맨 뒤로 보내는 경우가 있어서, 그 동작이 끝난 다음 틱에 커서 위치를 다시 맨 앞으로 강제 설정함
     setTimeout(() => userInput.setSelectionRange(0, 0), 0);
   } else {
     userInput.value = "";
@@ -113,9 +100,7 @@ function applyPreset(el) {
 }
 
 function resetForm() {
-  const gmailChip = document.querySelector(
-    '.gw-preset-chip[data-host="imap.gmail.com"]',
-  );
+  const gmailChip = document.querySelector('.gw-preset-chip[data-host="imap.gmail.com"]');
   if (gmailChip) applyPreset(gmailChip);
 
   document.getElementById("folder-list").innerHTML =
@@ -126,10 +111,6 @@ function resetForm() {
   document.getElementById("collect-limit").value = "0";
   toggleCustomLimit();
   document.getElementById("collect-limit-custom").value = "";
-  // 요청 — "모드"가 기본으로 "전체 업데이트"(rewrite)로 뜨게. 원래 HTML(<select id="sync-mode">)
-  // 자체엔 rewrite가 selected로 되어 있는데, 계정 하나 수집을 시작한 뒤 폼을 초기화하는 이
-  // 함수가 "append"(업데이트 안 된 메일만)로 강제 되돌리고 있어서, 두 번째 계정부터는
-  // 화면상 기본값이 "전체 업데이트"가 아니게 보였음.
   document.getElementById("sync-mode").value = "rewrite";
 }
 
@@ -144,7 +125,7 @@ function toggleFolder(checkbox) {
 
 function getSelectedFolders() {
   return Array.from(
-    document.querySelectorAll('.gw-folder-item input[type="checkbox"]:checked'),
+    document.querySelectorAll('.gw-folder-item input[type="checkbox"]:checked')
   ).map((cb) => cb.value);
 }
 
@@ -192,9 +173,7 @@ function renderFolderList(folders) {
 }
 
 function toggleSelectAll() {
-  const checkboxes = document.querySelectorAll(
-    '#folder-list input[type="checkbox"]',
-  );
+  const checkboxes = document.querySelectorAll('#folder-list input[type="checkbox"]');
   if (checkboxes.length === 0) return;
 
   const allChecked = Array.from(checkboxes).every((cb) => cb.checked);
@@ -203,9 +182,7 @@ function toggleSelectAll() {
     toggleFolder(cb);
   });
 
-  document.getElementById("select-all-btn").textContent = allChecked
-    ? "전체 선택"
-    : "전체 해제";
+  document.getElementById("select-all-btn").textContent = allChecked ? "전체 선택" : "전체 해제";
 }
 
 async function listFolders() {
@@ -232,9 +209,7 @@ async function listFolders() {
     return;
   }
   if (!flaskUrl) {
-    alert(
-      "Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.",
-    );
+    alert("Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.");
     return;
   }
 
@@ -293,9 +268,7 @@ function jobSetProgress(panelEl, pct) {
 }
 
 function createJobPanel(user, kind = "mail") {
-  const jobsList = document.getElementById(
-    kind === "message" ? "message-jobs-list" : "jobs-list",
-  );
+  const jobsList = document.getElementById(kind === "message" ? "message-jobs-list" : "jobs-list");
   const empty = jobsList.querySelector(".gw-log-empty");
   if (empty) empty.remove();
 
@@ -350,8 +323,7 @@ function handleJobEvent(data) {
   const { panelEl, phase, collectJobId, user, kind = "mail" } = entry;
 
   if (data.type === "progress") {
-    if (data.message)
-      jobAddLog(panelEl, data.message, phase === "index" ? "info" : "");
+    if (data.message) jobAddLog(panelEl, data.message, phase === "index" ? "info" : "");
     return;
   }
 
@@ -384,44 +356,32 @@ function handleJobEvent(data) {
     return;
   }
 
-  // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다. 카카오는 조회 UI 스코프 밖이라 건드리지 않음.
+  // 이후 대시보드(index.html 등)가 이 값을 user_id로 사용한다.
+  // 카카오는 조회 UI 스코프 밖이라 건드리지 않음.
   if (kind === "mail") {
     localStorage.setItem("gw_user_id", user);
   }
 
   jobSetProgress(panelEl, 100);
   jobSetStatus(panelEl, "done", "완료");
-  jobAddLog(
-    panelEl,
-    kind === "message" ? `✅ 업로드 완료` : `✅ 수집 완료`,
-    "success",
-  );
+  jobAddLog(panelEl, kind === "message" ? `✅ 업로드 완료` : `✅ 수집 완료`, "success");
   jobAddLog(
     panelEl,
     `${kind === "message" ? "저장" : "수집"}: ${result.added_count}개 / 중복 스킵: ${result.skipped_count}개`,
-    "success",
+    "success"
   );
 
   if (result.job_id) {
     jobAddLog(
       panelEl,
       `인덱싱 job_id: ${result.job_id} — 인덱싱이 백그라운드에서 실행됩니다.`,
-      "info",
+      "info"
     );
     jobSetStatus(panelEl, "running", "인덱싱 중");
     jobAddLog(panelEl, "인덱싱이 백그라운드에서 진행 중입니다...", "info");
     // 서버가 재시작되면 job 저장소가 메모리 기반이라 인덱싱 job 정보가 통째로 사라진다.
-    // SSE만 기다리면 그 사실을 영영 알 수 없어서 "인덱싱 중"에 멈춰있게 되므로, 여기서도
-    // collect phase와 동일하게 REST로 한 번 상태를 확인(catch-up)한 뒤 SSE로 이어받는다.
-    trackCollectJob(
-      getApiBase(),
-      result.job_id,
-      panelEl,
-      user,
-      kind,
-      "index",
-      collectJobId,
-    );
+    // SSE만 기다리면 그 사실을 영영 알 수 없어서 "인덱싱 중"에 멈춰있게 되므로, 여기서도 collect phase와 동일하게 REST로 한 번 상태를 확인(catch-up)한 뒤 SSE로 이어받는다.
+    trackCollectJob(getApiBase(), result.job_id, panelEl, user, kind, "index", collectJobId);
   } else {
     dismissJobPanel(panelEl, collectJobId, kind);
   }
@@ -434,7 +394,7 @@ function trackCollectJob(
   user,
   kind = "mail",
   phase = "collect",
-  collectJobId = jobId,
+  collectJobId = jobId
 ) {
   ensureSSE(flaskUrl);
   activeJobs.set(jobId, { panelEl, phase, collectJobId, user, kind });
@@ -509,9 +469,7 @@ async function startCollect() {
     return;
   }
   if (!flaskUrl) {
-    alert(
-      "Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.",
-    );
+    alert("Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.");
     return;
   }
 
@@ -531,10 +489,7 @@ async function startCollect() {
   jobAddLog(panelEl, `IMAP 연결 시작: ${host}:${port} (SSL: ${ssl})`);
   jobAddLog(panelEl, `계정: ${user}`);
   jobAddLog(panelEl, `폴더: ${folders.join(", ")}`);
-  jobAddLog(
-    panelEl,
-    `수집 개수: ${limit === 0 ? "전체" : limit + "개"} / 모드: ${syncMode}`,
-  );
+  jobAddLog(panelEl, `수집 개수: ${limit === 0 ? "전체" : limit + "개"} / 모드: ${syncMode}`);
 
   let started;
   try {
@@ -579,14 +534,10 @@ async function startCollect() {
   btn.disabled = false;
   spinner.classList.remove("visible");
   icon.style.display = "";
-  hint.textContent =
-    "수집이 백그라운드에서 진행 중입니다. 다른 계정도 바로 시작할 수 있습니다.";
+  hint.textContent = "수집이 백그라운드에서 진행 중입니다. 다른 계정도 바로 시작할 수 있습니다.";
 
   jobSetProgress(panelEl, 20);
-  jobAddLog(
-    panelEl,
-    "메일 수집이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...",
-  );
+  jobAddLog(panelEl, "메일 수집이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...");
 
   addStoredImapJob(started.jobId, user);
   resetForm();
@@ -597,19 +548,11 @@ async function startCollect() {
 function switchTab(tab) {
   const isMail = tab === "mail";
   document.getElementById("tab-btn-mail").classList.toggle("active", isMail);
-  document
-    .getElementById("tab-btn-mail")
-    .setAttribute("aria-selected", String(isMail));
-  document
-    .getElementById("tab-btn-message")
-    .classList.toggle("active", !isMail);
-  document
-    .getElementById("tab-btn-message")
-    .setAttribute("aria-selected", String(!isMail));
+  document.getElementById("tab-btn-mail").setAttribute("aria-selected", String(isMail));
+  document.getElementById("tab-btn-message").classList.toggle("active", !isMail);
+  document.getElementById("tab-btn-message").setAttribute("aria-selected", String(!isMail));
   document.getElementById("tab-panel-mail").classList.toggle("active", isMail);
-  document
-    .getElementById("tab-panel-message")
-    .classList.toggle("active", !isMail);
+  document.getElementById("tab-panel-message").classList.toggle("active", !isMail);
 }
 
 let messageFileText = null;
@@ -635,9 +578,7 @@ function decodeMessageFileBuffer(buf) {
   }
 
   const looksParseable = (text) =>
-    /카카오톡\s*대화|\d{4}년\s*\d{1,2}월\s*\d{1,2}일|\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\./.test(
-      text,
-    );
+    /카카오톡\s*대화|\d{4}년\s*\d{1,2}월\s*\d{1,2}일|\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\./.test(text);
 
   if (utf8Text && looksParseable(utf8Text)) return utf8Text;
 
@@ -664,7 +605,7 @@ function handleMessageFile(file) {
     if (!roomInput.value.trim()) {
       roomInput.value = guessMessageRoomNameClient(
         messageFileText,
-        file.name.replace(/\.txt$/i, ""),
+        file.name.replace(/\.txt$/i, "")
       );
     }
   };
@@ -681,9 +622,7 @@ async function startMessageUpload() {
     return;
   }
   if (!flaskUrl) {
-    alert(
-      "Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.",
-    );
+    alert("Flask 서버 URL이 설정되지 않았습니다.\n/init 페이지를 먼저 방문하세요.");
     return;
   }
 
@@ -742,10 +681,7 @@ async function startMessageUpload() {
     "업로드가 백그라운드에서 진행 중입니다. 다른 대화방도 바로 시작할 수 있습니다.";
 
   jobSetProgress(panelEl, 20);
-  jobAddLog(
-    panelEl,
-    "대화 파싱/저장이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...",
-  );
+  jobAddLog(panelEl, "대화 파싱/저장이 백그라운드에서 시작되었습니다. 진행 상황을 확인하는 중...");
 
   const finalName = started.room_name || displayName;
   addStoredMessageJob(started.jobId, finalName);
@@ -762,16 +698,12 @@ async function startMessageUpload() {
 function onCollectSuccess(newItem, type) {
   // 1. 수집 성공 시 저장소 업데이트
   if (type === "mail") {
-    const mails = JSON.parse(
-      localStorage.getItem("gw_collected_mails") || "[]",
-    );
+    const mails = JSON.parse(localStorage.getItem("gw_collected_mails") || "[]");
     if (!mails.includes(newItem)) mails.push(newItem);
     localStorage.setItem("gw_collected_mails", JSON.stringify(mails));
     localStorage.setItem("gw_selected_mail", newItem); // 새 계정 자동 선택
   } else {
-    const rooms = JSON.parse(
-      localStorage.getItem("gw_collected_rooms") || "[]",
-    );
+    const rooms = JSON.parse(localStorage.getItem("gw_collected_rooms") || "[]");
     if (!rooms.includes(newItem)) rooms.push(newItem);
     localStorage.setItem("gw_collected_rooms", JSON.stringify(rooms));
     localStorage.setItem("gw_selected_room", newItem); // 새 채팅방 자동 선택
@@ -785,19 +717,12 @@ export function initImapCollectPage() {
   document.querySelectorAll(".gw-preset-chip[data-host]").forEach((chip) => {
     chip.addEventListener("click", () => applyPreset(chip));
   });
-  document
-    .getElementById("collect-limit")
-    .addEventListener("change", toggleCustomLimit);
-  document
-    .getElementById("list-folders-btn")
-    .addEventListener("click", listFolders);
-  document
-    .getElementById("select-all-btn")
-    .addEventListener("click", toggleSelectAll);
+  document.getElementById("collect-limit").addEventListener("change", toggleCustomLimit);
+  document.getElementById("list-folders-btn").addEventListener("click", listFolders);
+  document.getElementById("select-all-btn").addEventListener("click", toggleSelectAll);
   document.getElementById("collect-btn").addEventListener("click", startCollect);
 
-  // 초기화
-  // URL 파라미터에서 user_id 저장
+  // 초기화 URL 파라미터에서 user_id 저장
 
   const params = new URLSearchParams(location.search);
   const gid = params.get("user_id");
@@ -807,11 +732,9 @@ export function initImapCollectPage() {
   }
 
   const flaskUrlParam = params.get("flask_url");
-  if (flaskUrlParam)
-    localStorage.setItem("gw_flask_url", decodeURIComponent(flaskUrlParam));
+  if (flaskUrlParam) localStorage.setItem("gw_flask_url", decodeURIComponent(flaskUrlParam));
 
-  // gw_user_id는 이제 "마지막으로 조회한 계정"이라는 의미로 쓰이므로(계정 선택기 도입),
-  // 새 계정을 추가하는 이 화면의 로그인 입력칸을 이 값으로 자동 채우지 않는다.
+  // gw_user_id는 이제 "마지막으로 조회한 계정"이라는 의미로 쓰이므로(계정 선택기 도입), 새 계정을 추가하는 이 화면의 로그인 입력칸을 이 값으로 자동 채우지 않는다.
   const savedId = localStorage.getItem("gw_user_id");
   if (savedId) {
     const nameEl = document.getElementById("google-profile-name");
@@ -838,28 +761,20 @@ export function initImapCollectPage() {
 
   // 메일 / 메시지 탭 전환
 
-  document
-    .getElementById("tab-btn-mail")
-    .addEventListener("click", () => switchTab("mail"));
-  document
-    .getElementById("tab-btn-message")
-    .addEventListener("click", () => switchTab("message"));
+  document.getElementById("tab-btn-mail").addEventListener("click", () => switchTab("mail"));
+  document.getElementById("tab-btn-message").addEventListener("click", () => switchTab("message"));
 
   // 메시지 탭: 카카오톡 대화 업로드
 
   const messageDropzone = document.getElementById("message-dropzone");
-  document
-    .getElementById("message-file-input")
-    .addEventListener("change", (e) => {
-      handleMessageFile(e.target.files[0]);
-    });
+  document.getElementById("message-file-input").addEventListener("change", (e) => {
+    handleMessageFile(e.target.files[0]);
+  });
   messageDropzone.addEventListener("dragover", (e) => {
     e.preventDefault();
     messageDropzone.classList.add("dragover");
   });
-  messageDropzone.addEventListener("dragleave", () =>
-    messageDropzone.classList.remove("dragover"),
-  );
+  messageDropzone.addEventListener("dragleave", () => messageDropzone.classList.remove("dragover"));
   messageDropzone.addEventListener("drop", (e) => {
     e.preventDefault();
     messageDropzone.classList.remove("dragover");
@@ -867,10 +782,7 @@ export function initImapCollectPage() {
     if (file) handleMessageFile(file);
   });
 
-
-  document
-    .getElementById("message-upload-btn")
-    .addEventListener("click", startMessageUpload);
+  document.getElementById("message-upload-btn").addEventListener("click", startMessageUpload);
 
   // 이전에 시작해둔 카카오 업로드 job이 있으면 이어서 추적
 

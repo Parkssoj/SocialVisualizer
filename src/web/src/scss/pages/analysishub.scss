@@ -1,12 +1,10 @@
 /*
- * "분석 결과 보기" 허브 페이지 전용 스타일 — 카드 그리드를 화면 높이에 맞춰 세로 중앙 정렬.
- *
- * Styles for the "view results" hub page — vertically centers the card grid to the viewport height.
+ "분석 결과 보기" 허브 페이지 전용 스타일 — 카드 그리드를 화면 높이에 맞춰 세로 중앙 정렬.
+ 
+ Styles for the "view results" hub page — vertically centers the card grid to the viewport height.
  */
+
 /* 공통 레이아웃
-   예전엔 .gw-hub-grid에 margin-top: 110px 고정값을 줘서 헤더 밑에서부터 항상
-   같은 거리만큼 내려온 자리에 그리드가 놓였다. 그래서 창이 넓고 높을 때는
-   내용이 화면 위쪽에 붙어 보이고 아래쪽에 빈 공간만 남는 문제가 있었음 —
    창 높이에 상관없이 화면 가운데 쪽에 자연스럽게 오도록, 고정 여백 대신
    .right_col을 세로로도 가운데 정렬하는 flex 컨테이너로 바꿈. */
 .right_col {
@@ -19,11 +17,12 @@
 .gw-collect-wrap {
   padding: 28px 32px;
   width: 100%;
-  // 버튼(카드)을 전체적으로 키워달라는 요청에 맞춰 최대 폭도 함께 넓힘
+  // 버튼(카드)을 전체적으로 최대 폭도 함께 넓힘
   max-width: 1500px;
   margin: 0 auto;
 }
 
+// 페이지 상단 헤더 영역 — 타이틀 아이콘, 제목, 부제 텍스트
 .gw-page-header-row {
   margin-bottom: 35px; /* 타이틀과 버튼 사이의 간격을 넉넉하게 조정 */
 }
@@ -72,7 +71,7 @@
   background: #fff;
   border: none;
   border-radius: 16px;
-  // 버튼(카드) 요소를 전체적으로 키워달라는 요청 — 안쪽 여백을 화면 폭에 비례해 키움
+  // 버튼(카드) 요소를 전체적으로 안쪽 여백을 화면 폭에 비례해 키움
   padding: clamp(16px, 1.8vw, 26px);
   text-decoration: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -94,6 +93,7 @@
   }
 }
 
+// 카드 제목 텍스트 (마우스 올리면 색이 바뀜 — 위 .gw-hub-card:hover 참고)
 .gw-hub-title {
   font-size: clamp(1.15rem, 1.35vw, 1.4rem);
   font-weight: 700;
@@ -113,6 +113,7 @@
   line-height: 1.4;
 }
 
+// 카드 안 썸네일 이미지 영역 — 창 크기와 무관하게 항상 16:9 비율 유지
 .gw-hub-img-wrap {
   flex: 1;
   border-radius: 8px;

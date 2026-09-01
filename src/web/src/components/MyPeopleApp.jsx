@@ -1,42 +1,20 @@
-import { createRoot } from 'react-dom/client';
-import { useEffect } from 'react';
-import Header from './Header.jsx';
-import Footer from './Footer.jsx';
+import { createRoot } from "react-dom/client";
+import { useEffect } from "react";
+import Header from "./Header.jsx";
+import Footer from "./Footer.jsx";
 import {
   initMyPeoplePage,
   switchDetailTab,
   closeEmailDrawer,
   toggleGraphView,
-} from '../features/mypeopleEngine.js';
+} from "../features/mypeopleEngine.js";
 
 /**
-"My People" 페이지(mypeople.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자,
-카드 그리드/지식그래프/상세 패널/타임라인 마크업, 푸터를 마운트한다. 카드 정렬·상세 패널 열기·미니
-지식그래프·타임라인 슬라이더 같은 실제 동작은 mypeopleEngine.js(기존 mypeople.js 로직을 거의 그대로
-포팅한 모듈)가 담당하며, 이 컴포넌트는 마운트 직후 딱 한 번 initMyPeoplePage()를 호출해 그 엔진을 이
-DOM에 연결해준다(My Time/Recap과 동일한 패턴 — 구조는 React가 그리고, 내부 동작은 useEffect 안에서
-기존 엔진이 담당).
+"My People" 페이지(mypeople.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자, 카드 그리드/지식그래프/상세 패널/타임라인 마크업, 푸터를 마운트한다.
+카드 정렬·상세 패널 열기·미니 지식그래프·타임라인 슬라이더 같은 실제 동작은 mypeopleEngine.js(기존 mypeople.js 로직을 거의 그대로 포팅한 모듈)가 담당하며, 이 컴포넌트는 마운트 직후 딱 한 번 initMyPeoplePage()를 호출해 그 엔진을 이 DOM에 연결해준다(My Time/Recap과 동일한 패턴 — 구조는 React가 그리고, 내부 동작은 useEffect 안에서 기존 엔진이 담당).
 
-참고: 원본 mypeople.js에서는 상세 탭 전환(switchDetailTab)·교환내역 드로어 닫기(closeEmailDrawer)
-버튼이 인라인 onclick="..." 속성 + window.X 전역 노출로 동작했는데, 지식그래프 "카드 보기" 버튼
-(toggleGraphView)만 window에 노출이 안 되어 있어 실제로는 클릭 시 ReferenceError가 나는 잠재
-버그였다. 여기서는 세 함수 모두 엔진에서 export해 React의 onClick으로 직접 연결했으므로, window
-전역 노출 방식을 안 써도 되고 그 버그도 자연히 고쳐졌다.
-
-Top-level React component wrapping the entire "My People" page (mypeople.html) — mounts the
-header, sidebar placeholder, card grid/knowledge-graph/detail-panel/timeline markup, and footer.
-Actual behavior (card sorting, opening the detail panel, the mini knowledge graph, the timeline
-slider) is owned by mypeopleEngine.js (a module that ports the original mypeople.js logic almost
-verbatim); this component just calls initMyPeoplePage() once right after mount to wire that
-engine up to this DOM (same pattern as My Time/Recap — structure drawn by React, behavior owned
-by the existing engine inside a useEffect).
-
-Note: in the original mypeople.js, the detail-tab switcher (switchDetailTab) and the exchange-
-drawer close button (closeEmailDrawer) worked via inline onclick="..." attributes backed by
-window.X exposure, but the knowledge-graph "card view" button (toggleGraphView) was never
-exposed on window — a latent bug that would throw ReferenceError on click. All three are now
-exported from the engine and wired directly as real React onClick handlers, which modernizes
-the wiring and fixes that bug as a side effect.
+Top-level React component wrapping the entire "My People" page (mypeople.html) — mounts the header, sidebar placeholder, card grid/knowledge-graph/detail-panel/timeline markup, and footer.
+Actual behavior (card sorting, opening the detail panel, the mini knowledge graph, the timeline slider) is owned by mypeopleEngine.js (a module that ports the original mypeople.js logic almost verbatim); this component just calls initMyPeoplePage() once right after mount to wire that engine up to this DOM (same pattern as My Time/Recap — structure drawn by React, behavior owned by the existing engine inside a useEffect).
  */
 function MyPeopleApp() {
   useEffect(() => {
@@ -58,11 +36,6 @@ function MyPeopleApp() {
                 </div>
                 <span className="mp-count" id="mp-count"></span>
               </div>
-              {/* 메일/메신저 전환 버튼, 계정 토글, 채팅방 토글은 전부 없앰 —
-                  My Time과 동일하게 사이드바에서 메일 계정을 고르면 메일 뷰가,
-                  메신저 데이터를 고르면 메신저 뷰가 자동으로 뜬다.
-                  initAccountPicker는 mypeopleEngine.js가 컨테이너 없이(null) "헤드리스"로
-                  계속 호출해 초기 계정/채팅방 id만 조용히 resolve한다(화면엔 안 그려짐). */}
               <div className="mp-header-controls">
                 <button className="mp-brand-filter-btn" id="mp-brand-filter-btn" type="button">
                   <i className="bi bi-megaphone"></i>
@@ -104,11 +77,11 @@ function MyPeopleApp() {
                     <div className="mp-graph-panel-title">
                       <i className="bi bi-diagram-3"></i> 지식 그래프
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                       <button
                         id="mp-graph-fit-btn"
                         className="mp-graph-close"
-                        style={{ background: 'rgba(38, 185, 154, 0.12)', color: '#1a9e7f' }}
+                        style={{ background: "rgba(38, 185, 154, 0.12)", color: "#1a9e7f" }}
                       >
                         <i className="bi bi-fullscreen"></i> 전체보기
                       </button>
@@ -121,26 +94,26 @@ function MyPeopleApp() {
                     id="graph"
                     width="100%"
                     height="100%"
-                    style={{ flex: 1, minHeight: 0, display: 'block' }}
+                    style={{ flex: 1, minHeight: 0, display: "block" }}
                   ></svg>
                   <div
                     id="tooltip"
                     style={{
-                      position: 'fixed',
-                      background: '#fff',
-                      color: '#000',
-                      border: '1px solid rgba(0, 0, 0, 0.2)',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      fontFamily: 'sans-serif',
+                      position: "fixed",
+                      background: "#fff",
+                      color: "#000",
+                      border: "1px solid rgba(0, 0, 0, 0.2)",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      fontSize: "13px",
+                      fontFamily: "sans-serif",
                       lineHeight: 1.6,
-                      pointerEvents: 'none',
+                      pointerEvents: "none",
                       opacity: 0,
-                      transition: 'opacity 0.15s',
-                      maxWidth: '260px',
+                      transition: "opacity 0.15s",
+                      maxWidth: "260px",
                       zIndex: 9999,
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+                      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
                     }}
                   ></div>
                 </div>
@@ -153,7 +126,7 @@ function MyPeopleApp() {
                 </div>
               </div>
 
-              <div className="mp-panel" id="mp-messenger-view" style={{ display: 'none' }}>
+              <div className="mp-panel" id="mp-messenger-view" style={{ display: "none" }}>
                 <div className="mp-empty" id="mp-messenger-loading">
                   <i className="bi bi-chat-dots"></i>
                   <p>메신저 기능을 불러오는 중...</p>
@@ -165,18 +138,27 @@ function MyPeopleApp() {
                 <button className="mp-detail-close" id="mp-detail-close">
                   <i className="bi bi-x-lg"></i>
                 </button>
-                <div className="mp-detail-header" style={{ position: 'relative' }}>
+                <div className="mp-detail-header" style={{ position: "relative" }}>
                   <div className="mp-detail-pair">
                     <div className="mp-detail-self-info">
                       <h2 className="mp-detail-name" id="mp-detail-my-name"></h2>
                       <p className="mp-detail-email" id="mp-detail-my-email"></p>
                     </div>
-                    <div className="mp-detail-avatar mp-detail-avatar-self" id="mp-detail-avatar-self"></div>
+                    <div
+                      className="mp-detail-avatar mp-detail-avatar-self"
+                      id="mp-detail-avatar-self"
+                    ></div>
                     <div className="mp-detail-relation">
                       {/* 친밀도: 선 위에는 관계, 선 밑에는 친밀도 설명 */}
-                      <span className="mp-detail-relation-label" id="mp-detail-relation-label"></span>
+                      <span
+                        className="mp-detail-relation-label"
+                        id="mp-detail-relation-label"
+                      ></span>
                       <div className="mp-detail-relation-line"></div>
-                      <span className="mp-detail-affinity-label" id="mp-detail-affinity-label"></span>
+                      <span
+                        className="mp-detail-affinity-label"
+                        id="mp-detail-affinity-label"
+                      ></span>
                     </div>
                     <div className="mp-detail-avatar-ring">
                       <svg className="mp-detail-avatar-ring-svg" viewBox="0 0 100 100">
@@ -213,7 +195,12 @@ function MyPeopleApp() {
                             </feMerge>
                           </filter>
                         </defs>
-                        <circle className="mp-detail-avatar-ring-bg" cx="50" cy="50" r="46"></circle>
+                        <circle
+                          className="mp-detail-avatar-ring-bg"
+                          cx="50"
+                          cy="50"
+                          r="46"
+                        ></circle>
                         <circle
                           className="mp-detail-avatar-ring-fill"
                           id="mp-detail-avatar-ring-fill"
@@ -223,7 +210,10 @@ function MyPeopleApp() {
                         ></circle>
                       </svg>
                       <div className="mp-detail-avatar" id="mp-detail-avatar"></div>
-                      <span className="mp-detail-avatar-ring-label" id="mp-detail-avatar-ring-label"></span>
+                      <span
+                        className="mp-detail-avatar-ring-label"
+                        id="mp-detail-avatar-ring-label"
+                      ></span>
                     </div>
                   </div>
                   <div id="mp-detail-namewrap">
@@ -237,14 +227,22 @@ function MyPeopleApp() {
                     <button
                       className="mp-detail-tab-btn active-stats"
                       id="mp-tab-stats"
-                      onClick={() => switchDetailTab('stats')}
+                      onClick={() => switchDetailTab("stats")}
                     >
                       메일 통계
                     </button>
-                    <button className="mp-detail-tab-btn" id="mp-tab-desc" onClick={() => switchDetailTab('desc')}>
+                    <button
+                      className="mp-detail-tab-btn"
+                      id="mp-tab-desc"
+                      onClick={() => switchDetailTab("desc")}
+                    >
                       설명
                     </button>
-                    <button className="mp-detail-tab-btn" id="mp-tab-kw" onClick={() => switchDetailTab('kw')}>
+                    <button
+                      className="mp-detail-tab-btn"
+                      id="mp-tab-kw"
+                      onClick={() => switchDetailTab("kw")}
+                    >
                       키워드
                     </button>
                   </div>
@@ -258,50 +256,53 @@ function MyPeopleApp() {
 
                 <div className="mp-detail-kw" id="mp-detail-kw">
                   <div className="mp-wc-wrap" id="mp-detail-wc">
-                    <span style={{ color: '#a0b8b0', fontSize: '1rem' }}>로딩 중...</span>
+                    <span style={{ color: "#a0b8b0", fontSize: "1rem" }}>로딩 중...</span>
                   </div>
                 </div>
 
                 <div className="mp-detail-body" id="mp-detail-body-stats">
                   <div className="mp-detail-col">
-                    <div id="mp-echange-row" style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
+                    <div
+                      id="mp-echange-row"
+                      style={{ display: "flex", gap: "16px", flex: 1, minHeight: 0 }}
+                    >
                       <div
                         id="mp-echange-chartview"
                         style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 'inherit',
-                          flex: '1 1 100%',
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "inherit",
+                          flex: "1 1 100%",
                           minWidth: 0,
                           minHeight: 0,
-                          transition: 'flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
+                          transition: "flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1)",
                         }}
                       >
                         <div
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '16px',
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "16px",
                             flexShrink: 0,
-                            paddingBottom: '14px',
+                            paddingBottom: "14px",
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
                             <div
                               id="mp-stats-title"
                               className="mp-detail-section-title"
                               style={{
-                                background: 'none',
-                                border: 'none',
-                                borderBottom: '1.5px solid rgba(28, 28, 30, 0.16)',
+                                background: "none",
+                                border: "none",
+                                borderBottom: "1.5px solid rgba(28, 28, 30, 0.16)",
                                 borderRadius: 0,
-                                boxShadow: 'none',
-                                padding: '0 0 5px',
-                                fontSize: '1rem',
-                                letterSpacing: '-0.01em',
-                                textTransform: 'none',
-                                color: '#1c1c1e',
+                                boxShadow: "none",
+                                padding: "0 0 5px",
+                                fontSize: "1rem",
+                                letterSpacing: "-0.01em",
+                                textTransform: "none",
+                                color: "#1c1c1e",
                               }}
                             >
                               메일 통계
@@ -309,22 +310,27 @@ function MyPeopleApp() {
                             <span
                               id="mp-stats-total"
                               style={{
-                                fontSize: '1rem',
+                                fontSize: "1rem",
                                 fontWeight: 700,
-                                color: '#6b6459',
-                                background: 'rgba(28, 28, 30, 0.06)',
-                                padding: '4px 12px',
-                                borderRadius: '20px',
-                                whiteSpace: 'nowrap',
+                                color: "#6b6459",
+                                background: "rgba(28, 28, 30, 0.06)",
+                                padding: "4px 12px",
+                                borderRadius: "20px",
+                                whiteSpace: "nowrap",
                               }}
                             ></span>
                           </div>
                           <div
                             id="mp-stats-legend"
-                            style={{ display: 'flex', gap: '18px', alignItems: 'center', flexShrink: 0 }}
+                            style={{
+                              display: "flex",
+                              gap: "18px",
+                              alignItems: "center",
+                              flexShrink: 0,
+                            }}
                           ></div>
                         </div>
-                        {/* 요청 — Y축이 뭘 나타내는지 표시(My Time 일별 키워드 그래프와 같은 방식) */}
+                        {/* Y축이 뭘 나타내는지 표시(My Time 일별 키워드 그래프와 같은 방식) */}
                         <div className="mp-vchart-y-title">건수</div>
                         <div className="mp-vchart-wrap">
                           <div className="mp-vchart-y" id="mp-vchart-y">
@@ -333,52 +339,52 @@ function MyPeopleApp() {
                             <span>0</span>
                           </div>
                           <div className="mp-vchart-area" id="mp-chart">
-                            <span style={{ color: '#a0b8b0', fontSize: '1rem' }}>로딩 중...</span>
+                            <span style={{ color: "#a0b8b0", fontSize: "1rem" }}>로딩 중...</span>
                           </div>
                         </div>
                       </div>
                       <div
                         id="mp-echange-listview"
                         style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 'inherit',
-                          flex: '0 0 0%',
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "inherit",
+                          flex: "0 0 0%",
                           width: 0,
                           minHeight: 0,
                           opacity: 0,
-                          pointerEvents: 'none',
+                          pointerEvents: "none",
                           paddingLeft: 0,
-                          borderLeft: 'none',
-                          overflow: 'hidden',
+                          borderLeft: "none",
+                          overflow: "hidden",
                           transition:
-                            'flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s, padding-left 0.32s, border-left 0.32s',
+                            "flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s, padding-left 0.32s, border-left 0.32s",
                         }}
                       >
                         <div
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
                             flexShrink: 0,
-                            paddingBottom: '14px',
+                            paddingBottom: "14px",
                           }}
                         >
                           <button
                             id="mp-echange-back"
                             onClick={() => closeEmailDrawer()}
                             style={{
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              border: '1px solid rgba(28, 28, 30, 0.14)',
-                              background: '#fff',
-                              color: '#4a4640',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.7rem',
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "50%",
+                              border: "1px solid rgba(28, 28, 30, 0.14)",
+                              background: "#fff",
+                              color: "#4a4640",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.7rem",
                               flexShrink: 0,
                             }}
                           >
@@ -387,11 +393,20 @@ function MyPeopleApp() {
                           <div style={{ minWidth: 0 }}>
                             <div
                               id="mp-echange-list-title"
-                              style={{ fontSize: '1rem', fontWeight: 700, color: '#1c1c1e', whiteSpace: 'nowrap' }}
+                              style={{
+                                fontSize: "1rem",
+                                fontWeight: 700,
+                                color: "#1c1c1e",
+                                whiteSpace: "nowrap",
+                              }}
                             ></div>
                             <div
                               id="mp-echange-list-count"
-                              style={{ fontSize: '0.82rem', color: '#8a8378', whiteSpace: 'nowrap' }}
+                              style={{
+                                fontSize: "0.82rem",
+                                color: "#8a8378",
+                                whiteSpace: "nowrap",
+                              }}
                             ></div>
                           </div>
                         </div>
@@ -400,10 +415,10 @@ function MyPeopleApp() {
                           style={{
                             flex: 1,
                             minHeight: 0,
-                            overflowY: 'auto',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px',
+                            overflowY: "auto",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "10px",
                           }}
                         ></div>
                       </div>

@@ -1,23 +1,17 @@
 import { store } from "../store/globalStore.js";
 /**
- My People/My Time/Recap 등에서 공용으로 쓰는 좌측 사이드바(메일 계정·메신저 채팅방 선택 목록). globalStore와 연동해 선택 상태를 반영하고, 접기/펼치기 및 목록 클릭 이벤트를 처리한다.
- 
- Shared left sidebar (mail account / messenger chatroom picker) used by My People, My Time, Recap, etc. Syncs selection with the global store and handles collapse toggle and item clicks.
+My People/My Time/Recap 등에서 공용으로 쓰는 좌측 사이드바(메일 계정·메신저 채팅방 선택 목록).
+globalStore와 연동해 선택 상태를 반영하고, 접기/펼치기 및 목록 클릭 이벤트를 처리한다.
+
+Shared left sidebar (mail account / messenger chatroom picker) used by My People, My Time, Recap, etc.
+Syncs selection with the global store and handles collapse toggle and item clicks.
  */
 
-// 완전히 새로 그린 사이드바(디자인/클래스 전부 새로 작성 — 예전 클래스명과 절대
-// 안 겹치도록 "gws-" 접두사 사용. 예전엔 이름이 흔한 .sidebar-header 같은 걸 써서
-// custom.scss의 레거시 관리자 템플릿 규칙(.sidebar-header { margin-top: 46px })이
-// 몰래 얹혀서 이상하게 밀려 보였음 — 새 접두사로 그 충돌 자체를 원천 차단.
 export function renderAppSidebar(containerId = "app-sidebar") {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // My People / My Time / Recap 세 페이지 모두 "처음 열 때는 항상 펼쳐진 상태"로
-  // 시작해야 한다는 요구사항 — 예전엔 localStorage에 저장된 접힘 상태를 그대로
-  // 복원해서, 이전에 접어놨으면 페이지를 새로 열 때마다 접힌 채로 시작했었다.
-  // 페이지 로드 시점의 초기 상태는 항상 펼침(false)으로 고정하고, localStorage는
-  // 같은 세션 안에서 사용자가 토글 버튼을 눌렀을 때만 참고용으로 갱신한다.
+  // 페이지 로드 시점의 초기 상태는 항상 펼침(false)으로 고정한다.
   const isCollapsed = false;
 
   container.classList.toggle("is-collapsed", isCollapsed);
@@ -45,7 +39,7 @@ export function renderAppSidebar(containerId = "app-sidebar") {
       </div>
     </aside>
     <!-- 그림자를 오른쪽에만 — .gws-rail 자체의 box-shadow는 블러가 위/아래로도
-         번져서 헤더(top:60px 바로 위)와 사이드바가 잘려 보이는 문제가 있었다.
+         번져서 헤더(top:60px 바로 위)와 사이드바가 잘려 보일 수 있다.
          블러 없는 얇은 그라디언트 띠를 별도 엘리먼트로 둬서, 사이드바 높이와
          정확히 같은 범위(top:60px~bottom:0)에만 그림자가 지도록 함. -->
     <div class="gws-rail-shadow" aria-hidden="true"></div>
@@ -54,14 +48,12 @@ export function renderAppSidebar(containerId = "app-sidebar") {
   const sidebarEl = document.getElementById("sidebar");
   const toggleBtn = document.getElementById("sidebar-toggle-btn");
 
-  // 사이드바 너비를 CSS 변수(--gw-sidebar-w)로 노출해서, 오른쪽 페이지가 어떤
-  // 구조든(position:fixed인 .mp-page, 일반 흐름인 .right_col 등) 이 변수 하나만
-  // 보고 자기 폭/패딩을 늘리고 줄이게 한다.
+  // 사이드바 너비를 CSS 변수(--gw-sidebar-w)로 노출해서, 오른쪽 페이지가 어떤 구조든(position:fixed인 .mp-page, 일반 흐름인 .right_col 등) 이 변수 하나만 보고 자기 폭/패딩을 늘리고 줄이게 한다.
   const SIDEBAR_W = { expanded: "288px", collapsed: "84px" };
   const updateMainLayout = (collapsed) => {
     document.documentElement.style.setProperty(
       "--gw-sidebar-w",
-      collapsed ? SIDEBAR_W.collapsed : SIDEBAR_W.expanded,
+      collapsed ? SIDEBAR_W.collapsed : SIDEBAR_W.expanded
     );
   };
 
@@ -74,14 +66,8 @@ export function renderAppSidebar(containerId = "app-sidebar") {
     updateMainLayout(collapsed);
   };
 
-  // 요청 — 페이지를 새로 열 때는 항상 목록 맨 위 항목이 기본으로 선택돼
-  // 있어야 함. 예전엔 이전에(다른 페이지에서, 또는 지난 방문 때) 골라뒀던
-  // 계정/채팅방이 localStorage에 남아있으면 그게 계속 우선돼서, 맨 위가
-  // 아닌 다른 항목이 선택된 채로 열리는 경우가 있었다 — 페이지를 새로 열
-  // 때(=renderAppSidebar 호출 시점)는 그 저장값을 매번 초기화해서 아래
-  // refreshSidebarList()의 "선택값 없으면 맨 위 항목" 기본 로직이 항상
-  // 적용되게 한다. (같은 페이지 안에서 사용자가 직접 다른 항목을 클릭하는
-  // 건 이 초기화와 무관하게 그대로 정상 동작함.)
+  // 페이지를 새로 열 때(=renderAppSidebar 호출 시점)는 그 저장값을 매번 초기화해서 아래 refreshSidebarList()의 "선택값 없으면 맨 위 항목" 기본 로직이 항상 적용되게 한다.
+  // (같은 페이지 안에서 사용자가 직접 다른 항목을 클릭하는 건 이 초기화와 무관하게 그대로 정상 동작함.)
   store.setFilter("mail", null);
 
   refreshSidebarList();
@@ -109,28 +95,16 @@ export function refreshSidebarList() {
   if (!mailListEl || !msgListEl) return;
 
   // store.getCollectedLists()의 mails/rooms는 각각 {id, label, indexed} 형태.
-  // (id: 실제 값으로 쓰이는 user_id/chatroom_id, label: 화면에 보여줄 이름 —
-  // 메일은 id와 동일, 메신저는 /messenger-chatrooms가 서버에서 이미 resolve해준
-  // 실제 대화방 이름)
+  // (id: 실제 값으로 쓰이는 user_id/chatroom_id, label: 화면에 보여줄 이름 — 메일은 id와 동일, 메신저는 /messenger-chatrooms가 서버에서 이미 resolve해준 실제 대화방 이름)
   const { mails = [], rooms = [] } = store.getCollectedLists() || {};
   let { mail: currentMail, room: currentRoom } = store.getFilterState() || {};
 
-  // 요청 — 페이지를 처음 띄웠을 때 목록에서 아무 항목도 "눌려있는(active)"
-  // 상태로 안 보이는 문제 수정. 예전엔 저장된 선택값이 "아예 없을 때"만
-  // 기본값을 골랐는데, 예전에 골라뒀던 계정/채팅방이 그 사이 삭제되거나(중복
-  // 채팅방 정리 등) 목록에서 빠지면 저장값 자체는 남아있어서(falsy가 아님) 이
-  // if문을 안 타고, 그렇다고 그 값과 일치하는 항목도 없어서 결국 아무 데도
-  // is-active가 안 붙었다 — 저장된 값이 지금 목록에 실제로 있는지까지 확인해서,
-  // 없으면 "선택 안 된 것"으로 보고 항상 맨 위 항목이 기본으로 눌려있게 한다.
+  // 저장된 값이 지금 목록에 실제로 있는지까지 확인해서, 없으면 "선택 안 된 것"으로 보고 항상 맨 위 항목이 기본으로 눌려있게 한다.
   const isMailValid = !!currentMail && mails.some((m) => m.id === currentMail);
   const isRoomValid = !!currentRoom && rooms.some((r) => r.id === currentRoom);
 
   if (!isMailValid && !isRoomValid) {
-    // setFilter("mail", ...)/setFilter("room", ...) 호출 하나가 내부적으로
-    // 반대쪽을 알아서 null 처리하므로(globalStore.js의 applySelection 참고),
-    // 굳이 반대쪽을 미리 null로 지우는 별도 호출을 먼저 할 필요가 없다 — 예전엔
-    // 이 두 호출 "사이"에 mail/room이 둘 다 없는 중간 상태가 실제로 발생해서
-    // gwStoreStateChanged 리스너가 재진입하며 API가 중복 호출되는 원인이 됐다.
+    // setFilter("mail", ...)/setFilter("room", ...) 호출 하나가 내부적으로 반대쪽을 알아서 null 처리하므로(globalStore.js의 applySelection 참고), 굳이 반대쪽을 미리 null로 지우는 별도 호출을 먼저 할 필요가 없다 — 예전엔 이 두 호출 "사이"에 mail/room이 둘 다 없는 중간 상태가 실제로 발생해서 gwStoreStateChanged 리스너가 재진입하며 API가 중복 호출되는 원인이 됐다.
     if (mails.length > 0) {
       currentMail = mails[0].id;
       currentRoom = null;
@@ -188,15 +162,13 @@ export function refreshSidebarList() {
 function syncViewButton(targetType) {
   if (targetType === "mail") {
     const mailBtn =
-      document.getElementById("mp-mail-btn") ||
-      document.getElementById("mt-mail-btn");
+      document.getElementById("mp-mail-btn") || document.getElementById("mt-mail-btn");
     if (mailBtn && !mailBtn.classList.contains("active")) {
       mailBtn.click();
     }
   } else if (targetType === "room") {
     const msgBtn =
-      document.getElementById("mp-messenger-btn") ||
-      document.getElementById("mt-messenger-btn");
+      document.getElementById("mp-messenger-btn") || document.getElementById("mt-messenger-btn");
     if (msgBtn && !msgBtn.classList.contains("active")) {
       msgBtn.click();
     }
@@ -210,8 +182,7 @@ function bindSidebarEvents() {
       const type = item.getAttribute("data-type");
       const value = item.getAttribute("data-value");
 
-      // 위 refreshSidebarList()의 기본값 보정 분기와 같은 이유로, 클릭 한 번에
-      // setFilter를 한 번만 부른다(반대쪽은 store가 알아서 null 처리).
+      // 위 refreshSidebarList()의 기본값 보정 분기와 같은 이유로, 클릭 한 번에 setFilter를 한 번만 부른다(반대쪽은 store가 알아서 null 처리).
       if (type === "mail") {
         store.setFilter("mail", value);
       } else if (type === "room") {

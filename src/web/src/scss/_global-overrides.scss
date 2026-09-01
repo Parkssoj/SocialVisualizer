@@ -1,11 +1,7 @@
 /*
- * _variables.scss 토큰만으로 덮이지 않는 세부 디자인(폰트, 전역 기본값 등)을 보정하는 오버라이드 모음.
- * 예전 이름은 _green-luxury.scss였다 — 디자인 시스템이 "Luxury Green"에서 지금의 앰버 톤으로 바뀌면서
- * 이름만 안 맞게 남아있던 걸 내용에 맞게 고쳤다.
- *
- * Override styles (fonts, global defaults, etc.) that fill gaps _variables.scss's tokens alone don't
- * cover. Previously named _green-luxury.scss — a holdover from when the design system was "Luxury
- * Green" before it moved to the current amber palette; renamed to match what the file actually does.
+ _variables.scss 토큰만으로 덮이지 않는 세부 디자인(폰트, 전역 기본값 등)을 보정하는 오버라이드 모음.
+
+Override styles (fonts, global defaults, etc.) that fill gaps _variables.scss's tokens alone don't cover.
  */
 
 // Inter 폰트 (구글 폰트 CDN)
@@ -19,8 +15,7 @@
 }
 
 body {
-  font-family:
-    "Inter", "Pretendard", "Helvetica Neue", Arial, sans-serif !important;
+  font-family: "Inter", "Pretendard", "Helvetica Neue", Arial, sans-serif !important;
   background: var(--gt-body-bg) !important;
   color: var(--gt-text-dark);
   letter-spacing: -0.01em;
@@ -355,14 +350,14 @@ body {
   }
 }
 
-// 상단 네비게이션
-// 투명/고정 처리는 _header.scss에서 전체 사이트 공통으로 담당
+// 상단 네비게이션 투명/고정 처리는 _header.scss에서 전체 사이트 공통으로 담당
 .top_nav {
   .nav_menu {
     padding: 0 24px !important;
   }
 }
 
+// 상단 헤더 우측 — 메뉴 토글 버튼, 로그인 사용자 프로필 드롭다운 트리거, 드롭다운 메뉴(로그아웃 등) 스타일
 #menu_toggle {
   color: var(--gt-text-muted) !important;
   font-size: 16px !important;
@@ -682,14 +677,6 @@ footer {
     font-weight: 500;
   }
 }
-
-// 언어 스위처
-// 예전 vanilla 헤더 시절 id(#langDropdown) 기준 규칙이었음 — 지금은 홈(React
-// Header.jsx, id 없음)과 다른 페이지(appHeader.js, id="langDropdown") 둘 다
-// _header.scss의 .gw-lang-trigger 클래스 규칙(검정색)으로 통일해서 관리 중.
-// 이 블록은 id 선택자라 .gw-lang-trigger(class)보다 우선순위가 높아서, id가
-// 있는 다른 페이지에서만 번역 아이콘이 초록색(var(--gt-primary))으로 새고
-// 홈 화면만 검정색으로 보이는 불일치의 원인이었음 — 완전히 제거함.
 
 // 선택 강조 색
 ::selection {

@@ -1,17 +1,12 @@
-import { createRoot } from 'react-dom/client';
-import Header from './Header.jsx';
+import { createRoot } from "react-dom/client";
+import Header from "./Header.jsx";
 
 /**
-"분석 결과 보기" 허브 페이지(analysishub.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더와
-My People/My Time/Recap/검색으로 이동하는 4개의 정적 바로가기 카드를 렌더링한다. 원본 페이지가
-이미 순수 정적 HTML(공통 헤더 초기화 외에 자체 JS 로직이 없음)이었기 때문에, 다른 변환 페이지들과
-달리 별도의 features/*Engine.js가 필요 없다 — 마크업을 그대로 JSX로 옮기기만 하면 된다.
+"분석 결과 보기" 허브 페이지(analysishub.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더와 My People/My Time/Recap/검색으로 이동하는 4개의 정적 바로가기 카드를 렌더링한다.
+원본 페이지가 이미 순수 정적 HTML(공통 헤더 초기화 외에 자체 JS 로직이 없음)이었기 때문에, 다른 변환 페이지들과 달리 별도의 features/*Engine.js가 필요 없다 — 마크업을 그대로 JSX로 옮기기만 하면 된다.
 
-Top-level React component wrapping the entire "view results" hub page (analysishub.html) —
-renders the header and the four static shortcut cards linking to My People/My Time/Recap/Search.
-Since the original page was already pure static HTML (no JS logic beyond the shared header init),
-unlike the other converted pages this one needs no separate features/*Engine.js — the markup is
-simply carried over into JSX as-is.
+Top-level React component wrapping the entire "view results" hub page (analysishub.html) — renders the header and the four static shortcut cards linking to My People/My Time/Recap/Search.
+Since the original page was already pure static HTML (no JS logic beyond the shared header init), unlike the other converted pages this one needs no separate features/*Engine.js — the markup is simply carried over into JSX as-is.
  */
 function AnalysisHubApp() {
   return (
@@ -26,7 +21,9 @@ function AnalysisHubApp() {
                 <i className="bi bi-grid-fill"></i>
                 View results
               </div>
-              <p className="gw-page-subtitle">원하시는 분석 항목을 선택하여 상세 결과를 확인하세요.</p>
+              <p className="gw-page-subtitle">
+                원하시는 분석 항목을 선택하여 상세 결과를 확인하세요.
+              </p>
             </div>
           </div>
 
@@ -41,7 +38,7 @@ function AnalysisHubApp() {
                   src="/images/hero/MyPeople.png"
                   alt="My People"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/600x300?text=My+People';
+                    e.currentTarget.src = "https://via.placeholder.com/600x300?text=My+People";
                   }}
                 />
               </div>
@@ -56,7 +53,7 @@ function AnalysisHubApp() {
                   src="/images/hero/MyTime.png"
                   alt="My Time"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/600x300?text=My+Time';
+                    e.currentTarget.src = "https://via.placeholder.com/600x300?text=My+Time";
                   }}
                 />
               </div>
@@ -71,13 +68,13 @@ function AnalysisHubApp() {
                   src="/images/hero/Recap.png"
                   alt="Recap"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/600x300?text=Recap';
+                    e.currentTarget.src = "https://via.placeholder.com/600x300?text=Recap";
                   }}
                 />
               </div>
             </a>
 
-            {/* 메뉴 4: Search */}
+            {/* 메뉴 4: Natural Language Search */}
             <a href="search.html" className="gw-hub-card">
               <div className="gw-hub-title">Natural language search</div>
               <div className="gw-hub-desc">데이터에서 원하는 정보를 자연어로 검색합니다.</div>
@@ -86,7 +83,7 @@ function AnalysisHubApp() {
                   src="/images/hero/NaturalLanguageSearch.png"
                   alt="Search"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/600x300?text=Search';
+                    e.currentTarget.src = "https://via.placeholder.com/600x300?text=Search";
                   }}
                 />
               </div>

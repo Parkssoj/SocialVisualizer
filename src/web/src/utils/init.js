@@ -4,30 +4,23 @@
  jQuery-free shared UI initializer — sets up date pickers, panel collapse, progress bars, form validation, tabs/accordions, modals, drag-and-drop, search filtering, keyboard shortcuts, and the header scroll shadow, all on DOMContentLoaded.
  */
 
-// Import canonical DOM utilities
+// 공통 DOM 유틸리티
 import DOM from "./dom.js";
 
-// Import development logger
+// 개발용 로거
 import logger from "./logger.js";
 
-/**
-NOTE: DataTables initialization moved to modern tables module
-No longer uses jQuery - uses DataTables 2.x native JavaScript API
-See: /modules/tables.js
- */
+// DataTables 초기화는 modules/tables.js에서 담당한다(jQuery 없이 DataTables 2.x 네이티브 API 사용).
 
-/**
-Date Picker Initialization - MODERNIZED
-Uses modern date picker libraries instead of jQuery UI
- */
+// 날짜 선택기(.datepicker 등)를 TempusDominus로 초기화한다.
 async function initializeDatePickers() {
-  // Check if TempusDominus is available
+  // TempusDominus 로드 여부 확인
   const TempusDominus = window.TempusDominus;
   if (typeof TempusDominus === "undefined") {
     return;
   }
 
-  // Initialize standard date pickers (.datepicker, [data-datepicker])
+  // 기본 날짜 선택기(.datepicker, [data-datepicker]) 초기화
   const datePickerElements = DOM.selectAll(".datepicker, [data-datepicker]");
   datePickerElements.forEach((element) => {
     try {
@@ -47,10 +40,10 @@ async function initializeDatePickers() {
     }
   });
 
-  // Initialize Tempus Dominus date pickers with data-td-target attributes
+  // data-td-target 속성이 붙은 날짜 선택기 초기화
   const tdDatePickers = DOM.selectAll('[data-td-target-input="nearest"]');
   tdDatePickers.forEach((element) => {
-    // Skip if already initialized
+    // 이미 초기화된 경우 건너뜀
     if (element._tempusDominus) return;
 
     try {
@@ -77,13 +70,9 @@ async function initializeDatePickers() {
   });
 }
 
-/**
-Panel Toolbox Functionality - Bootstrap 5 Compatible
-Uses Bootstrap 5's Collapse API for smooth animations
-Falls back to CSS transitions if Bootstrap is not available
- */
+// 패널 접기/펼치기, 닫기 버튼을 Bootstrap 5 Collapse API로 초기화한다.
 function initializePanelToolbox() {
-  // Collapse/Expand functionality - use Bootstrap Collapse API
+  // 접기/펼치기 — Bootstrap Collapse API 사용
   DOM.selectAll(".collapse-link").forEach((link, index) => {
     const panel = DOM.closest(link, ".x_panel");
     const content = DOM.find(panel, ".x_content");
@@ -92,24 +81,24 @@ function initializePanelToolbox() {
       return;
     }
 
-    // Add unique ID if not present (needed for Bootstrap Collapse)
+    // Bootstrap Collapse에 필요한 고유 id가 없으면 부여
     if (!content.id) {
       content.id = `panel-content-${index}`;
     }
 
-    // Add Bootstrap collapse classes if not present
+    // collapse 클래스가 없으면 추가
     if (!DOM.hasClass(content, "collapse")) {
       DOM.addClass(content, "collapse");
-      DOM.addClass(content, "show"); // Start expanded
+      DOM.addClass(content, "show"); // 처음엔 펼친 상태로 시작
     }
 
-    // Set up the toggle attributes
+    // 토글에 필요한 속성 설정
     link.setAttribute("data-bs-toggle", "collapse");
     link.setAttribute("data-bs-target", `#${content.id}`);
     link.setAttribute("aria-expanded", "true");
     link.setAttribute("aria-controls", content.id);
 
-    // Handle icon rotation via Bootstrap collapse events
+    // Bootstrap collapse 이벤트에 맞춰 아이콘 회전 처리
     content.addEventListener("hide.bs.collapse", () => {
       const icon = DOM.find(link, "i");
       if (icon) {
@@ -127,14 +116,14 @@ function initializePanelToolbox() {
     });
   });
 
-  // Close panel functionality - uses CSS transitions
+  // 패널 닫기 — CSS 트랜지션 사용
   DOM.selectAll(".close-link").forEach((link) => {
     DOM.on(link, "click", function (event) {
       event.preventDefault();
 
       const panel = DOM.closest(link, ".x_panel");
       if (panel) {
-        // Fade out and remove panel
+        // 서서히 사라지게 한 뒤 패널 제거
         panel.style.transition = "opacity 0.3s ease";
         panel.style.opacity = "0";
         setTimeout(() => {
@@ -145,29 +134,25 @@ function initializePanelToolbox() {
   });
 }
 
-/**
-Progress Bar Animations - MODERNIZED FROM JQUERY
-Animates progress bars with data-transitiongoal attribute
- */
+// data-transitiongoal 속성이 있는 프로그레스바를 채워지는 애니메이션으로 표시한다.
 function initializeProgressBars() {
   DOM.selectAll(".progress-bar[data-transitiongoal]").forEach((bar) => {
     const goal = bar.getAttribute("data-transitiongoal");
     if (goal) {
-      // Reset to 0 and animate to goal
+      // 0%에서 시작해 목표치까지 애니메이션
       bar.style.width = "0%";
       bar.style.transition = "width 1.5s ease-in-out";
 
-      // Use setTimeout to ensure the transition triggers
+      // 트랜지션이 확실히 걸리도록 setTimeout으로 지연
       setTimeout(() => {
         bar.style.width = goal + "%";
       }, 100);
     }
   });
 
-  // Animate regular progress bars on page load
-  // Skip bars inside .sales-progress as they have their own styling
+  // 일반 프로그레스바는 페이지 로드시 애니메이션(자체 스타일을 쓰는 .sales-progress 내부는 제외)
   DOM.selectAll(".progress-bar:not([data-transitiongoal])").forEach((bar) => {
-    // Skip progress bars in sales-progress widget - keep their inline width
+    // .sales-progress 위젯 안의 프로그레스바는 인라인 width를 그대로 유지
     if (bar.closest(".sales-progress")) {
       return;
     }
@@ -183,10 +168,7 @@ function initializeProgressBars() {
   });
 }
 
-/**
-Form Validation - MODERNIZED FROM JQUERY
-Uses HTML5 validation APIs instead of jQuery validation plugin
- */
+// HTML5 검증 API로 폼 유효성 검사를 초기화한다.
 function initializeFormValidation() {
   DOM.selectAll("form[data-validate], .needs-validation").forEach((form) => {
     DOM.on(form, "submit", function (event) {
@@ -194,11 +176,11 @@ function initializeFormValidation() {
         event.preventDefault();
         event.stopPropagation();
 
-        // Add visual feedback for invalid fields
+        // 유효하지 않은 필드에 시각적 표시 추가
         DOM.selectAll(":invalid", form).forEach((field) => {
           DOM.addClass(field, "is-invalid");
 
-          // Show custom error message if provided
+          // 지정된 에러 메시지가 있으면 표시
           const errorMsg = field.getAttribute("data-error-message");
           if (errorMsg) {
             let errorDiv = DOM.find(field.parentNode, ".invalid-feedback");
@@ -215,7 +197,7 @@ function initializeFormValidation() {
       DOM.addClass(form, "was-validated");
     });
 
-    // Remove error styling when field becomes valid
+    // 필드가 유효해지면 에러 스타일 제거
     DOM.selectAll("input, select, textarea", form).forEach((field) => {
       DOM.on(field, "input", function () {
         if (field.checkValidity()) {
@@ -227,15 +209,8 @@ function initializeFormValidation() {
   });
 }
 
-/**
-Tabs and Accordion - MODERNIZED FROM JQUERY
-Uses Bootstrap 5 native JavaScript API
- */
+// 탭/아코디언을 초기화한다. Bootstrap 5 기본 탭은 데이터 속성만으로 자동 동작하며, .custom-tabs는 아래에서 별도로 처리한다.
 function initializeTabsAndAccordions() {
-  // Bootstrap 5 tabs - no additional initialization needed
-  // They work automatically with data attributes
-
-  // Custom tab functionality for non-Bootstrap tabs
   DOM.selectAll(".custom-tabs").forEach((tabContainer) => {
     const tabButtons = DOM.selectAll(".tab-button", tabContainer);
     const tabPanes = DOM.selectAll(".tab-pane", tabContainer);
@@ -246,16 +221,16 @@ function initializeTabsAndAccordions() {
         const targetPane = DOM.select(targetId);
 
         if (targetPane) {
-          // Hide all panes
+          // 모든 탭 패널 숨김
           tabPanes.forEach((pane) => {
             DOM.removeClass(pane, "active");
             pane.style.display = "none";
           });
 
-          // Remove active class from all buttons
+          // 모든 버튼에서 active 클래스 제거
           tabButtons.forEach((btn) => DOM.removeClass(btn, "active"));
 
-          // Show target pane and activate button
+          // 대상 패널을 보이고 버튼 활성화
           DOM.addClass(targetPane, "active");
           targetPane.style.display = "block";
           DOM.addClass(this, "active");
@@ -265,22 +240,17 @@ function initializeTabsAndAccordions() {
   });
 }
 
-/**
-Modals - MODERNIZED FROM JQUERY
-Uses Bootstrap 5 native Modal API
- */
+// Bootstrap 5 Modal API로 모달을 초기화하고, 열릴 때 첫 입력 필드에 자동 포커스한다.
 function initializeModals() {
-  // Bootstrap 5 modals work automatically, but we can add custom functionality
   DOM.selectAll(".modal").forEach((modalElement) => {
     if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
       const modal = new bootstrap.Modal(modalElement);
 
-      // Store modal instance for external access
+      // 외부에서 접근할 수 있도록 모달 인스턴스 저장
       modalElement.modalInstance = modal;
 
-      // Custom event handlers
       modalElement.addEventListener("shown.bs.modal", function () {
-        // Auto-focus first input in modal
+        // 모달의 첫 입력 필드에 자동 포커스
         const firstInput = DOM.select("input, textarea, select", this);
         if (firstInput) {
           firstInput.focus();
@@ -290,16 +260,10 @@ function initializeModals() {
   });
 }
 
-/**
-Drag and Drop - MODERN HTML5 IMPLEMENTATION
-Replaces jQuery UI sortable with native HTML5 drag and drop
- */
+// 네이티브 HTML5 드래그앤드롭으로 정렬 가능한 목록(.sortable)을 초기화한다.
 function initializeDragAndDrop() {
   DOM.selectAll(".sortable, [data-sortable]").forEach((container) => {
-    const items = DOM.selectAll(
-      ".sortable-item, [data-sortable-item]",
-      container,
-    );
+    const items = DOM.selectAll(".sortable-item, [data-sortable-item]", container);
 
     items.forEach((item) => {
       item.draggable = true;
@@ -317,15 +281,10 @@ function initializeDragAndDrop() {
     DOM.on(container, "dragover", function (e) {
       e.preventDefault();
       const dragging = DOM.select(".dragging", this);
-      const siblings = [
-        ...DOM.selectAll(".sortable-item:not(.dragging)", this),
-      ];
+      const siblings = [...DOM.selectAll(".sortable-item:not(.dragging)", this)];
 
       const nextSibling = siblings.find((sibling) => {
-        return (
-          e.clientY <=
-          sibling.getBoundingClientRect().top + sibling.offsetHeight / 2
-        );
+        return e.clientY <= sibling.getBoundingClientRect().top + sibling.offsetHeight / 2;
       });
 
       this.insertBefore(dragging, nextSibling);
@@ -333,14 +292,10 @@ function initializeDragAndDrop() {
   });
 }
 
-/**
-Search and Filter - MODERNIZED FROM JQUERY
-Native JavaScript search functionality
- */
+// 검색어 입력에 따라 대상 요소를 필터링하고 일치 개수를 표시한다.
 function initializeSearchAndFilter() {
   DOM.selectAll(".search-input, [data-search]").forEach((searchInput) => {
-    const targetSelector =
-      searchInput.getAttribute("data-target") || ".searchable-item";
+    const targetSelector = searchInput.getAttribute("data-target") || ".searchable-item";
     const targetElements = DOM.selectAll(targetSelector);
 
     DOM.on(searchInput, "input", function () {
@@ -352,7 +307,7 @@ function initializeSearchAndFilter() {
 
         element.style.display = matches ? "" : "none";
 
-        // Add/remove highlight class
+        // 일치 항목에 강조 클래스 추가/제거
         if (matches && query) {
           DOM.addClass(element, "search-match");
         } else {
@@ -360,10 +315,8 @@ function initializeSearchAndFilter() {
         }
       });
 
-      // Show count of visible items
-      const visibleCount = targetElements.filter(
-        (el) => el.style.display !== "none",
-      ).length;
+      // 보이는 항목 개수 표시
+      const visibleCount = targetElements.filter((el) => el.style.display !== "none").length;
       const countElement = DOM.select(".search-count");
       if (countElement) {
         countElement.textContent = `${visibleCount} items found`;
@@ -372,22 +325,19 @@ function initializeSearchAndFilter() {
   });
 }
 
-/**
-Keyboard Shortcuts - MODERN IMPLEMENTATION
-Replaces jQuery hotkeys with native keyboard event handling
- */
+// Ctrl+/ 검색 포커스, Escape 모달 닫기/검색 초기화 등 키보드 단축키를 등록한다.
 function initializeKeyboardShortcuts() {
   const shortcuts = {
     "Ctrl+/": () => DOM.select(".search-input")?.focus(),
     Escape: () => {
-      // Close modals
+      // 열린 모달 닫기
       DOM.selectAll(".modal.show").forEach((modal) => {
         if (modal.modalInstance) {
           modal.modalInstance.hide();
         }
       });
 
-      // Clear search
+      // 검색어 초기화
       DOM.selectAll(".search-input").forEach((input) => {
         input.value = "";
         input.dispatchEvent(new Event("input"));
@@ -410,25 +360,16 @@ function initializeKeyboardShortcuts() {
 }
 
 /**
-헤더 스크롤 그림자 — 페이지 맨 위에서는 그림자가 안 보이다가 스크롤하면 자연스럽게
-나타나도록 함 (_header.scss의 .top_nav.gw-header-scrolled 참고). 모든 페이지가 결국 같은
-React Header.jsx를 마운트해 동일한 .top_nav 요소를 쓰므로, scroll 이벤트마다 lazy하게
-querySelector로 찾아서 여기 한 곳에서만 처리하면 됨.
+헤더 스크롤 그림자 — 페이지 맨 위에서는 그림자가 안 보이다가 스크롤하면 자연스럽게 나타나도록 함 (_header.scss의 .top_nav.gw-header-scrolled 참고). 모든 페이지가 결국 같은 React Header.jsx를 마운트해 동일한 .top_nav 요소를 쓰므로, scroll 이벤트마다 lazy하게 querySelector로 찾아서 여기 한 곳에서만 처리하면 됨.
  */
 function initializeHeaderScrollShadow() {
   const SCROLL_THRESHOLD = 4;
   const getScrollTop = () =>
-    window.scrollY ||
-    document.documentElement.scrollTop ||
-    document.body.scrollTop ||
-    0;
+    window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
   const onScroll = () => {
     const header = document.querySelector(".top_nav");
     if (!header) return;
-    header.classList.toggle(
-      "gw-header-scrolled",
-      getScrollTop() > SCROLL_THRESHOLD,
-    );
+    header.classList.toggle("gw-header-scrolled", getScrollTop() > SCROLL_THRESHOLD);
   };
   window.addEventListener("scroll", onScroll, { passive: true, capture: true });
   document.addEventListener("scroll", onScroll, {
@@ -438,13 +379,9 @@ function initializeHeaderScrollShadow() {
   onScroll(); // 새로고침 시 이미 스크롤된 채로 들어오는 경우 대비, 최초 1회 즉시 실행
 }
 
-/**
-Main Initialization - MODERNIZED FROM JQUERY
-Coordinates all modern initialization functions
- */
+// 위 초기화 함수들을 모아서 순서대로 실행하는 진입점.
 async function initializeModernComponents() {
   try {
-    // Initialize components that still need initialization
     await initializeDatePickers();
     initializePanelToolbox();
     initializeProgressBars();
@@ -456,15 +393,13 @@ async function initializeModernComponents() {
     initializeKeyboardShortcuts();
     initializeHeaderScrollShadow();
 
-    // DataTables now handled by modern tables module (jQuery-free)
+    // DataTables는 modules/tables.js에서 별도로 초기화한다.
   } catch (error) {
     logger.error("Failed to initialize modern components:", error);
   }
 }
 
-/**
-Module Loading Status Indicator
- */
+// 모듈 로딩 완료를 알리는 작은 배지를 우측 상단에 잠깐 띄운다.
 function showLoadingStatus() {
   const statusElement = document.createElement("div");
   statusElement.id = "module-loading-status";
@@ -483,14 +418,14 @@ function showLoadingStatus() {
   statusElement.textContent = "✅ Modern components loaded";
   document.body.appendChild(statusElement);
 
-  // Auto-hide after 3 seconds
+  // 3초 후 자동으로 사라짐
   setTimeout(() => {
     statusElement.style.opacity = "0";
     setTimeout(() => statusElement.remove(), 300);
   }, 3000);
 }
 
-// Initialize when DOM is ready
+// DOM 준비되면 초기화 실행
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", async () => {
     await initializeModernComponents();

@@ -1,8 +1,9 @@
 /*
- * 홈 화면 전용 스타일 — 히어로 등장 애니메이션, 미리보기 카드, 배경 그리드 등.
- *
- * Styles for the home page — hero entrance animations, preview cards, background grid, etc.
+ 홈 화면 전용 스타일 — 히어로 등장 애니메이션, 미리보기 카드, 배경 그리드 등.
+ 
+ Styles for the home page — hero entrance animations, preview cards, background grid, etc.
  */
+
 /* 등장 애니메이션 기본 상태 */
 .gw-anim {
   opacity: 0;
@@ -16,6 +17,7 @@
   transform: translateY(0);
 }
 
+// 홈 화면은 히어로 섹션이 전체 화면을 채우므로 공통 푸터를 숨기고, 내부 스크롤 컨테이너로 바꿈
 footer {
   display: none;
 }
@@ -43,11 +45,6 @@ html {
   max-width: 1480px !important;
   margin: 0 auto !important;
   min-height: calc(100vh - 80px); /* 화면 전체에 대해 가운데 위치 조율 */
-  // 왼쪽 문구를 더 왼쪽으로 보내달라는 요청 — 왼쪽 여백을 더 줄여서 문구
-  // 블록 전체를 왼쪽으로 더 당김(예전 20px에서 재요청으로 0으로).
-  // 요청 — 아래쪽 여백이 너무 커서(60px) 미리보기 카드가 세로로 길어졌을 때
-  // 화면 높이를 넘겨 스크롤이 생기고 밑이 잘렸음 → 32px로 줄임(위쪽 80px은
-  // 고정 헤더(73px) 밑에서 겹치지 않게 하는 최소 여백이라 그대로 유지).
   padding: 80px 40px 32px 0 !important;
   box-sizing: border-box !important;
 }
@@ -57,21 +54,15 @@ html {
   position: relative;
   z-index: 4;
   flex: 1 1 44% !important;
-  // 한 줄로 표시되는 설명 문구를 넉넉히 담을 수 있도록 폭을 넓힘 — 제목을
-  // 줄바꿈 없이 한 줄로 표시하도록 바꾸면서(아래 .gw-hero-headline 참고)
-  // 720px로는 살짝 부족해 폭을 더 넉넉히 늘림.
+  // 한 줄로 표시되는 설명 문구를 넉넉히 담을 수 있도록 폭을 넓힘 — 제목을 줄바꿈 없이 한 줄로 표시하도록 바꾸면서(아래 .gw-hero-headline 참고) 720px로는 살짝 부족해 폭을 더 넉넉히 늘림.
   max-width: 820px;
   text-align: left !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-start !important;
   justify-content: center !important;
-  // 요청 — 문구가 너무 아래로 내려가 있어서 다시 위로. 부모(.gw-orbit-hero)가
-  // 이미 align-items:center로 좌/우를 같은 높이 기준 정가운데에 맞춰주므로,
-  // 여기서 따로 margin-top으로 더 내릴 필요가 없음(예전엔 오른쪽 카드가
-  // justify-content:flex-end로 아래에 붙어있어서 균형 맞추려 내렸었는데,
-  // 오른쪽도 이번에 center로 되돌려서 더 이상 필요 없음).
-  // 요청 — 아주 살짝만 더 내려달라는 재요청. 정렬 방식은 그대로 두고 숫자만 조정.
+  // 부모(.gw-orbit-hero)가 이미 align-items:center로 좌/우를 같은 높이 기준 정가운데에 맞춰주므로, 여기서 따로 margin-top으로 더 내릴 필요가 없음(예전엔 오른쪽 카드가 justify-content:flex-end로 아래에 붙어있어서 균형 맞추려 내렸었는데, 오른쪽도 이번에 center로 되돌려서 더 이상 필요 없음).
+  // 정렬 방식은 그대로 두고 숫자만 조정.
   margin-top: 10px !important;
 }
 
@@ -85,23 +76,16 @@ html {
     sans-serif;
   font-style: normal;
   font-weight: 800 !important;
-  // "Social Visualizer"를 좀 더 크게 키워달라는 요청 — clamp 상/하한을 함께 올림
-  font-size: clamp(
-    3.4rem,
-    5.6vw,
-    5.6rem
-  ) !important; /* 메인 타이틀 크기 확장 */
+  font-size: clamp(3.4rem, 5.6vw, 5.6rem) !important; /* 메인 타이틀 크기 확장 */
   line-height: 1.15 !important;
   letter-spacing: -0.02em;
   color: #262626;
   text-align: left !important;
-  // 요청 — "Social Visualizer"가 줄바꿈 없이 항상 한 줄로 보이도록. 좁은
-  // 화면(모바일)에서는 아래 @media (max-width: 900px)에서 다시 normal로
-  // 풀어서 화면 밖으로 잘리지 않게 함.
+  // 좁은 화면(모바일)에서는 아래 @media (max-width: 900px)에서 다시 normal로 풀어서 화면 밖으로 잘리지 않게 함.
   white-space: nowrap !important;
 }
 
-/* 2. 서브 문구 한 줄 고정(요청) */
+/* 2. 서브 문구 한 줄 고정 */
 .gw-hero-desc {
   margin: 0 0 32px !important;
   max-width: none !important; /* 한 줄로 이어지도록 폭 제한을 없앰 */
@@ -118,6 +102,7 @@ html {
   white-space: nowrap !important; /* 항상 한 줄로 표시 */
 }
 
+// 히어로 좌측 하단 CTA 버튼 묶음
 .gw-hero-cta {
   display: flex;
   align-items: center;
@@ -161,26 +146,12 @@ html {
   display: flex !important;
   flex-direction: column !important; /* 세로 1줄 고정 */
   align-items: flex-end !important; /* 오른쪽 수평 정렬 */
-  // 요청 — 카드를 일부러 아래로 붙이던 것(flex-end)과 그 상단 여백(padding-top:50)이
-  // 왼쪽 문구를 억지로 더 내리는 원인이자, 카드가 세로로 길어졌을 때 화면 아래로
-  // 넘쳐서 스크롤/잘림이 생기는 원인이었음 → 왼쪽과 똑같이 가운데 정렬로 되돌림.
   justify-content: center !important;
   gap: 22px !important;
   width: 100% !important;
-  // 요청 — 문구는 그대로 두고 카드 2개만 아주 살짝 더 아래로.
   margin-top: 14px !important;
 }
 
-/* 오른쪽 두 미리보기 카드를 더 크게 키워달라는 요청 — max-width를 500px→660px로 확장
-   두 미리보기 창의 "비율" 조절 지점 — 카드 2장(My People / My Time)
-   요청 — 스크롤 없이 항상 한 화면(뷰포트) 안에 다 들어와야 함. aspect-ratio만으로
-   높이를 정하면 화면이 낮을 때(카드가 세로로 긴 비율일수록) 두 카드 높이 합이
-   뷰포트를 넘어서 스크롤이 생기고 아래가 잘림 — 그래서 max-height를 뷰포트 높이(vh)
-   기준으로 같이 걸어서, 화면이 아무리 작아도 "카드 2장 + 사이 간격(22px) + 위/아래
-   여백(.gw-orbit-hero의 padding 80+32=112px, .gw-hero-previews의 margin-top 14px)"이
-   항상 100vh 안에 맞도록 상한을 둠.
-   (계산: 2*H + 22 = 100vh-112-14  →  H = 50vh - 74px. max-height가 실제로 이 상한에
-   걸리면 이미지가 object-fit:cover라 찌그러짐 없이 위아래만 살짝 더 잘려 보임.) */
 .gw-preview-card {
   display: block;
   width: 100% !important;
@@ -198,11 +169,6 @@ html {
 }
 
 .gw-preview-card--static {
-  // 요청(이전) — 가로:세로를 1903:927(≈2.05:1)에서 1903:1150(≈1.65:1)으로 올렸다가
-  // 스크롤 문제로 1903:1000(≈1.9:1)으로 낮췄음. 요청(이번) — 카드 높이를 조금만 더
-  // 키워달라는 재요청으로 1903:1060(≈1.8:1)으로 살짝 다시 올림 + 바로 위
-  // .gw-preview-card의 max-height가 최종 안전장치 역할(화면이 작으면 이 비율보다
-  // 더 낮아질 수 있음 — 그래도 스크롤은 안 생김).
   aspect-ratio: 1903 / 1100;
   width: 100% !important;
   max-width: 660px !important;
@@ -213,6 +179,7 @@ html {
   box-shadow: 0 18px 42px rgba(48, 37, 34, 0.24);
 }
 
+// 미리보기 카드 내부 — 실제 페이지를 축소된 iframe으로 넣거나(동적) 정적 스크린샷 이미지로 채우고, 마우스 올리면 어두운 오버레이+안내 텍스트를 띄움
 .gw-preview-frame {
   position: relative;
   width: 100%;

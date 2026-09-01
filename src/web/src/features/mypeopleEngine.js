@@ -1,18 +1,9 @@
 /**
-"My People" 페이지의 카드/상세 패널 엔진 — 원래 src/pages/mypeople.js 최상단에서 그대로 실행되던
-로직을 옮겨왔다. 친밀도 카드 그리드, 상세 패널(교환 통계 차트, 설명, 키워드, 관계도, 미니 지식그래프),
-아바타 자동 생성 등은 방대하고 서로 얽혀있는 기존 로직이라, 2일 안에 완전히 새로 짜는 대신 검증된
-로직을 그대로 포팅했다 — React가 그리는 #mp-mail-view 등의 DOM이 실제로 존재한 뒤(마운트 후
-useEffect)에 initMyPeoplePage() 한 번만 호출하면, 이 파일 안에서는 기존과 동일하게 getElementById
-기반으로 동작한다.
+"My People" 페이지의 카드 그리드와 상세 패널(교환 통계 차트, 설명, 키워드, 관계도, 미니 지식그래프) 렌더링, 아바타 자동 생성을 담당하는 엔진 모듈.
+React가 그리는 DOM(#mp-mail-view 등)에 getElementById 기반으로 직접 접근해 동작하며, React 마운트 후 useEffect에서 initMyPeoplePage()를 한 번 호출하면 초기화된다.
 
-Card/detail-panel engine for the "My People" page — ported as-is from what used to run at the top
-of src/pages/mypeople.js. The affinity card grid, detail panel (exchange-stats chart, description,
-keywords, relationship diagram, mini knowledge graph), and automatic avatar generation are a large,
-tightly-interdependent body of existing logic, so instead of a full rewrite under a 2-day deadline,
-the verified logic was moved here unchanged. Call initMyPeoplePage() once after React has mounted
-the #mp-mail-view etc. DOM (i.e. from a useEffect) — everything inside still works via
-getElementById exactly as before.
+Engine module for the "My People" page — renders the affinity card grid and the detail panel (exchange-stats chart, description, keywords, relationship diagram, mini knowledge graph), and handles automatic avatar generation.
+It operates directly on the DOM via getElementById rather than through React state, and is initialized by a single call to initMyPeoplePage() from a useEffect once React has mounted the page (e.g. #mp-mail-view).
  */
 import { initAccountPicker, displayAccountLabel } from "./accountPicker.js";
 import * as d3 from "d3";
@@ -20,8 +11,7 @@ import { refreshSidebarList } from "../components/appSidebar.js";
 import { initGlobalFilter } from "../utils/filterSync.js";
 import { store } from "../store/globalStore.js";
 
-// DOM 접근이 필요한 초기화(계정 picker, 뷰/버튼 참조 등)는 전부 initMyPeoplePage() 안에서
-// 하므로, 여기서는 다른 함수들이 클로저로 참조할 수 있도록 선언만 해둔다.
+// DOM 접근이 필요한 초기화(계정 picker, 뷰/버튼 참조 등)는 전부 initMyPeoplePage() 안에서 하므로, 여기서는 다른 함수들이 클로저로 참조할 수 있도록 선언만 해둔다.
 let userIdPromise, chatroomIdPromise;
 let mailView, messengerView;
 let brandFilterBtn, brandFilterLabel;
@@ -29,14 +19,7 @@ let ddBtn, ddMenu, ddLabel;
 
 /* 사용자 데이터 세션/로컬 스토리지 처리 */
 /* 메일 계정 & 채팅방 피커 연결 (중복 선언 제거 단일화) */
-// userIdPromise는 "페이지가 처음 열릴 때 고른 계정" 딱 한 번만 담아서 절대 안
-// 바뀌는 값이라, 사이드바에서 계정을 바꿔도 여기 의존하는 코드는 계속 옛날 계정을
-// 보고 있었다(그래서 사이드바 선택이 실제 화면에 반영되려면 새로고침이 필요했고,
-// 그 새로고침 때문에 사이드바도 잠깐 사라졌다 다시 뜨는 것처럼 보였다). 지금부터는
-// currentMailId라는 "지금 이 순간의 값"을 따로 두고, getCurrentMailId()가 그 값이
-// 있으면 그걸, 없으면(아직 아무도 안 바꿨으면) 기존 userIdPromise 값을 쓴다 —
-// 아래 모든 (await userIdPromise) 자리를 이걸로 바꿔서, 계정을 바꾼 뒤 해당 함수를
-// 다시 부르기만 하면 새로고침 없이 새 계정 데이터를 그대로 다시 그릴 수 있다.
+// currentMailId라는 "지금 이 순간의 값"을 따로 두고, getCurrentMailId()가 그 값이 있으면 그걸, 없으면(아직 아무도 안 바꿨으면) 기존 userIdPromise 값을 쓴다 — 아래 모든 (await userIdPromise) 자리를 이걸로 바꿔서, 계정을 바꾼 뒤 해당 함수를 다시 부르기만 하면 새로고침 없이 새 계정 데이터를 그대로 다시 그릴 수 있다.
 let currentMailId = "";
 async function getCurrentMailId() {
   return currentMailId || (await userIdPromise) || "";
@@ -44,26 +27,12 @@ async function getCurrentMailId() {
 
 // 1. 메일 계정 피커 초기화 및 스토어 데이터 동기화
 // 2. 채팅방 피커 초기화 및 스토어 데이터 동기화
-// chatroom-picker-mount는 html에서 없앴다(단톡방 선택은 이제 사이드바가
-// 전담) — document.getElementById가 null을 돌려줘도 initAccountPicker는
-// container 없이 "헤드리스"로 동작해서, /accounts?domain=messenger를 불러
-// 초기 채팅방 id만 조용히 resolve하고 localStorage(gw_chatroom_id)에
-// 반영한다. My Time의 account-picker-mount와 동일한 패턴.
 let selectedChatroomId = "";
+
 /* 앱 초기화 및 사이드바 바인딩 */
 document.addEventListener("DOMContentLoaded", () => {
-  // 사이드바 렌더링 + 계정/채팅방 목록 조회는 initGlobalFilter가 전부 처리한다
-  // (그 안에서 renderAppSidebar도 호출하므로 여기서 다시 부르지 않음 — 두 번
-  // 그리면 토글 버튼에 이벤트가 매번 새로 붙으면서 깜빡였다).
+  // 사이드바 렌더링 + 계정/채팅방 목록 조회는 initGlobalFilter가 전부 처리한다.
   initGlobalFilter((filterState, meta) => {
-    // 예전엔 여기서 { isInitial: true } 콜백(=페이지가 막 열렸을 때 사이드바가
-    // 실제로 뭘 골랐는지 알려주는 호출)을 무시했다 — "그건 이미 userIdPromise/
-    // chatroomIdPromise 흐름이 처리해준다"고 가정했기 때문인데, 그 흐름은 메일
-    // 계정만 자동으로 채널 구분 없이 불러오는 별도 경로라 사이드바가 메신저 방을
-    // 고른 상태로 열려도 메일 데이터가 뜨는 원인이 됐다(두 비동기 흐름 중 뭐가
-    // 먼저 끝나느냐는 순전히 타이밍). 지금은 filterSync.js가 사이드바 상태를
-    // 무조건 한 번은 확실히 전달해주므로, isInitial 여부와 상관없이 항상 그
-    // 상태를 그대로 반영한다 — 페이지는 무조건 사이드바가 고른 채널만 그린다.
     if (filterState.mail) {
       currentMailId = filterState.mail;
       avatarGenStarted = false; // 새 계정 기준으로 아바타 생성도 다시 돌게
@@ -76,9 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (filterState.room) {
       selectedChatroomId = filterState.room;
       setChannel("messenger");
-      // 예전엔 여기서 단톡방 목록(패널)을 다시 그렸는데(refreshMessengerRoomsForRange),
-      // 그 방식을 없애기로 했다 — 이제 사이드바에서 방을 고르면 목록 없이
-      // 바로 그 방의 참여자 화면으로 들어간다(My Time과 동일 패턴).
       // refreshMessengerRoomsForRange();
       openSelectedChatroomFromSidebar();
     }
@@ -107,8 +73,7 @@ function groupByEntityName(list) {
     } else {
       if (!existing._groupEmails.includes(email)) existing._groupEmails.push(email);
       if ((p.affinity || 0) > (existing.affinity || 0)) {
-        // 친밀도 더 높은 쪽으로 대표(이름/이메일 등 표시용 필드)를 교체하되, 지금까지
-        // 모아둔 _groupEmails는 유지한다.
+        // 친밀도 더 높은 쪽으로 대표(이름/이메일 등 표시용 필드)를 교체하되, 지금까지 모아둔 _groupEmails는 유지한다.
         const groupEmails = existing._groupEmails;
         seen.set(key, { ...p, _groupEmails: groupEmails });
       }
@@ -145,15 +110,13 @@ function sumPeriodStats(person) {
       }
       return acc;
     },
-    { sent: 0, received: 0 },
+    { sent: 0, received: 0 }
   );
 }
 
 /* 이름 길이별 폰트 크기 */
-// 카드 패널을 더 작게(8열→10열) 줄인 만큼(비율 0.8배) 이름 글자 크기도
-// 같은 비율로 줄여서, 카드가 작아져도 예전과 같은 시각적 균형을 유지한다.
-// (메일·메신저 사람 카드가 전부 이 함수 하나를 공유하므로 두 패널이
-// 자동으로 통일된 크기로 맞춰진다.)
+// 카드 패널을 더 작게(8열→10열) 줄인 만큼(비율 0.8배) 이름 글자 크기도 같은 비율로 줄여서, 카드가 작아져도 시각적 균형을 유지한다.
+// (메일·메신저 사람 카드가 전부 이 함수 하나를 공유하므로 두 패널이 자동으로 통일된 크기로 맞춰진다.)
 const NAME_FONT_SCALE = 0.8;
 // NAME_FONT_SCALE 비율을 적용한 clamp() CSS 값 문자열 생성
 function scaledClamp(minRem, midCqw, maxRem) {
@@ -307,9 +270,7 @@ function autoFitBrandLogo(img) {
       fracH = (maxY - minY) / h;
     const frac = Math.min(fracW, fracH);
     if (frac <= 0) return;
-    // 요청 — 여백이 넓은 로고(Apple, 당근마켓 등)가 너무 확대돼서 잘려 보임.
-    // 자동 확대를 사실상 꺼서(최대 1.15배) object-fit: cover 프레임 안에서
-    // 로고가 과하게 클로즈업되지 않도록 함.
+    // 자동 확대를 사실상 꺼서(최대 1.15배) object-fit: cover 프레임 안에서 로고가 과하게 클로즈업되지 않도록 함.
     const scale = Math.max(1, Math.min(1 / frac, 1.15));
     img.style.transform = `scale(${scale.toFixed(2)})`;
   } catch (e) {}
@@ -318,8 +279,7 @@ function autoFitBrandLogo(img) {
 function setupBrandLogo(img) {
   if (!img) return;
   if (img.complete && img.naturalWidth) autoFitBrandLogo(img);
-  else
-    img.addEventListener("load", () => autoFitBrandLogo(img), { once: true });
+  else img.addEventListener("load", () => autoFitBrandLogo(img), { once: true });
 }
 // 발신자가 브랜드/발신전용 계정인지 종합 판별(로컬파트 또는 표시이름 기준)
 function isBrandSender(p) {
@@ -332,8 +292,6 @@ function isBrandSender(p) {
 function resolveDisplayName(p) {
   if (!p.email) return p.name && p.name.trim() ? p.name.trim() : "(알 수 없음)";
   const [local, domain] = p.email.split("@");
-  // 요청 — 브랜드/광고 계정도 실제로 우리가 지정한 이름(예: "당근마켓")이 있으면
-  // 그걸 그대로 써야지, 도메인에서 억지로 뽑아낸 영문 텍스트("daangn")로 덮어쓰면 안 됨.
   // 이름이 아예 없을 때만 도메인에서 유추한다.
   if (p.name && p.name.trim()) return p.name.trim();
   if (isBrandSender(p)) {
@@ -444,9 +402,7 @@ function fmtDate(ms) {
 function fmtShort(ms) {
   const d = new Date(ms);
   const m = d.getMonth() + 1;
-  return m === 1
-    ? `${d.getFullYear()}`
-    : `${d.getFullYear()}.${String(m).padStart(2, "0")}`;
+  return m === 1 ? `${d.getFullYear()}` : `${d.getFullYear()}.${String(m).padStart(2, "0")}`;
 }
 
 let allPeople = [];
@@ -458,8 +414,8 @@ let fullMin = 0,
   fullMax = 0;
 let activeFilter = "all";
 let currentRenderedList = []; // 마지막 renderCards()가 실제로 그린(그룹핑·필터·정렬 끝난) 목록 —
-// 카드 클릭 시 이걸로 찾아야 브랜드 통합 카드의 _groupEmails가 살아있다. allPeople에서
-// 이메일로 다시 찾으면 원본(미병합) 객체가 나와서 병합 정보가 사라진다.
+// 카드 클릭 시 이걸로 찾아야 브랜드 통합 카드의 _groupEmails가 살아있다.
+// allPeople에서 이메일로 다시 찾으면 원본(미병합) 객체가 나와서 병합 정보가 사라진다.
 let periodStats = {}; // email → {sent, received}
 let periodStatsLoaded = false;
 let statsDebounceTimer = null;
@@ -476,14 +432,9 @@ let myAvatarUrl = null;
 let currentChannel = "mail";
 let mailDateRange = null;
 let messengerChatrooms = null;
-// 요청 — 단톡방을 클릭해서 들어갔을 때 타임슬라이더/데이터가 "그 방만의" 기간으로
-// 뜨도록. 예전엔 방마다 다른 실제 기간 대신 전체 방을 합친 하나의 전역
-// messenger-date-range를 그대로 재사용해서(캐시도 딱 한 번만), 방을 눌러도 슬라이더가
-// 그 방과 무관한 범위로 초기화되며 깨져 보였다(짧게 눌린 것처럼 보이는 버그 포함).
-// 방마다 실제 기간을 알 수 있는 별도 API가 없어서, 이미 있는
-// /chatroom-keyword-monthly-stats(월별 전체 요약)를 기간 제한 없이 한 번 불러서 그
-// 방에 데이터가 있는 첫/마지막 달을 계산해 슬라이더 범위로 쓴다. 방마다 결과를
-// 캐싱해서 같은 방을 다시 열 때 다시 부르지 않는다.
+
+// 방마다 실제 기간을 알 수 있는 별도 API가 없어서, 이미 있는 /chatroom-keyword-monthly-stats(월별 전체 요약)를 기간 제한 없이 한 번 불러서 그 방에 데이터가 있는 첫/마지막 달을 계산해 슬라이더 범위로 쓴다.
+// 방마다 결과를 캐싱해서 같은 방을 다시 열 때 다시 부르지 않는다.
 const roomDateRangeCache = new Map();
 async function fetchRoomDateRange(chatroomId) {
   if (roomDateRangeCache.has(chatroomId)) return roomDateRangeCache.get(chatroomId);
@@ -581,10 +532,7 @@ async function fetchReceivedStats() {
 
 // 선택 기간의 송수신 통계를 한 번에 조회해 periodStats에 채우고 카드 렌더링
 async function fetchPeriodStats() {
-  // getCurrentMailId()는 계정을 바꾼 뒤 새로고침 없이 새 계정 기준으로 다시
-  // 불러올 수 있게 해주는 최신 방식(userIdPromise 직접 참조는 계정 전환 후에도
-  // 옛 계정을 계속 보고 있었음) — 계정 정보가 없을 때도 "불러오는 중"에 계속
-  // 멈춰있지 않도록 renderCards()는 그대로 호출한다.
+  // getCurrentMailId()는 계정을 바꾼 뒤 새로고침 없이 새 계정 기준으로 다시 불러올 수 있게 해줌. 계정 정보가 없을 때도 "불러오는 중"에 계속 멈춰있지 않도록 renderCards()는 그대로 호출한다.
   const gmailId = await getCurrentMailId();
   if (!gmailId) {
     renderCards();
@@ -652,16 +600,10 @@ function updateCardBadges() {
 }
 
 function renderCards() {
-  // 버그 수정 — renderCards()를 부르는 쪽(loadPeople/fetchPeriodStats 등)이 전부
-  // 비동기라, 그 사이 사용자가 메신저 방으로 넘어가 있으면 여기서 mp-grid/mp-count를
-  // 메일 카드로 덮어써서 방금 연 방 화면이 메일 데이터로 잠깐씩 바뀌어 보이는 경쟁
-  // 상태가 있었다. 지금 실제로 메일 화면을 보고 있을 때만 그린다.
+  // 지금 실제로 메일 화면을 보고 있을 때만 그린다.
   if (currentChannel !== "mail") return;
   const grid = document.getElementById("mp-grid");
-  // periodStats가 아직 한 번도 로딩되지 않은 시점(페이지 진입 직후, 아바타 생성 배치가
-  // 먼저 끝나서 renderCards가 조기 호출되는 경우 등)에는 필터 안 된 원본 목록을 절대
-  // 그리지 않는다 — 안 그러면 avatarGeneration 등 다른 곳에서 부르는 renderCards() 때문에
-  // 여전히 "많이 떴다가 5개로 줄어드는" 깜빡임이 재현된다.
+  // periodStats가 아직 한 번도 로딩되지 않은 시점(페이지 진입 직후, 아바타 생성 배치가 먼저 끝나서 renderCards가 조기 호출되는 경우 등)에는 필터 안 된 원본 목록을 절대 그리지 않는다 — 안 그러면 avatarGeneration 등 다른 곳에서 부르는 renderCards() 때문에 여전히 "많이 떴다가 5개로 줄어드는" 깜빡임이 재현된다.
   if (!periodStatsLoaded) {
     if (grid) {
       grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
@@ -681,9 +623,7 @@ function renderCards() {
   if (sortMode === "affinity") {
     list.sort((a, b) => (b.affinity || 0) - (a.affinity || 0));
   } else if (sortMode === "name") {
-    list.sort((a, b) =>
-      resolveDisplayName(a).localeCompare(resolveDisplayName(b), "ko"),
-    );
+    list.sort((a, b) => resolveDisplayName(a).localeCompare(resolveDisplayName(b), "ko"));
   } else if (sortMode === "total") {
     list.sort((a, b) => {
       return (
@@ -695,9 +635,7 @@ function renderCards() {
   } else if (sortMode === "sent") {
     list.sort((a, b) => sumMap(sentStatsMap, b) - sumMap(sentStatsMap, a));
   } else if (sortMode === "received") {
-    list.sort(
-      (a, b) => sumMap(receivedStatsMap, b) - sumMap(receivedStatsMap, a),
-    );
+    list.sort((a, b) => sumMap(receivedStatsMap, b) - sumMap(receivedStatsMap, a));
   }
   currentRenderedList = list; // 클릭 시 이 배열로 찾아야 병합된 _groupEmails가 유지된다
 
@@ -708,11 +646,7 @@ function renderCards() {
     grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
     return;
   }
-  // incoming(cardHtml 이름 함수화)을 기준으로 채택 — 아래쪽 renderAffinityBands(list, cardHtml) /
-  // list.map((p,i)=>cardHtml(p,i)) 호출부(공통 코드, 충돌 없음)가 이미 이 이름을 전제로 하고 있어
-  // HEAD의 인라인 map 구조를 쓰면 "cardHtml is not defined"로 깨짐.
-  // 다만 통계 조회는 HEAD 쪽의 sumMap/sumPeriodStats(그룹 카드 합산, _groupEmails 대응)로 유지 —
-  // incoming의 직접 조회(periodStats[email] 등)는 브랜드 통합 카드에서 합계가 덜 잡히는 문제가 있음.
+
   function cardHtml(p, i) {
     const affinity = p.affinity;
     const ac = affinityColor(affinity);
@@ -728,23 +662,18 @@ function renderCards() {
       : initials(displayName);
     let badge = "";
     if (sortMode === "affinity") {
-      // 친밀도 등급은 카드 위가 아니라 구분선(renderAffinityBands)에만
-      // 표시한다 — 카드에는 아무것도 안 붙임.
+      // 친밀도 등급은 카드 위가 아니라 구분선(renderAffinityBands)에만 표시한다 — 카드에는 아무것도 안 붙임.
     } else if (sortMode === "name") {
       badge = "";
     } else if (sortMode === "sent") {
       const cnt = sumMap(sentStatsMap, p);
-      if (cnt > 0)
-        badge = `<div class="mp-period-badge sent">보낸 ${cnt}건</div>`;
+      if (cnt > 0) badge = `<div class="mp-period-badge sent">보낸 ${cnt}건</div>`;
     } else if (sortMode === "received") {
       const cnt = sumMap(receivedStatsMap, p);
-      if (cnt > 0)
-        badge = `<div class="mp-period-badge recv">받은 ${cnt}건</div>`;
+      if (cnt > 0) badge = `<div class="mp-period-badge recv">받은 ${cnt}건</div>`;
     } else if (sortMode === "total") {
-      const totalCnt =
-        sumMap(sentStatsMap, p) + sumMap(receivedStatsMap, p) || total;
-      if (totalCnt > 0)
-        badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
+      const totalCnt = sumMap(sentStatsMap, p) + sumMap(receivedStatsMap, p) || total;
+      if (totalCnt > 0) badge = `<div class="mp-period-badge">${totalCnt}건</div>`;
     }
     return `
             <div class="mp-card ca-fade" style="${cardVars}" data-idx="${i}" data-name="${p.name || ""}" data-email="${p.email || ""}" title="${displayAccountLabel(p.email || "")}">
@@ -771,20 +700,13 @@ const AFFINITY_BAND_BG = [
   { hue: 42, sat: 12, light: 98.5 },
 ];
 
-// 예전엔 실제 데이터 분포(k-means)로 5개 구간 경계를 매번 다시 계산해서,
-// 데이터가 한쪽에 몰려 있으면(예: 전부 "소원한 사람") 등급이 1~2개만 뜨고
-// 나머지는 아예 안 보였다 — 요청대로 100~90/90~70/70~45/45~20/20~0 고정
-// 경계(AFFINITY_LABEL_TIERS)를 그대로 써서, 데이터가 어떻든 5개 등급이
-// 전부 자기 구분선 + 배경색을 갖고 표시되도록 함(해당하는 사람이 0명이어도
-// 구분선과 빈 밴드는 그대로 보여준다).
+// ]100~90/90~70/70~45/45~20/20~0 고정 경계(AFFINITY_LABEL_TIERS)를 그대로 써서, 데이터가 어떻든 5개 등급이 전부 자기 구분선 + 배경색을 갖고 표시되도록 함(해당하는 사람이 0명이어도 구분선과 빈 밴드는 그대로 보여준다).
 function renderAffinityBands(list, cardHtml) {
   const pctOf = (p) => Math.round((p.affinity || 0) * 100);
   let globalIdx = 0;
 
   return AFFINITY_LABEL_TIERS.map((tier, i) => {
-    const bandPeople = list.filter(
-      (p) => affinityLabelFromPct(pctOf(p)) === tier.label,
-    );
+    const bandPeople = list.filter((p) => affinityLabelFromPct(pctOf(p)) === tier.label);
     const bg = AFFINITY_BAND_BG[i] || AFFINITY_BAND_BG[AFFINITY_BAND_BG.length - 1];
     const bandBg = `hsl(${bg.hue} ${bg.sat}% ${bg.light}%)`;
 
@@ -838,8 +760,7 @@ function updateFill() {
         if (messengerScreen === "rooms") {
           refreshMessengerRoomsForRange();
         } else if (messengerScreen === "people" && currentChatroomId) {
-          // 방 분위기가 날짜 범위를 바꿀 때마다 사라졌던 문제 — 여기서도 방
-          // 분위기를 같이 넘겨줘서(캐시되어 있어 비용은 거의 없음) 항상 고정으로 보이게 함
+          // 방 분위기가 날짜 범위를 바꿀 때마다 사라졌던 문제 — 여기서도 방 분위기를 같이 넘겨줘서(캐시되어 있어 비용은 거의 없음) 항상 고정으로 보이게 함
           fetchAndRenderChatroomPeople(fetchRoomMoodScore(currentChatroomId));
         }
         const detailEl = document.getElementById("mp-detail");
@@ -869,10 +790,7 @@ function updateFill() {
     detailEl.classList.contains("open")
   ) {
     clearTimeout(detailDebounceTimer);
-    detailDebounceTimer = setTimeout(
-      () => refreshDetailStats(currentDetailPerson),
-      400,
-    );
+    detailDebounceTimer = setTimeout(() => refreshDetailStats(currentDetailPerson), 400);
   }
 }
 
@@ -928,13 +846,10 @@ function buildTicks(firstMs, lastMs) {
   }
   points.push(lastMs);
 
-  const uniq = [...new Set([firstMs, ...points])].filter(
-    (t) => t >= firstMs && t <= lastMs,
-  );
+  const uniq = [...new Set([firstMs, ...points])].filter((t) => t >= firstMs && t <= lastMs);
 
   const MIN_GAP_PX = 64;
-  const containerWidth =
-    ticks.offsetWidth || ticks.getBoundingClientRect().width || 0;
+  const containerWidth = ticks.offsetWidth || ticks.getBoundingClientRect().width || 0;
   const withPct = uniq.map((t) => ({
     t,
     pct: ((t - firstMs) / (lastMs - firstMs)) * 100,
@@ -958,9 +873,7 @@ function buildTicks(firstMs, lastMs) {
   }
 
   filtered.forEach(({ t, pct }) => {
-    // 맨 처음/맨 끝 눈금은 바로 위 tl-start-lbl/tl-end-lbl이 이미 "2026.08.21"처럼
-    // 자세한 날짜로 보여주고 있어서, 여기서 같은 위치에 "2026.08"(월 단위) 눈금을
-    // 또 찍으면 같은 자리에 두 가지 표기가 겹쳐 보인다 — 양 끝은 눈금 라벨 생략.
+    // 맨 처음/맨 끝 눈금은 바로 위 tl-start-lbl/tl-end-lbl이 이미 "2026.08.21"처럼 자세한 날짜로 보여주고 있어서, 여기서 같은 위치에 "2026.08"(월 단위) 눈금을 또 찍으면 같은 자리에 두 가지 표기가 겹쳐 보인다 — 양 끝은 눈금 라벨 생략.
     const isEdge = t === firstMs || t === lastMs;
     const div = document.createElement("div");
     div.className = "mp-tl-tick";
@@ -973,9 +886,7 @@ function buildTicks(firstMs, lastMs) {
 }
 
 async function loadPeople() {
-  // 활동 없는 발신자가 필터링되기 전 "원본" 목록이 잠깐 화면에 나왔다가 사라지는 깜빡임을
-  // 막기 위해, 기간 통계(periodStats)가 아직 없는 첫 렌더에서는 카드 목록 대신 로딩 표시를
-  // 유지한다 — 실제 카드는 아래에서 fetchPeriodStats까지 끝난 뒤 한 번만 그린다.
+  // 활동 없는 발신자가 필터링되기 전 "원본" 목록이 잠깐 화면에 나왔다가 사라지는 깜빡임을 막기 위해, 기간 통계(periodStats)가 아직 없는 첫 렌더에서는 카드 목록 대신 로딩 표시를 유지한다 — 실제 카드는 아래에서 fetchPeriodStats까지 끝난 뒤 한 번만 그린다.
   const grid = document.getElementById("mp-grid");
   if (grid) {
     grid.innerHTML = `<div class="mp-empty"><i class="bi bi-people"></i><p>데이터를 불러오는 중...</p></div>`;
@@ -1026,26 +937,18 @@ async function loadPeople() {
     };
   }
 
-  // 버그 수정 — 이 fetch들이 진행되는 사이(페이지 막 로드된 직후 등)에 사용자가
-  // 이미 사이드바에서 메신저 방을 눌러 넘어갔으면, 여기서 화면(타임라인/카드/명수)을
-  // 건드리는 순간 방금 연 방 화면을 메일 데이터로 도로 덮어써버리는 경쟁 상태
-  // (레이스)가 생겨서 "방을 눌렀는데 잠깐 맞다가 다시 이상해짐" 현상이 났다.
-  // 데이터(mailDateRange)는 위에서 이미 저장했으니, 화면 반영은 지금 실제로
-  // 메일 화면을 보고 있을 때만 한다 — 나중에 메일로 다시 돌아오면 loadPeople()이
-  // 다시 호출되므로 이 데이터도 그때 다시 정상 반영된다.
+  // 버그 수정 — 이 fetch들이 진행되는 사이(페이지 막 로드된 직후 등)에 사용자가 이미 사이드바에서 메신저 방을 눌러 넘어갔으면, 여기서 화면(타임라인/카드/명수)을 건드리는 순간 방금 연 방 화면을 메일 데이터로 도로 덮어써버리는 경쟁 상태 (레이스)가 생겨서 "방을 눌렀는데 잠깐 맞다가 다시 이상해짐" 현상이 났다.
+  // 데이터(mailDateRange)는 위에서 이미 저장했으니, 화면 반영은 지금 실제로 메일 화면을 보고 있을 때만 한다 — 나중에 메일로 다시 돌아오면 loadPeople()이 다시 호출되므로 이 데이터도 그때 다시 정상 반영된다.
   if (currentChannel !== "mail") return;
 
   initMyAvatar();
   initTimeline(mailDateRange.first, mailDateRange.last);
 
-  // 여기서 한 번만 실제 카드를 그린다(fetchPeriodStats 내부에서 성공/실패 어느 쪽이든
-  // renderCards를 호출하므로 그 결과가 화면에 나오는 첫 카드 목록이 된다).
+  // 여기서 한 번만 실제 카드를 그린다(fetchPeriodStats 내부에서 성공/실패 어느 쪽이든 renderCards를 호출하므로 그 결과가 화면에 나오는 첫 카드 목록이 된다).
   await fetchPeriodStats();
   if (currentChannel !== "mail") return;
 
-  // 아바타 생성은 periodStats까지 반영된 "실제로 화면에 뜨는" 목록(currentRenderedList)이
-  // 확정된 뒤에 시작한다 — person 테이블엔 있지만 실제 메일 교환 기록이 없어 화면에
-  // 절대 안 뜨는 사람까지 이미지 생성 API를 호출하는 낭비를 막기 위함.
+  // 아바타 생성은 periodStats까지 반영된 "실제로 화면에 뜨는" 목록(currentRenderedList)이 확정된 뒤에 시작한다 — person 테이블엔 있지만 실제 메일 교환 기록이 없어 화면에 절대 안 뜨는 사람까지 이미지 생성 API를 호출하는 낭비를 막기 위함.
   startAvatarGeneration();
 }
 
@@ -1099,10 +1002,8 @@ async function initMyAvatar() {
   const gmailId = await getCurrentMailId();
   const myNameEl = document.getElementById("mp-detail-my-name");
   const myEmailEl = document.getElementById("mp-detail-my-email");
-  if (myNameEl)
-    myNameEl.textContent = sessionStorage.getItem("gw_user_name") || "나";
-  // 요청 — 사람 상세보기의 "나" 이메일은 화면표시용 오버라이드 없이 실제
-  // 계정 그대로(03yeah03@gmail.com) 보여준다.
+  if (myNameEl) myNameEl.textContent = sessionStorage.getItem("gw_user_name") || "나";
+  // 사람 상세보기의 "나" 이메일은 화면표시용 오버라이드 없이 실제 계정 그대로 보여준다.
   if (myEmailEl) myEmailEl.textContent = gmailId || "이메일 정보 없음";
   if (!gmailId) return;
   try {
@@ -1144,9 +1045,7 @@ function refreshSelfAvatarEl() {
   el.innerHTML = `<img src="${myAvatarUrl}" alt="나" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
 }
 
-// 메일/메신저 전환 버튼은 없앰(My Time과 동일) — 사이드바에서 메일 계정을
-// 고르면 mailView가, 메신저 데이터를 고르면 messengerView가 뜨도록
-// setChannel()을 initGlobalFilter 콜백에서 직접 호출한다.
+// 메일/메신저 전환 버튼은 없앰(My Time과 동일) — 사이드바에서 메일 계정을 고르면 mailView가, 메신저 데이터를 고르면 messengerView가 뜨도록 setChannel()을 initGlobalFilter 콜백에서 직접 호출한다.
 const MAIL_SORT_OPTIONS = [
   { value: "affinity", label: "친밀도" },
   { value: "name", label: "이름" },
@@ -1169,30 +1068,24 @@ function sortMenuHtml(options, currentMode) {
   return options
     .map(
       (o) =>
-        `<div class="mp-dropdown-item${o.value === currentMode ? " selected" : ""}" data-sort="${o.value}">${o.label}</div>`,
+        `<div class="mp-dropdown-item${o.value === currentMode ? " selected" : ""}" data-sort="${o.value}">${o.label}</div>`
     )
     .join("");
 }
 // 정렬 드롭다운을 메일용 옵션으로 갱신
 function refreshSortMenuForMail() {
   ddMenu.innerHTML = sortMenuHtml(MAIL_SORT_OPTIONS, sortMode);
-  ddLabel.textContent = MAIL_SORT_OPTIONS.find(
-    (o) => o.value === sortMode,
-  ).label;
+  ddLabel.textContent = MAIL_SORT_OPTIONS.find((o) => o.value === sortMode).label;
 }
 // 정렬 드롭다운을 채팅방 목록용 옵션으로 갱신
 function refreshSortMenuForRooms() {
   ddMenu.innerHTML = sortMenuHtml(ROOM_SORT_OPTIONS, roomSortMode);
-  ddLabel.textContent = ROOM_SORT_OPTIONS.find(
-    (o) => o.value === roomSortMode,
-  ).label;
+  ddLabel.textContent = ROOM_SORT_OPTIONS.find((o) => o.value === roomSortMode).label;
 }
 // 정렬 드롭다운을 채팅방 참여자용 옵션으로 갱신
 function refreshSortMenuForPeople() {
   ddMenu.innerHTML = sortMenuHtml(PEOPLE_SORT_OPTIONS, peopleSortMode);
-  ddLabel.textContent = PEOPLE_SORT_OPTIONS.find(
-    (o) => o.value === peopleSortMode,
-  ).label;
+  ddLabel.textContent = PEOPLE_SORT_OPTIONS.find((o) => o.value === peopleSortMode).label;
 }
 
 // 선택 기간 동안 채팅방의 평균 분위기 점수 조회(기간별 캐시)
@@ -1215,11 +1108,9 @@ async function fetchRoomMoodScore(chatroomId) {
     if (res.ok) {
       const j = await res.json();
       const d = j.data || {};
-      const entries =
-        d.monthly && d.monthly.length ? d.monthly : d.yearly || [];
+      const entries = d.monthly && d.monthly.length ? d.monthly : d.yearly || [];
       const scores = entries.map((e) => e.mood_score).filter((v) => v != null);
-      if (scores.length)
-        score = scores.reduce((a, b) => a + b, 0) / scores.length;
+      if (scores.length) score = scores.reduce((a, b) => a + b, 0) / scores.length;
     }
   } catch (e) {
     console.error("chatroom-mood 오류:", e);
@@ -1236,9 +1127,7 @@ async function getSortedRooms() {
   } else if (roomSortMode === "total") {
     list.sort((a, b) => b.message_count - a.message_count);
   } else if (roomSortMode === "mood") {
-    const scores = await Promise.all(
-      list.map((r) => fetchRoomMoodScore(r.chatroom_id)),
-    );
+    const scores = await Promise.all(list.map((r) => fetchRoomMoodScore(r.chatroom_id)));
     list.forEach((r, i) => (r._moodScore = scores[i]));
     list.sort((a, b) => (b._moodScore ?? -1) - (a._moodScore ?? -1));
   }
@@ -1271,16 +1160,10 @@ function setChannel(channel) {
   if (isMail && mailDateRange) {
     initTimeline(mailDateRange.first, mailDateRange.last);
   }
-  // 메신저는 여기서 초기화하지 않는다 — openChatroom()이 그 방만의 기간으로
-  // 곧바로 초기화한다(아래 openSelectedChatroomFromSidebar 참고). 예전엔 여기서
-  // 전역 messengerDateRange로 먼저 초기화했다가 openChatroom에서 다시 덮어써서,
-  // 방을 열 때마다 무관한 범위의 슬라이더가 잠깐 보이는 버그가 있었다.
+  // 메신저는 여기서 초기화하지 않는다 — openChatroom()이 그 방만의 기간으로 곧바로 초기화한다(아래 openSelectedChatroomFromSidebar 참고).
 }
 
-// 사이드바에서 메신저 데이터(단톡방)를 고르면, 예전처럼 단톡방 목록 패널을
-// 거치지 않고 바로 그 방의 참여자 화면으로 들어간다 — 방 이름은 새로 API를
-// 부르지 않고 사이드바가 이미 갖고 있는 목록(store.getCollectedLists().rooms)
-// 에서 id로 찾아 쓴다.
+//방 이름은 새로 API를 부르지 않고 사이드바가 이미 갖고 있는 목록(store.getCollectedLists().rooms) 에서 id로 찾아 쓴다.
 async function openSelectedChatroomFromSidebar() {
   if (!selectedChatroomId) return;
   const { rooms = [] } = store.getCollectedLists() || {};
@@ -1344,7 +1227,7 @@ function buildRoomAvatarHtml(room) {
       .slice(idx, idx + take)
       .map(
         (name, i) =>
-          `<div class="mp-room-avatar-cell" style="background:${CARD_BG[(idx + i) % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[(idx + i) % AVATAR_COLORS_DETAIL.length]};font-size:${cellFontEm}em;">${esc(initials(name))}</div>`,
+          `<div class="mp-room-avatar-cell" style="background:${CARD_BG[(idx + i) % CARD_BG.length]};color:${AVATAR_COLORS_DETAIL[(idx + i) % AVATAR_COLORS_DETAIL.length]};font-size:${cellFontEm}em;">${esc(initials(name))}</div>`
       )
       .join("");
     idx += take;
@@ -1357,10 +1240,7 @@ async function renderChatroomGrid() {
   currentChatroomId = null;
   messengerScreen = "rooms";
   refreshSortMenuForRooms();
-  // 버그 수정 — 메일 화면(renderCards)에서 채워둔 "N명"이 메신저 탭으로 넘어와도
-  // 안 지워지고 그대로 남아있던 문제. 단톡방 목록 화면에서는 "명" 개념이
-  // 명확하지 않으니(방 여러 개, 참여자는 방마다 다름) 일단 비워둔다 — 실제
-  // 참여자 수는 방 하나를 열었을 때(renderChatroomPeople)만 정확히 알 수 있음.
+  // 단톡방 목록 화면에서는 "명" 개념이 명확하지 않으니(방 여러 개, 참여자는 방마다 다름) 메일 탭에서 채워졌던 값을 지우고 일단 비워둔다 — 실제 참여자 수는 방 하나를 열었을 때(renderChatroomPeople)만 정확히 알 수 있다.
   const roomsCountEl = document.getElementById("mp-count");
   if (roomsCountEl) roomsCountEl.textContent = "";
   if (!messengerChatrooms.length) {
@@ -1386,9 +1266,7 @@ async function renderChatroomGrid() {
       ${messengerChatrooms
         .map((r, i) => {
           const moodText =
-            roomSortMode === "mood" && r._moodScore != null
-              ? ` · ${moodLabel(r._moodScore)}`
-              : "";
+            roomSortMode === "mood" && r._moodScore != null ? ` · ${moodLabel(r._moodScore)}` : "";
           return `
         <div class="mp-card mp-room-card" data-idx="${i}" title="${esc(r.chatroom_name)}">
           <div class="mp-avatar mp-room-avatar">${buildRoomAvatarHtml(r)}</div>
@@ -1411,17 +1289,13 @@ async function openChatroom(chatroomId, chatroomName) {
       <p>참여자를 불러오는 중...</p>
     </div>
   `;
-  // 요청 — 타임슬라이더도 이 방만의 기간으로 초기화한 다음, 사람 목록을 불러온다
-  // (fetchAndRenderChatroomPeople이 이때 초기화된 selMin/selMax 기준으로 조회하므로
-  // 자연스럽게 이 방의 데이터만 뜬다).
+  // 타임슬라이더를 이 방만의 기간으로 초기화한 다음 사람 목록을 불러온다 (fetchAndRenderChatroomPeople이 이때 초기화된 selMin/selMax 기준으로 조회하므로 이 방의 데이터만 뜬다).
   const roomRange = await fetchRoomDateRange(chatroomId);
-  // 버그 수정 — 이 fetch가 진행되는 사이에 다른 방을 연달아 누르거나 메일로 돌아간
-  // 경우, 뒤늦게 도착한 이전 요청이 최신 화면을 덮어쓰지 않도록 확인 후에만 반영한다.
+  // 이 fetch가 진행되는 사이에 다른 방을 연달아 누르거나 메일로 돌아간 경우, 뒤늦게 도착한 이전 요청이 최신 화면을 덮어쓰지 않도록 확인 후에만 반영한다.
   if (currentChannel !== "messenger" || currentChatroomId !== chatroomId) return;
   initTimeline(roomRange.first, roomRange.last);
 
-  // 방을 선택(클릭)한 시점에 방 분위기도 같이 불러와서, 사람 목록과 함께
-  // 헤더에 텍스트로(퍼센트 대신) 바로 박아 보여준다.
+  // 방을 선택(클릭)한 시점에 방 분위기도 같이 불러와서, 사람 목록과 함께 헤더에 텍스트로(퍼센트 대신) 바로 박아 보여준다.
   const moodPromise = fetchRoomMoodScore(chatroomId);
   await fetchAndRenderChatroomPeople(moodPromise);
 }
@@ -1437,9 +1311,7 @@ function applyMessengerDescriptionOverride(chatroomName, person) {
 }
 
 async function fetchAndRenderChatroomPeople(moodPromise) {
-  // 버그 수정 — 아래 fetch/await가 진행되는 사이 사용자가 다른 방을 누르거나 메일로
-  // 돌아가면, 뒤늦게 도착한 이 응답이 최신 화면을 덮어쓰지 않도록 시작 시점의
-  // 방 id를 기억해뒀다가 반영 직전에 지금도 같은 방/채널인지 다시 확인한다.
+  // 아래 fetch/await가 진행되는 사이 사용자가 다른 방을 누르거나 메일로 돌아가면, 뒤늦게 도착한 이 응답이 최신 화면을 덮어쓰지 않도록 시작 시점의 방 id를 기억해뒀다가 반영 직전에 지금도 같은 방/채널인지 다시 확인한다.
   const requestedChatroomId = currentChatroomId;
   let people = [];
   try {
@@ -1468,11 +1340,9 @@ async function fetchAndRenderChatroomPeople(moodPromise) {
 // 채팅방 참여자 카드 그리드 + 방 분위기 헤더 렌더링
 function renderChatroomPeople(chatroomName, people, moodScore) {
   currentChatroomPeople = people;
-  // 버그 수정 — 메신저 방 참여자 화면에서도 "My People" 옆 명수가 메일 쪽
-  // 값(또는 빈 값)으로 남아있던 걸, 실제 이 방 참여자 수로 채움.
+  // 메신저 방 참여자 화면에서도 "My People" 옆 명수를 실제 이 방 참여자 수로 채운다.
   const peopleCountEl = document.getElementById("mp-count");
-  if (peopleCountEl)
-    peopleCountEl.textContent = people.length ? `${people.length}명` : "";
+  if (peopleCountEl) peopleCountEl.textContent = people.length ? `${people.length}명` : "";
   const cardsHtml = people.length
     ? people
         .map((p, i) => {
@@ -1496,8 +1366,7 @@ function renderChatroomPeople(chatroomName, people, moodScore) {
 
   messengerView.innerHTML = `
     <div class="mp-messenger-room-header">
-      <!-- 요청 — 단톡방 목록으로 돌아가는 버튼은 주석 처리(사이드바가 방 전환을
-           전담하게 된 뒤로는 필요 없음). -->
+      <!-- 단톡방 목록으로 돌아가는 버튼은 사이드바가 방 전환을 전담하므로 주석 처리해 비활성 상태로 둔다. -->
       <!-- <button class="mp-back-btn" type="button"><i class="bi bi-arrow-left"></i> 단톡방 목록</button> -->
       <span class="mp-messenger-room-name">${esc(chatroomName)}</span>
       ${moodHtml}
@@ -1505,14 +1374,13 @@ function renderChatroomPeople(chatroomName, people, moodScore) {
     <div class="mp-grid" id="mp-person-grid">${cardsHtml}</div>`;
 }
 
-// 메일/메신저 전환 버튼은 없앴다(My Time과 동일 — 사이드바가 전담).
+// 메일/메신저 전환 버튼은 사이드바가 전담하므로 존재하지 않는다(My Time과 동일).
 // mailBtn.addEventListener("click", () => setChannel("mail"));
 // messengerBtn.addEventListener("click", async () => {
 //   setChannel("messenger");
 //   await ensureMessengerDateRange();
 //   await loadMessengerView();
 // });
-
 
 const AVATAR_COLORS_DETAIL = [
   "#575757",
@@ -1563,7 +1431,7 @@ async function loadRelationships(gmailId) {
     if (res.ok) {
       const j = await res.json();
       relationshipsCache = (j.data || []).filter(
-        (r) => r.relation_label && String(r.relation_label).trim(),
+        (r) => r.relation_label && String(r.relation_label).trim()
       );
       relationshipsCacheUserId = gmailId;
     }
@@ -1576,9 +1444,7 @@ async function loadRelationships(gmailId) {
 // 관계 목록에서 특정 이메일의 관계 라벨 조회
 function findRelationLabel(relationships, personEmail) {
   const email = (personEmail || "").toLowerCase();
-  const match = relationships.find(
-    (r) => (r.person_account_id || "").toLowerCase() === email,
-  );
+  const match = relationships.find((r) => (r.person_account_id || "").toLowerCase() === email);
   return match ? match.relation_label : null;
 }
 
@@ -1627,13 +1493,11 @@ function renderDescription(person, descriptions) {
   const el = document.getElementById("mp-desc-profile-content");
   if (!el) return;
   const found = descriptions.find(
-    (d) =>
-      (d.person_account_id || "").toLowerCase() === personEmail.toLowerCase(),
+    (d) => (d.person_account_id || "").toLowerCase() === personEmail.toLowerCase()
   );
   const rawDesc = found ? found.description : null;
   if (!rawDesc) {
-    el.innerHTML =
-      '<p class="mp-desc-profile-empty">등록된 설명이 없습니다.</p>';
+    el.innerHTML = '<p class="mp-desc-profile-empty">등록된 설명이 없습니다.</p>';
     return;
   }
   const lines = rawDesc.split("\n").filter(Boolean);
@@ -1652,8 +1516,7 @@ function renderDescription(person, descriptions) {
     .join("");
 }
 
-// data.monthly(YYYY-MM 오름차순 배열)를 연도 단위로 묶어서
-// [{year:"2026", months:[...]}, ...] 형태로 반환.
+// data.monthly(YYYY-MM 오름차순 배열)를 연도 단위로 묶어서 [{year:"2026", months:[...]}, ...] 형태로 반환.
 function groupMonthsByYear(monthly) {
   const groups = [];
   (monthly || []).forEach((m) => {
@@ -1682,27 +1545,19 @@ function renderBarChart(data) {
   }
   const total = data.total || { sent: 0, received: 0 };
   if (totalEl) totalEl.textContent = `총 ${total.sent + total.received}건`;
-  const maxVal = Math.max(
-    ...data.monthly.map((m) => Math.max(m.sent, m.received)),
-    1,
-  );
+  const maxVal = Math.max(...data.monthly.map((m) => Math.max(m.sent, m.received)), 1);
   if (yEl) {
     const mid = Math.round(maxVal / 2);
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
-  // 요청 — 막대 위에 작게 떠있던 연도 뱃지가 잘 안 보인다는 피드백 — 이번엔
-  // 아예 연도별로 달들을 그리드 박스(테두리)로 감싸서 묶어 보여주고, 라벨도
-  // "2026"이 아니라 "2026년"으로 명확히 표기.
+  // 연도별로 달들을 그리드 박스(테두리)로 감싸 묶어 보여주고, 라벨은 "2026년"처럼 연도를 명확히 표기한다.
   const yearGroups = groupMonthsByYear(data.monthly);
   const groupsHtml = yearGroups
     .map((g) => {
       const monthsHtml = g.months
         .map((m) => {
           const sentPct = Math.max(2, Math.round((m.sent / maxVal) * 100));
-          const recvPct = Math.max(
-            2,
-            Math.round((m.received / maxVal) * 100),
-          );
+          const recvPct = Math.max(2, Math.round((m.received / maxVal) * 100));
           const mon = m.month.split("-")[1];
           return `<div class="mp-vchart-group" data-month="${m.month}" data-sent="${m.sent}" data-recv="${m.received}" title="${m.month}: 보낸 ${m.sent}건 · 받은 ${m.received}건 (눌러서 목록보기)">
               <div class="mp-vchart-bars">
@@ -1719,24 +1574,16 @@ function renderBarChart(data) {
             </div>`;
     })
     .join("");
-  // 요청 — 기간이 길어져(예: 2020~2026년 7년치) 달 수가 많아지면 flex:1로 억지로
-  // 폭을 다 채우려다 달 라벨끼리 겹쳐 보이는 문제가 있었음. 이제 달 하나당 폭을
-  // 고정하고(.mp-vchart-group), 넘치는 만큼은 chartArea 자체를 가로 스크롤(CSS,
-  // #mp-chart)하도록 바꿔서 몇 년치가 들어와도 라벨이 절대 안 겹친다.
+  // 달 하나당 폭을 고정하고(.mp-vchart-group), 넘치는 만큼은 chartArea 자체를 가로 스크롤(CSS, #mp-chart)해 기간이 길어도 라벨이 겹치지 않게 한다.
   chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
-  // 오른쪽 원본 확인 창이 막대를 눌러야만 열리던 걸, 처음부터 가장 최근 달로
-  // 기본으로 열려있도록(요청) — 막대 그래프를 다 그린 다음 마지막(최신) 달을
-  // 자동으로 "클릭"한 것처럼 처리.
+  // 오른쪽 원본 확인 창은 처음부터 가장 최근 달로 기본 열림 상태다 — 막대 그래프를 다 그린 다음 마지막(최신) 달을 자동으로 "클릭"한 것처럼 처리한다.
   const latest = data.monthly[data.monthly.length - 1];
-  const latestGroup = chartArea.querySelector(
-    `.mp-vchart-group[data-month="${latest.month}"]`,
-  );
+  const latestGroup = chartArea.querySelector(`.mp-vchart-group[data-month="${latest.month}"]`);
   if (latestGroup) {
     latestGroup.classList.add("active");
     openEmailDrawer(latest.month, latest.sent, latest.received);
-    // 기간이 길어 가로 스크롤이 생긴 경우, 처음 열자마자 가장 최근(=오른쪽 끝)
-    // 달이 바로 보이도록 스크롤을 오른쪽 끝으로 옮겨준다.
+    // 기간이 길어 가로 스크롤이 생긴 경우, 처음 열자마자 가장 최근(=오른쪽 끝) 달이 바로 보이도록 스크롤을 오른쪽 끝으로 옮겨준다.
     latestGroup.scrollIntoView({ inline: "end", block: "nearest" });
   }
 }
@@ -1760,8 +1607,7 @@ function renderMessengerBarChart(data) {
     yEl.innerHTML = `<span>${maxVal}</span><span>${mid}</span><span>0</span>`;
   }
 
-  // 메일 통계와 동일하게 연도별로 달들을 그리드 박스(테두리)로 묶어서
-  // 보여주고, 라벨도 "2026년"으로 명확히 표기(요청).
+  // 메일 통계와 동일하게 연도별로 달들을 그리드 박스(테두리)로 묶어서 보여주고, 라벨도 "2026년"으로 명확히 표기(요청).
   const yearGroups = groupMonthsByYear(data.monthly);
   const groupsHtml = yearGroups
     .map((g) => {
@@ -1783,15 +1629,12 @@ function renderMessengerBarChart(data) {
             </div>`;
     })
     .join("");
-  // 메일 차트와 동일하게 달 하나당 고정폭 + 가로 스크롤(overflow, #mp-chart)로
-  // 바꿔서 기간이 길어도(2020~2026년) 라벨이 겹치지 않게 한다.
+  // 메일 차트와 동일하게 달 하나당 고정폭 + 가로 스크롤(overflow, #mp-chart)로 바꿔서 기간이 길어도(2020~2026년) 라벨이 겹치지 않게 한다.
   chartArea.innerHTML = `<div class="mp-vchart-row">${groupsHtml}</div>`;
 
   // 메신저 통계도 메일과 동일하게 최신 달을 기본으로 열어둔다.
   const target = data.monthly[data.monthly.length - 1];
-  const targetGroup = chartArea.querySelector(
-    `.mp-vchart-group[data-month="${target.month}"]`,
-  );
+  const targetGroup = chartArea.querySelector(`.mp-vchart-group[data-month="${target.month}"]`);
   if (targetGroup) {
     targetGroup.classList.add("active");
     openMessengerDayList(target.month);
@@ -1800,14 +1643,11 @@ function renderMessengerBarChart(data) {
   }
 }
 
-// 방사형 스포크 다이어그램 대신 프로필 사진 + 이름 + 관계 설명을 담은
-// 카드 그리드로 표현(요청) — 열 수는 고정하지 않고 auto-fill로 패널 폭에
-// 맞게 2~3열 사이를 알아서 오가도록 반응형 처리.
+// 방사형 스포크 다이어그램 대신 프로필 사진 + 이름 + 관계 설명을 담은 카드 그리드로 표현 — 열 수는 고정하지 않고 auto-fill로 패널 폭에 맞게 2~3열 사이를 알아서 오가도록 반응형 처리.
 function renderRelationDiagram(personName, relationships) {
   const el = document.getElementById("mp-desc-profile-content");
   if (!relationships.length) {
-    el.innerHTML =
-      '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
+    el.innerHTML = '<p class="mp-desc-profile-empty">파악된 관계가 없습니다.</p>';
     return;
   }
   const others = relationships.map((r) => ({
@@ -1821,12 +1661,9 @@ function renderRelationDiagram(personName, relationships) {
         p && p.avatar_url
           ? `<img src="${p.avatar_url}" alt="${esc(o.name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(o.name)}'">`
           : initials(o.name);
-      // 요청 — 그 사람의 참여 패턴(메시지 건수) 정보도 같이 넣고, 새 박스를
-      // 만들지 말고 기존 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분.
+      // 그 사람의 참여 패턴(메시지 건수) 정보를 기존 카드 안에 표처럼 2열(항목/값)로 선을 그어 구분해 보여준다.
       const participationText =
-        p && p.message_count != null
-          ? `메시지 ${p.message_count.toLocaleString()}건`
-          : "정보 없음";
+        p && p.message_count != null ? `메시지 ${p.message_count.toLocaleString()}건` : "정보 없음";
       return `
         <div class="mp-relation-card">
           <div class="mp-relation-card-avatar">${avatarInner}</div>
@@ -1851,7 +1688,6 @@ let activeDrawerMonth = null;
 let currentMailDayList = [];
 let currentMailDrawerDate = null;
 let currentMailDayEmails = [];
-
 
 // "YYYY-MM"을 "YYYY년 M월"로 포맷
 function fmtMonthLabel(month) {
@@ -1881,7 +1717,7 @@ function renderMailDayList(days) {
         <button class="mp-day-row" type="button" data-date="${d.date}">
           <span class="mp-day-row-date">${fmtDayLabel(d.date)}</span>
           <span class="mp-day-row-count">${d.count}건</span>
-        </button>`,
+        </button>`
     )
     .join("");
 }
@@ -1891,8 +1727,7 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   activeDrawerMonth = month;
   const person = currentDetailPerson;
   const personName = person ? resolveDisplayName(person) : "";
-  document.getElementById("mp-echange-list-title").textContent =
-    fmtMonthLabel(month);
+  document.getElementById("mp-echange-list-title").textContent = fmtMonthLabel(month);
   document.getElementById("mp-echange-list-count").textContent = person
     ? `${personName} · 총 ${sentCount + recvCount}건 (보낸 ${sentCount} · 받은 ${recvCount}) · 막대를 누르면 해당 월의, 날짜를 누르면 그날의 원본 메일을 확인할 수 있어요`
     : "";
@@ -1918,8 +1753,7 @@ async function openEmailDrawer(month, sentCount, recvCount) {
   const gmailId = await getCurrentMailId();
 
   try {
-    // 이 세션에서 만든 "달 클릭 → 일별 목록 → 날짜 클릭 → 그날 메일" 드릴다운
-    // 흐름(renderMailDayList/openMailDayChat)을 그대로 유지한다.
+    // 이 세션에서 만든 "달 클릭 → 일별 목록 → 날짜 클릭 → 그날 메일" 드릴다운 흐름(renderMailDayList/openMailDayChat)을 그대로 유지한다.
     const res = await fetch("/mail-person-daily-stats", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1948,8 +1782,7 @@ async function openMailDayChat(date) {
   currentMailDrawerDate = date;
   const person = currentDetailPerson;
   const listEl = document.getElementById("mp-echange-list-body");
-  document.getElementById("mp-echange-list-title").textContent =
-    fmtDayLabel(date);
+  document.getElementById("mp-echange-list-title").textContent = fmtDayLabel(date);
   document.getElementById("mp-echange-list-count").textContent = "";
   listEl.innerHTML =
     '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
@@ -2002,7 +1835,7 @@ function renderMailDayEmailList(emails) {
           </div>
           <div class="mp-email-subject">${esc(e.subject || "(제목 없음)")}</div>
           <div class="mp-email-from">${esc(e.sender || "")} → ${esc(e.receiver || "")}</div>
-        </button>`,
+        </button>`
     )
     .join("");
   listEl.innerHTML = `${backBtn}<div class="mp-chatline-list">${rowsHtml}</div>`;
@@ -2036,9 +1869,7 @@ export function closeEmailDrawer() {
   listview.style.pointerEvents = "none";
   listview.style.paddingLeft = "0";
   listview.style.borderLeft = "none";
-  document
-    .querySelectorAll(".mp-vchart-group.active")
-    .forEach((g) => g.classList.remove("active"));
+  document.querySelectorAll(".mp-vchart-group.active").forEach((g) => g.classList.remove("active"));
 }
 
 // "YYYY-MM-DD"를 "YYYY년 M월 D일"로 포맷
@@ -2052,8 +1883,7 @@ async function openMessengerDayList(month) {
   currentMessengerDrawerMonth = month;
   const person = currentMessengerPerson;
 
-  document.getElementById("mp-echange-list-title").textContent =
-    fmtMonthLabel(month);
+  document.getElementById("mp-echange-list-title").textContent = fmtMonthLabel(month);
   document.getElementById("mp-echange-list-count").textContent = person
     ? `${person.name} · 막대를 누르면 해당 월의, 날짜를 누르면 그날의 원본 대화를 확인할 수 있어요`
     : "";
@@ -2111,7 +1941,7 @@ function renderMessengerDayList(days) {
         <button class="mp-day-row" type="button" data-date="${d.date}">
           <span class="mp-day-row-date">${fmtDayLabel(d.date)}</span>
           <span class="mp-day-row-count">${d.count}건</span>
-        </button>`,
+        </button>`
     )
     .join("");
 }
@@ -2119,8 +1949,7 @@ function renderMessengerDayList(days) {
 // 특정 날짜의 채팅방 대화 전체를 조회해 드로어에 표시
 async function openMessengerDayChat(date) {
   const listEl = document.getElementById("mp-echange-list-body");
-  document.getElementById("mp-echange-list-title").textContent =
-    fmtDayLabel(date);
+  document.getElementById("mp-echange-list-title").textContent = fmtDayLabel(date);
   document.getElementById("mp-echange-list-count").textContent = "";
   listEl.innerHTML =
     '<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">불러오는 중...</p>';
@@ -2150,12 +1979,8 @@ function renderMessengerDayChat(messages) {
     listEl.innerHTML = `${backBtn}<p style="color:#b7ada0;font-size:0.85rem;text-align:center;padding:40px 0;">그날 대화를 찾지 못했어요.</p>`;
     return;
   }
-  // 요청 — 지금 상세보기로 열어본 그 사람(currentMessengerPerson)의 발언을
-  // 대화 목록에서 한눈에 찾을 수 있도록, 그 사람 이름과 발신자가 일치하는
-  // 줄만 연한 빨간 배경으로 표시.
-  const targetName = currentMessengerPerson
-    ? currentMessengerPerson.name
-    : null;
+  // 지금 상세보기로 열어본 그 사람(currentMessengerPerson)의 발언을 한눈에 찾을 수 있도록, 이름과 발신자가 일치하는 줄만 연한 빨간 배경으로 표시한다.
+  const targetName = currentMessengerPerson ? currentMessengerPerson.name : null;
   const linesHtml = messages
     .map((m) =>
       m.is_system
@@ -2163,7 +1988,7 @@ function renderMessengerDayChat(messages) {
         : `<div class="mp-chatline${targetName && m.sender === targetName ? " mp-chatline-target" : ""}">
              <div class="mp-chatline-head"><span class="mp-chatline-sender">${esc(m.sender || "")}</span><span class="mp-chatline-time">${esc(m.time || "")}</span></div>
              <div class="mp-chatline-text">${esc(m.text)}</div>
-           </div>`,
+           </div>`
     )
     .join("");
   listEl.innerHTML = `${backBtn}<div class="mp-chatline-list">${linesHtml}</div>`;
@@ -2182,8 +2007,7 @@ function renderWordCloud(keywords, targetId) {
     min = sorted[sorted.length - 1].count;
   wrap.innerHTML = "";
   sorted.forEach((kw, idx) => {
-    const norm =
-      max === min ? 1 : Math.log1p(kw.count - min) / Math.log1p(max - min);
+    const norm = max === min ? 1 : Math.log1p(kw.count - min) / Math.log1p(max - min);
     const fs = Math.round(12 + norm * 22);
     const el = document.createElement("span");
     el.className = "mp-wc-word";
@@ -2191,9 +2015,7 @@ function renderWordCloud(keywords, targetId) {
     el.title = `${kw.word}: ${kw.count}회`;
     el.innerHTML = `${kw.word}<sup class="mp-wc-count">${kw.count}</sup>`;
     wrap.appendChild(el);
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => el.classList.add("show")),
-    );
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
   });
 }
 
@@ -2218,10 +2040,8 @@ export function switchDetailTab(tab) {
   statsBody.style.display = tab === "stats" ? "" : "none";
   descBody.classList.toggle("show", tab === "desc");
   kwBody.classList.toggle("show", tab === "kw");
-  btnStats.className =
-    "mp-detail-tab-btn" + (tab === "stats" ? " active-stats" : "");
-  btnDesc.className =
-    "mp-detail-tab-btn" + (tab === "desc" ? " active-desc" : "");
+  btnStats.className = "mp-detail-tab-btn" + (tab === "stats" ? " active-stats" : "");
+  btnDesc.className = "mp-detail-tab-btn" + (tab === "desc" ? " active-desc" : "");
   btnKw.className = "mp-detail-tab-btn" + (tab === "kw" ? " active-kw" : "");
 }
 window.switchDetailTab = switchDetailTab;
@@ -2243,9 +2063,7 @@ function mergeExchangeStats(list) {
     totalSent += (r.total && r.total.sent) || 0;
     totalReceived += (r.total && r.total.received) || 0;
   });
-  const monthly = [...byMonth.values()].sort((a, b) =>
-    a.month.localeCompare(b.month),
-  );
+  const monthly = [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
   return { monthly, total: { sent: totalSent, received: totalReceived } };
 }
 
@@ -2278,10 +2096,8 @@ async function refreshDetailStats(person) {
     body: JSON.stringify(body),
   });
 
-  // 브랜드 통합 카드(예: google)면 병합된 모든 주소를 각각 조회해서 합산한다 —
-  // 대표 1명 것만 보면 나머지 주소로 온 메일 내역이 통째로 안 보이게 되기 때문.
-  // (참고: 병합 전 HEAD 버전은 여기서 정의된 적 없는 dateBody를 참조하고 있어
-  // 실행 시 오류가 나는 상태였음 — 아래의 완결된 버전으로 대체함)
+  // 브랜드 통합 카드(예: google)면 병합된 모든 주소를 각각 조회해서 합산한다 — 대표 1명 것만 보면 나머지 주소로 온 메일 내역이 통째로 안 보이게 되기 때문.
+  // (참고: 병합 전 HEAD 버전은 여기서 정의된 적 없는 dateBody를 참조하고 있어 실행 시 오류가 나는 상태였음 — 아래의 완결된 버전으로 대체함)
   const emails = personEmails(person);
   const dateBodies = emails.map((email) => ({
     user_id: gmailId,
@@ -2291,12 +2107,8 @@ async function refreshDetailStats(person) {
   }));
 
   const [statsResults, kwResults] = await Promise.all([
-    Promise.allSettled(
-      dateBodies.map((b) => fetch("/mail-exchange-stats", post(b))),
-    ),
-    Promise.allSettled(
-      dateBodies.map((b) => fetch("/keyword-by-person-date", post(b))),
-    ),
+    Promise.allSettled(dateBodies.map((b) => fetch("/mail-exchange-stats", post(b)))),
+    Promise.allSettled(dateBodies.map((b) => fetch("/keyword-by-person-date", post(b)))),
   ]);
 
   // 교환 그래프
@@ -2305,7 +2117,7 @@ async function refreshDetailStats(person) {
       if (r.status !== "fulfilled" || !r.value.ok) return null;
       const j = await r.value.json();
       return j.data || j;
-    }),
+    })
   );
   renderBarChart(mergeExchangeStats(statsDataList));
 
@@ -2315,16 +2127,13 @@ async function refreshDetailStats(person) {
       if (r.status !== "fulfilled" || !r.value.ok) return [];
       const j = await r.value.json();
       return j.keywords || [];
-    }),
+    })
   );
   const keywords = mergeKeywordLists(kwDataList);
   renderWordCloud(keywords.slice(0, 10), "mp-detail-wc");
 }
 
-// 메일/메신저 통계 범례 — 예전엔 메일용 두 항목(보낸/받은 메일)이 HTML에
-// 고정되어 있고 메신저에서는 그냥 숨기기만 해서 "보낸 메신저"라는 표시가
-// 전혀 없었음(요청) — 모드별로 내용을 다시 그려서 메신저에도 초록 막대가
-// 뭘 뜻하는지 보이게 함.
+// 메일/메신저 통계 범례 — 모드별로 항목을 다시 그려서 메일에서는 보낸/받은 메일을, 메신저에서는 보낸 메신저를 표시한다.
 function setStatsLegend(mode) {
   const legend = document.getElementById("mp-stats-legend");
   if (!legend) return;
@@ -2361,17 +2170,11 @@ async function openDetail(person, rowIndex) {
   document.querySelector(".mp-detail-self-info").style.display = "";
   document.getElementById("mp-detail-avatar-self").style.display = "";
   document.querySelector(".mp-detail-relation").style.display = "";
-  // 친밀도 퍼센트를 감싸던 핑크 링을 없애기로 해서(요청) 메일 상세보기도
-  // 메신저와 동일하게 항상 링을 꺼둔다 — 대신 등급 텍스트는 관계 라벨
-  // 밑(.mp-detail-affinity-label)에 표시.
-  document
-    .querySelector(".mp-detail-avatar-ring")
-    ?.classList.add("mp-ring-off");
+  // 메일 상세보기도 메신저와 동일하게 친밀도 퍼센트 링은 항상 꺼두고, 등급 텍스트만 관계 라벨 밑(.mp-detail-affinity-label)에 표시한다.
+  document.querySelector(".mp-detail-avatar-ring")?.classList.add("mp-ring-off");
   setStatsLegend("mail");
   document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
-  document
-    .getElementById("mp-detail-namewrap")
-    .classList.remove("mp-detail-namewrap-wide");
+  document.getElementById("mp-detail-namewrap").classList.remove("mp-detail-namewrap-wide");
 
   const selfAvatarEl = document.getElementById("mp-detail-avatar-self");
   if (myAvatarUrl) {
@@ -2386,41 +2189,32 @@ async function openDetail(person, rowIndex) {
   const relationLabelEl = document.getElementById("mp-detail-relation-label");
   relationLabelEl.innerHTML = "";
   loadRelationships(gmailId).then((relationships) => {
-    if (
-      currentDetailMode !== "mail" ||
-      currentDetailPersonEmail !== (person.email || "")
-    ) {
+    if (currentDetailMode !== "mail" || currentDetailPersonEmail !== (person.email || "")) {
       return;
     }
     const label = findRelationLabel(relationships, person.email);
-    // 요청 — 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만, "관계: 기업"
-    // 형식으로 표시.
+    // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 "관계: 기업" 형식으로 표시한다.
     relationLabelEl.textContent = label ? `관계: ${label}` : "";
   });
 
-  // 색감 통일 요청 — 아바타 배경도 친밀도에 따른 색(핑크/주황 계열) 대신
-  // "나" 아바타와 동일한 무채색 그라데이션으로 통일.
+  // 아바타 배경은 친밀도에 따른 색 대신 "나" 아바타와 동일한 무채색 그라데이션을 사용한다.
   const avatarEl = document.getElementById("mp-detail-avatar");
   avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
   avatarEl.style.color = "#515151";
 
   // 링이 없어진 자리에 친밀도 등급을 관계 라벨 밑에 효율적으로 표시
-  const affPct =
-    person.affinity != null ? Math.round(person.affinity * 100) : null;
+  const affPct = person.affinity != null ? Math.round(person.affinity * 100) : null;
   const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
   if (affinityLabelEl) {
-    // 요청 — 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 표시.
-    affinityLabelEl.textContent =
-      affPct != null ? affinityLabelFromPct(affPct) : "";
+    // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 표시한다.
+    affinityLabelEl.textContent = affPct != null ? affinityLabelFromPct(affPct) : "";
   }
   const detailEmail = (person.email || "").toLowerCase();
-  const detailPhoto =
-    generatedAvatars[detailEmail] || contactPhotos[detailEmail];
+  const detailPhoto = generatedAvatars[detailEmail] || contactPhotos[detailEmail];
   if (detailPhoto) {
     const detailBrandCls = isBrandSender(person) ? " mp-brand-logo" : "";
     avatarEl.innerHTML = `<img src="${detailPhoto}" alt="${detailDisplayName}" class="${detailBrandCls.trim()}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(detailDisplayName)}'">`;
-    if (detailBrandCls)
-      setupBrandLogo(avatarEl.querySelector("img.mp-brand-logo"));
+    if (detailBrandCls) setupBrandLogo(avatarEl.querySelector("img.mp-brand-logo"));
   } else {
     avatarEl.textContent = initials(detailDisplayName);
   }
@@ -2429,7 +2223,9 @@ async function openDetail(person, rowIndex) {
   document.getElementById("mp-detail-email").textContent =
     groupEmails.length > 1
       ? `${displayAccountLabel(person.email)} 외 ${groupEmails.length - 1}개 주소 (통합 표시)`
-      : (person.email ? displayAccountLabel(person.email) : "이메일 정보 없음");
+      : person.email
+        ? displayAccountLabel(person.email)
+        : "이메일 정보 없음";
 
   switchDetailTab("stats");
 
@@ -2440,8 +2236,7 @@ async function openDetail(person, rowIndex) {
   document.getElementById("mp-detail").classList.add("open");
 
   const profileEl = document.getElementById("mp-desc-profile-content");
-  if (profileEl)
-    profileEl.innerHTML = '<p class="mp-desc-profile-empty">로딩 중...</p>';
+  if (profileEl) profileEl.innerHTML = '<p class="mp-desc-profile-empty">로딩 중...</p>';
   loadDescriptions(gmailId).then((descs) => renderDescription(person, descs));
 
   await refreshDetailStats(person);
@@ -2456,8 +2251,7 @@ async function openMessengerDetail(person) {
   currentMessengerPerson = person;
 
   document.getElementById("mp-tab-stats").textContent = "메신저 통계";
-  // "이메일 교환"이 그대로 남아있던 잔재 — mp-stats-title은 예전엔 HTML에
-  // 박제된 텍스트라 메신저에서도 안 바뀌고 있었음(요청으로 수정)
+  // mp-stats-title 텍스트를 메신저 모드에 맞게 "메신저 통계"로 갱신한다.
   document.getElementById("mp-stats-title").textContent = "메신저 통계";
   document.getElementById("mp-tab-desc").textContent = "관계";
   document.getElementById("mp-tab-kw").textContent = "키워드";
@@ -2465,15 +2259,11 @@ async function openMessengerDetail(person) {
   document.querySelector(".mp-detail-self-info").style.display = "none";
   document.getElementById("mp-detail-avatar-self").style.display = "none";
   document.querySelector(".mp-detail-relation").style.display = "none";
-  document
-    .querySelector(".mp-detail-avatar-ring")
-    ?.classList.add("mp-ring-off");
+  document.querySelector(".mp-detail-avatar-ring")?.classList.add("mp-ring-off");
   setStatsLegend("messenger");
-  document
-    .getElementById("mp-detail-namewrap")
-    .classList.add("mp-detail-namewrap-wide");
+  document.getElementById("mp-detail-namewrap").classList.add("mp-detail-namewrap-wide");
 
-  // 색감 통일 요청 — 메신저 아바타 배경도 초록 계열 대신 메일과 동일한 무채색으로
+  // 메신저 아바타 배경도 초록 계열 대신 메일과 동일한 무채색으로 통일한다.
   const avatarEl = document.getElementById("mp-detail-avatar");
   avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
   avatarEl.style.color = "#515151";
@@ -2486,26 +2276,22 @@ async function openMessengerDetail(person) {
   const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
   if (affinityLabelEl) affinityLabelEl.innerHTML = "";
 
-  document.getElementById("mp-detail-name").textContent =
-    person.name || "(알 수 없음)";
+  document.getElementById("mp-detail-name").textContent = person.name || "(알 수 없음)";
   document.getElementById("mp-detail-email").textContent =
     `단톡방 참여자 · 메신저 ${person.message_count || 0}건`;
 
-  // 요청 — 그냥 문장 하나로 텍스트만 쭉 나오던 걸(우리 UI 미사용), 메일 쪽 "설명"
-  // 탭처럼 "참여 패턴: ..." 형식의 줄을 라벨/값으로 나눠 보여주는 우리 UI로.
+  // 메일 쪽 "설명" 탭처럼 "참여 패턴: ..." 형식의 줄을 라벨/값으로 나눠 보여준다.
   const descEl = document.getElementById("mp-detail-messenger-desc");
   if (descEl) {
     const rawDesc = applyMessengerDescriptionOverride(currentChatroomName, person);
     if (!rawDesc) {
-      descEl.innerHTML =
-        '<span class="mp-msg-desc-empty">등록된 설명이 없습니다.</span>';
+      descEl.innerHTML = '<span class="mp-msg-desc-empty">등록된 설명이 없습니다.</span>';
     } else {
       const lines = rawDesc.split("\n").filter(Boolean);
       descEl.innerHTML = lines
         .map((line) => {
           const ci = line.indexOf(":");
-          if (ci === -1)
-            return `<div class="mp-msg-desc-line">${esc(line)}</div>`;
+          if (ci === -1) return `<div class="mp-msg-desc-line">${esc(line)}</div>`;
           const key = line.slice(0, ci).trim();
           const val = line.slice(ci + 1).trim();
           return `<div class="mp-msg-desc-line"><span class="mp-msg-desc-key">${esc(key)}:</span>${esc(val)}</div>`;
@@ -2518,9 +2304,7 @@ async function openMessengerDetail(person) {
   switchDetailTab("stats");
   const scrollPanel = document.querySelector(".mp-left");
   if (scrollPanel) scrollPanel.scrollTop = 0;
-  document
-    .getElementById("mp-detail")
-    .classList.add("open", "mp-detail-messenger");
+  document.getElementById("mp-detail").classList.add("open", "mp-detail-messenger");
 
   document.getElementById("mp-desc-profile-content").innerHTML =
     '<p class="mp-desc-profile-empty">관계를 불러오는 중...</p>';
@@ -2539,8 +2323,7 @@ async function openMessengerDetail(person) {
       r.source = applyRoomNameOverride(currentChatroomName, r.source);
       r.target = applyRoomNameOverride(currentChatroomName, r.target);
     });
-    // 버그 수정 — 관계 카드가 상위 8개로 잘려서 실제 참여자(예: 14명)보다 적게
-    // 보였음. 요청대로 전부 다 뜨도록 slice(0, 8) 제거.
+    // 관계 카드는 개수를 제한하지 않고 참여자 전원을 표시한다.
     const mine = rels
       .filter((r) => r.source === person.name || r.target === person.name)
       .sort((a, b) => (b.strength || 0) - (a.strength || 0));
@@ -2591,8 +2374,6 @@ async function refreshMessengerDetailStats(person) {
   }
   renderWordCloud(keywords.slice(0, 10), "mp-detail-wc");
 }
-
-
 
 let _graphData = null;
 let _graphD3Ready = false;
@@ -2701,7 +2482,7 @@ function _renderMiniGraph(svgEl, data) {
           if (!e.active) sim.alphaTarget(0);
           d.fx = null;
           d.fy = null;
-        }),
+        })
     );
 
   const sim = d3
@@ -2712,7 +2493,7 @@ function _renderMiniGraph(svgEl, data) {
         .forceLink(links)
         .id((d) => d.label)
         .distance(18)
-        .strength(0.5),
+        .strength(0.5)
     )
     .force("charge", d3.forceManyBody().strength(-35))
     .force("center", d3.forceCenter(0, 0))
@@ -2793,8 +2574,8 @@ export async function toggleGraphView() {
 
 // 초기화
 
-// React가 #mp-mail-view 등 DOM을 마운트한 뒤(useEffect) 한 번만 호출한다. 이 페이지는 마운트당
-// 한 번만 불리는 걸 전제하므로(다른 전환 페이지들과 동일), 언마운트 정리 로직은 없다.
+// React가 #mp-mail-view 등 DOM을 마운트한 뒤(useEffect) 한 번만 호출한다.
+// 이 페이지는 마운트당 한 번만 불리는 걸 전제하므로(다른 전환 페이지들과 동일), 언마운트 정리 로직은 없다.
 export function initMyPeoplePage() {
   (function () {
     const p = new URLSearchParams(window.location.search);
@@ -2808,7 +2589,6 @@ export function initMyPeoplePage() {
     if (el) el.textContent = n;
   })();
 
-
   userIdPromise = initAccountPicker(
     document.getElementById("account-picker-mount"),
     (selectedMail) => {
@@ -2817,9 +2597,8 @@ export function initMyPeoplePage() {
         store.setFilter("mail", selectedMail);
         refreshSidebarList();
       }
-    },
+    }
   );
-
 
   chatroomIdPromise = initAccountPicker(
     document.getElementById("chatroom-picker-mount"),
@@ -2830,17 +2609,15 @@ export function initMyPeoplePage() {
         refreshSidebarList();
       }
     },
-    { domain: "messenger", storageKey: "gw_chatroom_id" },
+    { domain: "messenger", storageKey: "gw_chatroom_id" }
   );
 
   chatroomIdPromise.then((id) => {
     selectedChatroomId = id || "";
   });
 
-
   mailView = document.getElementById("mp-mail-view");
   messengerView = document.getElementById("mp-messenger-view");
-
 
   messengerView.addEventListener("click", (e) => {
     const roomCard = e.target.closest(".mp-room-card");
@@ -2855,13 +2632,9 @@ export function initMyPeoplePage() {
       if (person) openMessengerDetail(person);
       return;
     }
-    // 사이드바에서 바로 방으로 들어온 경우 messengerChatrooms가 아직 한 번도
-    // 안 채워졌을 수 있으니(예전엔 목록 화면을 먼저 거쳐야만 채워졌음),
-    // renderChatroomGrid() 대신 새로 불러오는 refreshMessengerRoomsForRange()를
-    // 써서 null 목록을 그대로 렌더링하다 에러 나는 일이 없게 한다.
+    // 사이드바에서 바로 방으로 들어온 경우 messengerChatrooms가 아직 채워지지 않았을 수 있으니, renderChatroomGrid() 대신 새로 불러오는 refreshMessengerRoomsForRange()를 써서 null 목록을 그대로 렌더링하다 에러 나는 일이 없게 한다.
     if (e.target.closest(".mp-back-btn")) refreshMessengerRoomsForRange();
   });
-
 
   brandFilterBtn = document.getElementById("mp-brand-filter-btn");
   brandFilterLabel = document.getElementById("mp-brand-filter-label");
@@ -2871,7 +2644,6 @@ export function initMyPeoplePage() {
     brandFilterLabel.textContent = hideBrandAccounts ? "광고 표시" : "광고 제거";
     renderCards();
   });
-
 
   ddBtn = document.getElementById("mp-dropdown-btn");
   ddMenu = document.getElementById("mp-dropdown-menu");
@@ -2891,16 +2663,13 @@ export function initMyPeoplePage() {
     ddMenu.classList.remove("open");
 
     if (currentChannel === "mail") {
-      document
-        .querySelectorAll(".mp-dropdown-item")
-        .forEach((i) => i.classList.remove("selected"));
+      document.querySelectorAll(".mp-dropdown-item").forEach((i) => i.classList.remove("selected"));
       item.classList.add("selected");
       ddLabel.textContent = item.textContent.replace("✓", "").trim();
       sortMode = chosen;
       if (sortMode === "sent") await fetchSentStats();
       else if (sortMode === "received") await fetchReceivedStats();
-      else if (sortMode === "total")
-        await Promise.all([fetchSentStats(), fetchReceivedStats()]);
+      else if (sortMode === "total") await Promise.all([fetchSentStats(), fetchReceivedStats()]);
       renderCards();
     } else if (messengerScreen === "rooms") {
       roomSortMode = chosen;
@@ -2908,17 +2677,11 @@ export function initMyPeoplePage() {
     } else {
       peopleSortMode = chosen;
       refreshSortMenuForPeople();
-      // 정렬을 바꿀 때도 방 분위기가 사라지지 않도록 같이 넘겨줌(캐시되어 있어
-      // 다시 네트워크 요청이 가지 않음)
+      // 정렬을 바꿀 때도 방 분위기가 사라지지 않도록 같이 넘겨줌(캐시되어 있어 다시 네트워크 요청이 가지 않음)
       const moodScore = await fetchRoomMoodScore(currentChatroomId);
-      renderChatroomPeople(
-        currentChatroomName,
-        sortPeopleList(currentChatroomPeople),
-        moodScore,
-      );
+      renderChatroomPeople(currentChatroomName, sortPeopleList(currentChatroomPeople), moodScore);
     }
   });
-
 
   document.addEventListener("click", () => {
     ddBtn.classList.remove("open");
@@ -2934,52 +2697,43 @@ export function initMyPeoplePage() {
     group.classList.add("active");
 
     if (currentDetailMode === "mail") {
-      openEmailDrawer(
-        group.dataset.month,
-        +group.dataset.sent,
-        +group.dataset.recv,
-      );
+      openEmailDrawer(group.dataset.month, +group.dataset.sent, +group.dataset.recv);
     } else if (currentDetailMode === "messenger") {
       openMessengerDayList(group.dataset.month);
     }
   });
 
-  document
-    .getElementById("mp-echange-list-body")
-    .addEventListener("click", (e) => {
-      const emailRow = e.target.closest(".mp-email-row");
-      if (emailRow && currentDetailMode === "mail") {
-        const email = currentMailDayEmails[parseInt(emailRow.dataset.idx, 10)];
-        if (email) renderMailEmailDetail(email);
-        return;
+  document.getElementById("mp-echange-list-body").addEventListener("click", (e) => {
+    const emailRow = e.target.closest(".mp-email-row");
+    if (emailRow && currentDetailMode === "mail") {
+      const email = currentMailDayEmails[parseInt(emailRow.dataset.idx, 10)];
+      if (email) renderMailEmailDetail(email);
+      return;
+    }
+    const dayRow = e.target.closest(".mp-day-row");
+    if (dayRow) {
+      if (currentDetailMode === "mail") {
+        openMailDayChat(dayRow.dataset.date);
+      } else {
+        openMessengerDayChat(dayRow.dataset.date);
       }
-      const dayRow = e.target.closest(".mp-day-row");
-      if (dayRow) {
-        if (currentDetailMode === "mail") {
-          openMailDayChat(dayRow.dataset.date);
-        } else {
-          openMessengerDayChat(dayRow.dataset.date);
-        }
-        return;
+      return;
+    }
+    if (e.target.closest("#mp-email-back-btn")) {
+      renderMailDayEmailList(currentMailDayEmails);
+      return;
+    }
+    if (e.target.closest("#mp-day-back-btn")) {
+      if (currentDetailMode === "mail") {
+        renderMailDayList(currentMailDayList);
+      } else {
+        renderMessengerDayList(currentMessengerDayList);
       }
-      if (e.target.closest("#mp-email-back-btn")) {
-        renderMailDayEmailList(currentMailDayEmails);
-        return;
-      }
-      if (e.target.closest("#mp-day-back-btn")) {
-        if (currentDetailMode === "mail") {
-          renderMailDayList(currentMailDayList);
-        } else {
-          renderMessengerDayList(currentMessengerDayList);
-        }
-      }
-    });
-
+    }
+  });
 
   document.getElementById("mp-detail-close").addEventListener("click", () => {
-    document
-      .getElementById("mp-detail")
-      .classList.remove("open", "mp-detail-messenger");
+    document.getElementById("mp-detail").classList.remove("open", "mp-detail-messenger");
     currentDetailPerson = null;
     currentDetailMode = "mail";
     currentDetailPersonEmail = "";
@@ -2990,8 +2744,7 @@ export function initMyPeoplePage() {
     const card = e.target.closest(".mp-card");
     if (!card) return;
     const idx = parseInt(card.dataset.idx);
-    // allPeople(원본, 미병합)이 아니라 실제로 카드가 그려질 때 쓴 currentRenderedList에서
-    // 찾아야 브랜드 통합 카드의 _groupEmails(병합된 주소 목록)가 살아있다.
+    // allPeople(원본, 미병합)이 아니라 실제로 카드가 그려질 때 쓴 currentRenderedList에서 찾아야 브랜드 통합 카드의 _groupEmails(병합된 주소 목록)가 살아있다.
     const person = currentRenderedList[idx];
     if (person) openDetail(person, Math.floor(idx / 7));
   });
@@ -3000,33 +2753,23 @@ export function initMyPeoplePage() {
 
   setTimeout(_initMiniGraph, 2500);
 
-
-    initGlobalFilter((filterState, meta) => {
-      // 예전엔 여기서 { isInitial: true } 콜백(=페이지가 막 열렸을 때 사이드바가
-      // 실제로 뭘 골랐는지 알려주는 호출)을 무시했다 — "그건 이미 userIdPromise/
-      // chatroomIdPromise 흐름이 처리해준다"고 가정했기 때문인데, 그 흐름은 메일
-      // 계정만 자동으로 채널 구분 없이 불러오는 별도 경로라 사이드바가 메신저 방을
-      // 고른 상태로 열려도 메일 데이터가 뜨는 원인이 됐다(두 비동기 흐름 중 뭐가
-      // 먼저 끝나느냐는 순전히 타이밍). 지금은 filterSync.js가 사이드바 상태를
-      // 무조건 한 번은 확실히 전달해주므로, isInitial 여부와 상관없이 항상 그
-      // 상태를 그대로 반영한다 — 페이지는 무조건 사이드바가 고른 채널만 그린다.
-      if (filterState.mail) {
-        currentMailId = filterState.mail;
-        avatarGenStarted = false; // 새 계정 기준으로 아바타 생성도 다시 돌게
-        periodStatsLoaded = false;
-        periodStats = {};
-        currentDetailPerson = null;
-        document.getElementById("mp-detail")?.classList.remove("open");
-        setChannel("mail");
-        loadPeople().then(() => fetchPeriodStats());
-      } else if (filterState.room) {
-        selectedChatroomId = filterState.room;
-        setChannel("messenger");
-        // 예전엔 여기서 단톡방 목록(패널)을 다시 그렸는데(refreshMessengerRoomsForRange),
-        // 그 방식을 없애기로 했다 — 이제 사이드바에서 방을 고르면 목록 없이
-        // 바로 그 방의 참여자 화면으로 들어간다(My Time과 동일 패턴).
-        // refreshMessengerRoomsForRange();
-        openSelectedChatroomFromSidebar();
-      }
-    });
+  initGlobalFilter((filterState, meta) => {
+    // filterSync.js가 사이드바 상태를 한 번은 확실히 전달해주므로, isInitial 여부와 상관없이 항상 그 상태를 그대로 반영한다 — 페이지는 사이드바가 고른 채널만 그린다.
+    if (filterState.mail) {
+      currentMailId = filterState.mail;
+      avatarGenStarted = false; // 새 계정 기준으로 아바타 생성도 다시 돌게
+      periodStatsLoaded = false;
+      periodStats = {};
+      currentDetailPerson = null;
+      document.getElementById("mp-detail")?.classList.remove("open");
+      setChannel("mail");
+      loadPeople().then(() => fetchPeriodStats());
+    } else if (filterState.room) {
+      selectedChatroomId = filterState.room;
+      setChannel("messenger");
+      // 사이드바에서 방을 고르면 목록 없이 바로 그 방의 참여자 화면으로 들어간다(My Time과 동일 패턴).
+      // refreshMessengerRoomsForRange();
+      openSelectedChatroomFromSidebar();
+    }
+  });
 }

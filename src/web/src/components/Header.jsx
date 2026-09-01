@@ -1,21 +1,13 @@
 /**
-공통 상단 헤더 React 컴포넌트 — 상단 네비게이션(NAV_ITEMS)을 렌더링하며 8개 페이지 전부가
-activePage prop만 바꿔서 공유한다. 예전엔 아직 React로 전환되지 않은 페이지가 vanilla JS
-appHeader.js 버전을 따로 썼지만, 이제 모든 페이지가 React로 전환되면서 appHeader.js는 삭제됐고
-이 컴포넌트가 유일한 헤더 구현이다.
+공통 상단 헤더 React 컴포넌트 — 상단 네비게이션(NAV_ITEMS)을 렌더링하며 8개 페이지 전부가 activePage prop만 바꿔서 공유하는, 사이트 전체의 유일한 헤더 구현이다.
 
-Shared top header React component — renders the top nav (NAV_ITEMS) and is reused by all 8 pages
-via the activePage prop. Pages not yet converted to React used to fall back to a vanilla-JS
-appHeader.js version, but now that every page is React, appHeader.js has been removed and this is
-the only header implementation.
+Shared top header React component — renders the top nav (NAV_ITEMS) and is reused by all 8 pages via the activePage prop; the site's single header implementation.
  */
 
-/**
-예전 appHeader.js의 NAV_ITEMS와 동일한 데이터. 이 배열만 고치면
-메뉴 항목이 늘거나 줄어도 화면이 자동으로 갱신됩니다.
- */
-// 메뉴 순서: data analysis → My People → My Time → 검색 → View knowledge graph.
-// 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외. Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
+// 상단 네비게이션 메뉴 항목 정의 — 이 배열만 고치면 메뉴 항목이 늘거나 줄어도 화면이 자동으로 갱신된다.
+// 메뉴 순서: Social data analysis → View results → Knowledge graph.
+// 홈은 로고 클릭으로 이동 가능하므로 메뉴에서 제외.
+// Recap은 빌드 대상에서 제외됨(vite.config.js 참고).
 const NAV_ITEMS = [
   {
     page: "imap-collect",
@@ -40,27 +32,16 @@ const NAV_ITEMS = [
 function NavItem({ item, activePage }) {
   if (item.children) {
     const groupActive =
-      item.page === activePage ||
-      item.children.some((c) => c.page === activePage);
+      item.page === activePage || item.children.some((c) => c.page === activePage);
     return (
       <div className="gw-tl-dropdown">
-        <a
-          href={item.href}
-          className={`gw-tl gw-tl-dd-btn${groupActive ? " active" : ""}`}
-        >
+        <a href={item.href} className={`gw-tl gw-tl-dd-btn${groupActive ? " active" : ""}`}>
           {item.label}{" "}
-          <i
-            className="bi bi-chevron-down"
-            style={{ fontSize: ".65rem", marginLeft: "2px" }}
-          ></i>
+          <i className="bi bi-chevron-down" style={{ fontSize: ".65rem", marginLeft: "2px" }}></i>
         </a>
         <div className="gw-tl-dd-menu">
           {item.children.map((c) => (
-            <a
-              key={c.page}
-              href={c.href}
-              className={c.page === activePage ? "active" : ""}
-            >
+            <a key={c.page} href={c.href} className={c.page === activePage ? "active" : ""}>
               {c.label}
             </a>
           ))}
@@ -69,10 +50,7 @@ function NavItem({ item, activePage }) {
     );
   }
   return (
-    <a
-      href={item.href}
-      className={`gw-tl${item.page === activePage ? " active" : ""}`}
-    >
+    <a href={item.href} className={`gw-tl${item.page === activePage ? " active" : ""}`}>
       {item.label}
     </a>
   );
@@ -85,11 +63,7 @@ export default function Header({ activePage }) {
       <div className="nav_menu d-flex align-items-center justify-content-between">
         <div className="d-flex align-items-center">
           <a href="index.html" className="gw-brand-logo">
-            <img
-              src="/images/logos/socialvisualizer.png"
-              className="gw-brand-logo-icon"
-              alt=""
-            />
+            <img src="/images/logos/socialvisualizer.png" className="gw-brand-logo-icon" alt="" />
             <span className="gw-brand-logo-text">Social Visualizer</span>
           </a>
           <nav className="gw-top-links">

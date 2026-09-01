@@ -1,8 +1,7 @@
 /*
  * "Recap" 통계 페이지 전용 스타일(인라인 <style>에서 이관, 공통 헤더/사이드바 규칙 제외).
  *
- * Styles for the "Recap" stats page (migrated from inline <style>, excluding shared header/sidebar
- * rules).
+ * Styles for the "Recap" stats page (migrated from inline <style>, excluding shared header/sidebar rules).
  */
 
 /* 페이지 배경 */
@@ -10,12 +9,9 @@
   background: #ffffff;
 }
 
-/* 히어로 배너
-   예전엔 진한 오렌지-갈색 그라디언트라 색감이 너무 강했음 — 흰 배경으로 바꾸고
-   글자색만 이 페이지의 다른 곳(사이드바, mytime 등)과 같은 톤(진갈색 본문/
-   오렌지 포인트)으로 맞춤. 흰 배경 위에선 의미 없는 점무늬 패턴도 제거. 아래
-   .rc-content가 이 배너 위로 살짝 겹쳐 올라오므로, 배너 영역이 흰 배경에서도
-   구분되도록 옅은 밑줄만 하나 둠. */
+/* 히어로 배너 — 흰 배경에 이 페이지의 다른 영역(사이드바, mytime 등)과 같은 톤(진갈색 본문/오렌지 포인트)의
+   글자색을 쓴다. 아래 .rc-content가 이 배너 위로 살짝 겹쳐 올라오므로, 배너 영역이 흰 배경에서도
+   구분되도록 옅은 밑줄을 둔다. */
 .rc-hero {
   background: #ffffff;
   border-bottom: 1px solid #ececec;
@@ -302,8 +298,7 @@
   height: 10px;
   overflow: hidden;
 }
-// 요청 — 4~10등(랭크 클래스 없는 기본값)은 그냥 회색으로. 원래 3등이 이미
-// 회색 계열이라 겹치므로, 3등 색은 연한 갈색으로 바꿔서 구분되게 함.
+// 4~10등(랭크 클래스 없는 기본값)은 회색, 3등은 회색과 겹치지 않도록 연한 갈색으로 구분한다.
 .rc-bar-fill {
   height: 100%;
   border-radius: 20px;
@@ -441,6 +436,7 @@
   margin-top: 4px;
   font-weight: 600;
 }
+// 도넛 옆 범례 목록 — 순위, 색상 점, 이름/이메일, 점수
 .rc-af-legend {
   display: flex;
   flex-direction: column;

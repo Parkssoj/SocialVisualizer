@@ -1,14 +1,12 @@
-import { createRoot } from 'react-dom/client';
-import Header from './Header.jsx';
-import Footer from './Footer.jsx';
-import HeroContent from './HeroContent.jsx';
+import { createRoot } from "react-dom/client";
+import Header from "./Header.jsx";
+import Footer from "./Footer.jsx";
+import HeroContent from "./HeroContent.jsx";
 
 /**
-홈 화면(index.html) 전체를 감싸는 최상위 React 컴포넌트 — Header/HeroContent/Footer 세 영역을 한 번에 그려서 마운트한다(예전엔
-innerHTML로 각각 따로 채웠음).
+홈 화면(index.html) 전체를 감싸는 최상위 React 컴포넌트 — Header/HeroContent/Footer 세 영역을 한 번에 그려서 마운트한다.
 
-Top-level React component wrapping the entire home page (index.html) — renders Header, HeroContent,
-and Footer together in one mount (previously filled in separately via innerHTML).
+Top-level React component wrapping the entire home page (index.html) — renders Header, HeroContent, and Footer together in one mount.
  */
 function HomeApp() {
   return (

@@ -1,16 +1,9 @@
 /**
-"My Time" 페이지의 타임라인/키워드 패널 엔진 — 원래 src/pages/mytime.js 최상단에서 그대로 실행되던
-로직을 옮겨왔다. 슬라이더 드래그, 연도 점 배치, 일별 그래프 등은 D3 없이 직접 구현된 상당히 복잡한
-커스텀 위젯이라, 2일 안에 완전히 새로 짜는 대신 검증된 로직을 그대로 포팅했다 — React가 그리는
-#mt-mail-view 등의 DOM이 실제로 존재한 뒤(마운트 후 useEffect)에 initMyTimePage() 한 번만 호출하면,
-이 파일 안에서는 기존과 동일하게 getElementById 기반으로 동작한다.
+"My Time" 페이지의 타임라인/키워드 패널 렌더링을 담당하는 엔진 모듈. 슬라이더 드래그, 연도 점 배치, 일별 막대그래프 등 D3 없이 직접 구현한 커스텀 위젯을 포함한다.
+React가 그리는 DOM(#mt-mail-view 등)에 getElementById 기반으로 직접 접근해 동작하며, React 마운트 후 useEffect에서 initMyTimePage()를 한 번 호출하면 초기화된다.
 
-Timeline/keyword-panel engine for the "My Time" page — ported as-is from what used to run at the
-top of src/pages/mytime.js. The slider drag, year-dot layout, and daily bar chart are a fairly
-complex custom widget built without D3, so instead of a full rewrite under a 2-day deadline, the
-verified logic was moved here unchanged. Call initMyTimePage() once after React has mounted the
-#mt-mail-view etc. DOM (i.e. from a useEffect) — everything inside still works via getElementById
-exactly as before.
+Engine module for the "My Time" page — renders the timeline and keyword panel, including a custom slider-drag, year-dot layout, and daily bar chart built without D3.
+It operates directly on the DOM via getElementById rather than through React state, and is initialized by a single call to initMyTimePage() from a useEffect once React has mounted the page (e.g. #mt-mail-view).
  */
 import { initAccountPicker } from "../features/accountPicker.js";
 import { store } from "../store/globalStore.js";
@@ -46,9 +39,7 @@ function escHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-// 주요 연락처 설명이 "이름: ... 관계: ... 자주 주고받은 내용: ..."처럼
-// 라벨이 붙은 한 줄 문자열로 오므로, 그 라벨들 앞에 줄바꿈을 넣어 각각
-// 한 줄씩 보이게 만든다.
+// 주요 연락처 설명이 "이름: ... 관계: ... 자주 주고받은 내용: ..."처럼 라벨이 붙은 한 줄 문자열로 오므로, 그 라벨들 앞에 줄바꿈을 넣어 각각 한 줄씩 보이게 만든다.
 function formatContactDesc(text) {
   let html = escHtml(text);
   ["이름:", "관계:", "자주 주고받은 내용:"].forEach((label) => {
@@ -63,8 +54,7 @@ function showTooltip(anchorEl, html, placement = "top") {
   const rect = anchorEl.getBoundingClientRect();
   const left = Math.max(8, Math.min(window.innerWidth - 280, rect.left));
   t.style.left = `${left}px`;
-  // 요청 — 주요 연락처(placement="bottom")에 뜨는 설명 창을, 그 연락처
-  // 요소가 hover 시 변하는 주황색과 맞추되 더 연하게(mt-tooltip-contact).
+  // 주요 연락처(placement="bottom")에 뜨는 설명 창은, 그 연락처 요소가 hover 시 변하는 주황색과 맞추되 더 연한 톤(mt-tooltip-contact)을 쓴다.
   t.classList.toggle("mt-tooltip-contact", placement === "bottom");
   if (placement === "bottom") {
     // 주요 연락처 카드용 — 위가 아니라 카드 밑으로 상세 설명 창이 뜨도록
@@ -82,8 +72,7 @@ function hideTooltip() {
 }
 
 /* 타임라인 컨트롤러 */
-// 좌측 월/연도 슬라이더 타임라인 전체(렌더링, 포인터/커서, 기간 고정, 데이터 주입)를
-// 관리하는 컨트롤러 팩토리 — 메일/메신저 화면이 각자 하나씩 만들어 쓴다.
+// 좌측 월/연도 슬라이더 타임라인 전체(렌더링, 포인터/커서, 기간 고정, 데이터 주입)를 관리하는 컨트롤러 팩토리 — 메일/메신저 화면이 각자 하나씩 만들어 쓴다.
 function createTimeline(ids) {
   let MONTH_DATA = {};
   let YEAR_DATA = {};
@@ -94,13 +83,10 @@ function createTimeline(ids) {
   let mode = "month";
   let centerIdx = 2;
   let pinnedKey = null;
-  // 제목 옆 뱃지("2020.11 ~ 2026.08 데이터")로 옮겨진 전체 기간 텍스트 —
-  // buildPointer()에서 계산해두고, 지금 보고 있는 채널(메일/메신저)일 때만
-  // 공용 뱃지(#mtDataRangeLbl)에 반영한다(updateSharedRangeBadge 참고).
+  // 제목 옆 뱃지("2020.11 ~ 2026.08 데이터")로 옮겨진 전체 기간 텍스트 — buildPointer()에서 계산해두고, 지금 보고 있는 채널(메일/메신저)일 때만 공용 뱃지(#mtDataRangeLbl)에 반영한다(updateSharedRangeBadge 참고).
   let fullRangeText = "";
   // 상단 타임슬라이더 — 연도별 모드는 한 화면에 5개씩 슬라이딩 윈도우로 보여줌.
-  // 월별 모드는 슬라이딩 윈도우가 아니라 "지금 선택된 연도에 속한 달"만
-  // 모아서 보여준다(getWindowKeys 참고) — 그래서 여기엔 year 값만 남는다.
+  // 월별 모드는 슬라이딩 윈도우가 아니라 "지금 선택된 연도에 속한 달"만 모아서 보여준다(getWindowKeys 참고) — 그래서 여기엔 year 값만 남는다.
   const WIN = { year: 5 };
 
   // "YYYY-MM" 키를 정렬/거리 계산용 정수(연*12+월)로 변환
@@ -243,8 +229,7 @@ function createTimeline(ids) {
       .forEach((c) => c.classList.remove("active"));
   }
 
-  // 슬라이더에서 기간 하나를 "고정(pin)" — 클릭했을 때와, 페이지 로드 시 가장
-  // 최근 달을 기본으로 띄울 때 둘 다 이 함수를 쓴다.
+  // 슬라이더에서 기간 하나를 "고정(pin)" — 클릭했을 때와, 페이지 로드 시 가장 최근 달을 기본으로 띄울 때 둘 다 이 함수를 쓴다.
   function pinKey(col, k, d) {
     pinnedKey = k;
     document
@@ -807,8 +792,7 @@ function updateSharedRangeBadge(text) {
   if (el) el.textContent = text || "";
 }
 
-// 주요 연락처 hover 설명 — 이미 있는 /person-descriptions(메일 계정 기준 사람 설명)를
-// 계정이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
+// 주요 연락처 hover 설명 — 이미 있는 /person-descriptions(메일 계정 기준 사람 설명)를 계정이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
 async function loadMailDescriptions(gmailId) {
   mailDescCache = [];
   if (!gmailId) return;
@@ -829,7 +813,7 @@ function mailContactLookup(contactId) {
   return found ? found.description : null;
 }
 
-// 계정이 바뀔 때(사이드바에서 다른 메일 계정 선택) 새로고침 없이 다시 부를 수 있게 이름 있는 함수로 뺐다.
+// 계정이 바뀔 때(사이드바에서 다른 메일 계정 선택) 새로고침 없이 다시 호출할 수 있는 이름 있는 함수다.
 async function initMail(gmailId) {
   async function fetchSummaries(type) {
     try {
@@ -845,8 +829,7 @@ async function initMail(gmailId) {
     fetchSummaries("monthly"),
     fetchSummaries("yearly"),
   ]);
-  // mailTimeline.setData()가 끝나자마자 가장 최근 달을 오른쪽 키워드 창에 자동으로
-  // 띄우므로(notifyPeriod), 그보다 먼저 키워드/연락처-설명 데이터를 받아둬야 한다.
+  // mailTimeline.setData()가 끝나자마자 가장 최근 달을 오른쪽 키워드 창에 자동으로 띄우므로(notifyPeriod), 그보다 먼저 키워드/연락처-설명 데이터를 받아둬야 한다.
   await Promise.all([mailKwPanel.init(gmailId), loadMailDescriptions(gmailId)]);
   mailTimeline.setData(
     MONTH_DATA,
@@ -882,8 +865,7 @@ async function initSelfAvatar(gmailId) {
   }
 }
 
-// 주요 연락처 hover 설명 — 메신저는 /chatroom-people(참여자 전체 목록 + description)을
-// 채팅방이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
+// 주요 연락처 hover 설명 — 메신저는 /chatroom-people(참여자 전체 목록 + description)을 채팅방이 바뀔 때마다 한 번씩 받아서 캐시해두고 동기로 조회한다.
 async function loadMsgPeople(chatroomId) {
   msgPeopleCache = [];
   if (!chatroomId) return;
@@ -961,11 +943,7 @@ async function loadMtMessengerData() {
 
 // 메일/메신저 뷰 전환 — 해당 뷰만 보이게 하고 공유 기간 뱃지를 그 채널 타임라인 값으로 갱신
 function setMtChannel(channel) {
-  // 요청 — 사이드바에서 다른 계정/채팅방으로 바꿀 때, 직전에 hover로 띄워놨던 공용
-  // 툴팁(주요 연락처 설명 / 키워드 언급자)이 그대로 화면에 남아있던 문제. 툴팁을 띄운
-  // 엘리먼트(막대그래프, 연락처 카드)가 데이터 교체로 DOM에서 통째로 사라지면
-  // mouseleave가 아예 발생하지 않아 hideTooltip()이 불릴 기회 자체가 없었다 —
-  // 선택이 바뀌는 시점(=이 함수가 호출되는 시점)에 무조건 한 번 닫아준다.
+  // 툴팁을 띄운 엘리먼트(막대그래프, 연락처 카드)가 데이터 교체로 DOM에서 통째로 사라지면 mouseleave가 발생하지 않아 hideTooltip()이 불릴 기회가 없으므로, 선택이 바뀌는 시점(=이 함수가 호출되는 시점)에 공용 툴팁을 무조건 한 번 닫아준다.
   hideTooltip();
   mtActiveChannel = channel;
   const isMail = channel === "mail";
@@ -975,9 +953,8 @@ function setMtChannel(channel) {
   updateSharedRangeBadge(active.getRangeText());
 }
 
-// React가 #mt-mail-view 등 DOM을 마운트한 뒤(useEffect) 한 번만 호출한다. 이 페이지는
-// 마운트당 한 번만 불리는 걸 전제하므로(다른 전환 페이지들과 동일), 언마운트 정리
-// 로직은 없다.
+// React가 #mt-mail-view 등 DOM을 마운트한 뒤(useEffect) 한 번만 호출한다.
+// 이 페이지는 마운트당 한 번만 불리는 걸 전제하므로(다른 전환 페이지들과 동일), 언마운트 정리 로직은 없다.
 export function initMyTimePage() {
   mtMailView = document.getElementById("mt-mail-view");
   mtMessengerView = document.getElementById("mt-messenger-view");
