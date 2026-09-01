@@ -2,7 +2,7 @@
 
 Social Visualizer의 웹 UI로, Vite 멀티페이지 앱(MPA)이며 `production/*.html` 각각이 별도 빌드 진입점이다.
 스타일은 Bootstrap 5 + SCSS가 주력이고, 그래프 시각화는 D3, 일부 위젯은 React 19로 만든다.
-빌드·실행 명령은 [`docs/EXECUTE.md`](../../docs/EXECUTE.md)를 참고. 여기서는 구조와 배선만 설명한다.
+빌드·실행 명령은 [`EXECUTE.md`](../../docs/EXECUTE.md)를 참고. 여기서는 구조와 배선만 설명한다.
 
 ## 구성
 
