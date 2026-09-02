@@ -2332,74 +2332,95 @@ async function openDetail(person, rowIndex) {
   currentDetailMode = "mail";
   currentDetailPersonEmail = person.email || "";
   currentMessengerPerson = null;
+  // 아래 헤더 채우기 도중 에러가 나도(예: 아직 색인/저장이 덜 끝난 사람 데이터) 이 값들은
+  // 이미 새 사람 기준으로 확정해둔다 — 그래야 드로어 등 나중에 열리는 다른 화면이 예전
+  // 사람 정보를 잘못 참조하는 불일치가 안 생긴다.
+  currentDetailPerson = person;
   document.getElementById("mp-tab-stats").textContent = "메일 통계";
   document.getElementById("mp-stats-title").textContent = "메일 통계";
   document.getElementById("mp-tab-desc").textContent = "설명";
   document.getElementById("mp-tab-kw").textContent = "키워드";
   closeEmailDrawer();
 
-  document.querySelector(".mp-detail-self-info").style.display = "";
-  document.getElementById("mp-detail-avatar-self").style.display = "";
-  document.querySelector(".mp-detail-relation").style.display = "";
-  // 메일 상세보기도 메신저와 동일하게 친밀도 퍼센트 링은 항상 꺼두고, 등급 텍스트만 관계 라벨 밑(.mp-detail-affinity-label)에 표시한다.
-  document.querySelector(".mp-detail-avatar-ring")?.classList.add("mp-ring-off");
-  setStatsLegend("mail");
-  document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
-  document.getElementById("mp-detail-namewrap").classList.remove("mp-detail-namewrap-wide");
+  // 색인/저장이 아직 덜 끝난 사람을 열었을 때 아래 헤더 채우기 중 하나라도 실패하면
+  // 헤더 위쪽(아바타·이름 줄)이 통째로 빈 채로 남아 패널이 위가 잘린 것처럼 보였다 —
+  // 실패해도 항상 자리·모양은 유지되는 안내 문구로 대체해서 레이아웃이 무너지지 않게 한다.
+  try {
+    document.querySelector(".mp-detail-self-info").style.display = "";
+    document.getElementById("mp-detail-avatar-self").style.display = "";
+    document.querySelector(".mp-detail-relation").style.display = "";
+    // 메일 상세보기도 메신저와 동일하게 친밀도 퍼센트 링은 항상 꺼두고, 등급 텍스트만 관계 라벨 밑(.mp-detail-affinity-label)에 표시한다.
+    document.querySelector(".mp-detail-avatar-ring")?.classList.add("mp-ring-off");
+    setStatsLegend("mail");
+    document.getElementById("mp-detail-messenger-desc")?.classList.remove("show");
+    document.getElementById("mp-detail-namewrap").classList.remove("mp-detail-namewrap-wide");
 
-  const selfAvatarEl = document.getElementById("mp-detail-avatar-self");
-  if (myAvatarUrl) {
-    selfAvatarEl.innerHTML = `<img src="${myAvatarUrl}" alt="나" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-  } else {
-    selfAvatarEl.innerHTML = "";
-    selfAvatarEl.textContent = "나";
-    selfAvatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
-    selfAvatarEl.style.color = "#515151";
-  }
-
-  const relationLabelEl = document.getElementById("mp-detail-relation-label");
-  relationLabelEl.innerHTML = "";
-  loadRelationships(gmailId).then((relationships) => {
-    if (currentDetailMode !== "mail" || currentDetailPersonEmail !== (person.email || "")) {
-      return;
+    const selfAvatarEl = document.getElementById("mp-detail-avatar-self");
+    if (myAvatarUrl) {
+      selfAvatarEl.innerHTML = `<img src="${myAvatarUrl}" alt="나" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    } else {
+      selfAvatarEl.innerHTML = "";
+      selfAvatarEl.textContent = "나";
+      selfAvatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+      selfAvatarEl.style.color = "#515151";
     }
-    const label = findRelationLabel(relationships, person.email);
-    // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 "관계: 기업" 형식으로 표시한다.
-    relationLabelEl.textContent = label ? `관계: ${label}` : "";
-  });
 
-  // 아바타 배경은 친밀도에 따른 색 대신 "나" 아바타와 동일한 무채색 그라데이션을 사용한다.
-  const avatarEl = document.getElementById("mp-detail-avatar");
-  avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
-  avatarEl.style.color = "#515151";
+    const relationLabelEl = document.getElementById("mp-detail-relation-label");
+    relationLabelEl.innerHTML = "";
+    loadRelationships(gmailId).then((relationships) => {
+      if (currentDetailMode !== "mail" || currentDetailPersonEmail !== (person.email || "")) {
+        return;
+      }
+      const label = findRelationLabel(relationships, person.email);
+      // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 "관계: 기업" 형식으로 표시한다.
+      relationLabelEl.textContent = label ? `관계: ${label}` : "";
+    });
 
-  // 링이 없어진 자리에 친밀도 등급을 관계 라벨 밑에 효율적으로 표시
-  const affPct = person.affinity != null ? Math.round(person.affinity * 100) : null;
-  const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
-  if (affinityLabelEl) {
-    // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 표시한다.
-    affinityLabelEl.textContent = affPct != null ? affinityLabelFromPct(affPct) : "";
+    // 아바타 배경은 친밀도에 따른 색 대신 "나" 아바타와 동일한 무채색 그라데이션을 사용한다.
+    const avatarEl = document.getElementById("mp-detail-avatar");
+    avatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+    avatarEl.style.color = "#515151";
+
+    // 링이 없어진 자리에 친밀도 등급을 관계 라벨 밑에 효율적으로 표시
+    const affPct = person.affinity != null ? Math.round(person.affinity * 100) : null;
+    const affinityLabelEl = document.getElementById("mp-detail-affinity-label");
+    if (affinityLabelEl) {
+      // 배지(박스) 없이 선 밑에 아이콘 없는 순수 텍스트로만 표시한다.
+      affinityLabelEl.textContent = affPct != null ? affinityLabelFromPct(affPct) : "";
+    }
+    const detailEmail = (person.email || "").toLowerCase();
+    const detailPhoto = generatedAvatars[detailEmail] || contactPhotos[detailEmail];
+    if (detailPhoto) {
+      const detailBrandCls = isBrandSender(person) ? " mp-brand-logo" : "";
+      avatarEl.innerHTML = `<img src="${detailPhoto}" alt="${detailDisplayName}" class="${detailBrandCls.trim()}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(detailDisplayName)}'">`;
+      if (detailBrandCls) setupBrandLogo(avatarEl.querySelector("img.mp-brand-logo"));
+    } else {
+      avatarEl.textContent = initials(detailDisplayName);
+    }
+    document.getElementById("mp-detail-name").textContent = detailDisplayName;
+    const groupEmails = personEmails(person);
+    renderDetailEmailLine(
+      document.getElementById("mp-detail-email"),
+      person.email,
+      groupEmails
+    );
+  } catch (err) {
+    console.error("openDetail 헤더 렌더링 오류:", err);
+    const fallbackAvatarEl = document.getElementById("mp-detail-avatar");
+    if (fallbackAvatarEl) {
+      fallbackAvatarEl.innerHTML = "";
+      fallbackAvatarEl.textContent = "?";
+      fallbackAvatarEl.style.background = "linear-gradient(150deg,#e0e0e0,#c5c5c5)";
+      fallbackAvatarEl.style.color = "#515151";
+    }
+    const fallbackNameEl = document.getElementById("mp-detail-name");
+    if (fallbackNameEl) fallbackNameEl.textContent = "DB에 저장 중입니다";
+    const fallbackEmailEl = document.getElementById("mp-detail-email");
+    if (fallbackEmailEl) fallbackEmailEl.textContent = "잠시 후 다시 열어주세요";
   }
-  const detailEmail = (person.email || "").toLowerCase();
-  const detailPhoto = generatedAvatars[detailEmail] || contactPhotos[detailEmail];
-  if (detailPhoto) {
-    const detailBrandCls = isBrandSender(person) ? " mp-brand-logo" : "";
-    avatarEl.innerHTML = `<img src="${detailPhoto}" alt="${detailDisplayName}" class="${detailBrandCls.trim()}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(detailDisplayName)}'">`;
-    if (detailBrandCls) setupBrandLogo(avatarEl.querySelector("img.mp-brand-logo"));
-  } else {
-    avatarEl.textContent = initials(detailDisplayName);
-  }
-  document.getElementById("mp-detail-name").textContent = detailDisplayName;
-  const groupEmails = personEmails(person);
-  renderDetailEmailLine(
-    document.getElementById("mp-detail-email"),
-    person.email,
-    groupEmails
-  );
 
   switchDetailTab("stats");
 
-  currentDetailPerson = person;
   const panel = document.querySelector(".mp-panel");
   if (panel) panel.scrollTop = 0;
   document.getElementById("mp-detail").classList.remove("mp-detail-messenger");
