@@ -8,7 +8,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from util.extract_statics import _run_and_join
+from util.extract_statics import _run_and_join, _is_clean_korean_polite_sentence
 
 load_dotenv("src/parquet/.env")
 
@@ -204,6 +204,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
 {history_text}
 
 위 메시지들만 근거로 아래 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요. "~입니다." 체로 통일하세요.
+한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 마세요.
 참여 패턴: <대화에 얼마나 자주/활발히 참여하는지 한 문장으로>
 자주 하는 이야기: <주로 어떤 주제/내용의 메시지를 보내는지 한 문장으로>
 말투: <반말/존댓말, 이모티콘 사용 등 말투 특징을 한 문장으로>""".strip()
@@ -217,7 +218,7 @@ def generate_chatroom_people_descriptions(paths) -> dict:
                 messages=[
                     {
                         "role": "system",
-                        "content": "당신은 채팅 메시지 이력을 분석해 참여자 프로필을 한국어로 간결하게 요약하는 AI입니다."
+                        "content": "당신은 채팅 메시지 이력을 분석해 참여자 프로필을 한국어로 간결하게 요약하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말로 통일하고 반말을 섞지 않습니다."
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -258,28 +259,36 @@ def generate_chatroom_people_short_bios(descriptions: dict) -> dict:
 {description}
 
 위 내용을 바탕으로, 이 사람을 다른 사람에게 소개하듯 자연스러운 한국어 한 문장으로 요약하세요.
-- 문장은 반드시 "~입니다."로 끝나야 합니다.
+- 문장은 반드시 "~습니다." 또는 "~입니다."로 끝나야 합니다. 반말(~야, ~해, ~지 등)은 절대 쓰지 마세요.
+- 한국어(한글)만 사용하세요. 영어 단어나 한자(중국어 문자)를 절대 섞지 마세요.
 - 성격이나 대화 스타일의 특징이 드러나는 짧은 소개 문장으로 쓰세요.
 - 예시: "꼼꼼하고 계획적인 성격의 친구입니다.", "이모티콘을 자주 쓰는 유쾌한 성격입니다."
 - 다른 설명, 따옴표, 접두어 없이 문장 하나만 출력하세요.""".strip()
 
     def _call_llm(name, description):
-        try:
-            result = client.chat.completions.create(
-                model=os.getenv("SUB_TASK_CHAT_MODEL"),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다."
-                    },
-                    {"role": "user", "content": _build_prompt(name, description)}
-                ],
-                temperature=0.3,
-            )
-            return name, result.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[MSG_SHORT_BIO] LLM 호출 실패 ({name}): {e}")
-            return name, None
+        last_bio = None
+        for attempt in range(1, 4):
+            try:
+                result = client.chat.completions.create(
+                    model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말(습니다/입니다체)로 통일하고 반말을 섞지 않습니다."
+                        },
+                        {"role": "user", "content": _build_prompt(name, description)}
+                    ],
+                    temperature=0.3,
+                )
+                bio = result.choices[0].message.content.strip()
+                last_bio = bio
+                if _is_clean_korean_polite_sentence(bio):
+                    return name, bio
+                print(f"[MSG_SHORT_BIO] 형식 검증 실패 ({name}, {attempt}/3번째 시도): {bio!r}")
+            except Exception as e:
+                print(f"[MSG_SHORT_BIO] LLM 호출 실패 ({name}, {attempt}/3번째 시도): {e}")
+        # 3번 다 검증에 실패해도 완전히 비우는 것보다는 마지막 결과라도 반환한다.
+        return name, last_bio
 
     short_bios: dict[str, str] = {}
     with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:

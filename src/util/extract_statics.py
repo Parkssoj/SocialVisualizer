@@ -445,6 +445,7 @@ def generate_person_descriptions(paths) -> dict:
 {topics_text}
 
 아래 형식으로만 출력하세요. 다른 텍스트는 절대 포함하지 마세요.
+한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 마세요. 문장은 존댓말로 통일하고 반말을 섞지 마세요.
 "관계:" 줄은 반드시 대괄호 태그 [관계: <카테고리>]로 시작해야 합니다. <카테고리>는 가족, 연인, 친구, 동료, 사제, 지인, 기업 중 하나만 사용하세요. 대괄호를 빼먹거나 다른 단어를 쓰면 안 됩니다.
 
 카테고리 판단 기준(위에서부터 순서대로 확인):
@@ -475,7 +476,7 @@ def generate_person_descriptions(paths) -> dict:
                 messages=[
                     {
                         "role": "system",
-                        "content": "당신은 이메일 데이터를 분석해 인물 관계를 한국어로 간결하게 요약하는 AI입니다."
+                        "content": "당신은 이메일 데이터를 분석해 인물 관계를 한국어로 간결하게 요약하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말로 통일하고 반말을 섞지 않습니다."
                     },
                     {"role": "user", "content": prompt}
                 ],
@@ -519,6 +520,26 @@ def generate_person_descriptions(paths) -> dict:
     return descriptions
 
 
+# LLM이 만든 한 문장 소개(short_bio)가 영어/한자 없이 한국어 존댓말(~습니다/~입니다)로만
+# 끝나는지 검사한다 — Qwen 계열 모델이 가끔 영어 단어나 한자를 섞거나 반말로 답하는 문제가 있어서
+# generate_person_short_bios / generate_chatroom_people_short_bios(message_statics.py)에서 공통으로 쓴다.
+_LATIN_CHAR_RE = re.compile(r'[A-Za-z]')
+_HAN_CHAR_RE = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]')
+_POLITE_ENDING_RE = re.compile(r'(습니다|입니다)\.?\s*$')
+
+
+def _is_clean_korean_polite_sentence(text: str) -> bool:
+    if not text:
+        return False
+    if _LATIN_CHAR_RE.search(text):
+        return False
+    if _HAN_CHAR_RE.search(text):
+        return False
+    if not _POLITE_ENDING_RE.search(text):
+        return False
+    return True
+
+
 # generate_person_descriptions() 결과({이메일: {description, relation_label}})를 2차 LLM 호출로 한 문장 소개(short_bio)로 압축해 {이메일: 문장}으로 반환한다
 def generate_person_short_bios(descriptions: dict) -> dict:
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -540,28 +561,36 @@ def generate_person_short_bios(descriptions: dict) -> dict:
 {description}
 
 위 내용을 바탕으로, 이 사람을 다른 사람에게 소개하듯 자연스러운 한국어 한 문장으로 요약하세요.
-- 문장은 반드시 "~입니다."로 끝나야 합니다.
+- 문장은 반드시 "~습니다." 또는 "~입니다."로 끝나야 합니다. 반말(~야, ~해, ~지 등)은 절대 쓰지 마세요.
+- 한국어(한글)만 사용하세요. 영어 단어나 한자(중국어 문자)를 절대 섞지 마세요.
 - 성격이나 관계의 특징이 드러나는 짧은 소개 문장으로 쓰세요.
 - 예시: "꼼꼼하고 계획적인 성격의 친구입니다.", "함께 프로젝트를 진행하는 믿음직한 동료입니다."
 - 다른 설명, 따옴표, 접두어 없이 문장 하나만 출력하세요.""".strip()
 
     def _call_llm(email, description, relation_label):
-        try:
-            result = client.chat.completions.create(
-                model=os.getenv("SUB_TASK_CHAT_MODEL"),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다."
-                    },
-                    {"role": "user", "content": _build_prompt(description, relation_label)}
-                ],
-                temperature=0.3
-            )
-            return email, result.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[SHORT_BIO] LLM 호출 실패 ({email}): {e}")
-            return email, None
+        last_bio = None
+        for attempt in range(1, 4):
+            try:
+                result = client.chat.completions.create(
+                    model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말(습니다/입니다체)로 통일하고 반말을 섞지 않습니다."
+                        },
+                        {"role": "user", "content": _build_prompt(description, relation_label)}
+                    ],
+                    temperature=0.3
+                )
+                bio = result.choices[0].message.content.strip()
+                last_bio = bio
+                if _is_clean_korean_polite_sentence(bio):
+                    return email, bio
+                print(f"[SHORT_BIO] 형식 검증 실패 ({email}, {attempt}/3번째 시도): {bio!r}")
+            except Exception as e:
+                print(f"[SHORT_BIO] LLM 호출 실패 ({email}, {attempt}/3번째 시도): {e}")
+        # 3번 다 검증에 실패해도 완전히 비우는 것보다는 마지막 결과라도 반환한다.
+        return email, last_bio
 
     short_bios: dict[str, str] = {}
     with ThreadPoolExecutor(max_workers=min(len(targets), 15)) as executor:
