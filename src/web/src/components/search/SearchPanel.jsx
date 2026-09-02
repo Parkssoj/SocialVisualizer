@@ -68,10 +68,19 @@ export default function SearchPanel({
           const subjectsById = await fetchSubjectsByRefs(flaskUrl, uniqueMailRefs);
           const lines = formatAnswer(text).split('\n');
           const inlineRefsByLineIdx = new Map();
+          const usedLines = new Set();
           uniqueMailRefs.forEach((ref) => {
             const subject = subjectsById[ref.id] || '';
-            const lineIdx = findLineIdxBySubject(lines, subject);
-            if (lineIdx === -1) return;
+            let lineIdx = findLineIdxBySubject(lines, subject, usedLines);
+            // 제목이 답변 문장 어디와도 안 겹치는 경우(본문 요약형 답변 등) 근거를 그냥
+            // 버리면 사용자 입장에선 "근거메일이 아예 안 뜨는" 것으로 보임. 백엔드가 이미
+            // 근거로 판단해서 넘겨준 이상, 특정 줄을 못 찾더라도 아직 다른 근거가 안 붙은
+            // 마지막 줄에라도 버튼을 붙여서 항상 보이게 함.
+            if (lineIdx === -1) {
+              lineIdx = lines.length - 1;
+              while (lineIdx > 0 && usedLines.has(lineIdx)) lineIdx -= 1;
+            }
+            usedLines.add(lineIdx);
             if (!inlineRefsByLineIdx.has(lineIdx)) inlineRefsByLineIdx.set(lineIdx, []);
             inlineRefsByLineIdx.get(lineIdx).push(ref);
           });
