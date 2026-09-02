@@ -1,11 +1,19 @@
 # src/util/lightrag_backend/lightrag_mail_parser.py
+
+# LightRAG용 메일 원문 파서. 
+# mail_latest.txt에 쌓인 메일 블록 텍스트를 읽어 메일 한 통당 dict(id/date/subject/sender/receiver/direction/folder/body)로 분해하고, "이름 <이메일>" 형식 문자열에서 이메일 주소만 뽑아내는 기능을 제공한다. 
+# 통계 생성, DB 저장, 요약 등 LightRAG 하위 모듈들이 메일 텍스트를 다룰 때 공통으로 거치는 진입점이다.
+
+# Parses raw mail block text accumulated in mail_latest.txt for LightRAG into per-mail dicts (id/date/subject/sender/receiver/direction/folder/body), and extracts a bare email address out of "Name <email>" style strings. 
+# Shared entry point used by statics generation, DB writing, and summarization modules.
+
 import os
 import re
 
 from config.settings import MAIL_BLOCK_SEP
 
 
-# mail_latest.txt를 읽어 메일 블록 하나당 dict 하나(id/date/subject/sender/receiver/direction/folder/body)로 변환한 리스트를 반환한다
+# mail_latest.txt를 블록 구분자로 잘라 메일별 dict 리스트로 반환. id가 없거나 중복인 블록은 건너뛴다
 def parse_mail_blocks(paths) -> list[dict]:
     if not os.path.exists(paths.MAIL_LATEST_PATH):
         return []
@@ -54,7 +62,7 @@ def parse_mail_blocks(paths) -> list[dict]:
     return records
 
 
-# "Name <email>" 형태 문자열에서 이메일 주소만 소문자로 뽑아낸다
+# "Name <email>" 형태 문자열에서 꺾쇠 안 이메일 주소만 소문자로 추출. 꺾쇠가 없으면 원문 전체를 소문자로 반환
 def extract_email(raw: str) -> str:
     if not raw:
         return ""

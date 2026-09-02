@@ -1,4 +1,14 @@
 # src/util/lightrag_backend/lightrag_date_query.py
+
+# LightRAG용 날짜 범위 질의 처리 모듈. 
+# 질문 문장에서 정규식으로 날짜/기간 표현을 뽑아내고 (오늘/어제/이번 주/N일 전 등 20여 가지 패턴), 그 범위에 드는 메일만 mail_latest.txt에서 직접 필터링해 LLM에 근거로 넘겨 답변을 생성한다. 
+# LightRAG 그래프 검색을 거치지 않고 날짜 조건이 명확한 질문에 한해 빠르게 답하는 전용 경로다.
+
+# Handles date-range mail queries for LightRAG. 
+# Extracts date/period expressions from the question via regex (today, yesterday, this week, N
+# days ago, and ~20 more patterns), filters mail_latest.txt directly for mails within that range, and feeds them to an LLM as grounding context.
+# A fast path for date-scoped questions that bypasses LightRAG's graph search.
+
 import os
 import re
 import time
@@ -290,7 +300,7 @@ def run_date_range_query(message: str, paths) -> str:
                 "content": f"[이메일 목록]\n{context}\n\n[질문]\n{message}"
             }
         ],
-        temperature=0.0  # 날짜 기반 질문은 창의성 필요 ㄴㄴ
+        temperature=0.0  # 날짜 기반 질문은 창의성 필요 없음
     )
     print(f'date_query(lightrag) execution_time : {time.time() - start_time}')
     print(f'date_query(lightrag) answer : {response.choices[0].message.content.strip()}')

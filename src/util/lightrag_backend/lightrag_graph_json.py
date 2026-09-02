@@ -1,4 +1,13 @@
 # src/util/lightrag_backend/lightrag_graph_json.py
+
+# LightRAG의 graphml 그래프 파일을 프론트엔드가 그리는 그래프 시각화용 JSON으로 변환하는 모듈.
+# NetworkX로 graphml을 읽어 노드/엣지를 GraphRAG와 동일한 {nodes, edges} 스키마로 맞춰 저장한다. 
+# LightRAG는 GraphRAG의 커뮤니티(cluster) 개념이 없어 해당 필드는 항상 None이다.
+
+# Converts LightRAG's graphml graph file into the JSON schema the frontend uses to render graph visualizations. 
+# Reads the graphml with NetworkX and emits nodes/edges matching GraphRAG's {nodes, edges} schema. 
+# LightRAG has no community/cluster concept, so that field is always None here.
+
 import os
 import json
 import networkx as nx

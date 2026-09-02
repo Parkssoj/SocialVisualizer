@@ -1,4 +1,11 @@
 # src/util/lightrag_backend/lightrag_mail_summary.py
+
+# LightRAG용 메일 월별/연별 요약 생성 모듈. 
+# mail_latest.txt를 파싱해 메일을 월/연 단위로 묶고, 그룹별로 LLM에 넘겨 요약문과 관련 연락처를 받아 mail_summaries.json에 저장한 뒤 mail_summarize 테이블 저장과 요약 삽화 생성까지 이어서 처리한다.
+
+# Generates monthly/yearly mail summaries for LightRAG. 
+# Parses mail_latest.txt, groups mails by month and year, sends each group to an LLM for a summary and related contacts,saves the result to mail_summaries.json, then persists it to the mail_summarize table and generates summary illustrations.
+
 import os
 import json
 import datetime
