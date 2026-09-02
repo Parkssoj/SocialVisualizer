@@ -15,8 +15,6 @@ load_dotenv("src/parquet/.env")
 
 
 # 프롬프트가 모델의 컨텍스트 길이(대략 32K 토큰)를 넘기지 않도록 입력 텍스트에 거는 안전장치.
-# 한글 기준 1글자가 보통 1~2토큰이라 여유 있게 글자 수로 제한한다 — 참여자 목록/지시문/출력 토큰
-# 몫까지 감안해서 24000자로 잡음(대략 12000~24000 토큰 사이, 여유 있게 안전).
 _MAX_SUMMARY_INPUT_CHARS = 24000
 
 
@@ -138,11 +136,7 @@ def generate_message_summaries(paths):
         for future in as_completed(futures):
             _, period, summary = future.result()
             monthly_summaries[period] = summary
-
-    # 대화가 많이 활발한 해(1년치 원본 대화 전체)를 그대로 LLM에 넘기면 컨텍스트 길이(32K 토큰)를
-    # 넘겨서 요약이 통째로 실패하는 문제가 있었다 — 연도별 요약은 원본 대화가 아니라 방금 만든
-    # 월별 요약들을 다시 모아 요약한다. 월별 요약은 이미 몇 문장으로 압축돼 있어서 1년 12개월을
-    # 다 합쳐도 컨텍스트를 넘길 일이 거의 없다.
+            
     def _build_yearly_text(year):
         months_in_year = sorted(m for m in monthly_summaries if m.startswith(f"{year}-"))
         parts = [
