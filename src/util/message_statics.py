@@ -8,7 +8,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from util.extract_statics import _run_and_join, _is_clean_korean_polite_sentence
+from util.extract_statics import _run_and_join, _is_clean_korean_polite_sentence, _has_disallowed_foreign_text, _POLITE_ENDING_RE
 
 load_dotenv("src/parquet/.env")
 
@@ -211,23 +211,36 @@ def generate_chatroom_people_descriptions(paths) -> dict:
 
     # 참여자 한 명의 프로필을 LLM으로 생성해 (이름, 설명)을 반환한다
     def _call_llm(name, messages):
-        try:
-            prompt = _build_prompt(name, messages)
-            result = client.chat.completions.create(
-                model=os.getenv("SUB_TASK_CHAT_MODEL"),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "당신은 채팅 메시지 이력을 분석해 참여자 프로필을 한국어로 간결하게 요약하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말로 통일하고 반말을 섞지 않습니다."
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.3,
-            )
-            return name, result.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[MSG_PROFILES] LLM 호출 실패 ({name}): {e}")
-            return name, None
+        prompt = _build_prompt(name, messages)
+        last_desc = None
+        feedback = None
+        for attempt in range(1, 4):
+            try:
+                user_content = prompt
+                if feedback:
+                    user_content += f"\n\n[이전 시도 오류] 방금 답변에 다음 문제가 있었습니다: {feedback}. 반드시 한국어(한글)만 사용해서 다시 작성하세요."
+                result = client.chat.completions.create(
+                    model=os.getenv("SUB_TASK_CHAT_MODEL"),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "당신은 채팅 메시지 이력을 분석해 참여자 프로필을 한국어로 간결하게 요약하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말로 통일하고 반말을 섞지 않습니다."
+                        },
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=min(0.3 + 0.2 * (attempt - 1), 0.7),
+                )
+                desc = result.choices[0].message.content.strip()
+                last_desc = desc
+                issue = _has_disallowed_foreign_text(desc)
+                if issue is None:
+                    return name, desc
+                feedback = issue
+                print(f"[MSG_PROFILES] 형식 검증 실패 ({name}, {attempt}/3번째 시도): {desc!r} ({issue})")
+            except Exception as e:
+                print(f"[MSG_PROFILES] LLM 호출 실패 ({name}, {attempt}/3번째 시도): {e}")
+        # 3번 다 검증에 실패해도 완전히 비우는 것보다는 마지막 결과라도 반환한다.
+        return name, last_desc
 
     targets = [(name, msgs) for name, msgs in people.items() if msgs]
 
@@ -267,8 +280,12 @@ def generate_chatroom_people_short_bios(descriptions: dict) -> dict:
 
     def _call_llm(name, description):
         last_bio = None
+        feedback = None
         for attempt in range(1, 4):
             try:
+                user_content = _build_prompt(name, description)
+                if feedback:
+                    user_content += f"\n\n[이전 시도 오류] 방금 답변에 다음 문제가 있었습니다: {feedback}. 반드시 한국어(한글)만 사용하고 \"~습니다.\"/\"~입니다.\"로 끝나도록 다시 작성하세요."
                 result = client.chat.completions.create(
                     model=os.getenv("SUB_TASK_CHAT_MODEL"),
                     messages=[
@@ -276,15 +293,17 @@ def generate_chatroom_people_short_bios(descriptions: dict) -> dict:
                             "role": "system",
                             "content": "당신은 인물 설명을 한 문장의 자연스러운 한국어 소개글로 압축하는 AI입니다. 반드시 한국어(한글)만 사용하고, 영어 단어나 한자(중국어 문자)를 절대 섞지 않으며, 존댓말(습니다/입니다체)로 통일하고 반말을 섞지 않습니다."
                         },
-                        {"role": "user", "content": _build_prompt(name, description)}
+                        {"role": "user", "content": user_content}
                     ],
-                    temperature=0.3,
+                    temperature=min(0.3 + 0.2 * (attempt - 1), 0.7),
                 )
                 bio = result.choices[0].message.content.strip()
                 last_bio = bio
-                if _is_clean_korean_polite_sentence(bio):
+                issue = _has_disallowed_foreign_text(bio)
+                if issue is None and _POLITE_ENDING_RE.search(bio):
                     return name, bio
-                print(f"[MSG_SHORT_BIO] 형식 검증 실패 ({name}, {attempt}/3번째 시도): {bio!r}")
+                feedback = issue or "존댓말(~습니다/~입니다) 종결이 아님"
+                print(f"[MSG_SHORT_BIO] 형식 검증 실패 ({name}, {attempt}/3번째 시도): {bio!r} ({feedback})")
             except Exception as e:
                 print(f"[MSG_SHORT_BIO] LLM 호출 실패 ({name}, {attempt}/3번째 시도): {e}")
         # 3번 다 검증에 실패해도 완전히 비우는 것보다는 마지막 결과라도 반환한다.
