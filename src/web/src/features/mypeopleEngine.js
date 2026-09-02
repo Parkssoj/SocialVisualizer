@@ -1718,7 +1718,14 @@ function renderBarChart(data) {
     latestGroup.classList.add("active");
     openEmailDrawer(latest.month, latest.sent, latest.received);
     // 기간이 길어 가로 스크롤이 생긴 경우, 처음 열자마자 가장 최근(=오른쪽 끝) 달이 바로 보이도록 스크롤을 오른쪽 끝으로 옮겨준다.
-    latestGroup.scrollIntoView({ inline: "end", block: "nearest" });
+    // scrollIntoView를 쓰면 캔버스(.mp-detail-canvas)에 걸린 scale(transform) 때문에 브라우저가
+    // 조상 요소들의 가시성을 잘못 계산해서, 의도한 #mp-chart 가로 스크롤 대신 원래 스크롤될 일이
+    // 없는 상위 .mp-detail이 세로로 밀려버리는(작은 화면에서 헤더/닫기 버튼이 위로 밀려 사라져
+    // 보이는) 문제가 있었다 — chartArea 자신의 scrollLeft만 직접 옮기고, 혹시 모를 경우를 대비해
+    // .mp-detail의 스크롤 위치도 항상 0으로 고정해둔다.
+    chartArea.scrollLeft = chartArea.scrollWidth;
+    const detailElAfterScroll = document.getElementById("mp-detail");
+    if (detailElAfterScroll) detailElAfterScroll.scrollTop = 0;
   }
 }
 
@@ -1773,7 +1780,11 @@ function renderMessengerBarChart(data) {
     targetGroup.classList.add("active");
     openMessengerDayList(target.month);
     // 메일 차트(renderBarChart)와 동일하게 최신(가장 오른쪽) 달로 스크롤한다.
-    targetGroup.scrollIntoView({ inline: "end", block: "nearest" });
+    // scrollIntoView 대신 chartArea 자신의 scrollLeft만 옮기는 이유는 renderBarChart와 동일
+    // (캔버스 scale transform 때문에 .mp-detail이 세로로 밀려버리는 문제 방지).
+    chartArea.scrollLeft = chartArea.scrollWidth;
+    const detailElAfterScroll = document.getElementById("mp-detail");
+    if (detailElAfterScroll) detailElAfterScroll.scrollTop = 0;
   }
 }
 
@@ -2250,8 +2261,17 @@ function mergeKeywordLists(lists) {
   return [...byWord.values()];
 }
 
-// 선택 기간 기준으로 상세 패널의 교환 통계·키워드를 다시 조회해 차트/워드클라우드 갱신
-async function refreshDetailStats(person) {
+// 인덱싱 직후 상세보기를 열면 DB 쓰기(mail 테이블)가 아직 안 끝난 상태일 수 있는데,
+// 그 순간에도 친밀도(person.affinity)처럼 이미 계산돼 화면에 표시된 다른 지표는 있는
+// 경우가 있다 — 그런데 교환 건수만 0으로 나오면 "진짜 메일이 없는 것"이 아니라 DB가
+// 아직 안 채워진 것으로 보고, 재조회하기 전까지는 이 사실을 안내함.
+function _looksLikeStillSaving(person, total) {
+  return total.sent + total.received === 0 && person.affinity != null;
+}
+
+// 선택 기간 기준으로 상세 패널의 교환 통계·키워드를 다시 조회해 차트/워드클라우드 갱신.
+// retriesLeft: 방금 인덱싱한 사람이라 DB 쓰기가 아직 안 끝났을 때 자동 재조회할 남은 횟수.
+async function refreshDetailStats(person, retriesLeft = 3) {
   const gmailId = await getCurrentMailId();
 
   document.getElementById("mp-chart").innerHTML =
@@ -2288,7 +2308,21 @@ async function refreshDetailStats(person) {
       return j.data || j;
     })
   );
-  renderBarChart(mergeExchangeStats(statsDataList));
+  const merged = mergeExchangeStats(statsDataList);
+
+  // 그 사이 다른 사람을 열었거나 상세보기를 닫았으면 이 응답은 이제 화면에 안 맞으니 버림.
+  if (currentDetailMode !== "mail" || currentDetailPersonEmail !== (person.email || "")) {
+    return;
+  }
+
+  if (_looksLikeStillSaving(person, merged.total) && retriesLeft > 0) {
+    document.getElementById("mp-chart").innerHTML =
+      '<span style="color:#b0b0b0;font-size:1rem;">데이터 저장 중입니다. 잠시만 기다려주세요...</span>';
+    setTimeout(() => refreshDetailStats(person, retriesLeft - 1), 3000);
+    return;
+  }
+
+  renderBarChart(merged);
 
   // 키워드
   const kwDataList = await Promise.all(
@@ -2425,6 +2459,10 @@ async function openDetail(person, rowIndex) {
   if (panel) panel.scrollTop = 0;
   document.getElementById("mp-detail").classList.remove("mp-detail-messenger");
   document.getElementById("mp-detail").classList.add("open");
+  // 상세보기를 새로 열 때마다 혹시 이전에 남아있을 수 있는 세로 스크롤 위치를 항상 0으로
+  // 리셋한다 — .mp-detail은 원래 자체적으로 스크롤될 일이 없는 요소인데, 스크롤이 조금이라도
+  // 남아있으면 overflow:hidden 때문에 위쪽(헤더+닫기 버튼)이 그만큼 위로 밀려 안 보이게 된다.
+  document.getElementById("mp-detail").scrollTop = 0;
 
   const profileEl = document.getElementById("mp-desc-profile-content");
   if (profileEl) profileEl.innerHTML = '<p class="mp-desc-profile-empty">로딩 중...</p>';
@@ -2526,6 +2564,8 @@ async function openMessengerDetail(person) {
   const scrollPanel = document.querySelector(".mp-left");
   if (scrollPanel) scrollPanel.scrollTop = 0;
   document.getElementById("mp-detail").classList.add("open", "mp-detail-messenger");
+  // renderBarChart 쪽과 동일한 이유로 .mp-detail 자체의 스크롤 위치도 항상 0으로 리셋.
+  document.getElementById("mp-detail").scrollTop = 0;
 
   document.getElementById("mp-desc-profile-content").innerHTML =
     '<p class="mp-desc-profile-empty">관계를 불러오는 중...</p>';
