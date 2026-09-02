@@ -520,18 +520,25 @@ def generate_person_descriptions(paths) -> dict:
     return descriptions
 
 
-# LLM이 만든 한 문장 소개(short_bio)가 영어/한자 없이 한국어 존댓말(~습니다/~입니다)로만
-# 끝나는지 검사한다 — Qwen 계열 모델이 가끔 영어 단어나 한자를 섞거나 반말로 답하는 문제가 있어서
+# LLM이 만든 한 문장 소개(short_bio)가 한국어 존댓말(~습니다/~입니다)로 끝나는지, 그리고
+# 영어가 "문장 전체"를 차지하거나 한자가 섞여 들어가지 않았는지 검사한다 — Qwen 계열 모델이
+# 가끔 통째로 영어로 답하거나 중국어 문구를 섞거나 반말로 답하는 문제가 있어서
 # generate_person_short_bios / generate_chatroom_people_short_bios(message_statics.py)에서 공통으로 쓴다.
-_LATIN_CHAR_RE = re.compile(r'[A-Za-z]')
+#
+# 영어는 Google/YouTube/CapCut/Gmail처럼 서비스·프로그램 이름 자체가 영어인 경우가 정상적으로
+# 있어서 "짧은 고유명사 1~2개" 정도는 허용한다(단어 개수 기준). 한자는 이 서비스 성격상 정상
+# 도메인 용어로 쓰일 일이 없어서(브랜드명도 보통 한글/영문으로 표기됨) 한 글자라도 섞이면
+# 바로 걸러낸다 — 애매하게 몇 글자 허용하면 사용자 눈에는 오류로 보이기 쉽다.
+_LATIN_WORD_RE = re.compile(r'[A-Za-z]+')
 _HAN_CHAR_RE = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]')
 _POLITE_ENDING_RE = re.compile(r'(습니다|입니다)\.?\s*$')
+_MAX_LATIN_WORDS = 3   # "Google Play"처럼 서비스명이 한두 단어 섞이는 건 정상, 그 이상이면 영어 문장으로 간주
 
 
 def _is_clean_korean_polite_sentence(text: str) -> bool:
     if not text:
         return False
-    if _LATIN_CHAR_RE.search(text):
+    if len(_LATIN_WORD_RE.findall(text)) > _MAX_LATIN_WORDS:
         return False
     if _HAN_CHAR_RE.search(text):
         return False
