@@ -145,11 +145,12 @@ def _build_mail_csv(paths, mode="rewrite", new_ids=None) -> str | None:
 
 
 _MAIL_SUBJECT_RE  = re.compile(r"^\[제목\]\s*(.*)$", re.MULTILINE)
+_MAIL_DATE_RE     = re.compile(r"^\[날짜\]\s*(.*)$", re.MULTILINE)
 _MAIL_SENDER_RE   = re.compile(r"^\[발신인\]\s*(.*)$", re.MULTILINE)
 _MAIL_RECEIVER_RE = re.compile(r"^\[수신인\]\s*(.*)$", re.MULTILINE)
 _MAIL_BODY_RE = re.compile(r"\[메일 본문\]\s*\n(.*?)(?:\n\[첨부파일 정보\]|\Z)", re.DOTALL)
 
-# documents.parquet에서 주어진 mail_id들의 제목/발신인/수신인/본문을 파싱해 {mail_id: dict}로 반환한다
+# documents.parquet에서 주어진 mail_id들의 제목/날짜/발신인/수신인/본문을 파싱해 {mail_id: dict}로 반환한다
 def get_mail_bodies_by_ids(paths, mail_ids: set[str]) -> dict[str, dict]:
     if not mail_ids:
         return {}
@@ -166,11 +167,13 @@ def get_mail_bodies_by_ids(paths, mail_ids: set[str]) -> dict[str, dict]:
     for _, row in df.iterrows():
         text = str(row["text"])
         subject_m  = _MAIL_SUBJECT_RE.search(text)
+        date_m     = _MAIL_DATE_RE.search(text)
         sender_m   = _MAIL_SENDER_RE.search(text)
         receiver_m = _MAIL_RECEIVER_RE.search(text)
         body_m     = _MAIL_BODY_RE.search(text)
         result[row["id"]] = {
             "subject":  subject_m.group(1).strip() if subject_m else "",
+            "date":     date_m.group(1).strip() if date_m else "",
             "sender":   sender_m.group(1).strip() if sender_m else "",
             "receiver": receiver_m.group(1).strip() if receiver_m else "",
             "body":     body_m.group(1).strip() if body_m else "",

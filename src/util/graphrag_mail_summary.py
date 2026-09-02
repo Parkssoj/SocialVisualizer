@@ -137,13 +137,15 @@ def generate_mail_summaries(paths):
             for m in group
         )
 
-    # 그룹 내 모든 메일의 발신/수신 이메일 주소를 정렬된 리스트로 모은다
+    # 그룹 내 모든 메일의 발신/수신 이메일 주소를 정렬된 리스트로 모은다 (본인 제외)
+    my_email = (paths.USER_ID or "").lower()
+
     def _collect_contacts(group):
         emails = set()
         for m in group:
-            if m.get("sender_email"):
+            if m.get("sender_email") and m["sender_email"].lower() != my_email:
                 emails.add(m["sender_email"])
-            if m.get("receiver_email"):
+            if m.get("receiver_email") and m["receiver_email"].lower() != my_email:
                 emails.add(m["receiver_email"])
         return sorted(emails)
 
