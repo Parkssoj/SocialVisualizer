@@ -49,14 +49,6 @@ _EMBEDDING_DIMS = {
 from util.jobs.job_store import update_job, append_job_log, get_job
 from util.sse_broadcaster import broadcast
 from util.lightrag_backend.lightrag_progress import get_stage_progress
-
-# _extract_statics_pipeline / save_mail_folder_to_db / save_mail_to_db / generate_mail_summaries는
-# 전부 GraphRAG의 text_units.parquet을 가드 없이 읽어서 LightRAG에서는 죽는 함수들이라,
-# lightrag_extract_statics.py / lightrag_db_writer.py / lightrag_mail_summary.py에 새로 만든
-# raw-text(mail_latest.txt) 기반 버전으로 바꿔서 쓴다. 나머지(create_mail_account,
-# save_person_stats_to_db, save_keyword_stats_to_db, collect_indexing_stats,
-# update_mail_account_indexing_stats, save_graph_stats_to_db)는 이미 JSON/MySQL만 다루거나
-# 파일 존재 여부를 확인하고 우아하게 건너뛰므로 GraphRAG 버전 그대로 재사용한다.
 from util.extract_statics import start_timer,end_timer,format_elapsed_time
 from util.lightrag_backend.lightrag_extract_statics import _extract_statics_pipeline_lightrag
 from util.database.db_writer import create_mail_account,save_person_stats_to_db,save_keyword_stats_to_db, collect_indexing_stats, update_mail_account_indexing_stats, save_graph_stats_to_db
@@ -81,13 +73,6 @@ def _run_and_join(jobs):
     if errors:
         raise errors[0]
 
-
-# LightRAG 폴더도 GraphRAG 결과 폴더(cache/input/logs/output)처럼 나누기 위한 보조 함수.
-# LightRAG 라이브러리 자체는 working_dir 하나만 지원해서 완전히 똑같이는 못 나누고(위
-# user_path.py의 LIGHTRAG_OUTPUT_DIR 주석 참고), logs/는 여기서 직접 채운다.
-# input/은 user_path.py에서 paths.MAIL_DIR 자체가 RAG_ENGINE==lightrag일 때 LIGHTRAG_INPUT_DIR을
-# 가리키도록 바뀌어서(=LightRAG는 GraphRAG의 parquet/input을 더 이상 공유하지 않음), 원본이
-# 처음부터 여기 저장되므로 따로 사본을 뜰 필요가 없어졌다.
 
 # job_store의 메모리 로그를 LIGHTRAG_LOGS_DIR 밑에 파일로 떠서 남긴다
 def _write_lightrag_job_log(paths, job_id, label):
@@ -162,10 +147,7 @@ def _merge_summarized_attachments(mail_latest_path: str, attachment_texts_by_mai
         # 구분선 복원
         block_text = f"{MAIL_BLOCK_SEP}\n{block}\n{MAIL_BLOCK_SEP}"
 
-        # 블록에서 메일 ID 추출. 실제 메일 블록은 "[ID] ..." 형식(대괄호)을 쓰는데
-        # 예전엔 여기가 "ID:" 형식만 찾아서 정규식이 항상 실패 → mail_id가 항상 None이 되고
-        # "첨부 내용 없음"으로 취급돼 요약이 절대 안 들어갔다. mail_data_manager.py의
-        # _extract_mail_id_from_block()과 같은 패턴으로 두 형식 다 받도록 고쳤다.
+        # _extract_mail_id_from_block()과 같은 패턴으로 두 형식 다 받음.
         m = re.search(r"^\s*(?:\[ID\]|ID:)\s*(.+?)\s*$", block_text, re.MULTILINE)
         mail_id = m.group(1).strip() if m else None
 
