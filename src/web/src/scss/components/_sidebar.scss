@@ -127,14 +127,16 @@ $gws-border: #ececec;
   flex-shrink: 0;
 }
 
+// 사이드바 자체의 폭(288px)은 고정이지만, 그 안의 아이콘/글씨는 창 폭(vw)에
+// 따라 같이 줄었다 커졌다 하도록 함(레일 너비 자체는 절대 안 바뀜).
 .gws-collapse-btn {
   background: #f4f6f8;
   border: none;
   color: $gws-text-dim;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 0.9vw, 1rem);
   cursor: pointer;
-  width: 34px;
-  height: 34px;
+  width: clamp(28px, 2.4vw, 34px);
+  height: clamp(28px, 2.4vw, 34px);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -158,7 +160,7 @@ $gws-border: #ececec;
 .gws-panel-title {
   padding: 0 2px;
   // 접기 버튼(34px)과 같은 줄에서 눈에 더 잘 띄도록 키움
-  font-size: 1.3rem;
+  font-size: clamp(1.05rem, 1.2vw, 1.3rem);
   font-weight: 800;
   color: $gws-text;
   letter-spacing: -0.01em;
@@ -179,14 +181,14 @@ $gws-border: #ececec;
   align-items: center;
   gap: 8px;
   padding: 0 6px;
-  font-size: 0.98rem;
+  font-size: clamp(0.8rem, 0.9vw, 0.98rem);
   font-weight: 700;
   color: $gws-text-dim;
   letter-spacing: 0.02em;
   white-space: nowrap;
 
   i {
-    font-size: 1rem;
+    font-size: clamp(0.82rem, 0.9vw, 1rem);
     color: #{$gws-accent-2};
   }
 }
@@ -215,21 +217,21 @@ $gws-border: #ececec;
 
   .gws-item-icon {
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: clamp(30px, 2.7vw, 38px);
+    height: clamp(30px, 2.7vw, 38px);
     border-radius: 11px;
     background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: clamp(0.95rem, 1vw, 1.15rem);
     color: #{$gws-text-dim};
     box-shadow: 0 1px 2px rgba(20, 20, 20, 0.06);
     transition: all 0.15s ease;
   }
 
   .gws-item-text {
-    font-size: 0.98rem;
+    font-size: clamp(0.8rem, 0.9vw, 0.98rem);
     font-weight: 600;
     color: $gws-text;
     overflow: hidden;
@@ -239,7 +241,7 @@ $gws-border: #ececec;
 
   .gws-item-badge {
     flex-shrink: 0;
-    font-size: 0.68rem;
+    font-size: clamp(0.58rem, 0.65vw, 0.68rem);
     font-weight: 700;
     color: #{$gws-accent-2};
     background: rgba(251, 146, 60, 0.14);

@@ -12,7 +12,7 @@ function AnalysisHubApp() {
   return (
     <>
       <Header activePage="analysis-hub" />
-      <main className="right_col" role="main" aria-label="Main content">
+      <main className="right_col page-analysishub" role="main" aria-label="Main content">
         <div className="gw-collect-wrap">
           {/* 상단 타이틀 영역 */}
           <div className="gw-page-header-row">

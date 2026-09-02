@@ -104,7 +104,7 @@ export function refreshSidebarList() {
   const isRoomValid = !!currentRoom && rooms.some((r) => r.id === currentRoom);
 
   if (!isMailValid && !isRoomValid) {
-    // setFilter("mail", ...)/setFilter("room", ...) 호출 하나가 내부적으로 반대쪽을 알아서 null 처리하므로(globalStore.js의 applySelection 참고), 굳이 반대쪽을 미리 null로 지우는 별도 호출을 먼저 할 필요가 없다 — 예전엔 이 두 호출 "사이"에 mail/room이 둘 다 없는 중간 상태가 실제로 발생해서 gwStoreStateChanged 리스너가 재진입하며 API가 중복 호출되는 원인이 됐다.
+    // setFilter("mail", ...)/setFilter("room", ...) 호출 하나가 내부적으로 반대쪽을 알아서 null 처리하므로(globalStore.js의 applySelection 참고), 굳이 반대쪽을 미리 null로 지우는 별도 호출을 먼저 할 필요가 없다.
     if (mails.length > 0) {
       currentMail = mails[0].id;
       currentRoom = null;

@@ -6,12 +6,28 @@
 
 // imap-collect.html 전용 스타일 (메신저 드롭존 원복 및 대화방/모드 가로 1줄 배치 버전)
 
+// 페이지 전체를 스크롤 없이 한 화면에 담고, 창 크기에 맞춰 안의 내용(.ic-scale-wrap 안쪽)이
+// 비율 그대로 통째로 줄었다 커졌다 하도록 함(요소·크기 값 자체는 전혀 건드리지 않음 — home.scss의
+// .gw-hero-scale-wrap과 같은 방식, ImapCollectApp.jsx가 transform:scale()을 적용).
+body,
+html {
+  overflow: hidden;
+}
+
 .page-imap-collect {
   .right_col {
-    margin-top: 0 !important;
-    padding-top: calc(90px + 2.5vh) !important;
+    position: fixed !important;
+    // 헤더 바로 아래 여백을 좀 더 붙임(기존 calc(90px + 2.5vh)엔 화면 높이에 비례하는
+    // 2.5vh가 더해져 있어서 키가 큰 모니터일수록 위쪽 여백이 불필요하게 벌어졌음).
+    top: calc(73px + 16px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box;
-    min-height: 100vh;
+    overflow: hidden !important;
+    background: #ffffff;
   }
 
   .gw-collect-wrap {
@@ -19,10 +35,34 @@
   }
 }
 
-/* 레이아웃 */
+.ic-scale-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* 레이아웃 — 카드 등 안의 모든 요소가 창 크기와 무관하게 항상 같은 가로세로 비율을
+   유지하도록, 폭을 고정 기준값(1600px)으로 두고 그 전체를 창 크기에 맞춰 통째로
+   scale한다(홈 화면 히어로와 같은 방식 — ImapCollectApp.jsx 참고). width:100%로
+   폭만 창에 맞춰 늘어나게 두면 안(카드)의 높이는 그대로인데 폭만 늘어나서 비율이
+   깨짐. 폭 기준을 고정한 대신, 창 비율이 이 기준과 다르면 레터박스처럼 여백이
+   남을 수 있는데 — 이건 비율을 지키기 위한 당연한 트레이드오프. */
 .gw-collect-wrap {
   padding: 8px 32px 32px 32px !important;
-  width: 100%;
+  // 기준 캔버스 폭. 실제 브라우저 창들은 세로보다 가로가 훨씬 넉넉한 와이드
+  // 비율이 많은데, 기존 1600(세로 725 기준 약 2.2:1)은 그보다 덜 납작해서
+  // 높이 쪽이 먼저 꽉 차버리고(=세로 기준으로 스케일 결정) 좌우에 여백이
+  // 크게 남았음. 캔버스 자체를 더 넓게(더 납작하게) 키워서 가로가 기준이
+  // 되도록 하면 좌우 여백은 줄고, 대신 위아래 여백이 남는 쪽으로 바뀜.
+  width: 1900px;
+  max-width: 1900px;
+  // .ic-scale-wrap이 flex 컨테이너라 flex-shrink 기본값(1)이면 창이 이 값보다
+  // 좁을 때 브라우저가 이 고정폭 박스를 실측 전에 미리 눌러 찌그러뜨려버림 —
+  // JS가 재는 '원본 크기'가 항상 이 값이어야 스케일 계산이 맞으므로 압축을 막음.
+  flex-shrink: 0;
 }
 
 /* 상단 공백 최소화 */
@@ -622,7 +662,12 @@
   background: #e2e8f0 !important;
 }
 
-@media (max-width: 992px) {
+// 이 페이지는 이제 1600px 고정 캔버스를 통째로 transform:scale()하는 방식이라(위
+// .gw-collect-wrap 참고), 이 미디어쿼리가 실제 브라우저 창 폭을 보고 그리드 구조를
+// 1열로 바꿔버리면 스케일 계산과 충돌해서 창마다 비율이 달라져버린다. 그래서 절대
+// 걸리지 않는 값으로 비활성화해둔다(구조는 항상 6:4 데스크톱 형태를 유지하고, 좁은
+// 창에서는 통째로 작게 스케일되는 것으로 반응형을 대신함).
+@media (max-width: 1px) {
   .gw-split-grid-wrapper {
     grid-template-columns: 1fr !important;
   }
@@ -639,7 +684,6 @@
   gap: 14px !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
-  // 카드와 더 달라붙도록 줄임(예전 6px) — 위 .gw-split-grid-wrapper의 margin-top을 늘린 만큼만 줄여서 카드 위치 자체는 그대로 유지
   margin-bottom: 0 !important;
   grid-column: 1 !important;
   height: 40px !important;
@@ -658,7 +702,12 @@
   height: 40px !important;
 }
 
-@media (max-width: 992px) {
+// 이 페이지는 이제 1600px 고정 캔버스를 통째로 transform:scale()하는 방식이라(위
+// .gw-collect-wrap 참고), 이 미디어쿼리가 실제 브라우저 창 폭을 보고 그리드 구조를
+// 1열로 바꿔버리면 스케일 계산과 충돌해서 창마다 비율이 달라져버린다. 그래서 절대
+// 걸리지 않는 값으로 비활성화해둔다(구조는 항상 6:4 데스크톱 형태를 유지하고, 좁은
+// 창에서는 통째로 작게 스케일되는 것으로 반응형을 대신함).
+@media (max-width: 1px) {
   .gw-split-header-left {
     grid-column: 1;
     order: 1;
@@ -736,7 +785,12 @@
   grid-row: 1 / span 5;
 }
 
-@media (max-width: 1200px) {
+// 이 페이지는 이제 1600px 고정 캔버스를 통째로 transform:scale()하는 방식이라(위
+// .gw-collect-wrap 참고), 이 미디어쿼리가 실제 브라우저 창 폭을 보고 그리드 구조를
+// 1열로 바꿔버리면 스케일 계산과 충돌해서 창마다 비율이 달라져버린다. 그래서 절대
+// 걸리지 않는 값으로 비활성화해둔다(구조는 항상 6:4 데스크톱 형태를 유지하고, 좁은
+// 창에서는 통째로 작게 스케일되는 것으로 반응형을 대신함).
+@media (max-width: 1px) {
   .gw-collect-cards-column {
     grid-template-columns: 1fr !important;
     grid-template-rows: none;

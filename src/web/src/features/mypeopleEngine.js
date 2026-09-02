@@ -11,6 +11,7 @@ import { refreshSidebarList } from "../components/appSidebar.js";
 import { initGlobalFilter } from "../utils/filterSync.js";
 import { store } from "../store/globalStore.js";
 
+
 // DOM 접근이 필요한 초기화(계정 picker, 뷰/버튼 참조 등)는 전부 initMyPeoplePage() 안에서 하므로, 여기서는 다른 함수들이 클로저로 참조할 수 있도록 선언만 해둔다.
 let userIdPromise, chatroomIdPromise;
 let mailView, messengerView;
@@ -91,6 +92,139 @@ function personEmails(person) {
   }
   return person && person.email ? [person.email.toLowerCase()] : [];
 }
+
+/* 상세보기 헤더의 이메일 줄을 그려준다. 주소가 하나면 그냥 텍스트 한 줄이지만,
+   통합 카드라 여러 주소가 묶여 있으면 "대표 주소 외 N개 (토글)" 형태로 접어두고,
+   토글을 눌러야만 나머지 주소 목록이 펼쳐지게 한다 — 주소가 많아도 헤더 줄이
+   길게 늘어지지 않고 항상 간결하게 유지된다. */
+// 통합 카드의 나머지 주소 목록도 .mp-detail-header(overflow:hidden)에 갇혀 있어서,
+// 이 안에 position:absolute로 넣으면 메신저 설명 팝오버와 같은 이유로 통째로 잘려
+// 안 보였다 — 같은 body-portal + position:fixed 패턴(ensureMsgDescPortal 참고)으로
+// 헤더 밖에 따로 띄운다.
+let emailListPortalEl = null;
+function ensureEmailListPortal() {
+  if (emailListPortalEl) return emailListPortalEl;
+  emailListPortalEl = document.createElement("div");
+  emailListPortalEl.className = "mp-detail-email-list-portal";
+  document.body.appendChild(emailListPortalEl);
+  return emailListPortalEl;
+}
+function closeEmailListPortal() {
+  if (emailListPortalEl) emailListPortalEl.classList.remove("show");
+  const openBtn = document.querySelector(".mp-detail-email-toggle.open");
+  if (openBtn) openBtn.classList.remove("open");
+}
+document.addEventListener("click", (e) => {
+  if (!emailListPortalEl || !emailListPortalEl.classList.contains("show")) return;
+  if (emailListPortalEl.contains(e.target)) return;
+  if (e.target.closest(".mp-detail-email-toggle")) return;
+  closeEmailListPortal();
+});
+window.addEventListener("resize", () => closeEmailListPortal());
+
+function renderDetailEmailLine(container, primaryEmail, groupEmails) {
+  container.innerHTML = "";
+  closeEmailListPortal();
+  if (groupEmails.length <= 1) {
+    container.textContent = primaryEmail ? displayAccountLabel(primaryEmail) : "이메일 정보 없음";
+    return;
+  }
+  // "외 N개 주소" 라벨을 따로 붙이지 않고, 이메일 주소 자체를 토글 버튼으로 만든다 —
+  // 그래야 줄 길이가 이메일 하나 길이만큼만 차지한다.
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "mp-detail-email-toggle";
+
+  const primary = document.createElement("span");
+  primary.className = "mp-detail-email-primary";
+  primary.textContent = displayAccountLabel(primaryEmail);
+  toggle.appendChild(primary);
+
+  const chevron = document.createElement("i");
+  chevron.className = "bi bi-chevron-down";
+  toggle.appendChild(chevron);
+
+  const otherEmails = groupEmails.filter((e) => e !== (primaryEmail || "").toLowerCase());
+
+  toggle.addEventListener("click", () => {
+    const wasOpen = toggle.classList.contains("open");
+    closeEmailListPortal();
+    if (wasOpen) return;
+
+    const portal = ensureEmailListPortal();
+    portal.innerHTML = "";
+    otherEmails.forEach((email) => {
+      const row = document.createElement("div");
+      row.textContent = displayAccountLabel(email);
+      portal.appendChild(row);
+    });
+    const rect = toggle.getBoundingClientRect();
+    const portalWidth = Math.max(220, rect.width);
+    const left = Math.max(8, Math.min(window.innerWidth - portalWidth - 8, rect.left));
+    portal.style.left = `${left}px`;
+    portal.style.minWidth = `${portalWidth}px`;
+    portal.style.top = `${rect.bottom + 6}px`;
+    portal.classList.add("show");
+    toggle.classList.add("open");
+  });
+
+  container.appendChild(toggle);
+}
+
+// 메신저 상세 설명(참여 패턴/자주 하는 이야기/말투)의 "자세히 보기" 팝오버.
+// .mp-detail-header가 height:25%+overflow:hidden으로 고정돼 있어서, 그 안에
+// position:absolute로 팝오버를 넣으면(이전 방식) 헤더 경계에서 통째로 잘려 빈
+// 박스만 보였다. My Time의 공용 툴팁(.mt-tooltip, mytimeEngine.js)과 같은 패턴으로
+// body에 직접 붙이고 position:fixed + getBoundingClientRect()로 위치를 잡아, 헤더의
+// overflow:hidden이나 스케일 transform과 무관하게 항상 온전히 보이게 한다.
+let msgDescPortalEl = null;
+function ensureMsgDescPortal() {
+  if (msgDescPortalEl) return msgDescPortalEl;
+  msgDescPortalEl = document.createElement("div");
+  msgDescPortalEl.className = "mp-msg-desc-popover-portal";
+  document.body.appendChild(msgDescPortalEl);
+  return msgDescPortalEl;
+}
+// 열려 있는 팝오버를 닫고, 그 팝오버를 띄웠던 토글 버튼도 원래 라벨로 되돌린다.
+function closeMsgDescPopover() {
+  if (msgDescPortalEl) msgDescPortalEl.classList.remove("show");
+  const openBtn = document.querySelector(".mp-msg-desc-toggle.open");
+  if (openBtn) {
+    openBtn.classList.remove("open");
+    openBtn.innerHTML = '자세히 보기<i class="bi bi-chevron-down"></i>';
+  }
+}
+// toggleBtn 바로 위쪽에 popoverHtml을 담은 팝오버를 띄우거나(이미 열려 있으면) 닫는다.
+function toggleMessengerDescExpand(toggleBtn, popoverHtml) {
+  const wasOpen = toggleBtn.classList.contains("open");
+  closeMsgDescPopover();
+  if (wasOpen) return;
+
+  const portal = ensureMsgDescPortal();
+  portal.innerHTML = popoverHtml;
+  const rect = toggleBtn.getBoundingClientRect();
+  const portalWidth = Math.min(420, window.innerWidth * 0.86);
+  const left = Math.max(8, Math.min(window.innerWidth - portalWidth - 8, rect.left));
+  portal.style.left = `${left}px`;
+  portal.style.bottom = "auto";
+  // 토글 버튼 "아래"로 뜨게 — top 기준으로 위치를 잡는다.
+  const top = rect.bottom + 8;
+  portal.style.top = `${top}px`;
+  // 화면 아래로 넘어갈 만큼 길 때만 그만큼에서 스크롤이 생기게 — 남은 공간만큼만 max-height를 준다.
+  portal.style.maxHeight = `${Math.max(120, window.innerHeight - top - 16)}px`;
+  portal.classList.add("show");
+  toggleBtn.classList.add("open");
+  toggleBtn.innerHTML = '접기<i class="bi bi-chevron-up"></i>';
+}
+// 팝오버 밖(또는 토글 버튼이 아닌 곳)을 클릭하면 닫는다.
+document.addEventListener("click", (e) => {
+  if (!msgDescPortalEl || !msgDescPortalEl.classList.contains("show")) return;
+  if (msgDescPortalEl.contains(e.target)) return;
+  if (e.target.closest(".mp-msg-desc-toggle")) return;
+  closeMsgDescPopover();
+});
+// 창 크기가 바뀌면 위치가 어긋나므로 열려 있던 팝오버는 닫는다.
+window.addEventListener("resize", () => closeMsgDescPopover());
 
 /* email → 숫자 맵(sentStatsMap 등)에서, 통합 카드면 병합된 모든 주소의 값을 합산한다. */
 // email→숫자 맵에서 병합 카드의 모든 주소 값을 합산
@@ -2190,6 +2324,8 @@ function setStatsLegend(mode) {
 
 // 메일 상대방 카드 클릭 시 상세 패널을 열고 관계/설명/통계를 채움
 async function openDetail(person, rowIndex) {
+  closeMsgDescPopover();
+  closeEmailListPortal();
   const gmailId = await getCurrentMailId();
   const detailDisplayName = resolveDisplayName(person);
 
@@ -2255,12 +2391,11 @@ async function openDetail(person, rowIndex) {
   }
   document.getElementById("mp-detail-name").textContent = detailDisplayName;
   const groupEmails = personEmails(person);
-  document.getElementById("mp-detail-email").textContent =
-    groupEmails.length > 1
-      ? `${displayAccountLabel(person.email)} 외 ${groupEmails.length - 1}개 주소 (통합 표시)`
-      : person.email
-        ? displayAccountLabel(person.email)
-        : "이메일 정보 없음";
+  renderDetailEmailLine(
+    document.getElementById("mp-detail-email"),
+    person.email,
+    groupEmails
+  );
 
   switchDetailTab("stats");
 
@@ -2280,6 +2415,8 @@ async function openDetail(person, rowIndex) {
 // 메신저 참여자 카드 클릭 시 상세 패널을 메신저 모드로 열고 통계를 채움
 async function openMessengerDetail(person) {
   closeEmailDrawer();
+  closeMsgDescPopover();
+  closeEmailListPortal();
 
   currentDetailMode = "messenger";
   currentDetailPerson = null;
@@ -2319,19 +2456,47 @@ async function openMessengerDetail(person) {
   const descEl = document.getElementById("mp-detail-messenger-desc");
   if (descEl) {
     const rawDesc = applyMessengerDescriptionOverride(currentChatroomName, person);
+
     if (!rawDesc) {
       descEl.innerHTML = '<span class="mp-msg-desc-empty">등록된 설명이 없습니다.</span>';
     } else {
+      // 참여 패턴/자주 하는 이야기/말투 — 항상 항목당 1줄씩(최대 3줄) 보여준다.
+      // 각 줄은 ellipsis로 한 줄만 유지해서 .mp-detail-header의 고정 height:25%를
+      // 절대 넘지 않게 하고, 렌더링 후 실제로 잘린 줄이 하나라도 있을 때만
+      // "자세히 보기" 버튼을 붙인다(세 줄 다 한 줄에 들어가면 버튼 자체가 없음).
       const lines = rawDesc.split("\n").filter(Boolean);
-      descEl.innerHTML = lines
-        .map((line) => {
-          const ci = line.indexOf(":");
-          if (ci === -1) return `<div class="mp-msg-desc-line">${esc(line)}</div>`;
-          const key = line.slice(0, ci).trim();
-          const val = line.slice(ci + 1).trim();
-          return `<div class="mp-msg-desc-line"><span class="mp-msg-desc-key">${esc(key)}:</span>${esc(val)}</div>`;
-        })
-        .join("");
+      const parsed = lines.map((line) => {
+        const ci = line.indexOf(":");
+        return ci === -1
+          ? { key: "", val: line }
+          : { key: line.slice(0, ci).trim(), val: line.slice(ci + 1).trim() };
+      });
+      const rowHtml = ({ key, val }) =>
+        `<div class="mp-msg-desc-row">${key ? `<span class="mp-msg-desc-key">${esc(key)}:</span>` : ""}<span class="mp-msg-desc-line-text" title="${esc(val)}">${esc(val)}</span></div>`;
+      const popoverLineHtml = ({ key, val }) =>
+        `<div class="mp-msg-desc-line">${key ? `<span class="mp-msg-desc-key">${esc(key)}:</span>` : ""}${esc(val)}</div>`;
+
+      descEl.innerHTML = parsed.map(rowHtml).join("");
+
+      // 실제 줄이 잘렸는지는 폰트/컨테이너 폭에 따라 달라지므로 레이아웃 이후에 측정한다.
+      requestAnimationFrame(() => {
+        if (!descEl.isConnected) return;
+        const textEls = descEl.querySelectorAll(".mp-msg-desc-line-text");
+        let overflowed = false;
+        textEls.forEach((el) => {
+          if (el.scrollWidth > el.clientWidth + 1) overflowed = true;
+        });
+        if (overflowed) {
+          const popoverHtml = parsed.map(popoverLineHtml).join("");
+          const toggleRow = document.createElement("div");
+          toggleRow.className = "mp-msg-desc-toggle-row";
+          toggleRow.innerHTML =
+            '<button type="button" class="mp-msg-desc-toggle">자세히 보기<i class="bi bi-chevron-down"></i></button>';
+          descEl.appendChild(toggleRow);
+          const toggleBtn = toggleRow.querySelector(".mp-msg-desc-toggle");
+          toggleBtn.addEventListener("click", () => toggleMessengerDescExpand(toggleBtn, popoverHtml));
+        }
+      });
     }
     descEl.classList.add("show");
   }
@@ -2773,6 +2938,8 @@ export function initMyPeoplePage() {
     currentDetailMode = "mail";
     currentDetailPersonEmail = "";
     currentMessengerPerson = null;
+    closeMsgDescPopover();
+    closeEmailListPortal();
   });
 
   document.getElementById("mp-grid").addEventListener("click", (e) => {

@@ -1,4 +1,13 @@
 # src/util/lightrag_backend/lightrag_loop.py
+
+# LightRAG 질의 전용 공유 이벤트 루프 모듈. 
+# 백그라운드 스레드에서 절대 닫히지 않는 asyncio 이벤트 루프를 하나 띄워두고, Flask 요청 스레드들은 그 루프에 코루틴만 제출해 결과를 기다린다. 
+# 요청마다 새 루프를 만들고 닫는 방식 대신 루프를 계속 재사용해서 LightRAG 내부 상태가 매번 다른 루프에 걸리는 문제를 막는다.
+
+# Shared event loop dedicated to LightRAG queries. 
+# Starts a single asyncio event loop on a background thread that never closes; Flask request threads only submit coroutines to it and wait for the result, instead of creating and closing a fresh loop per request.
+# Prevents LightRAG's internal state from ending up bound to a different loop on every call.
+
 import asyncio
 import threading
 

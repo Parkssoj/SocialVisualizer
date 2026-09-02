@@ -13,7 +13,11 @@
   top: 0px;
   left: 0;
   right: 0;
-  z-index: 100;
+  // 좌측 필터 사이드바(.gws-rail)가 z-index:999라서, 창이 좁아져 상단 "View
+  // results" 드롭다운(My People/My Time/... 목록)이 사이드바 위쪽 영역과
+  // 겹치면 그 아래로 숨어버렸음 — 헤더 전체를 사이드바보다 항상 위에 오도록
+  // 999보다 큰 값으로 올림.
+  z-index: 1000;
   margin-left: 0 !important; // 사이드바 제거 후에도 남아있는 다른 반응형 규칙(margin-left:70/230px)을 이기기 위함
   background: #ffffff;
   min-height: 70px;
@@ -60,7 +64,11 @@
     -apple-system,
     sans-serif;
   font-weight: 600;
-  font-size: 1.3rem;
+  // 헤더 바 자체의 높이(73px)는 모든 페이지의 top/padding-top 고정값 계산 기준이라
+  // 절대 줄이면 안 되지만(줄이면 8개 페이지 전부 배치가 틀어짐), 그 안의 글자/여백은
+  // clamp()로 창 폭에 따라 같이 줄어들게 해서 1180px 이하에서 메뉴가 뚝 사라지기
+  // 전까지 더 자연스럽게 좁아지도록 함.
+  font-size: clamp(1.05rem, 1.3vw, 1.3rem);
   color: #000000;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -74,14 +82,14 @@
 .gw-tl {
   display: inline-flex;
   align-items: center;
-  padding: 10px 18px;
+  padding: 10px clamp(10px, 1.3vw, 18px);
   border-radius: 8px;
   font-family:
     "Pretendard",
     "Inter",
     -apple-system,
     sans-serif;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 1vw, 1rem);
   font-weight: 400;
   letter-spacing: 0.01em;
   // _global-overrides.scss의 전역 `a { color: var(--gt-link-color) !important }`가 사이트 전체 링크를 다른색으로 강제하므로, 이를 이기기 위해 !important 필요

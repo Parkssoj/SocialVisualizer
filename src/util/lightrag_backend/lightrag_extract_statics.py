@@ -1,4 +1,13 @@
 # src/util/lightrag_backend/lightrag_extract_statics.py
+
+# LightRAG용 메일 통계 집계 모듈. 
+# mail_latest.txt를 파싱해 연락처별 발신/수신/친밀 메일 수와 메일별 LLM 키워드를 뽑아 각각 mail_contact_stats.json, mail_keyword_stats.json으로 저장한다.
+# 어조(friendly) 판정과 처리된 메일 id는 캐시/기록해두고 append 모드에서 재사용해 중복 계산을 막는다.
+
+# Aggregates mail statistics for LightRAG. 
+# Parses mail_latest.txt to compute per-contact sent/received/friendly-tone counts and per-mail LLM keywords, saving them to mail_contact_stats.json and mail_keyword_stats.json. 
+# Tone judgments and processed mail ids are cached so append mode skips rework.
+
 import os
 import json
 import re

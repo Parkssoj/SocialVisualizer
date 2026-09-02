@@ -1,14 +1,15 @@
-# ============================================================
-# job_run_lightrag.py
-# job_run_graphrag.py(원본)의 복사본. 인덱싱/업데이트 엔진을 GraphRAG CLI에서 LightRAG 라이브러리
-# 직접 호출로 완전히 교체했다. GraphRAG subprocess, parquet 진행률 감시, GraphRAG용
-# settings.yaml 준비(user_graphrag_init) 등 GraphRAG 전용 코드는 이 파일에 남기지 않는다.
-#
-# 남겨둔 미해결 항목: build_graph_json()이 쓰던 graphrag_parquet2json.py는 GraphRAG의
-# entities.parquet/relationships.parquet 스키마를 전제로 하므로 LightRAG 결과로는
-# 그대로 못 쓴다. 그래프 시각화용 json을 LightRAG 데이터로 어떻게 만들지는 별도 작업으로
-# 남겨두고, 지금은 스킵하도록 되어 있다(아래 build_graph_json 참고).
-# ============================================================
+# src/util/jobs/job_run_lightrag.py
+
+# LightRAG 인덱싱/업데이트 전체 파이프라인을 실행하는 잡 모듈. 
+# mail_latest.txt/csv를 읽어 첨부 요약 병합, LightRAG 라이브러리로 실제 인덱싱(ainsert), 그래프 시각화 JSON 생성, 메일 통계·DB 저장까지 순서대로 실행하고 진행률을 job 로그와 SSE로 보고한다. 
+# GraphRAG CLI를 subprocess로 띄우는 대신 LightRAG 라이브러리를 코드에서 직접 호출하는 방식으로 동작한다.
+# 그래프 시각화 JSON은 GraphRAG의 entities/relationships parquet 스키마를 전제로 만들어져 있어 LightRAG 결과에 그대로 못 쓰므로, build_graph_json은 LightRAG 전용 변환기를 따로 쓴다.
+
+# Runs the full LightRAG indexing/update pipeline as a background job. 
+# Reads mail_latest.txt/csv, merges summarized attachments, indexes the mail via the LightRAG library (ainsert), builds the graph visualization JSON, and saves mail statistics/DB records, reporting progress through job logs and SSE. 
+# Calls the LightRAG library directly instead of spawning the GraphRAG CLI as a subprocess. 
+# Uses a LightRAG-specific converter for the graph JSON since GraphRAG's version assumes GraphRAG's own entities/relationships parquet schema.
+
 import os
 import sys
 import re
