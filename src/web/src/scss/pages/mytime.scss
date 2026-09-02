@@ -2,9 +2,6 @@
 // My People(.mp-page)과 같은 방식 — body/html을 hidden으로 막고 .right_col과
 // .mt-page를 position:fixed로 화면에 고정한 뒤 flex column으로 쌓아서, 전체
 // 페이지 스크롤 없이 안쪽 패널(.mt-panel/.mt-kw-body)만 스크롤되게 한다.
-// (예전엔 .mt-page가 width:88vw처럼 뷰포트 기준 폭을 썼는데, 사이드바가 있는
-// 페이지에서는 실제 콘텐츠 영역(.right_col)이 사이드바 폭만큼 좁아져서 오른쪽이
-// 화면 밖으로 잘렸다 — 지금은 --gw-sidebar-w를 좌측 패딩에 더해 해결.)
 body,
 html {
   overflow: hidden;
@@ -50,10 +47,21 @@ footer {
 .mt-page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-shrink: 0;
   padding-top: 12px;
   margin-bottom: 14px;
+}
+// My People의 .mp-panel-header-canvas와 같은 방식 — 고정 폭 캔버스를 만들어
+// 그 전체를 통째로 scale(useScaleToFit)해서, 이 줄과 나머지 페이지 요소들이
+// 항상 정확히 같은 비율로 같이 줄어들고 커지게 함.
+.mt-page-header-canvas {
+  // 900px는 너무 작아서(제목+뱃지 실제 크기보다 캔버스가 좁음) 창이 보통 크기만
+  // 돼도 scale이 1을 넘어 오히려 커져 보였음(다른 요소들은 다 줄어드는데 이 줄만
+  // 커지는 느낌) — 아래 .mt-view-canvas와 같은 기준 폭(1500px)으로 맞춰서, 창이
+  // 줄어들 때 이 줄도 페이지의 다른 요소들과 거의 같은 비율로 같이 줄어들게 함.
+  width: 1500px;
+  flex-shrink: 0;
+  display: flex;
 }
 /* 제목 + 메일/메신저 버튼 그룹 */
 .mt-title-group {
@@ -92,7 +100,7 @@ footer {
 /* My People에서 제목 옆에 사람 명수를 보여주는 .mp-count와 동일한 뱃지 —
    여기서는 "2020.11 ~ 2026.08 데이터" 같은 전체 기간 문구를 보여준다. */
 .mt-count {
-  font-size: clamp(0.6rem, 1.2vw, 0.72rem);
+  font-size: 0.72rem;
   color: #fb923c;
   font-weight: 700;
   background: rgba(251, 146, 60, 0.12);
@@ -176,7 +184,7 @@ footer {
   border: none;
   box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
   // 오른쪽 키워드 창(.mt-kw-panel)과 패딩을 맞춰서 두 창이 같은 "박스" 크기로 보이게 함.
-  padding: clamp(20px, 2.6vw, 34px) clamp(20px, 3vw, 40px) clamp(18px, 2.4vw, 30px);
+  padding: 34px 40px 30px;
   display: flex;
   flex-direction: column;
   // .mt-page ~ .mt-two-col이 전부 flex:1로 남는 높이를 정확히 계산해 내려주므로,
@@ -339,8 +347,7 @@ footer {
   font-weight: 700;
 }
 .mt-panel-summary {
-  // 주요 연락처 카드 글씨(1rem, 600)만큼 눈에 띄도록 더 키움 — 예전엔 숫자상
-  // 크기는 같았지만(1rem) 얇은 두께라 훨씬 작아 보였음.
+  // 주요 연락처 카드 글씨(1rem, 600)만큼 눈에 띄도록 더 키움
   font-size: 1.12rem;
   font-weight: 500;
   color: #302522;
@@ -362,9 +369,7 @@ footer {
   flex-wrap: wrap;
   gap: 8px;
 }
-/* 네모난 연락처 카드 — 예전엔 알약 모양(radius 20px)의 작은 태그라 눈에 잘
-   안 띄었음. 카드형으로 바꾸고, 마우스를 올리면 그 사람 설명을 툴팁으로 보여준다
-   (mytime.js의 contactLookup + showTooltip). */
+/* 네모난 연락처 카드 */
 .mt-panel-contact {
   font-size: 1rem;
   color: #302522;
@@ -395,13 +400,15 @@ footer {
 }
 
 /* ── 포인터 라인(전체 타임라인 슬라이더) ──
-   두 창 위에 두고, 그만큼 박스 크기(패딩)도 줄여서 덜 무거워 보이게 함. */
+   슬라이더와 그 아래 두 창(.mt-two-col)을 .mt-view-canvas 하나가 통째로 감싸고
+   있어서(아래 .mt-view/.mt-view-canvas 참고), 여기 padding/도트/커서 크기는
+   clamp가 아니라 원래의 고정값을 쓴다(비율은 캔버스의 transform이 한 번에 처리). */
 .mt-pointer-wrap {
   background: #fffefc;
   border-radius: 12px;
   border: none;
   box-shadow: 0 8px 28px rgba(48, 37, 34, 0.1); /* My People .mp-panel과 동일한 그림자 */
-  padding: clamp(12px, 1.5vw, 16px) clamp(20px, 3vw, 40px) clamp(10px, 1.3vw, 14px);
+  padding: 16px 40px 14px;
   margin-bottom: 16px;
   flex-shrink: 0;
 }
@@ -563,12 +570,25 @@ footer {
 
 /* ── 메일/메신저 뷰 전환 ──
    두 뷰(메일/메신저)는 mytime.js가 inline style.display로 하나만 보여준다.
-   보이는 쪽이 .mt-page의 남는 세로 공간(flex:1)을 전부 차지하고, 그 공간을
-   다시 .mt-pointer-wrap(고정 높이) + .mt-two-col(나머지 전부)로 나눠준다. */
+   보이는 쪽이 .mt-page의 남는 세로 공간(flex:1)을 전부 차지하고, 그 안에
+   .mt-view-canvas(슬라이더+두 창을 합친 고정 캔버스) 하나를 가운데 정렬해서
+   담는다 — My People의 .mp-detail과 같은 "스케일 wrap" 역할. */
 .mt-view {
   width: 100%;
   flex: 1;
   min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+}
+/* 슬라이더 + 두 창(.mt-two-col) 전체를 담는 고정 캔버스 — useScaleToFit이
+   이 전체를 통째로 scale()해서, 안의 모든 요소가 항상 같은 비율로 같이
+   줄어들고 커지며 서로 위치가 어긋나지 않게 한다. */
+.mt-view-canvas {
+  width: 1500px;
+  height: 780px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
 }
@@ -597,7 +617,7 @@ footer {
 .mt-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: clamp(16px, 2.4vw, 32px);
+  gap: 32px;
   align-items: stretch;
   // .mt-view가 flex:1로 확보한 남는 세로 공간을 이 그리드가 그대로 이어받아서
   // .mt-main / .mt-kw-panel의 실제 높이를 정해준다 — 이게 있어야 안쪽의
@@ -635,7 +655,7 @@ footer {
 
 /* ══════════════════════ 오른쪽 창: 월별 키워드 ══════════════════════ */
 .mt-kw-panel {
-  padding: clamp(20px, 2.8vw, 36px) clamp(22px, 3vw, 40px) clamp(18px, 2.6vw, 32px);
+  padding: 36px 40px 32px;
   display: flex;
   flex-direction: column;
   // .mt-main과 마찬가지로 부모(.mt-two-col)가 stretch로 내려주는 높이를
@@ -708,7 +728,7 @@ footer {
   background: #fff6ef;
 }
 .mt-kw-row-word {
-  width: clamp(76px, 12vw, 132px);
+  width: 132px;
   flex-shrink: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -828,7 +848,7 @@ footer {
   width: max-content;
   min-width: 100%;
   box-sizing: border-box;
-  height: clamp(200px, 32vh, 320px);
+  height: 320px;
   padding-bottom: 4px;
   border-bottom: 1.5px solid #e0e0e0;
 }
@@ -919,8 +939,7 @@ footer {
 }
 /* 언급자 아바타 — <span class="mt-tooltip-avatar"><img></span> 구조라, 원 모양
    마스크(overflow:hidden)는 이 바깥 span이 담당하고, 실제 크기 제한은 안의
-   <img>에 줘야 한다. (예전엔 object-fit이 img가 아니라 이 span에 붙어있고
-   overflow:hidden도 없어서 img가 원본 크기 그대로 튀어나왔었음.) */
+   <img>에 줘야 한다. */
 .mt-tooltip-avatar {
   width: 22px;
   height: 22px;

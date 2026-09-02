@@ -73,7 +73,7 @@ html {
   flex-direction: column !important;
   align-items: flex-start !important;
   justify-content: center !important;
-  // 부모(.gw-orbit-hero)가 이미 align-items:center로 좌/우를 같은 높이 기준 정가운데에 맞춰주므로, 여기서 따로 margin-top으로 더 내릴 필요가 없음(예전엔 오른쪽 카드가 justify-content:flex-end로 아래에 붙어있어서 균형 맞추려 내렸었는데, 오른쪽도 이번에 center로 되돌려서 더 이상 필요 없음).
+  // 부모(.gw-orbit-hero)가 이미 align-items:center로 좌/우를 같은 높이 기준 정가운데에 맞춰주므로, 여기서 따로 margin-top으로 더 내릴 필요가 없음.
   // 정렬 방식은 그대로 두고 숫자만 조정.
   margin-top: 10px !important;
 }

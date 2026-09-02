@@ -1,7 +1,8 @@
 import { createRoot } from "react-dom/client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Header from "./Header.jsx";
 import { initImapCollectPage } from "../features/imapCollectEngine.js";
+import { useScaleToFit } from "../utils/useScaleToFit.js";
 
 /**
 "소셜 데이터 분석" 페이지(imap-collect.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더와 메일/메신저 탭 폼, job 로그 패널 마크업을 마운트한다.
@@ -17,15 +18,23 @@ Note: the original HTML has no sidebar (#app-sidebar) or footer (#app-footer) �
 Kept as-is.
  */
 function ImapCollectApp() {
+  const contentRef = useRef(null);
+
   useEffect(() => {
     initImapCollectPage();
   }, []);
+
+  // 창 크기가 바뀌어도 이 페이지 안의 요소·크기 값(카드 크기, 6:4 분할 비율, 구분선 위치 등)은
+  // 전혀 건드리지 않고, 원래 크기 그대로 렌더링된 상태를 매번 다시 측정해서 그 비율만큼
+  // transform:scale()로 통째로 줄이거나 키운다(home.scss의 히어로와 같은 방식).
+  useScaleToFit(contentRef);
 
   return (
     <>
       <Header activePage="imap-collect" />
       <main className="right_col" role="main" aria-label="Main content">
-        <div className="gw-collect-wrap">
+        <div className="ic-scale-wrap">
+        <div className="gw-collect-wrap" ref={contentRef}>
           {/* 반반 분할 레이아웃 컨테이너 */}
           <div className="gw-split-grid-wrapper">
             {/* 왼쪽 헤더: 데이터 수집 + 메일/메신저 탭 */}
@@ -372,6 +381,7 @@ function ImapCollectApp() {
           {/* /.gw-split-grid-wrapper */}
         </div>
         {/* /.gw-collect-wrap */}
+        </div>
       </main>
     </>
   );

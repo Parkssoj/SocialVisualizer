@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Header from "./Header.jsx";
 import Footer from "./Footer.jsx";
 import {
@@ -8,6 +8,7 @@ import {
   closeEmailDrawer,
   toggleGraphView,
 } from "../features/mypeopleEngine.js";
+import { useScaleToFit } from "../utils/useScaleToFit.js";
 
 /**
 "My People" 페이지(mypeople.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자, 카드 그리드/지식그래프/상세 패널/타임라인 마크업, 푸터를 마운트한다.
@@ -21,6 +22,30 @@ function MyPeopleApp() {
     initMyPeoplePage();
   }, []);
 
+  // 상세보기 패널(.mp-detail)은 아바타·이름·탭 버튼이 서로 다른 기준(가로/세로)으로
+  // 따로 줄어들다 보니 창 크기에 따라 요소끼리 겹치거나 위치가 틀어지는 문제가
+  // 있었음 — 소셜 데이터 분석 페이지와 같은 방식으로, 안쪽 내용을 고정 크기
+  // 캔버스(.mp-detail-canvas)로 두고 그 전체를 통째로 transform:scale()해서
+  // 배치·비율이 창 크기와 무관하게 항상 완전히 동일하게 유지되도록 한다.
+  const detailCanvasRef = useRef(null);
+  useScaleToFit(detailCanvasRef, "top center");
+
+  // 상세보기 캔버스와 같은 이유로, 패널 위쪽 제목/버튼 줄(.mp-panel-header)도
+  // clamp() 기반 개별 축소 대신 고정 캔버스+scale로 통일해서, 상세보기 패널이
+  // 줄어드는 정도와 이 위쪽 줄이 줄어드는 정도가 항상 완전히 같은 비율로
+  // 맞물려 움직이게 한다.
+  const panelHeaderCanvasRef = useRef(null);
+  // 이 줄은 왼쪽 정렬이라 가운데 기준(top center)으로 줄이면 제목이 오른쪽으로
+  // 쏠려 보임 — 왼쪽 위 기준(top left)으로 줄어들게 해서 패널 왼쪽 끝에 계속 붙어있게 함.
+  useScaleToFit(panelHeaderCanvasRef, "top left");
+
+  // 하단 타임라인 슬라이더(.mp-timeline)도 같은 이유로 고정 캔버스+scale로 통일 —
+  // 트랙 두께/점(thumb) 크기/눈금이 clamp() 범위가 좁아서 창을 줄여도 거의 안
+  // 바뀌어 보였는데, 캔버스 전체를 scale()하면 다른 요소들과 똑같은 비율로 같이
+  // 줄어들고 커진다.
+  const timelineCanvasRef = useRef(null);
+  useScaleToFit(timelineCanvasRef, "top center");
+
   return (
     <>
       <Header activePage="mypeople" />
@@ -29,6 +54,7 @@ function MyPeopleApp() {
         <div className="mp-page">
           {/* 헤더: 제목 + 드롭다운 */}
           <div className="mp-panel-header">
+            <div className="mp-panel-header-canvas" ref={panelHeaderCanvasRef}>
             <div className="mp-header-left">
               <div className="mp-title-wrap">
                 <div className="mp-title">
@@ -65,6 +91,7 @@ function MyPeopleApp() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
 
@@ -135,9 +162,13 @@ function MyPeopleApp() {
 
               {/* 디테일 패널 */}
               <div className="mp-detail" id="mp-detail">
+                {/* 닫기 버튼은 안쪽 캔버스가 줄어들어도 패널 모서리에 그대로 붙어있도록
+                    캔버스 밖(.mp-detail 기준)에 둔다 — 캔버스 안에 있으면 다른 요소들과
+                    같이 scale되면서 위치가 안쪽으로 밀려 들어와 버림. */}
                 <button className="mp-detail-close" id="mp-detail-close">
                   <i className="bi bi-x-lg"></i>
                 </button>
+                <div className="mp-detail-canvas" ref={detailCanvasRef}>
                 <div className="mp-detail-header" style={{ position: "relative" }}>
                   <div className="mp-detail-pair">
                     <div className="mp-detail-self-info">
@@ -221,7 +252,11 @@ function MyPeopleApp() {
                       <h2 className="mp-detail-name" id="mp-detail-name"></h2>
                       <p className="mp-detail-email" id="mp-detail-email"></p>
                     </div>
-                    <p className="mp-detail-messenger-desc" id="mp-detail-messenger-desc"></p>
+                    {/* innerHTML로 <div class="mp-msg-desc-line">를 넣는데, <p> 태그
+                        안에 블록 요소(div)를 문자열로 넣으면 브라우저가 파싱 규칙상
+                        <p>를 자동으로 닫아버려서(div가 형제로 밖으로 튕겨나감) 레이아웃이
+                        깨졌었다 — div를 자유롭게 담을 수 있는 div로 바꿔서 해결. */}
+                    <div className="mp-detail-messenger-desc" id="mp-detail-messenger-desc"></div>
                   </div>
                   <div className="mp-detail-tab-group">
                     <button
@@ -425,12 +460,14 @@ function MyPeopleApp() {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* 타임라인 슬라이더 */}
+          {/* 타임라인 슬라이더 — 고정 캔버스 안에 넣고 통째로 scale() */}
           <div className="mp-timeline">
+            <div className="mp-timeline-canvas" ref={timelineCanvasRef}>
             <div className="mp-tl-dates">
               <span className="mp-tl-date-label" id="tl-start-lbl">
                 —
@@ -446,6 +483,7 @@ function MyPeopleApp() {
               <input type="range" id="tl-min" min="0" max="1000" defaultValue="0" step="1" />
               <input type="range" id="tl-max" min="0" max="1000" defaultValue="1000" step="1" />
               <div className="mp-tl-ticks" id="tl-ticks"></div>
+            </div>
             </div>
           </div>
         </div>

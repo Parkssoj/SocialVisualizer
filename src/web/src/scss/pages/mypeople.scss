@@ -112,6 +112,27 @@ footer {
   flex-shrink: 0;
   width: 100%;
   gap: 20px;
+  // overflow-x:hidden만 줘도 브라우저가 overflow-y:visible을 강제로 auto로
+  // 바꿔버려서(가로/세로 중 하나만 hidden이면 나머지도 스크롤 처리되는 CSS 규칙)
+  // 결국 드롭다운 메뉴가 잘렸었다 — overflow를 아예 지정하지 않아 기본값(visible)으로
+  // 둬서 드롭다운이 확실히 이 줄 밖으로 펼쳐지게 함(스케일 계산이 맞으면 가로로
+  // 넘치는 일도 어차피 없음).
+  //
+  // 안쪽 .mp-panel-header-canvas에 transform이 걸려 있어서 이 줄 전체가 새로운
+  // stacking context가 된다 — 그러면 안의 정렬 드롭다운 z-index는 이 줄 밖으로
+  // 못 나가고, DOM상 이 줄보다 뒤에 오는 .mp-content(카드 그리드)가 그냥 순서상
+  // 위에 그려져 버렸다. position+z-index로 이 줄 자체를 카드 그리드보다 위 레이어로
+  // 고정해서 해결.
+  position: relative;
+  z-index: 50;
+}
+// 제목/버튼 줄도 상세보기 패널(.mp-detail-canvas)과 완전히 같은 방식(고정 폭
+// 캔버스 + useScaleToFit)으로 통일
+.mp-panel-header-canvas {
+  width: 1400px;
+  flex-shrink: 0;
+  display: flex;
+  transform-origin: top left;
 }
 .mp-header-left {
   flex: 1;
@@ -138,7 +159,7 @@ footer {
     Roboto,
     Arial,
     sans-serif;
-  font-size: 2.6rem;
+  font-size: clamp(1.9rem, 3.4cqw, 2.6rem);
   font-weight: 800;
   color: #2e1d1b;
   letter-spacing: -0.04em;
@@ -178,7 +199,7 @@ footer {
   border-radius: 10px;
   padding: 8px 18px;
   cursor: pointer;
-  font-size: 1.08rem;
+  font-size: clamp(0.86rem, 1.7cqw, 1.08rem);
   font-weight: 600;
   color: #3f302a;
   backdrop-filter: blur(8px);
@@ -215,7 +236,7 @@ footer {
   // 정렬 토글은 광고제거 버튼(.mp-brand-filter-btn)과 크기를 맞춘다.
   padding: 8px 18px;
   cursor: pointer;
-  font-size: 1.08rem;
+  font-size: clamp(0.86rem, 1.7cqw, 1.08rem);
   font-weight: 600;
   color: #3f302a;
   backdrop-filter: blur(8px);
@@ -263,7 +284,7 @@ footer {
 .mp-dropdown-item {
   padding: 9px 16px;
   // 드롭다운 메뉴 글씨 크기는 토글(.mp-dropdown-btn)과 맞춘다.
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 1.6cqw, 1rem);
   font-weight: 500;
   color: #3f302a;
   cursor: pointer;
@@ -343,7 +364,7 @@ footer {
   top: 0;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 1.6cqw, 1rem);
   font-weight: 700;
   color: #6a6a6a;
   // 라벨 배경은 그 줄(밴드)과 완전히 같은 불투명 배경색을 쓴다(--band-bg는 .mp-band-cards가 정의한 값을 상속).
@@ -521,8 +542,7 @@ footer {
 }
 */
 
-/* 메신저 탭 카드(단톡방/참여자)도 메일 사람카드와 같은 색(.mp-card 기본 흰 배경)을
-   쓰도록, 예전에 있던 민트색 전용 배경/그림자 오버라이드는 제거함 */
+/* 메신저 탭 카드(단톡방/참여자)도 메일 사람카드와 같은 색(.mp-card 기본 흰 배경)을 쓰도록 함 */
 
 .mp-avatar {
   width: 76%;
@@ -631,7 +651,7 @@ footer {
   flex-shrink: 0;
 }
 .mp-graph-panel-title {
-  font-size: 0.85rem;
+  font-size: clamp(0.72rem, 1.4cqw, 0.85rem);
   font-weight: 700;
   color: #5a3a1a;
   display: flex;
@@ -646,7 +666,7 @@ footer {
   border: none;
   background: #fff;
   color: #5a3a1a;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 1.6cqw, 1rem);
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
@@ -660,12 +680,16 @@ footer {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 
-/* 메신저 탭: 단톡방 참여자 화면 헤더(뒤로가기 + 방 이름) */
+/* 메신저 탭: 단톡방 참여자 화면 헤더(뒤로가기 + 방 이름) — 아래 사람 카드들과 같은
+   .mp-panel 기준 cqw로 폭에 비례해 글자 크기가 같이 줄어들고 커지게 한다(사람
+   카드의 .mp-name과 같은 방식). */
 .mp-messenger-room-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  // 기존 고정값(10px/8px 14px)이 최대치 — 창이 커져도 원래 크기보다 커지지
+  // 않고, 좁아질 때만 그 아래로 줄어든다.
+  gap: clamp(5px, 1.1cqw, 10px);
+  padding: clamp(4px, 0.9cqw, 8px) clamp(8px, 1.6cqw, 14px);
   border-bottom: 1.5px solid #e5e5e5;
   background: #f5f5f5;
   flex-shrink: 0;
@@ -678,7 +702,7 @@ footer {
   border: none;
   background: #fff;
   color: #5a3a1a;
-  font-size: 0.78rem;
+  font-size: clamp(0.68rem, 1.3cqw, 0.78rem);
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
@@ -692,7 +716,11 @@ footer {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
 }
 .mp-messenger-room-name {
-  font-size: 1.2rem;
+  /* vw(뷰포트 기준)는 창 폭이 아니라 사이드바 접힘 등 레이아웃 변화에 안 맞물려
+     따로 노는 느낌이 있었다 — 아래 사람 카드와 같은 .mp-panel 기준 cqw로 통일.
+     최대값(1.2rem)은 기존 고정 크기와 같게 유지해서 원래보다 커지지 않게 하고,
+     좁아질 때만 최소값까지 줄어들게 함. */
+  font-size: clamp(0.66rem, 1.75cqw, 1.2rem);
   font-weight: 700;
   color: #4a4a4a;
 }
@@ -703,16 +731,18 @@ footer {
   align-items: center;
   gap: 5px;
   margin-left: 4px;
-  font-size: 1.05rem;
+  // 최대값(1.05rem)은 기존 고정 크기와 같게 유지 — 창이 커져도 더 커지지 않음.
+  font-size: clamp(0.58rem, 1.53cqw, 1.05rem);
   font-weight: 600;
   color: #7a5a3a;
   background: rgba(251, 191, 120, 0.22);
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: clamp(2px, 0.5cqw, 4px) clamp(6px, 1.3cqw, 12px);
   white-space: nowrap;
 }
 .mp-room-mood-emoji {
-  font-size: 1.2rem;
+  // 최대값(1.2rem)은 기존 고정 크기와 같게 유지.
+  font-size: clamp(0.66rem, 1.75cqw, 1.2rem);
   line-height: 1;
 }
 
@@ -727,21 +757,35 @@ footer {
   display: none;
   position: absolute;
   inset: 0;
-  background: #fafafa;
+  background: #ffffff;
   border-radius: 18px;
   overflow: hidden;
-  flex-direction: column;
   animation: detailIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 10;
   box-shadow:
     0 8px 22px rgba(13, 13, 13, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  /* 뷰포트(vw)가 아니라 이 패널 자신의 실제 너비를 기준으로 내부 요소들이
-           반응형으로 커지고 작아지도록 컨테이너 쿼리 컨텍스트로 지정 */
-  container-type: inline-size;
 }
+// .mp-detail 자신은 "사용 가능한 공간" 역할만 하고, 실제 내용은 고정 크기
+// 캔버스(.mp-detail-canvas)에 담아 그 전체를 통째로 scale한다(useScaleToFit,
+// 소셜 데이터 분석 페이지와 동일한 방식) — 아바타·이름·탭 버튼이 서로 다른
+// 기준으로 따로 줄어들며 창 크기마다 위치가 어긋나던 문제를 근본적으로 없앤다.
 .mp-detail.open {
   display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.mp-detail-canvas {
+  width: 1300px;
+  height: 600px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transform-origin: top center;
+  /* 뷰포트(vw)가 아니라 이 캔버스 자신의 고정 너비를 기준으로 내부 요소들이
+           반응형으로 커지고 작아지도록 컨테이너 쿼리 컨텍스트로 지정 */
+  container-type: inline-size;
 }
 @keyframes detailIn {
   from {
@@ -755,13 +799,16 @@ footer {
 }
 
 /* 닫기 버튼 */
+// 닫기 버튼은 이제 캔버스(.mp-detail-canvas) 밖, .mp-detail(패널 전체) 기준으로
+// 붙어있어서 안쪽 내용이 scale로 줄어들어도 항상 패널 오른쪽 위 모서리에 고정된다
+// — 더 이상 캔버스 안 다른 요소들과 같이 줄어들 필요가 없으므로 고정 크기로 둠.
 .mp-detail-close {
   position: absolute;
-  top: clamp(10px, 1.2cqw, 16px);
-  right: clamp(12px, 1.4cqw, 18px);
+  top: 12px;
+  right: 14px;
   z-index: 20;
-  width: clamp(28px, 2.2cqw, 34px);
-  height: clamp(28px, 2.2cqw, 34px);
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.85);
@@ -808,8 +855,8 @@ footer {
 .mp-detail-avatar {
   /* 헤더 세로 padding(22px+20px=42px)을 뺀 실제 가용 높이에 맞춰 아바타 크기를 정해서,
            헤더가 눌려도 아바타가 헤더 밖으로 삐져나오지 않고 그 안에서 줄어든다 */
-  width: clamp(56px, calc(100cqh - 42px), 140px);
-  height: clamp(56px, calc(100cqh - 42px), 140px);
+  width: clamp(56px, min(18cqw, calc(100cqh - 42px)), 140px);
+  height: clamp(56px, min(18cqw, calc(100cqh - 42px)), 140px);
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
@@ -824,8 +871,8 @@ footer {
 }
 // "나" 아바타는 상대방 아바타(.mp-detail-avatar-ring.mp-ring-off 쪽 clamp)와 크기를 맞춘다.
 .mp-detail-avatar-self {
-  width: clamp(64px, calc(100cqh - 22px), 168px);
-  height: clamp(64px, calc(100cqh - 22px), 168px);
+  width: clamp(64px, min(21cqw, calc(100cqh - 22px)), 168px);
+  height: clamp(64px, min(21cqw, calc(100cqh - 22px)), 168px);
 }
 /* 브랜드 로고 이미지는 원본에 여백이 많아 확대해서 원을 꽉 채움 */
 .mp-avatar img.mp-brand-logo,
@@ -842,15 +889,15 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(clamp(56px, calc(100cqh - 42px), 140px) + 26px);
-  height: calc(clamp(56px, calc(100cqh - 42px), 140px) + 26px);
+  width: calc(clamp(56px, min(18cqw, calc(100cqh - 42px)), 140px) + 26px);
+  height: calc(clamp(56px, min(18cqw, calc(100cqh - 42px)), 140px) + 26px);
 }
 /* 메신저 상세보기: 나 ↔ 상대방 친밀도 개념이 없어 이 핑크 게이지 링이 항상 빈 채로만
    보이던 장식 요소였음 — 링을 완전히 숨기고, 비워진 여백만큼 아바타 원 자체를
    더 키운다(mypeople.js의 openMessengerDetail/openDetail이 이 클래스를 토글) */
 .mp-detail-avatar-ring.mp-ring-off {
-  width: clamp(64px, calc(100cqh - 22px), 168px);
-  height: clamp(64px, calc(100cqh - 22px), 168px);
+  width: clamp(64px, min(21cqw, calc(100cqh - 22px)), 168px);
+  height: clamp(64px, min(21cqw, calc(100cqh - 22px)), 168px);
 }
 .mp-detail-avatar-ring.mp-ring-off .mp-detail-avatar-ring-svg,
 .mp-detail-avatar-ring.mp-ring-off .mp-detail-avatar-ring-label {
@@ -979,7 +1026,7 @@ footer {
   top: 50%;
   transform: translate(-50%, calc(-100% - 6px));
   z-index: 2;
-  font-size: 0.92rem;
+  font-size: clamp(0.75rem, 1.8cqw, 0.92rem);
   font-weight: 700;
   color: #1c1c1e;
   white-space: nowrap;
@@ -988,13 +1035,14 @@ footer {
   display: none;
 }
 // 링(핑크 원형 게이지)을 없앤 대신, 친밀도 등급(아주 친밀한 관계 등)을 선 밑에 순수 텍스트로 표시.
+// 위쪽 .mp-detail-relation-label(관계: 기업)과 같은 기준(가운데 정렬)으로 맞춤.
 .mp-detail-affinity-label {
   position: absolute;
-  left: 0;
+  left: 50%;
   top: 50%;
-  transform: translate(0, 14px);
+  transform: translate(-50%, 14px);
   z-index: 2;
-  font-size: 0.8rem;
+  font-size: clamp(0.66rem, 1.6cqw, 0.8rem);
   font-weight: 600;
   color: #6e6e73;
   white-space: nowrap;
@@ -1003,39 +1051,189 @@ footer {
   display: none;
 }
 .mp-detail-name {
-  font-size: clamp(0.85rem, calc((100cqh - 42px) * 0.24), 2.1rem);
+  font-size: clamp(0.85rem, min(4.3cqw, calc((100cqh - 42px) * 0.24)), 2.1rem);
   font-weight: 800;
   color: #1c1c1e;
   margin: 0 0 clamp(2px, calc((100cqh - 42px) * 0.05), 8px);
   line-height: 1.2;
 }
 .mp-detail-email {
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 1.7cqw, 1rem);
   color: #8a8378;
   margin: 0;
   letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  position: relative;
+}
+.mp-detail-email-primary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+// "외 N개 주소" 라벨을 따로 붙이는 대신, 주소 여러 개가 묶인 카드에서는 이메일
+// 자체를 토글 버튼으로 만든다 — 클릭하면 나머지 주소 목록이 펼쳐진다. 배경/테두리
+// 없이 일반 텍스트처럼 보이게 하고, 화살표 아이콘만으로 클릭 가능함을 표시한다.
+.mp-detail-email-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  border: none;
+  background: transparent;
+  color: #8a8378;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+
+  i {
+    font-size: 0.75em;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+  }
+  &.open i {
+    transform: rotate(180deg);
+  }
+  &:hover .mp-detail-email-primary {
+    text-decoration: underline;
+  }
+}
+// 통합 카드의 나머지 주소 목록 — .mp-detail-header가 overflow:hidden이라 그 안에
+// position:absolute로 두면 메신저 설명 팝오버(.mp-msg-desc-popover-portal)와 같은
+// 이유로 통째로 잘려 안 보였다. body에 직접 붙이고 position:fixed로 띄운다.
+.mp-detail-email-list-portal {
+  position: fixed;
+  z-index: 4000;
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+  padding: 6px 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+
+  div {
+    padding: 6px 14px;
+    font-size: 0.92em;
+    white-space: nowrap;
+    color: #4a4640;
+  }
+}
+.mp-detail-email-list-portal.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 /* 메신저 상세: 헤더에서 "나" 아바타/관계선을 숨기는 대신 그 자리에 이 사람의 설명을 보여줌
    (openMessengerDetail이 .show를 붙이고, openDetail(메일)은 뗌) */
+// 참여 패턴/자주 하는 이야기/말투 — 항상 3줄(항목당 1줄)을 보여주되, 각 줄은
+// 절대 두 줄로 안 늘어나게 ellipsis로 자른다(늘어나면 .mp-detail-header의 고정
+// height:25%+overflow:hidden에 잘려서 안 보였던 것이 이전 문제였다). 항목 중
+// 하나라도 한 줄을 넘겨서 잘렸을 때만 "자세히 보기" 버튼을 붙이고, 세 항목이
+// 전부 한 줄 안에 들어가면 버튼 자체를 안 만든다(자세한 내용이 어차피 다 보이므로).
 .mp-detail-messenger-desc {
   display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
   font-size: clamp(0.7rem, 0.8cqw, 0.84rem);
   color: #5a6a62;
-  margin: 6px 0 0;
-  line-height: 1.5;
+  margin: 0;
+  padding: 6px 0; // 위아래 여백
+  line-height: 1.4;
 }
 .mp-detail-messenger-desc.show {
-  display: block;
+  display: flex;
 }
-/* 메신저 상세 설명은 메일 쪽 "설명" 탭처럼 라벨/값으로 구분해 보여준다. 헤더의 작은 자리라
-   큰 알약 배지 대신 굵은 라벨 + 값을 한 줄씩 배치한다. */
-.mp-msg-desc-line + .mp-msg-desc-line {
-  margin-top: 3px;
+.mp-msg-desc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+/* 항목별 값 — 항상 딱 한 줄만, 넘치면 ellipsis로 자름(높이가 절대 안 늘어남) */
+.mp-msg-desc-line-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mp-msg-desc-key {
+  flex-shrink: 0;
   font-weight: 700;
   color: #1c1c1e;
-  margin-right: 6px;
+}
+// "자세히 보기" 토글 — 세 항목 중 하나라도 잘렸을 때만 렌더링된다(JS에서 조건부 생성).
+// 누르면 body에 붙는 .mp-msg-desc-popover-portal을 열고 닫기만 한다.
+.mp-msg-desc-toggle-row {
+  margin-top: 2px;
+}
+.mp-msg-desc-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9em;
+  font-weight: 700;
+  color: #fb923c;
+  cursor: pointer;
+  white-space: nowrap;
+
+  // 열림/닫힘에 따라 아이콘 자체를 chevron-down/chevron-up으로 바꿔서 쓰므로(JS
+  // 참고: toggleMessengerDescExpand) 여기서 별도로 회전시키지 않는다 — 같이 돌리면
+  // "접기"일 때의 chevron-up이 시각적으로 다시 아래를 향해버린다.
+  i {
+    font-size: 0.8em;
+  }
+  &:hover {
+    color: #f97316;
+  }
+}
+// "자세히 보기"를 누르면 뜨는 전체 내용 창 — .mp-detail-header가 overflow:hidden이라
+// 그 안에 position:absolute로 넣으면(이전 방식) 헤더 경계에서 통째로 잘려 빈 박스만
+// 보였다. My Time의 공용 툴팁(.mt-tooltip, mytimeEngine.js)과 같은 패턴으로 body에
+// 직접 붙이고 position:fixed + getBoundingClientRect()로 위치를 잡아, 어떤 조상의
+// overflow:hidden/transform과도 무관하게 항상 온전히 보이게 한다.
+.mp-msg-desc-popover-portal {
+  position: fixed;
+  z-index: 4000;
+  width: min(420px, 86vw);
+  background: #fff;
+  border: 1px solid rgba(28, 28, 30, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  padding: 14px 16px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #4a4640;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+  // 화면 아래로 넘칠 만큼 길어질 때만 스크롤 — max-height는 JS에서 남은 공간만큼 동적으로 계산해 넣는다.
+  overflow-y: auto;
+}
+.mp-msg-desc-popover-portal.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.mp-msg-desc-popover-portal .mp-msg-desc-line + .mp-msg-desc-line {
+  margin-top: 8px;
 }
 .mp-msg-desc-empty {
   color: #8a938e;
@@ -1052,9 +1250,11 @@ footer {
   padding-right: clamp(220px, 26cqw, 320px);
   box-sizing: border-box;
   /* 참여 패턴/자주 하는 이야기/말투 설명은 이름·참여자 정보 옆에 나란히 배치해서
-     세로 공간을 아낀다(세로로 쌓으면 헤더 높이를 넘어가 마지막 줄이 잘린다). */
+     세로 공간을 아낀다(세로로 쌓으면 헤더 높이를 넘어가 마지막 줄이 잘린다).
+     center로 두면 설명이 길어질 때 위로도 같이 넘쳐서 이름/아바타 줄과 겹쳤다 —
+     위쪽 기준으로 맞춰서 아래로만 늘어나게 함. */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: clamp(16px, 2.4cqw, 36px);
 }
 .mp-detail-namewrap-wide .mp-detail-nametitle {
@@ -1083,7 +1283,7 @@ footer {
   border-radius: 20px;
   border: 1px solid rgba(28, 28, 30, 0.12);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: clamp(0.78rem, 1.6cqw, 1rem);
   font-weight: 700;
   color: #6e6e73;
   letter-spacing: 0.03em;
@@ -1171,7 +1371,7 @@ footer {
 .mp-desc-profile-key {
   flex-shrink: 0;
   min-width: 120px;
-  font-size: 1rem;
+  font-size: clamp(0.82rem, 1.6cqw, 1rem);
   font-weight: 700;
   color: #4a4640;
   background: #f4f4f5;
@@ -1182,7 +1382,7 @@ footer {
   box-shadow: none;
 }
 .mp-desc-profile-val {
-  font-size: 1rem;
+  font-size: clamp(0.82rem, 1.6cqw, 1rem);
   color: #1c1c1e;
   line-height: 1.65;
   word-break: keep-all;
@@ -1219,13 +1419,13 @@ footer {
   border-radius: 16px;
 }
 .mp-relation-card-avatar {
-  width: 64px;
-  height: 64px;
+  width: clamp(44px, 6cqw, 64px);
+  height: clamp(44px, 6cqw, 64px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: clamp(0.85rem, 1.7cqw, 1.1rem);
   font-weight: 800;
   color: #6e6e73;
   background: linear-gradient(150deg, #e0e0e0, #c5c5c5);
@@ -1233,7 +1433,7 @@ footer {
   flex-shrink: 0;
 }
 .mp-relation-card-name {
-  font-size: 1.15rem;
+  font-size: clamp(0.92rem, 1.8cqw, 1.15rem);
   font-weight: 700;
   color: #1c1c1e;
   white-space: nowrap;
@@ -1256,7 +1456,7 @@ footer {
 }
 .mp-relation-card-cell {
   padding: 8px 10px;
-  font-size: 0.98rem;
+  font-size: clamp(0.8rem, 1.5cqw, 0.98rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1297,7 +1497,7 @@ footer {
   border: 1.5px solid rgba(28, 28, 30, 0.1);
   border-radius: 20px;
   padding: clamp(4px, 0.5cqw, 6px) clamp(10px, 1.2cqw, 16px);
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 1.6cqw, 1rem);
   font-weight: 700;
   color: #1c1c1e;
   letter-spacing: 0.05em;
@@ -1335,7 +1535,7 @@ footer {
   flex-shrink: 0;
 }
 .mp-vchart-y span {
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 1.5cqw, 1rem);
   color: #9a8e7f;
   text-align: right;
   line-height: 1;
@@ -1503,7 +1703,7 @@ footer {
   justify-content: space-between;
 }
 .mp-email-tag {
-  font-size: 0.8rem;
+  font-size: clamp(0.66rem, 1.5cqw, 0.8rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1521,23 +1721,23 @@ footer {
   color: #2952a3;
 }
 .mp-email-date {
-  font-size: 0.86rem;
+  font-size: clamp(0.72rem, 1.6cqw, 0.86rem);
   color: #8a8073;
 }
 .mp-email-subject {
-  font-size: 1.12rem;
+  font-size: clamp(0.92rem, 2cqw, 1.12rem);
   font-weight: 700;
   color: #1c1c1e;
   line-height: 1.4;
 }
 .mp-email-from {
-  font-size: 0.82rem;
+  font-size: clamp(0.7rem, 1.5cqw, 0.82rem);
   color: #a39a8d;
 }
 /* 하루 상세(openMailDayChat)에서 보여주는 메일 원문 본문 — 메신저의 .mp-chatline-text와
    같은 방식으로 줄바꿈을 그대로 살려서 실제 메일처럼 읽히게 함 */
 .mp-email-body {
-  font-size: 0.92rem;
+  font-size: clamp(0.78rem, 1.7cqw, 0.92rem);
   color: #2c2c2e;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -1603,12 +1803,12 @@ footer {
   background: rgba(38, 185, 154, 0.06);
 }
 .mp-day-row-date {
-  font-size: 0.92rem;
+  font-size: clamp(0.78rem, 1.7cqw, 0.92rem);
   font-weight: 600;
   color: #1c1c1e;
 }
 .mp-day-row-count {
-  font-size: 0.82rem;
+  font-size: clamp(0.7rem, 1.5cqw, 0.82rem);
   color: #8a8073;
   background: rgba(28, 28, 30, 0.06);
   padding: 2px 10px;
@@ -1647,7 +1847,7 @@ footer {
   margin-bottom: 4px;
 }
 .mp-chatline-sender {
-  font-size: 0.88rem;
+  font-size: clamp(0.74rem, 1.6cqw, 0.88rem);
   font-weight: 700;
   color: #1a6e4a;
 }
@@ -1656,7 +1856,7 @@ footer {
   color: #a39a8d;
 }
 .mp-chatline-text {
-  font-size: 0.9rem;
+  font-size: clamp(0.76rem, 1.7cqw, 0.9rem);
   color: #2c2c2e;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1738,12 +1938,24 @@ footer {
   border: none;
   box-shadow: none;
   z-index: 200;
+  // 이제 스케일 wrap 역할 — 안의 .mp-timeline-canvas 하나를 가운데 정렬해서 담고,
+  // 넘치는 부분(letterbox)은 잘라낸다. 트랙 두께/thumb 크기/눈금 같은 실제 크기는
+  // 캔버스 쪽 고정값이 담당하고, 여기는 배치만 맡는다.
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mp-timeline-canvas {
+  width: 1600px;
+  height: 88px;
+  flex-shrink: 0;
   padding: 10px 28px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  container-type: inline-size;
-  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
 }
 
 /* 날짜 텍스트 행 */

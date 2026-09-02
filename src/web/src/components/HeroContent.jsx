@@ -95,151 +95,151 @@ export default function HeroContent() {
   return (
     <div className="gw-hero-scale-wrap">
       <div className="gw-orbit-hero" ref={heroRef}>
-      <div className="gw-orbit-left">
-        <h1 className="gw-hero-headline gw-anim" style={{ transitionDelay: "0.05s" }}>
-          Social Visualizer
-        </h1>
-        <svg className="absolute -z-1 h-0 w-0" width="0" height="0" aria-hidden="true">
-          <defs>
-            <filter
-              id="glow-4"
-              colorInterpolationFilters="sRGB"
-              x="-50%"
-              y="-200%"
-              width="200%"
-              height="500%"
-            >
-              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur4" />
-              <feGaussianBlur in="SourceGraphic" stdDeviation="19" result="blur19" />
-              <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur9" />
-              <feGaussianBlur in="SourceGraphic" stdDeviation="30" result="blur30" />
-              <feColorMatrix
-                in="blur4"
-                result="color-0-blur"
-                type="matrix"
-                values="1 0 0 0 0
+        <div className="gw-orbit-left">
+          <h1 className="gw-hero-headline gw-anim" style={{ transitionDelay: "0.05s" }}>
+            Social Visualizer
+          </h1>
+          <svg className="absolute -z-1 h-0 w-0" width="0" height="0" aria-hidden="true">
+            <defs>
+              <filter
+                id="glow-4"
+                colorInterpolationFilters="sRGB"
+                x="-50%"
+                y="-200%"
+                width="200%"
+                height="500%"
+              >
+                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur4" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="19" result="blur19" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur9" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="30" result="blur30" />
+                <feColorMatrix
+                  in="blur4"
+                  result="color-0-blur"
+                  type="matrix"
+                  values="1 0 0 0 0
                         0 0.9803921568627451 0 0 0
                         0 0 0.9647058823529412 0 0
                         0 0 0 0.3 0"
-              />
-              <feOffset in="color-0-blur" result="layer-0-offsetted" dx="0" dy="0" />
-              <feColorMatrix
-                in="blur19"
-                result="color-1-blur"
-                type="matrix"
-                values="0.8156862745098039 0 0 0 0
+                />
+                <feOffset in="color-0-blur" result="layer-0-offsetted" dx="0" dy="0" />
+                <feColorMatrix
+                  in="blur19"
+                  result="color-1-blur"
+                  type="matrix"
+                  values="0.8156862745098039 0 0 0 0
                         0 0.49411764705882355 0 0 0
                         0 0 0.2627450980392157 0 0
                         0 0 0 0.2 0"
-              />
-              <feOffset in="color-1-blur" result="layer-1-offsetted" dx="0" dy="2" />
-              <feColorMatrix
-                in="blur9"
-                result="color-2-blur"
-                type="matrix"
-                values="1 0 0 0 0
+                />
+                <feOffset in="color-1-blur" result="layer-1-offsetted" dx="0" dy="2" />
+                <feColorMatrix
+                  in="blur9"
+                  result="color-2-blur"
+                  type="matrix"
+                  values="1 0 0 0 0
                         0 0.6666666666666666 0 0 0
                         0 0 0.36470588235294116 0 0
                         0 0 0 0.15 0"
-              />
-              <feOffset in="color-2-blur" result="layer-2-offsetted" dx="0" dy="2" />
-              <feColorMatrix
-                in="blur30"
-                result="color-3-blur"
-                type="matrix"
-                values="1 0 0 0 0
+                />
+                <feOffset in="color-2-blur" result="layer-2-offsetted" dx="0" dy="2" />
+                <feColorMatrix
+                  in="blur30"
+                  result="color-3-blur"
+                  type="matrix"
+                  values="1 0 0 0 0
                         0 0.611764705882353 0 0 0
                         0 0 0.39215686274509803 0 0
                         0 0 0 0.12 0"
-              />
-              <feOffset in="color-3-blur" result="layer-3-offsetted" dx="0" dy="2" />
-              <feColorMatrix
-                in="blur30"
-                result="color-4-blur"
-                type="matrix"
-                values="0.4549019607843137 0 0 0 0
+                />
+                <feOffset in="color-3-blur" result="layer-3-offsetted" dx="0" dy="2" />
+                <feColorMatrix
+                  in="blur30"
+                  result="color-4-blur"
+                  type="matrix"
+                  values="0.4549019607843137 0 0 0 0
                         0 0.16470588235294117 0 0 0
                         0 0 0 0 0
                         0 0 0 0.08 0"
-              />
-              <feOffset in="color-4-blur" result="layer-4-offsetted" dx="0" dy="16" />
-              <feColorMatrix
-                in="blur30"
-                result="color-5-blur"
-                type="matrix"
-                values="0.4235294117647059 0 0 0 0
+                />
+                <feOffset in="color-4-blur" result="layer-4-offsetted" dx="0" dy="16" />
+                <feColorMatrix
+                  in="blur30"
+                  result="color-5-blur"
+                  type="matrix"
+                  values="0.4235294117647059 0 0 0 0
                         0 0.19607843137254902 0 0 0
                         0 0 0.11372549019607843 0 0
                         0 0 0 0.06 0"
-              />
-              <feOffset in="color-5-blur" result="layer-5-offsetted" dx="0" dy="64" />
-              <feColorMatrix
-                in="blur30"
-                result="color-6-blur"
-                type="matrix"
-                values="0.21176470588235294 0 0 0 0
+                />
+                <feOffset in="color-5-blur" result="layer-5-offsetted" dx="0" dy="64" />
+                <feColorMatrix
+                  in="blur30"
+                  result="color-6-blur"
+                  type="matrix"
+                  values="0.21176470588235294 0 0 0 0
                         0 0.10980392156862745 0 0 0
                         0 0 0.07450980392156863 0 0
                         0 0 0 0.05 0"
+                />
+                <feOffset in="color-6-blur" result="layer-6-offsetted" dx="0" dy="64" />
+                <feMerge>
+                  <feMergeNode in="layer-0-offsetted" />
+                  <feMergeNode in="layer-1-offsetted" />
+                  <feMergeNode in="layer-2-offsetted" />
+                  <feMergeNode in="layer-3-offsetted" />
+                  <feMergeNode in="layer-4-offsetted" />
+                  <feMergeNode in="layer-5-offsetted" />
+                  <feMergeNode in="layer-6-offsetted" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+          </svg>
+          <p className="gw-hero-desc gw-anim" style={{ transitionDelay: "0.15s" }}>
+            Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의 흐름을 시각화합니다.
+          </p>
+          <div className="gw-hero-cta gw-anim" style={{ transitionDelay: "0.22s" }}>
+            <a href="imap-collect.html" className="gw-hero-cta-primary">
+              시작하기
+            </a>
+          </div>
+        </div>
+
+        <div className="gw-hero-previews gw-anim" style={{ transitionDelay: "0.28s" }}>
+          <a
+            href="mypeople.html"
+            className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
+          >
+            {USE_STATIC_HERO_PREVIEWS ? (
+              <img
+                src="/images/hero/MyPeople.png"
+                alt="My People"
+                className="gw-preview-static-img"
               />
-              <feOffset in="color-6-blur" result="layer-6-offsetted" dx="0" dy="64" />
-              <feMerge>
-                <feMergeNode in="layer-0-offsetted" />
-                <feMergeNode in="layer-1-offsetted" />
-                <feMergeNode in="layer-2-offsetted" />
-                <feMergeNode in="layer-3-offsetted" />
-                <feMergeNode in="layer-4-offsetted" />
-                <feMergeNode in="layer-5-offsetted" />
-                <feMergeNode in="layer-6-offsetted" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-        </svg>
-        <p className="gw-hero-desc gw-anim" style={{ transitionDelay: "0.15s" }}>
-          Social Visualizer는 메일, 메신저를 연결하여 당신의 인간관계와 삶의 흐름을 시각화합니다.
-        </p>
-        <div className="gw-hero-cta gw-anim" style={{ transitionDelay: "0.22s" }}>
-          <a href="imap-collect.html" className="gw-hero-cta-primary">
-            시작하기
+            ) : (
+              <PagePreviewFrame src="mypeople.html" />
+            )}
+            <div className="gw-preview-overlay">
+              <span>My People 바로가기</span>
+              <i className="bi bi-arrow-right-short"></i>
+            </div>
+          </a>
+          <a
+            href="mytime.html"
+            className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
+          >
+            {USE_STATIC_HERO_PREVIEWS ? (
+              <img src="/images/hero/MyTime.png" alt="My Time" className="gw-preview-static-img" />
+            ) : (
+              <PagePreviewFrame src="mytime.html" />
+            )}
+            <div className="gw-preview-overlay">
+              <span>My Time 바로가기</span>
+              <i className="bi bi-arrow-right-short"></i>
+            </div>
           </a>
         </div>
-      </div>
-
-      <div className="gw-hero-previews gw-anim" style={{ transitionDelay: "0.28s" }}>
-        <a
-          href="mypeople.html"
-          className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
-        >
-          {USE_STATIC_HERO_PREVIEWS ? (
-            <img
-              src="/images/hero/MyPeople.png"
-              alt="My People"
-              className="gw-preview-static-img"
-            />
-          ) : (
-            <PagePreviewFrame src="mypeople.html" />
-          )}
-          <div className="gw-preview-overlay">
-            <span>My People 바로가기</span>
-            <i className="bi bi-arrow-right-short"></i>
-          </div>
-        </a>
-        <a
-          href="mytime.html"
-          className={`gw-preview-card${USE_STATIC_HERO_PREVIEWS ? " gw-preview-card--static" : ""}`}
-        >
-          {USE_STATIC_HERO_PREVIEWS ? (
-            <img src="/images/hero/MyTime.png" alt="My Time" className="gw-preview-static-img" />
-          ) : (
-            <PagePreviewFrame src="mytime.html" />
-          )}
-          <div className="gw-preview-overlay">
-            <span>My Time 바로가기</span>
-            <i className="bi bi-arrow-right-short"></i>
-          </div>
-        </a>
-      </div>
       </div>
     </div>
   );

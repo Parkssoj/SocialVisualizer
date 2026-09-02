@@ -65,7 +65,6 @@ class GlobalStore {
       const rooms = chatrooms.map((r) => ({
         id: r.chatroom_id,
         label: r.chatroom_name || r.chatroom_id,
-        // 예전엔 항상 true로 고정돼 있었음(그땐 list_indexed_chatrooms가 완료된 방만 돌려줬으니 항상 맞는 값이었음) — 이제 인덱싱 중인 방도 같이 내려오므로 서버가 준 실제 값을 그대로 써야 사이드바 "생성 중" 배지가 맞게 뜬다.
         indexed: r.indexed !== false,
       }));
 

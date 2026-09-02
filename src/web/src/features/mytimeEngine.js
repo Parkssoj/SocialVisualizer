@@ -187,18 +187,19 @@ function createTimeline(ids) {
 
     const cc = document.getElementById(ids.panelContacts);
     cc.innerHTML = "";
-    // person_name이 없는 항목(예: 예전에 저장된 요약에 본인 이메일이 섞여 들어간
-    // 경우 — person 테이블엔 본인이 없어 이름을 못 찾음)은 빈 알약으로 안 보이게 건너뛴다.
-    (d.contacts || []).filter((c) => c.person_name).forEach((c) => {
-      const el = document.createElement("div");
-      el.className = "mt-panel-contact";
-      el.textContent = c.person_name;
-      el.addEventListener("mouseenter", () => {
-        showTooltip(el, formatContactTooltip(c.short_bio), "bottom");
+    // person_name이 없는 항목.
+    (d.contacts || [])
+      .filter((c) => c.person_name)
+      .forEach((c) => {
+        const el = document.createElement("div");
+        el.className = "mt-panel-contact";
+        el.textContent = c.person_name;
+        el.addEventListener("mouseenter", () => {
+          showTooltip(el, formatContactTooltip(c.short_bio), "bottom");
+        });
+        el.addEventListener("mouseleave", hideTooltip);
+        cc.appendChild(el);
       });
-      el.addEventListener("mouseleave", hideTooltip);
-      cc.appendChild(el);
-    });
     // 필터링 후 하나도 안 남으면(전부 이름 없는 연락처였던 경우) 빈 칸 대신 안내 문구를 보여준다.
     if (!cc.children.length) {
       cc.innerHTML = '<p class="mt-panel-contacts-empty">표시할 주요 연락처가 없습니다.</p>';
@@ -845,11 +846,7 @@ async function loadMtMessengerData() {
       fetchChatroomSummaries(chatroomId, "yearly"),
     ]);
     await msgKwPanel.init(chatroomId);
-    return msgTimeline.setData(
-      monthData,
-      yearData,
-      "아직 생성된 메신저 요약이 없습니다.",
-    );
+    return msgTimeline.setData(monthData, yearData, "아직 생성된 메신저 요약이 없습니다.");
   } catch (e) {
     console.error("chatroom-summaries 오류:", e);
     await msgKwPanel.init("");

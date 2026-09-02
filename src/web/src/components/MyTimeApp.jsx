@@ -1,8 +1,9 @@
 import { createRoot } from "react-dom/client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Header from "./Header.jsx";
 import Footer from "./Footer.jsx";
 import { initMyTimePage } from "../features/mytimeEngine.js";
+import { useScaleToFit } from "../utils/useScaleToFit.js";
 
 /**
 "My Time" 페이지(mytime.html) 전체를 감싸는 최상위 React 컴포넌트 — 헤더, 사이드바 자리표시자, 메일/메신저 타임라인 마크업, 푸터를 마운트한다.
@@ -16,6 +17,20 @@ function MyTimeApp() {
     initMyTimePage();
   }, []);
 
+  // 제목 줄(My People의 .mp-panel-header와 같은 역할)도 고정 캔버스+scale로 —
+  // 창이 좁아지면 이 줄과 나머지 페이지가 항상 같은 비율로 같이 줄어들게 함.
+  const pageHeaderCanvasRef = useRef(null);
+  useScaleToFit(pageHeaderCanvasRef, "top left");
+
+  // 연도 슬라이더(.mt-pointer-wrap)와 그 아래 두 창(.mt-two-col)을 따로따로 캔버스로
+  // 나누면 각자 반올림이 달라져서 서로 위치가 어긋나는 문제가 있었음 — 그래서 뷰(메일/
+  // 메신저) 하나당 슬라이더+두 창 전체를 하나의 고정 캔버스로 묶어서, My People의
+  // 상세보기 패널처럼 항상 정확히 같은 비율로 같이 줄어들고 커지게 한다.
+  const mailViewCanvasRef = useRef(null);
+  useScaleToFit(mailViewCanvasRef, "top center");
+  const msgViewCanvasRef = useRef(null);
+  useScaleToFit(msgViewCanvasRef, "top center");
+
   return (
     <>
       <Header activePage="mytime" />
@@ -23,16 +38,19 @@ function MyTimeApp() {
       <main className="right_col" role="main">
         <div className="mt-page">
           <div className="mt-page-header">
+            <div className="mt-page-header-canvas" ref={pageHeaderCanvasRef}>
             <div className="mt-title-group">
               <div className="mt-title">
                 My <span>Time</span>
               </div>
               <span className="mt-count" id="mtDataRangeLbl"></span>
             </div>
+            </div>
           </div>
 
           {/* 메일 뷰 (기본 표시) */}
           <div className="mt-view" id="mt-mail-view">
+            <div className="mt-view-canvas" ref={mailViewCanvasRef}>
             <div className="mt-pointer-wrap">
               <div className="mt-pointer-dates">
                 <span className="mt-pointer-date-label" id="mtPointerRangeLbl">
@@ -88,10 +106,12 @@ function MyTimeApp() {
                 <div className="mt-kw-body" id="mtKwBody"></div>
               </div>
             </div>
+            </div>
           </div>
 
           {/* 메신저 뷰: 첫 클릭 시 mytimeEngine.js가 /chatroom-summaries를 불러와 채움, 기본은 숨김 */}
           <div className="mt-view" id="mt-messenger-view" style={{ display: "none" }}>
+            <div className="mt-view-canvas" ref={msgViewCanvasRef}>
             <div className="mt-pointer-wrap">
               <div className="mt-pointer-dates">
                 <span className="mt-pointer-date-label" id="msgPointerRangeLbl">
@@ -145,6 +165,7 @@ function MyTimeApp() {
                 </div>
                 <div className="mt-kw-body" id="msgKwBody"></div>
               </div>
+            </div>
             </div>
           </div>
         </div>
