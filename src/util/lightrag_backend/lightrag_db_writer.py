@@ -1,4 +1,14 @@
 # src/util/lightrag_backend/lightrag_db_writer.py
+
+# LightRAG 인덱싱 결과를 MySQL에 반영하는 모듈. mail_latest.txt를 파싱해 폴더별 메일 수를
+# mail_folder 테이블에, 메일 개별 레코드(방향/어조/답장 관계 포함)를 mail 테이블에 저장한다.
+# GraphRAG는 knowledge graph에서 뽑은 kg_tone을 쓰지만 LightRAG 경로엔 그 값이 없어 항상 None으로 둔다.
+
+# Persists LightRAG indexing results into MySQL. Parses mail_latest.txt to save
+# per-folder mail counts into mail_folder, and per-mail records (direction, tone,
+# reply relationship) into the mail table. kg_tone is always None here since
+# LightRAG has no equivalent to GraphRAG's knowledge-graph-derived tone.
+
 import os
 import re
 import datetime

@@ -1,4 +1,13 @@
 # src/util/lightrag_backend/lightrag_query.py
+
+# LightRAG 질의응답 모듈. 
+# 단일 계정 검색(run_lightrag_query)과 여러 계정을 한 번에 훑는 연합 검색(run_federated_search)을 제공하고, 질문에 맞는 검색 모드를 LLM으로 분류하며(_classify_query_method), 답변 속 ID·발신인 표기를 실제 원본 데이터와 맞춰 정제한 뒤 질의 로그를 DB에 남긴다. 
+# app.py의 질의 엔드포인트가 최종적으로 호출하는 곳이다.
+
+# Handles LightRAG query answering: 
+# single-account search (run_lightrag_query) and multi-account federated search (run_federated_search), LLM-based query mode classification (_classify_query_method), and post-processing that reconciles ID/sender mentions in the answer with the real source data before logging the query to the database. 
+# Called from app.py's query endpoints.
+
 import os
 import sys
 import re

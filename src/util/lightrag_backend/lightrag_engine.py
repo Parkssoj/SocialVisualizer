@@ -1,4 +1,13 @@
 # src/util/lightrag_backend/lightrag_engine.py
+
+# 계정별 LightRAG 인스턴스를 만들고 캐싱하는 모듈. 
+# LLM/임베딩 함수를 로컬 vLLM 엔드포인트에 연결한 LightRAG 객체를 유저 단위로 캐시해 재사용하고, 인덱스 파일(graphml)이 갱신되거나 이벤트 루프가 바뀌면 자동으로 새로 빌드한다. 
+# 인덱싱 완료 여부 판단, 유저별 토큰 사용량 조회도 함께 제공한다.
+
+# Builds and caches per-account LightRAG instances. 
+# Wires the LLM/embedding functions to local vLLM endpoints and reuses a cached instance per user, rebuilding automatically when the index file (graphml) changes or the calling event loop differs. 
+# Also exposes index-ready checks and per-user token usage lookups.
+
 import os
 import sys
 import asyncio

@@ -1,4 +1,11 @@
 # src/util/lightrag_backend/lightrag_progress.py
+
+# LightRAG 인덱싱 진행률 계산 모듈. 
+# LightRAG가 내부적으로 남기는 kv_store_doc_status.json의 문서별 처리 상태를 읽어 처리 완료 비율을 구하고, job_run_lightrag.py가 미리 정해둔 30~90 진행률 구간에 매핑해 프런트에 보여줄 (진행률, 메시지) 목록으로 반환한다.
+
+# Computes LightRAG indexing progress. 
+# Reads per-document processing status from LightRAG's own kv_store_doc_status.json, turns it into a completion ratio, and maps that onto the 30-90 progress range reserved by job_run_lightrag.py, returning(progress, message) pairs for the frontend.
+
 import os
 import json
 
