@@ -4,7 +4,7 @@
 
 ---
 
-## 🔌 LightRAG 기능 켜기
+## LightRAG 기능 켜기
 
 SocialVisualizer는 기본적으로 GraphRAG로 동작한다. 인덱싱/질의 엔진을 LightRAG로 바꾸고 싶을 때만 아래를 추가로 진행하면 된다. 진행하지 않으면 GraphRAG 그대로 동작하니 건너뛰어도 무방하다.
 
@@ -32,7 +32,7 @@ RAG_ENGINE = "lightrag"   # 기본값은 "graphrag"
 
 ---
 
-## ⚙️ RAG 사용자 편의/프롬프트 설정
+## RAG 사용자 편의/프롬프트 설정
 
 ### 1. 사용자 편의 설정 (인덱싱/질의/통계 추출)
 
@@ -72,7 +72,7 @@ GraphRAG는 인덱싱과 질의(LocalSearch/GlobalSearch) 프롬프트를 프로
 
 ---
 
-## 🧩 다른 RAG 엔진을 붙이고 싶을 때
+## 다른 RAG 엔진을 붙이고 싶을 때
 
 GraphRAG/LightRAG 두 엔진이 비슷한 패턴으로 설계되어 있으니, 세 번째 엔진(예: 다른 RAG 프레임워크)도 같은 패턴을 따라가면 된다.
 아래 순서를 참고해라.
@@ -144,7 +144,7 @@ ValueError로 막힌다).
 
 ---
 
-## 🖥️ LightRAG 자체 웹 UI 따로 띄우기 (선택)
+## LightRAG 자체 웹 UI 따로 띄우기 (선택)
 
 ### 1. uv 설치
 
