@@ -93,11 +93,7 @@ async def get_lightrag_instance(user_id: str, working_dir: str) -> LightRAG:
         if cached and cached["mtime"] == mtime and cached["loop"] is current_loop:
             return cached["rag"]
 
-    # 캐시 미스, 인덱스 갱신, 또는 이전과 다른 이벤트 루프에서 호출됨 → 새로 빌드.
-    # await는 락을 잡지 않은 상태에서 실행한다 (락 안에서 await하면 그동안 다른 유저
-    # 요청도 못 들어와서 병목이 생김). 대신 동시에 같은 유저 요청이 두 번 들어오면
-    # 인스턴스가 중복으로 만들어질 수 있는데, 마지막에 쓴 값으로 덮어써질 뿐 데이터가
-    # 깨지지는 않으므로 유저 트래픽 규모에서는 감수 가능한 수준.
+    # 캐시 미스, 인덱스 갱신, 또는 이전과 다른 이벤트 루프에서 호출되므로 새로 빌드한다
     print(f"[ENGINE][lightrag] 인스턴스 빌드 시작: {user_id}")
     token_tracker = TokenTracker()
     rag = await _build_lightrag_instance(working_dir, token_tracker)
